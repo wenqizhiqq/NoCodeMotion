@@ -1,17 +1,11 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using System.Collections.ObjectModel;
+using NoCodeMotion.Models;
 
 namespace NoCodeMotion.Models
 {
-    /// <summary>流程步骤</summary>
+    /// <summary>流程项目：左侧列表中的一项，自身包含若干步骤（FlowStep）。</summary>
     public class FlowItem : EditorItemBase
     {
-        private string _stepType = "轴运动";        // 轴运动 / IO动作 / 气缸动作 / 等待 / 通讯
-        private string _target = string.Empty;       // 关联对象（轴/IO/气缸名称）
-        private string _description = string.Empty;
-
-        public string StepType { get => _stepType; set => SetField(ref _stepType, value); }
-        public string Target { get => _target; set => SetField(ref _target, value); }
-        public string Description { get => _description; set => SetField(ref _description, value); }
+        public ObservableCollection<FlowStep> Steps { get; } = new();
     }
 }

@@ -5,6 +5,10 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/HandyControl;Component/Themes/SkinDefault.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
             <SolidColorBrush x:Key="AccentBrush" Color="#2D7FF9"/>
             <SolidColorBrush x:Key="NavActiveBrush" Color="#2D7FF9"/>
             <SolidColorBrush x:Key="LineBrush" Color="#DDE3EA"/>
