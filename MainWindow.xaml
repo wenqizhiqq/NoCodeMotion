@@ -1,0 +1,28 @@
+﻿<Window x:Class="NoCodeMotion.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:NoCodeMotion"
+        xmlns:views="clr-namespace:NoCodeMotion.Views"
+        Title="NoCodeMotion · 无代码运动控制" Height="620" Width="1040">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 顶部导航栏 -->
+        <Border Grid.Row="0" Style="{StaticResource NavBarStyle}">
+            <StackPanel Orientation="Horizontal" x:Name="NavPanel">
+                <Button Content="轴"   Tag="Axis"     Click="Nav_Click" Style="{StaticResource NavButtonStyle}"/>
+                <Button Content="IO"  Tag="Io"       Click="Nav_Click" Style="{StaticResource NavButtonStyle}"/>
+                <Button Content="气缸" Tag="Cylinder" Click="Nav_Click" Style="{StaticResource NavButtonStyle}"/>
+                <Button Content="通讯" Tag="Comm"     Click="Nav_Click" Style="{StaticResource NavButtonStyle}"/>
+                <Button Content="料盘" Tag="Tray"     Click="Nav_Click" Style="{StaticResource NavButtonStyle}"/>
+                <Button Content="流程" Tag="Flow"     Click="Nav_Click" Style="{StaticResource NavButtonStyle}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 页面内容区 -->
+        <ContentControl Grid.Row="1" x:Name="PageHost"/>
+    </Grid>
+</Window>
