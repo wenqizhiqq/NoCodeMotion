@@ -8,14 +8,18 @@ namespace NoCodeMotion.Models
     {
         private string _logic = "就";        // 如果 / 就 / 否则
         private string _function = "轴";      // 轴 / IO / 气缸 / modbus
+        private string _property = "速度";    // 属性：随功能自动填充（速度/位置/编码器位置…）
         private string _operation = "等于";   // 加 / 减 / 乘 / 除 / 等于 / 是否等于
         private string _setValue = string.Empty;
+        private string _timeout = "空";       // 超时：等待3秒就统计 / 空 / 不停机
         private int _durationMs;
 
         public string Logic { get => _logic; set => SetField(ref _logic, value); }
         public string Function { get => _function; set => SetField(ref _function, value); }
+        public string Property { get => _property; set => SetField(ref _property, value); }
         public string Operation { get => _operation; set => SetField(ref _operation, value); }
         public string SetValue { get => _setValue; set => SetField(ref _setValue, value); }
+        public string Timeout { get => _timeout; set => SetField(ref _timeout, value); }
         public int DurationMs { get => _durationMs; set => SetField(ref _durationMs, value); }
     }
 }

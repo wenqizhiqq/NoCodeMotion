@@ -28,7 +28,13 @@
             <sys:String>等于</sys:String>
             <sys:String>是否等于</sys:String>
         </x:Array>
+        <x:Array x:Key="TimeoutOptions" Type="sys:String">
+            <sys:String>等待3秒就统计</sys:String>
+            <sys:String>空</sys:String>
+            <sys:String>不停机</sys:String>
+        </x:Array>
         <local:FunctionToNamesConverter x:Key="FunctionToNamesConverter"/>
+        <local:FunctionToPropertiesConverter x:Key="FunctionToPropertiesConverter"/>
     </UserControl.Resources>
 
     <local:EditorPage>
@@ -47,79 +53,101 @@
                                VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#607080"/>
                 </StackPanel>
 
-                <!-- 步骤列表（DataGrid）。单击单元格即进入编辑并展开下拉框，无需两次点击。 -->
+                <!--
+                    步骤列表（DataGrid）。
+                    关键：下拉框/文本框直接内嵌在 CellTemplate 中、一直可交互，DataGrid 设为 IsReadOnly
+                    不再接管单元格编辑，因此：
+                      1) 点一下即展开下拉，无需两次点击；
+                      2) 已展开某列下拉时，点击其它列是「同一次点击」直接切换，不再需要点两次。
+                -->
                 <DataGrid Grid.Row="1"
                           ItemsSource="{Binding SelectedItem.Steps}"
                           SelectedItem="{Binding SelectedStep, Mode=TwoWay}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False" CanUserDeleteRows="False"
+                          IsReadOnly="True"
                           SelectionMode="Single" SelectionUnit="FullRow"
                           GridLinesVisibility="Horizontal"
                           HeadersVisibility="Column"
-                          BorderBrush="#DDE3EA" RowHeaderWidth="0"
-                          PreparingCellForEdit="StepsGrid_PreparingCellForEdit"
-                          PreviewMouseLeftButtonDown="StepsGrid_PreviewMouseLeftButtonDown">
+                          BorderBrush="#DDE3EA" RowHeaderWidth="0">
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header="逻辑" Width="80">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Logic}" VerticalAlignment="Center" Padding="6,0"/>
+                                    <hc:ComboBox ItemsSource="{StaticResource LogicOptions}"
+                                                 SelectedItem="{Binding Logic, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="2" VerticalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <hc:ComboBox ItemsSource="{StaticResource LogicOptions}"
-                                                 SelectedItem="{Binding Logic}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>
 
                         <DataGridTemplateColumn Header="功能" Width="90">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Function}" VerticalAlignment="Center" Padding="6,0"/>
+                                    <hc:ComboBox ItemsSource="{StaticResource FunctionOptions}"
+                                                 SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="2" VerticalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <hc:ComboBox ItemsSource="{StaticResource FunctionOptions}"
-                                                 SelectedItem="{Binding Function}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="名称" Width="140">
+                        <DataGridTemplateColumn Header="名称" Width="150">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Padding="6,0"/>
+                                    <hc:ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToNamesConverter}}"
+                                                 SelectedItem="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="2" VerticalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="属性" Width="130">
+                            <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <hc:ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToNamesConverter}}"
-                                                 SelectedItem="{Binding Name}"/>
+                                    <hc:ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToPropertiesConverter}}"
+                                                 SelectedItem="{Binding Property, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="2" VerticalAlignment="Center"/>
                                 </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
                         <DataGridTemplateColumn Header="运算" Width="100">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Operation}" VerticalAlignment="Center" Padding="6,0"/>
+                                    <hc:ComboBox ItemsSource="{StaticResource OperationOptions}"
+                                                 SelectedItem="{Binding Operation, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="2" VerticalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <hc:ComboBox ItemsSource="{StaticResource OperationOptions}"
-                                                 SelectedItem="{Binding Operation}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTextColumn Header="设置值" Width="110"
-                                            Binding="{Binding SetValue, UpdateSourceTrigger=PropertyChanged}"/>
-                        <DataGridTextColumn Header="耗时(ms)" Width="90"
-                                            Binding="{Binding DurationMs}"/>
+                        <DataGridTemplateColumn Header="设置值" Width="110">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding SetValue, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="2" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="超时" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <hc:ComboBox ItemsSource="{StaticResource TimeoutOptions}"
+                                                 SelectedItem="{Binding Timeout, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="2" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="耗时(ms)" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding DurationMs, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="2" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
