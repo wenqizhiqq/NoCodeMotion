@@ -15,6 +15,9 @@ namespace NoCodeMotion.Models
         /// <summary>轴点位表（流程可引用的命名位置，含各轴目标坐标）。</summary>
         public ObservableCollection<PointItem> Points { get; set; } = new();
 
+        /// <summary>点位表页所选的 4 个轴（按槽位 0..3），持久化以便表头显示轴名。</summary>
+        public ObservableCollection<string> PointAxes { get; set; } = new() { "", "", "", "" };
+
         /// <summary>输入 IO 点位（左侧输入IO面板）</summary>
         public ObservableCollection<IoItem> Inputs { get; set; } = new();
 

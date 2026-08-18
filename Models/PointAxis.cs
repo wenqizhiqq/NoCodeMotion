@@ -3,22 +3,22 @@ using System.Runtime.CompilerServices;
 
 namespace NoCodeMotion.Models
 {
-    /// <summary>点位中单个轴的目标坐标。</summary>
+    /// <summary>点位中单个轴槽的目标值：位置 + 速度。轴名由页面级“4 轴选择”按槽位决定。</summary>
     public class PointAxis : INotifyPropertyChanged
     {
-        private string _axisName = string.Empty;
         private double _position;
-
-        public string AxisName
-        {
-            get => _axisName;
-            set => SetField(ref _axisName, value);
-        }
+        private double _speed;
 
         public double Position
         {
             get => _position;
             set => SetField(ref _position, value);
+        }
+
+        public double Speed
+        {
+            get => _speed;
+            set => SetField(ref _speed, value);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

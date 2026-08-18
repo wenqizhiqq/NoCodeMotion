@@ -231,6 +231,14 @@
                     </Trigger>
                 </Style.Triggers>
             </Style>
+            <Style x:Key="TtWarnBtn" TargetType="Button" BasedOn="{StaticResource TtBaseBtn}">
+                <Setter Property="Background" Value="{StaticResource WarningBrush}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#E08600"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
 
             <Style x:Key="TtCountText" TargetType="TextBlock">
                 <Setter Property="VerticalAlignment" Value="Center"/>
