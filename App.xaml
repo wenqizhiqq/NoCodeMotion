@@ -239,6 +239,35 @@
                     </Trigger>
                 </Style.Triggers>
             </Style>
+            <Style x:Key="TtGrayBtn" TargetType="Button">
+                <Setter Property="MinWidth" Value="88"/>
+                <Setter Property="Height" Value="36"/>
+                <Setter Property="Margin" Value="4,0"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                <Setter Property="Background" Value="#F2F2F7"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="Medium"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,0">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="#E5E5EA"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="bd" Property="Background" Value="#F2F2F7"/>
+                                    <Setter Property="Foreground" Value="#AEAEB2"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
 
             <Style x:Key="TtCountText" TargetType="TextBlock">
                 <Setter Property="VerticalAlignment" Value="Center"/>

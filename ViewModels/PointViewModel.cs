@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using NoCodeMotion.Views;
 
 namespace NoCodeMotion.ViewModels
 {
@@ -48,6 +49,8 @@ namespace NoCodeMotion.ViewModels
             HomeCommand = new RelayCommand(Home);
             InchCommand = new RelayCommand(p => Move(p, false));
             JogCommand = new RelayCommand(p => Move(p, true));
+            MoveToPointCommand = new RelayCommand(MoveToPoint);
+            SaveCurrentCommand = new RelayCommand(SaveCurrent);
 
             AttachAutoSave();
         }
@@ -77,6 +80,8 @@ namespace NoCodeMotion.ViewModels
         public ICommand HomeCommand { get; }
         public ICommand InchCommand { get; }
         public ICommand JogCommand { get; }
+        public ICommand MoveToPointCommand { get; }
+        public ICommand SaveCurrentCommand { get; }
 
         private void ToggleEnable(object? p)
         {
@@ -98,6 +103,34 @@ namespace NoCodeMotion.ViewModels
             int dir = int.Parse(parts[1]);
             double step = jog ? JogStep : InchStep;
             AxisStates[i].CurrentPosition += dir * step;
+        }
+
+        // ===== 点位行操作命令（逐行按钮，弹窗确认后执行；运行态仿真）=====
+
+        /// <summary>移动：确认后把 4 个轴移动到该行点位记录的目标位置（仿真：直接写入轴当前位置）。</summary>
+        private void MoveToPoint(object? p)
+        {
+            if (p is not PointItem item) return;
+            var dlg = new ConfirmDialog(
+                "移动确认",
+                $"是否将 4 个轴移动到点位「{item.Name}」记录的目标位置？",
+                "移动");
+            if (dlg.ShowDialog() != true) return;
+            for (int i = 0; i < AxisStates.Count && i < item.Positions.Count; i++)
+                AxisStates[i].CurrentPosition = item.Positions[i].Position;
+        }
+
+        /// <summary>保存：确认后把 4 个轴的当前位置写回该行点位的单元（触发自动保存落盘）。</summary>
+        private void SaveCurrent(object? p)
+        {
+            if (p is not PointItem item) return;
+            var dlg = new ConfirmDialog(
+                "保存确认",
+                $"是否将 4 个轴当前位置保存到点位「{item.Name}」？",
+                "保存");
+            if (dlg.ShowDialog() != true) return;
+            for (int i = 0; i < AxisStates.Count && i < item.Positions.Count; i++)
+                item.Positions[i].Position = AxisStates[i].CurrentPosition;
         }
 
         public void EnsureDefaultSelection()

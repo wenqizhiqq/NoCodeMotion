@@ -237,7 +237,7 @@
 
             <!-- ===== 点位列表 ===== -->
             <TextBlock Text="点位列表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,4"/>
-            <TextBlock Text="每行一个点位：第一列为点位名称，其后依次为 4 个轴的目标位置，最后为 4 个轴的目标速度。在上方选择轴后，对应列头会显示轴名。"
+            <TextBlock Text="每行一个点位：第一列为点位名称，其后依次为 4 个轴的目标位置，最后为 4 个轴的目标速度。在上方选择轴后，对应列头会显示轴名。行末「移动」按确认后将 4 轴移到该点位目标位置；「保存」按确认后将当前位置存回该行单元。"
                        FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
             <!-- 工具栏：添加 / 删除 -->
@@ -340,6 +340,24 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBox Text="{Binding Positions[3].Speed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- 行操作：移动到该点位 / 保存当前位置到此行 -->
+                        <DataGridTemplateColumn Header="移动" Width="84">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding DataContext.MoveToPointCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}" Style="{StaticResource TtBaseBtn}" Content="移动" Margin="3,0" HorizontalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="保存" Width="84">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding DataContext.SaveCurrentCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}" Style="{StaticResource TtExcelBtn}" Content="保存" Margin="3,0" HorizontalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
