@@ -105,6 +105,7 @@ namespace NoCodeMotion.ViewModels
                 case "Io": Catalog.SetIo(names); break;
                 case "Cylinder": Catalog.SetCylinder(names); break;
                 case "Comm": Catalog.SetComm(names); break;
+                case "Variable": Catalog.SetVariable(names); break;
             }
         }
     }

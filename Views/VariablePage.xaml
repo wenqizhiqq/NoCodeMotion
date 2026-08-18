@@ -1,0 +1,56 @@
+<UserControl x:Class="NoCodeMotion.Views.VariablePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             xmlns:hc="https://handyorg.github.io/handycontrol"
+             mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
+
+    <local:EditorPage>
+        <local:EditorPage.Detail>
+            <StackPanel Margin="16" MinWidth="320">
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="变量名" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
+                </DockPanel>
+
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="类型" Style="{StaticResource FieldLabel}"/>
+                    <hc:ComboBox SelectedItem="{Binding SelectedItem.VarType, UpdateSourceTrigger=PropertyChanged}">
+                        <sys:String>int</sys:String>
+                        <sys:String>float</sys:String>
+                        <sys:String>double</sys:String>
+                        <sys:String>bool</sys:String>
+                        <sys:String>string</sys:String>
+                    </hc:ComboBox>
+                </DockPanel>
+
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="初始值" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.InitialValue, UpdateSourceTrigger=PropertyChanged}"/>
+                </DockPanel>
+
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="当前值" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.CurrentValue, UpdateSourceTrigger=PropertyChanged}"/>
+                </DockPanel>
+
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="作用域" Style="{StaticResource FieldLabel}"/>
+                    <hc:ComboBox SelectedItem="{Binding SelectedItem.Scope, UpdateSourceTrigger=PropertyChanged}">
+                        <sys:String>全局</sys:String>
+                        <sys:String>局部</sys:String>
+                    </hc:ComboBox>
+                </DockPanel>
+
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="备注" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.Description, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" Height="60" TextWrapping="Wrap" VerticalContentAlignment="Top"/>
+                </DockPanel>
+            </StackPanel>
+        </local:EditorPage.Detail>
+    </local:EditorPage>
+</UserControl>

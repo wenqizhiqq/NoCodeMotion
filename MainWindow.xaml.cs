@@ -16,6 +16,7 @@ namespace NoCodeMotion
             ["Comm"] = () => new CommPage(),
             ["Tray"] = () => new TrayPage(),
             ["Flow"] = () => new FlowPage(),
+            ["Variable"] = () => new VariablePage(),
         };
 
         // 缓存已创建的页面，切换标签时保留各自的数据（已添加的轴/IO 等不丢失）

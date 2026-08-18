@@ -19,6 +19,7 @@
                 <Button Content="通讯" Tag="Comm"     Click="Nav_Click" Style="{StaticResource NavButtonStyle}"/>
                 <Button Content="料盘" Tag="Tray"     Click="Nav_Click" Style="{StaticResource NavButtonStyle}"/>
                 <Button Content="流程" Tag="Flow"     Click="Nav_Click" Style="{StaticResource NavButtonStyle}"/>
+                <Button Content="变量" Tag="Variable" Click="Nav_Click" Style="{StaticResource NavButtonStyle}"/>
             </StackPanel>
         </Border>
 

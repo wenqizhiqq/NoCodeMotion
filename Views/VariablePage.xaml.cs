@@ -3,12 +3,12 @@ using System.Windows.Controls;
 
 namespace NoCodeMotion.Views
 {
-    public partial class IoPage : UserControl
+    public partial class VariablePage : UserControl
     {
-        public IoPage()
+        public VariablePage()
         {
             InitializeComponent();
-            DataContext = new IoViewModel();
+            DataContext = new VariableViewModel();
         }
     }
 }
