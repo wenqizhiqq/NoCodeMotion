@@ -1,19 +1,27 @@
+using System.Linq;
+using System.Text.Json;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 
 namespace NoCodeMotion.ViewModels
 {
-    /// <summary>变量页 ViewModel：维护变量列表、选中项，以及添加/删除（自动保存到工程 JSON）。</summary>
-    public class VariableViewModel : ListEditorViewModel<VariableItem>
+    /// <summary>变量页 ViewModel：单个表格面板，每行含 5 个 (名称/字符串值)。</summary>
+    public class VariableViewModel : TablePanelViewModel<VariableRow>
     {
-        public VariableViewModel()
+        public VariableViewModel() : base("变量", ProjectStore.Data.Variables) { }
+
+        protected override VariableRow MakeNew(int index) => new VariableRow();
+
+        protected override VariableRow Clone(VariableRow src)
         {
-            CatalogCategory = "Variable";
-            Items = ProjectStore.Data.Variables;
-            Counter = Items.Count;
-            AttachAutoSave();
+            var json = JsonSerializer.Serialize(src);
+            return JsonSerializer.Deserialize<VariableRow>(json)!;
         }
 
-        protected override VariableItem CreateNewItem() => new VariableItem { Name = $"变量{Counter + 1}" };
+        protected override void OnItemChanged(VariableRow item, string? propertyName)
+        {
+            // 任一变量名变化时，同步到 Catalog，供流程页「名称」列（功能=变量）引用
+            Catalog.SetVariable(ProjectStore.Data.Variables.SelectMany(r => r.Names()));
+        }
     }
 }

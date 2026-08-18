@@ -4,53 +4,213 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
-             xmlns:sys="clr-namespace:System;assembly=mscorlib"
-             xmlns:hc="https://handyorg.github.io/handycontrol"
-             mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
+             mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="1000"
+             Background="#FFFFFF">
 
-    <local:EditorPage>
-        <local:EditorPage.Detail>
-            <StackPanel Margin="16" MinWidth="320">
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="变量名" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
-                </DockPanel>
+    <UserControl.Resources>
+        <Style x:Key="VarCellTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="2,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="1"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
 
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="类型" Style="{StaticResource FieldLabel}"/>
-                    <hc:ComboBox SelectedItem="{Binding SelectedItem.VarType, UpdateSourceTrigger=PropertyChanged}">
-                        <sys:String>int</sys:String>
-                        <sys:String>float</sys:String>
-                        <sys:String>double</sys:String>
-                        <sys:String>bool</sys:String>
-                        <sys:String>string</sys:String>
-                    </hc:ComboBox>
-                </DockPanel>
+        <Style x:Key="VarCellStyle" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="2,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="初始值" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.InitialValue, UpdateSourceTrigger=PropertyChanged}"/>
-                </DockPanel>
+        <Style x:Key="VarRowStyle" TargetType="DataGridRow">
+            <Style.Triggers>
+                <Trigger Property="AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="#C8F2C4"/>
+                </Trigger>
+                <Trigger Property="AlternationIndex" Value="0">
+                    <Setter Property="Background" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
 
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="当前值" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.CurrentValue, UpdateSourceTrigger=PropertyChanged}"/>
-                </DockPanel>
+        <Style x:Key="VarHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#E8EDF5"/>
+            <Setter Property="Foreground" Value="#2B3A4B"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="4,4"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="BorderBrush" Value="#DDE3EA"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
 
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="作用域" Style="{StaticResource FieldLabel}"/>
-                    <hc:ComboBox SelectedItem="{Binding SelectedItem.Scope, UpdateSourceTrigger=PropertyChanged}">
-                        <sys:String>全局</sys:String>
-                        <sys:String>局部</sys:String>
-                    </hc:ComboBox>
-                </DockPanel>
+        <Style x:Key="VarToolBtnStyle" TargetType="Button">
+            <Setter Property="MinWidth" Value="60"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#3F8EF7"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#1B6AE0"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Background" Value="#A9C2E8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="备注" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.Description, UpdateSourceTrigger=PropertyChanged}"
-                             AcceptsReturn="True" Height="60" TextWrapping="Wrap" VerticalContentAlignment="Top"/>
-                </DockPanel>
+        <Style x:Key="VarDeleteBtnStyle" TargetType="Button" BasedOn="{StaticResource VarToolBtnStyle}">
+            <Setter Property="Background" Value="#F66E6E"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E04D4D"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 顶部工具栏 -->
+        <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}" Margin="0,0,0,6">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="添加" Style="{StaticResource VarToolBtnStyle}" Command="{Binding AddCommand}"/>
+                <Button Content="删除" Style="{StaticResource VarDeleteBtnStyle}" Command="{Binding DeleteCommand}"/>
+                <Button Content="上移" Style="{StaticResource VarToolBtnStyle}" Command="{Binding MoveUpCommand}"/>
+                <Button Content="下移" Style="{StaticResource VarToolBtnStyle}" Command="{Binding MoveDownCommand}"/>
+                <Button Content="复制" Style="{StaticResource VarToolBtnStyle}" Command="{Binding CopyCommand}"/>
+                <Button Content="粘贴" Style="{StaticResource VarToolBtnStyle}" Command="{Binding PasteCommand}"/>
+                <Button Content="回撤" Style="{StaticResource VarToolBtnStyle}" Command="{Binding UndoCommand}"/>
+                <Button Content="重做" Style="{StaticResource VarToolBtnStyle}" Command="{Binding RedoCommand}"/>
+                <TextBlock Text="{Binding Items.Count, StringFormat=共 {0} 行}"
+                           VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#607080"/>
             </StackPanel>
-        </local:EditorPage.Detail>
-    </local:EditorPage>
+        </Border>
+
+        <!-- 变量表格：每行 5 组 (名称 / 字符串值) -->
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding Items}"
+                  SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                  AlternationCount="2"
+                  RowStyle="{StaticResource VarRowStyle}"
+                  CellStyle="{StaticResource VarCellStyle}"
+                  ColumnHeaderStyle="{StaticResource VarHeaderStyle}"
+                  AutoGenerateColumns="False"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="None"
+                  BorderBrush="#DDE3EA"
+                  BorderThickness="1"
+                  Background="White"
+                  IsReadOnly="True"
+                  RowHeight="26"
+                  FontSize="12">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="名称 1" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Name1, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="字符串值 1" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Value1, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="名称 2" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Name2, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="字符串值 2" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Value2, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="名称 3" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Name3, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="字符串值 3" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Value3, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="名称 4" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Name4, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="字符串值 4" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Value4, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="名称 5" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Name5, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="字符串值 5" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Value5, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
 </UserControl>

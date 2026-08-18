@@ -52,7 +52,7 @@ namespace NoCodeMotion.Services
             SetIo(ioNames);
             SetCylinder(data.Cylinders.Select(c => c.Name));
             SetComm(data.Comms.Select(c => c.Name));
-            SetVariable(data.Variables.Select(v => v.Name));
+            SetVariable(data.Variables.SelectMany(v => v.Names()));
         }
     }
 }
