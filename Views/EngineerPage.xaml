@@ -100,8 +100,15 @@
         </Style>
     </UserControl.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="20,16" MaxWidth="1180">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="1.2*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 上：轴 / IO / 气缸 控制区（可滚动） -->
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20,16" MaxWidth="1180">
 
             <!-- ===== 页头 ===== -->
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
@@ -254,9 +261,13 @@
                 </StackPanel>
             </Border>
 
-            <!-- ============ ④ 点位移动和设置 ============ -->
-            <Border Style="{StaticResource CardBorderStyle}" Padding="16" Margin="0,0,0,8">
-                <StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ============ ④ 点位移动和设置（占满下方区域，点位表内部滚动、列头固定） ============ -->
+        <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="16" Margin="20,0,20,16">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Top">
                     <StackPanel Style="{StaticResource SectionHeaderStyle}">
                         <Path Data="{StaticResource PointIcon}" Width="15" Height="15" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                         <TextBlock Text="点位移动和设置" Style="{StaticResource SectionHeaderText}"/>
@@ -271,6 +282,7 @@
                         <TextBlock DockPanel.Dock="Left" Text="{Binding CurrentPoints.Count, StringFormat=共 {0} 个点位}" VerticalAlignment="Center" Margin="14,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
                     </DockPanel>
 
+                </StackPanel>
                     <Border Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True" Padding="0">
                         <DataGrid ItemsSource="{Binding CurrentPoints}"
                                   RowStyle="{StaticResource PointRowStyle}"
@@ -372,9 +384,7 @@
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
-                </StackPanel>
+                </DockPanel>
             </Border>
-
-        </StackPanel>
-    </ScrollViewer>
+    </Grid>
 </UserControl>

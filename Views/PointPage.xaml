@@ -145,9 +145,13 @@
 
         <!-- ===================== 右侧：当前工位的轴控制 + 点位列表 ===================== -->
         <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
             <!-- 空状态：一个工位都没有时的提示 -->
-            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+            <TextBlock Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
                        FontSize="13" Foreground="{StaticResource TextMutedBrush}"
                        Text="左侧还没有点位表。点「新增工位」创建第一个工位。">
                 <TextBlock.Style>
@@ -162,19 +166,24 @@
                 </TextBlock.Style>
             </TextBlock>
 
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <ScrollViewer.Style>
-                    <Style TargetType="ScrollViewer">
-                        <Setter Property="Visibility" Value="Visible"/>
+            <!-- 主内容：上=轴控制区（Auto），下=点位表（* 占满、内部滚动、列头固定） -->
+            <Grid Grid.Row="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Collapsed"/>
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding HasTable}" Value="False">
-                                <Setter Property="Visibility" Value="Collapsed"/>
+                            <DataTrigger Binding="{Binding HasTable}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
-                </ScrollViewer.Style>
+                </Grid.Style>
 
-                <StackPanel Margin="16">
+                <StackPanel Grid.Row="0" Margin="16">
 
                     <!-- ===== 当前工位标题与重命名 ===== -->
                     <StackPanel Margin="0,0,0,14">
@@ -244,8 +253,10 @@
                             <TextBlock Text="{Binding CurrentPoints.Count, StringFormat=共 {0} 个点位}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
                         </StackPanel>
                     </Border>
+                </StackPanel>
 
-                    <Border Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
+                <!-- 点位表：占满剩余高度，使用自身内部滚动条，列头固定不随页面滚动 -->
+                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True" Margin="16,0,16,16">
                         <DataGrid ItemsSource="{Binding CurrentPoints}"
                                   SelectedItem="{Binding SelectedPoint, Mode=TwoWay}"
                                   RowStyle="{StaticResource PointRowStyle}"
@@ -368,9 +379,10 @@
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
+                </Grid>
 
-                    <!-- 编译时序结果面板：点击「编译时序」后显示同周期/分辨率/资源争用冲突 -->
-                    <Border Padding="12" Margin="0,10,0,0">
+                <!-- 编译时序结果面板：点击「编译时序」后显示同周期/分辨率/资源争用冲突 -->
+                <Border Grid.Row="1" Padding="12" Margin="16,0,16,16">
                         <Border.Style>
                             <Style TargetType="Border" BasedOn="{StaticResource CardBorderStyle}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -425,8 +437,6 @@
                             </ListBox>
                         </StackPanel>
                     </Border>
-                </StackPanel>
-            </ScrollViewer>
         </Grid>
     </Grid>
 </UserControl>

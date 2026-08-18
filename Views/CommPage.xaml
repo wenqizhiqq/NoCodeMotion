@@ -10,7 +10,8 @@
 
     <local:EditorPage>
         <local:EditorPage.Detail>
-            <StackPanel Margin="16" MinWidth="320">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="16" MinWidth="320">
                 <StackPanel Style="{StaticResource SectionHeaderStyle}">
                     <Path Data="{StaticResource CommIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                     <TextBlock Text="通讯配置" Style="{StaticResource SectionHeaderText}"/>
@@ -68,6 +69,7 @@
                     <TextBox Text="{Binding SelectedItem.TimeoutMs}"/>
                 </DockPanel>
             </StackPanel>
+            </ScrollViewer>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>

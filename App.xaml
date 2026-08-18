@@ -436,6 +436,10 @@
                 <Setter Property="FontSize" Value="13"/>
                 <Setter Property="ColumnHeaderStyle" Value="{DynamicResource GridHeaderStyle}"/>
                 <Setter Property="EnableRowVirtualization" Value="True"/>
+                <!-- 表格使用自身内部滚动条，列头固定在顶部不随页面滚动消失。
+                     高度由外层 `*` 行（或 DockPanel 末子）约束：表格填满外部容器并内部滚动；
+                     不要再设全局 MaxHeight，否则会限制「占满容器」。 -->
+                <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
             </Style>
 
             <Style x:Key="GridHeaderStyle" TargetType="DataGridColumnHeader">

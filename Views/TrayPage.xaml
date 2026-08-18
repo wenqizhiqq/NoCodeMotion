@@ -45,7 +45,8 @@
 
     <local:EditorPage>
         <local:EditorPage.Detail>
-            <StackPanel Margin="16">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="16">
                 <StackPanel Style="{StaticResource SectionHeaderStyle}">
                     <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                     <TextBlock Text="料盘参数" Style="{StaticResource SectionHeaderText}"/>
@@ -106,6 +107,7 @@
                     </ItemsControl>
                 </ScrollViewer>
             </StackPanel>
+            </ScrollViewer>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>

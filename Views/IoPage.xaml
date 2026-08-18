@@ -110,9 +110,12 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
         <!-- ============== 输入 IO 面板 ============== -->
-        <DockPanel Grid.Column="0" Margin="0,0,4,0">
+        <DockPanel Grid.Column="0" Grid.Row="0" Margin="0,0,4,0">
             <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                 <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                 <TextBlock Text="输入IO" Style="{StaticResource SectionHeaderText}"/>
@@ -171,7 +174,7 @@
         </DockPanel>
 
         <!-- ============== 输出 IO 面板 ============== -->
-        <DockPanel Grid.Column="1" Margin="4,0,0,0">
+        <DockPanel Grid.Column="1" Grid.Row="0" Margin="4,0,0,0">
             <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                 <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                 <TextBlock Text="输出IO" Style="{StaticResource SectionHeaderText}"/>

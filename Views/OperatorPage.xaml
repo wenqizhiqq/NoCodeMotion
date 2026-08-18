@@ -150,9 +150,17 @@
             </DockPanel>
         </Border>
 
-        <!-- 主体（可滚动） -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="16">
+        <!-- 主体：上方固定内容可滚动；中间时序监控占满；下方异常日志固定 -->
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="1*"/>
+                <RowDefinition Height="1.3*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 上方：生产数据 / 控制 / 折线图（可滚动） -->
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="16">
 
                 <!-- 生产数据 KPI -->
                 <TextBlock Text="生产数据" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,8"/>
@@ -227,16 +235,18 @@
                     </StackPanel>
                 </Border>
 
-                <!-- 时序偏差监控（对应专利「方向二」运行时监控与可视化层） -->
-                <TextBlock Text="时序偏差监控" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
-                <Border Style="{StaticResource CardBorderStyle}" Padding="12">
+                </StackPanel>
+            </ScrollViewer>
+
+                <!-- 时序偏差监控（对应专利「方向二」运行时监控与可视化层）：占满中间区域、内部滚动、列头固定 -->
+                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="16,0,16,16">
                     <StackPanel>
                         <TextBlock Text="运行开始后按点位顺序比对「实际触发时刻 − 预期时序标记」：偏差 ≤ ±2ms 为正常，≤ ±5ms 为偏差，超过 ±5ms 报警并写入异常日志。未配置时序标记的点位显示为「未配置」。"
                                    FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                         <DataGrid ItemsSource="{Binding TimingRows}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                                   IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="None"
-                                  BorderThickness="0" Background="Transparent" RowHeight="28" FontSize="12" MaxHeight="280">
+                                  BorderThickness="0" Background="Transparent" RowHeight="28" FontSize="12">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="步骤" Binding="{Binding Step}" Width="56"/>
                                 <DataGridTextColumn Header="点位" Binding="{Binding PointName}" Width="120"/>
@@ -259,8 +269,8 @@
                 </Border>
 
                 <!-- 异常日志 -->
-                <TextBlock Text="异常日志" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
-                <Border Style="{StaticResource CardBorderStyle}" Padding="0">
+                <TextBlock Grid.Row="2" Text="异常日志" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="16,16,16,8"/>
+                <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" Padding="0" Margin="16,0,16,16">
                     <ListBox ItemsSource="{Binding Log}" MaxHeight="260" BorderThickness="0" Background="Transparent">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -280,8 +290,6 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </Border>
-
-            </StackPanel>
-        </ScrollViewer>
+        </Grid>
     </Grid>
 </UserControl>

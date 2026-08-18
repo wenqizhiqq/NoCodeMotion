@@ -44,10 +44,14 @@
                      DisplayMemberPath="Name"
                      Style="{StaticResource ProjectListStyle}"/>
 
+            <!-- 注意：不要在这里套 ScrollViewer。套了会给 Detail 无限高上下文，
+                 使 FlowPage 内 Grid.Row=2 Height=* 的表格无法被约束高度、整表被撑开，
+                 滚动条就会跑到列表外面（包着整页）。
+                 Detail 由 Border 约束到 EditorPage 的 * 行高度；
+                 表格型页（FlowPage）用自身 * 行内部滚动；
+                 表单型页（Axis/Comm/Cylinder/Tray）各自包一层 ScrollViewer 负责滚动。 -->
             <Border Grid.Column="1" Style="{StaticResource DetailPanelStyle}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ContentControl Content="{Binding Detail, RelativeSource={RelativeSource AncestorType=local:EditorPage}}"/>
-                </ScrollViewer>
+                <ContentControl Content="{Binding Detail, RelativeSource={RelativeSource AncestorType=local:EditorPage}}"/>
             </Border>
         </Grid>
     </Grid>
