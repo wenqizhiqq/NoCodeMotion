@@ -4,15 +4,89 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
-             mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
+             xmlns:md="clr-namespace:NoCodeMotion.Models"
+             xmlns:vm="clr-namespace:NoCodeMotion.ViewModels"
+             mc:Ignorable="d" d:DesignHeight="720" d:DesignWidth="980">
 
     <UserControl.Resources>
-        <!-- 运行时当前点位行高亮（基于点位的行样式，增加选中高亮） -->
-        <Style x:Key="OpRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource PointRowStyle}">
+        <!-- 异常日志：等级彩色圆点 -->
+        <Style x:Key="LogDotStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="Fill" Value="{StaticResource AccentBrush}"/>
             <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
-                </Trigger>
+                <DataTrigger Binding="{Binding Level}" Value="{x:Static md:LogLevel.Warn}">
+                    <Setter Property="Fill" Value="{StaticResource WarningBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Level}" Value="{x:Static md:LogLevel.Error}">
+                    <Setter Property="Fill" Value="{StaticResource DangerBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 异常日志：等级文字标签 -->
+        <Style x:Key="LogTagStyle" TargetType="TextBlock">
+            <Setter Property="Text" Value="信息"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Level}" Value="{x:Static md:LogLevel.Warn}">
+                    <Setter Property="Text" Value="警告"/>
+                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Level}" Value="{x:Static md:LogLevel.Error}">
+                    <Setter Property="Text" Value="异常"/>
+                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 异常日志：正文按等级着色 -->
+        <Style x:Key="LogMsgStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Level}" Value="{x:Static md:LogLevel.Warn}">
+                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Level}" Value="{x:Static md:LogLevel.Error}">
+                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- KPI 卡片标题 -->
+        <Style x:Key="KpiTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+        </Style>
+        <Style x:Key="KpiValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="26"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+
+        <!-- 模式按钮：非激活态为灰色，激活态高亮为蓝色 -->
+        <Style x:Key="ModeManualBtnStyle" TargetType="Button" BasedOn="{StaticResource TtGrayBtn}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Mode}" Value="{x:Static vm:OpMode.Manual}">
+                    <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ModeAutoBtnStyle" TargetType="Button" BasedOn="{StaticResource TtGrayBtn}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Mode}" Value="{x:Static vm:OpMode.Auto}">
+                    <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
@@ -23,101 +97,122 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 顶部：工位选择 + 运行控制 -->
+        <!-- 顶部工具栏：标题 + 用户切换 -->
         <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}" Margin="16,16,16,0">
-            <StackPanel>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <DockPanel LastChildFill="False" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                     <Path Data="{StaticResource OperatorIcon}" Width="20" Height="20" Stretch="Uniform"
                           Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="工位运行视图" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="操作员控制台" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="操作员只需选择要运行的工位（点位表），查看该工位的全部点位，然后点「运行此工位」即可按顺序经过各点位。无需关心底层配置。"
-                           FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,10"/>
-
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="选择工位" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                    <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding SelectedTable, Mode=TwoWay}"
-                              DisplayMemberPath="Name" Style="{StaticResource CellComboStyle}" MinWidth="160" Margin="0,0,12,0"/>
-                    <Button Command="{Binding RunCommand}" Style="{StaticResource TtBaseBtn}" Content="运行此工位"
-                            ToolTip="依次经过该工位的全部点位（纯运行状态仿真）。" IsEnabled="{Binding CanRun}"/>
-                    <Button Command="{Binding StopCommand}" Style="{StaticResource TtGrayBtn}" Content="停止"
-                            ToolTip="停止运行。" Margin="8,0,0,0" IsEnabled="{Binding IsRunning}"/>
-                    <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5"/>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <TextBlock Text="当前用户" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    <ComboBox ItemsSource="{Binding Users}" SelectedItem="{Binding CurrentUser, Mode=TwoWay}"
+                              Style="{StaticResource CellComboStyle}" MinWidth="120"/>
                 </StackPanel>
-            </StackPanel>
+            </DockPanel>
         </Border>
 
-        <!-- 点位列表 -->
+        <!-- 主体（可滚动） -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="16">
-                <TextBlock Text="点位列表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,12,0,4"/>
-                <TextBlock Text="该工位下的全部点位：第一列为点位名称，其后依次为 4 个轴的目标位置，最后为 4 个轴的目标速度。运行时当前点位会高亮。"
-                           FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
-                <Border Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
-                    <DataGrid ItemsSource="{Binding CurrentPoints}"
-                              SelectedItem="{Binding SelectedPoint, Mode=TwoWay}"
-                              RowStyle="{StaticResource OpRowStyle}"
-                              CellStyle="{StaticResource PointCellStyle}"
-                              ColumnHeaderStyle="{StaticResource PointHeaderStyle}"
-                              AutoGenerateColumns="False"
-                              CanUserAddRows="False" CanUserDeleteRows="False"
-                              IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow"
-                              GridLinesVisibility="None" HeadersVisibility="Column"
-                              BorderThickness="0" Background="Transparent" RowHeight="28" FontSize="12">
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="点位名称" Width="140">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Name}" Style="{StaticResource PointCellTextBlockStyle}"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                <!-- 生产数据 KPI -->
+                <TextBlock Text="生产数据" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,8"/>
+                <WrapPanel Orientation="Horizontal">
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
+                        <StackPanel>
+                            <TextBlock Text="累计产量" Style="{StaticResource KpiTitle}"/>
+                            <TextBlock Text="{Binding TotalCount}" Style="{StaticResource KpiValue}"/>
+                            <TextBlock Text="件" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
+                        <StackPanel>
+                            <TextBlock Text="良率" Style="{StaticResource KpiTitle}"/>
+                            <TextBlock Text="{Binding Yield, StringFormat={}{0:F1}%}" Style="{StaticResource KpiValue}"/>
+                            <TextBlock Text="目标 ≥ 98%" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
+                        <StackPanel>
+                            <TextBlock Text="节拍" Style="{StaticResource KpiTitle}"/>
+                            <TextBlock Text="{Binding CycleTime, StringFormat={}{0:F1}s}" Style="{StaticResource KpiValue}"/>
+                            <TextBlock Text="秒 / 件" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
+                        <StackPanel>
+                            <TextBlock Text="运行时长" Style="{StaticResource KpiTitle}"/>
+                            <TextBlock Text="{Binding RunElapsedText}" Style="{StaticResource KpiValue}"/>
+                            <TextBlock Text="mm:ss" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </WrapPanel>
 
-                            <DataGridTemplateColumn Header="轴1位置" Width="92">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding Positions[0].Position}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="轴2位置" Width="92">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding Positions[1].Position}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="轴3位置" Width="92">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding Positions[2].Position}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="轴4位置" Width="92">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding Positions[3].Position}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-
-                            <DataGridTemplateColumn Header="轴1速度" Width="92">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding Positions[0].Speed}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="轴2速度" Width="92">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding Positions[1].Speed}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="轴3速度" Width="92">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding Positions[2].Speed}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="轴4速度" Width="92">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding Positions[3].Speed}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                <!-- 控制按钮 -->
+                <Border Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Command="{Binding RunCommand}" Style="{StaticResource TtBaseBtn}" Content="启动" ToolTip="启动运行（自动模式连续运行 / 手动模式单步）。" IsEnabled="{Binding CanStart}"/>
+                            <Button Command="{Binding StopCommand}" Style="{StaticResource TtGrayBtn}" Content="停止" ToolTip="停止运行。" Margin="8,0,0,0" IsEnabled="{Binding CanStop}"/>
+                            <Button Command="{Binding ManualCommand}" Style="{StaticResource ModeManualBtnStyle}" Content="手动" ToolTip="手动模式：每按一次启动前进一个点位。" Margin="8,0,0,0"/>
+                            <Button Command="{Binding AutoCommand}" Style="{StaticResource ModeAutoBtnStyle}" Content="自动" ToolTip="自动模式：连续顺序运行。" Margin="8,0,0,0"/>
+                            <Button Command="{Binding EStopCommand}" Style="{StaticResource TtDeleteBtn}" Content="急停" ToolTip="紧急切断所有运动。" Margin="8,0,0,0" IsEnabled="{Binding CanEStop}"/>
+                            <Button Command="{Binding ResetCommand}" Style="{StaticResource TtWarnBtn}" Content="复位" ToolTip="复位产量/图表并解除急停。" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
                 </Border>
+
+                <!-- 折线图 -->
+                <TextBlock Text="生产趋势（良率% / 节拍s）" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
+                <Border Style="{StaticResource CardBorderStyle}" Padding="12">
+                    <StackPanel>
+                        <Canvas Width="640" Height="220" Background="{StaticResource SurfaceBrush}">
+                            <!-- 网格基线 -->
+                            <Line X1="30" Y1="190" X2="630" Y2="190" Stroke="{StaticResource LineBrush}" StrokeThickness="1"/>
+                            <Line X1="30" Y1="30" X2="630" Y2="30" Stroke="{StaticResource LineBrush}" StrokeThickness="1" StrokeDashArray="3 3"/>
+                            <!-- Y 轴刻度 -->
+                            <TextBlock Canvas.Left="4" Canvas.Top="26" Text="100%" FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
+                            <TextBlock Canvas.Left="14" Canvas.Top="186" Text="0" FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
+                            <!-- 折线 -->
+                            <Polyline Points="{Binding YieldPoints}" Stroke="{StaticResource SuccessBrush}" StrokeThickness="2.5" Fill="Transparent"/>
+                            <Polyline Points="{Binding CyclePoints}" Stroke="{StaticResource WarningBrush}" StrokeThickness="2.5" Fill="Transparent"/>
+                        </Canvas>
+                        <!-- 图例 -->
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Rectangle Width="14" Height="4" Fill="{StaticResource SuccessBrush}" RadiusX="2" RadiusY="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="良率 %" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,18,0"/>
+                            <Rectangle Width="14" Height="4" Fill="{StaticResource WarningBrush}" RadiusX="2" RadiusY="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="节拍 s" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- 异常日志 -->
+                <TextBlock Text="异常日志" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
+                <Border Style="{StaticResource CardBorderStyle}" Padding="0">
+                    <ListBox ItemsSource="{Binding Log}" MaxHeight="260" BorderThickness="0" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="8,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Time, StringFormat=HH:mm:ss}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <Ellipse Grid.Column="1" Style="{StaticResource LogDotStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Grid.Column="2" Style="{StaticResource LogTagStyle}"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding Message}" Style="{StaticResource LogMsgStyle}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
     </Grid>
