@@ -30,7 +30,6 @@ namespace NoCodeMotion.Services
                     ["Name"] = "IO名称",
                     ["SuitCode"] = "套码",
                     ["Level"] = "电平",
-                    ["Cylinder"] = "气缸",
                     ["Function"] = "功能",
                     ["Value"] = "值",
                 },

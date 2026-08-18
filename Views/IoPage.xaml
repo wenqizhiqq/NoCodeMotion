@@ -53,7 +53,8 @@
 
         <Style x:Key="IoCellStyle" TargetType="DataGridCell">
             <Setter Property="Padding" Value="2,0"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="BorderBrush" Value="#DDE3EA"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -139,7 +140,6 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="气缸" Binding="{Binding Cylinder}" Width="90"/>
                     <DataGridTemplateColumn Header="功能" Width="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
@@ -193,7 +193,6 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="气缸" Binding="{Binding Cylinder}" Width="90"/>
                     <DataGridTemplateColumn Header="功能" Width="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
