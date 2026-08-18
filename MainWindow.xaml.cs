@@ -19,7 +19,12 @@ namespace NoCodeMotion
             ["Tray"] = () => new TrayPage(),
             ["Flow"] = () => new FlowPage(),
             ["Variable"] = () => new VariablePage(),
+            ["Engineer"] = () => new EngineerPage(),
+            ["Operator"] = () => new OperatorPage(),
         };
+
+        /// <summary>当前主窗口实例，供页面内（如工程工作台卡片）发起跨页导航。</summary>
+        public static MainWindow? Instance { get; private set; }
 
         // 缓存已创建的页面，切换标签时保留各自的数据（已添加的轴/IO 等不丢失）
         private readonly Dictionary<string, UserControl> _cache = new();
@@ -29,6 +34,7 @@ namespace NoCodeMotion
         public MainWindow()
         {
             InitializeComponent();
+            Instance = this;
             var first = NavPanel.Children.OfType<Button>().FirstOrDefault();
             if (first != null) Navigate("Axis", first);
         }
@@ -39,7 +45,17 @@ namespace NoCodeMotion
                 Navigate(key, btn);
         }
 
-        private void Navigate(string key, Button btn)
+        /// <summary>供页面内（如工程工作台卡片）按模块键跳转并高亮对应导航按钮。</summary>
+        public void NavigateTo(string key)
+        {
+            if (!_pages.ContainsKey(key)) return;
+            Navigate(key, FindNavButton(key));
+        }
+
+        private Button? FindNavButton(string key)
+            => NavPanel.Children.OfType<Button>().FirstOrDefault(b => b.Tag as string == key);
+
+        private void Navigate(string key, Button? btn)
         {
             if (!_cache.TryGetValue(key, out var page))
             {
@@ -58,9 +74,12 @@ namespace NoCodeMotion
                 _selectedNav.Foreground = (System.Windows.Media.Brush)FindResource("TextPrimaryBrush");
             }
 
-            _selectedNav = btn;
-            _selectedNav.Background = (System.Windows.Media.Brush)FindResource("NavActiveBrush");
-            _selectedNav.Foreground = (System.Windows.Media.Brush)FindResource("AccentBrush");
+            _selectedNav = btn ?? FindNavButton(key);
+            if (_selectedNav != null)
+            {
+                _selectedNav.Background = (System.Windows.Media.Brush)FindResource("NavActiveBrush");
+                _selectedNav.Foreground = (System.Windows.Media.Brush)FindResource("AccentBrush");
+            }
         }
     }
 }

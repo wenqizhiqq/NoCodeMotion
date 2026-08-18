@@ -1,0 +1,124 @@
+<UserControl x:Class="NoCodeMotion.Views.OperatorPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:NoCodeMotion.Views"
+             mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <!-- 运行时当前点位行高亮（基于点位的行样式，增加选中高亮） -->
+        <Style x:Key="OpRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource PointRowStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource CanvasBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 顶部：工位选择 + 运行控制 -->
+        <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}" Margin="16,16,16,0">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Path Data="{StaticResource OperatorIcon}" Width="20" Height="20" Stretch="Uniform"
+                          Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="工位运行视图" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="操作员只需选择要运行的工位（点位表），查看该工位的全部点位，然后点「运行此工位」即可按顺序经过各点位。无需关心底层配置。"
+                           FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="选择工位" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding SelectedTable, Mode=TwoWay}"
+                              DisplayMemberPath="Name" Style="{StaticResource CellComboStyle}" MinWidth="160" Margin="0,0,12,0"/>
+                    <Button Command="{Binding RunCommand}" Style="{StaticResource TtBaseBtn}" Content="运行此工位"
+                            ToolTip="依次经过该工位的全部点位（纯运行状态仿真）。" IsEnabled="{Binding CanRun}"/>
+                    <Button Command="{Binding StopCommand}" Style="{StaticResource TtGrayBtn}" Content="停止"
+                            ToolTip="停止运行。" Margin="8,0,0,0" IsEnabled="{Binding IsRunning}"/>
+                    <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- 点位列表 -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16">
+                <TextBlock Text="点位列表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,12,0,4"/>
+                <TextBlock Text="该工位下的全部点位：第一列为点位名称，其后依次为 4 个轴的目标位置，最后为 4 个轴的目标速度。运行时当前点位会高亮。"
+                           FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                <Border Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
+                    <DataGrid ItemsSource="{Binding CurrentPoints}"
+                              SelectedItem="{Binding SelectedPoint, Mode=TwoWay}"
+                              RowStyle="{StaticResource OpRowStyle}"
+                              CellStyle="{StaticResource PointCellStyle}"
+                              ColumnHeaderStyle="{StaticResource PointHeaderStyle}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
+                              IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow"
+                              GridLinesVisibility="None" HeadersVisibility="Column"
+                              BorderThickness="0" Background="Transparent" RowHeight="28" FontSize="12">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="点位名称" Width="140">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" Style="{StaticResource PointCellTextBlockStyle}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="轴1位置" Width="92">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Positions[0].Position}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="轴2位置" Width="92">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Positions[1].Position}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="轴3位置" Width="92">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Positions[2].Position}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="轴4位置" Width="92">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Positions[3].Position}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="轴1速度" Width="92">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Positions[0].Speed}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="轴2速度" Width="92">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Positions[1].Speed}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="轴3速度" Width="92">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Positions[2].Speed}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="轴4速度" Width="92">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Positions[3].Speed}" Style="{StaticResource PointCellTextBlockStyle}"/></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
