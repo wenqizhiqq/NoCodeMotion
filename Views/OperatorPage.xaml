@@ -128,6 +128,8 @@
         </Style>
     </UserControl.Resources>
 
+    <!-- 自适应 2 列布局：左列为「生产数据 + 控制 + 折线图」，右列为「时序偏差监控 + 异常日志」。
+         整页无外部滚动条；左列可内部滚动，右列两张卡各自占满/固定并内部滚动。 -->
     <Grid Background="{StaticResource CanvasBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -150,98 +152,104 @@
             </DockPanel>
         </Border>
 
-        <!-- 主体：上方固定内容可滚动；中间时序监控占满；下方异常日志固定 -->
-        <Grid Grid.Row="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="1*"/>
-                <RowDefinition Height="1.3*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <!-- 主体：自适应 2 列 -->
+        <Grid Grid.Row="1" Margin="16,12,16,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="1.25*"/>
+            </Grid.ColumnDefinitions>
 
-            <!-- 上方：生产数据 / 控制 / 折线图（可滚动） -->
-            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="16">
+            <!-- 左列：生产数据 + 控制 + 折线图（可内部滚动） -->
+            <ScrollViewer Grid.Column="0" Margin="0,0,8,0" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
 
-                <!-- 生产数据 KPI -->
-                <TextBlock Text="生产数据" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,8"/>
-                <WrapPanel Orientation="Horizontal">
-                    <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
+                    <!-- 生产数据 KPI -->
+                    <TextBlock Text="生产数据" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,8"/>
+                    <WrapPanel Orientation="Horizontal">
+                        <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock Text="累计产量" Style="{StaticResource KpiTitle}"/>
+                                <TextBlock Text="{Binding TotalCount}" Style="{StaticResource KpiValue}"/>
+                                <TextBlock Text="件" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock Text="良率" Style="{StaticResource KpiTitle}"/>
+                                <TextBlock Text="{Binding Yield, StringFormat={}{0:F1}%}" Style="{StaticResource KpiValue}"/>
+                                <TextBlock Text="目标 ≥ 98%" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock Text="节拍" Style="{StaticResource KpiTitle}"/>
+                                <TextBlock Text="{Binding CycleTime, StringFormat={}{0:F1}s}" Style="{StaticResource KpiValue}"/>
+                                <TextBlock Text="秒 / 件" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock Text="运行时长" Style="{StaticResource KpiTitle}"/>
+                                <TextBlock Text="{Binding RunElapsedText}" Style="{StaticResource KpiValue}"/>
+                                <TextBlock Text="mm:ss" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                            </StackPanel>
+                        </Border>
+                    </WrapPanel>
+
+                    <!-- 控制按钮 -->
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,12,0,0">
                         <StackPanel>
-                            <TextBlock Text="累计产量" Style="{StaticResource KpiTitle}"/>
-                            <TextBlock Text="{Binding TotalCount}" Style="{StaticResource KpiValue}"/>
-                            <TextBlock Text="件" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                            <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5" Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Command="{Binding RunCommand}" Style="{StaticResource TtBaseBtn}" Content="启动" ToolTip="启动运行（自动模式连续运行 / 手动模式单步）。" IsEnabled="{Binding CanStart}"/>
+                                <Button Command="{Binding StopCommand}" Style="{StaticResource TtGrayBtn}" Content="停止" ToolTip="停止运行。" Margin="8,0,0,0" IsEnabled="{Binding CanStop}"/>
+                                <Button Command="{Binding ManualCommand}" Style="{StaticResource ModeManualBtnStyle}" Content="手动" ToolTip="手动模式：每按一次启动前进一个点位。" Margin="8,0,0,0"/>
+                                <Button Command="{Binding AutoCommand}" Style="{StaticResource ModeAutoBtnStyle}" Content="自动" ToolTip="自动模式：连续顺序运行。" Margin="8,0,0,0"/>
+                                <Button Command="{Binding EStopCommand}" Style="{StaticResource TtDeleteBtn}" Content="急停" ToolTip="紧急切断所有运动。" Margin="8,0,0,0" IsEnabled="{Binding CanEStop}"/>
+                                <Button Command="{Binding ResetCommand}" Style="{StaticResource TtWarnBtn}" Content="复位" ToolTip="复位产量/图表并解除急停。" Margin="8,0,0,0"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
-                        <StackPanel>
-                            <TextBlock Text="良率" Style="{StaticResource KpiTitle}"/>
-                            <TextBlock Text="{Binding Yield, StringFormat={}{0:F1}%}" Style="{StaticResource KpiValue}"/>
-                            <TextBlock Text="目标 ≥ 98%" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
-                        <StackPanel>
-                            <TextBlock Text="节拍" Style="{StaticResource KpiTitle}"/>
-                            <TextBlock Text="{Binding CycleTime, StringFormat={}{0:F1}s}" Style="{StaticResource KpiValue}"/>
-                            <TextBlock Text="秒 / 件" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
-                        <StackPanel>
-                            <TextBlock Text="运行时长" Style="{StaticResource KpiTitle}"/>
-                            <TextBlock Text="{Binding RunElapsedText}" Style="{StaticResource KpiValue}"/>
-                            <TextBlock Text="mm:ss" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
-                        </StackPanel>
-                    </Border>
-                </WrapPanel>
 
-                <!-- 控制按钮 -->
-                <Border Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,12,0,0">
-                    <StackPanel>
-                        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5" Margin="0,0,0,8"/>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Command="{Binding RunCommand}" Style="{StaticResource TtBaseBtn}" Content="启动" ToolTip="启动运行（自动模式连续运行 / 手动模式单步）。" IsEnabled="{Binding CanStart}"/>
-                            <Button Command="{Binding StopCommand}" Style="{StaticResource TtGrayBtn}" Content="停止" ToolTip="停止运行。" Margin="8,0,0,0" IsEnabled="{Binding CanStop}"/>
-                            <Button Command="{Binding ManualCommand}" Style="{StaticResource ModeManualBtnStyle}" Content="手动" ToolTip="手动模式：每按一次启动前进一个点位。" Margin="8,0,0,0"/>
-                            <Button Command="{Binding AutoCommand}" Style="{StaticResource ModeAutoBtnStyle}" Content="自动" ToolTip="自动模式：连续顺序运行。" Margin="8,0,0,0"/>
-                            <Button Command="{Binding EStopCommand}" Style="{StaticResource TtDeleteBtn}" Content="急停" ToolTip="紧急切断所有运动。" Margin="8,0,0,0" IsEnabled="{Binding CanEStop}"/>
-                            <Button Command="{Binding ResetCommand}" Style="{StaticResource TtWarnBtn}" Content="复位" ToolTip="复位产量/图表并解除急停。" Margin="8,0,0,0"/>
+                    <!-- 折线图 -->
+                    <TextBlock Text="生产趋势（良率% / 节拍s）" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="12">
+                        <StackPanel>
+                            <Canvas Width="640" Height="220" Background="{StaticResource SurfaceBrush}">
+                                <!-- 网格基线 -->
+                                <Line X1="30" Y1="190" X2="630" Y2="190" Stroke="{StaticResource LineBrush}" StrokeThickness="1"/>
+                                <Line X1="30" Y1="30" X2="630" Y2="30" Stroke="{StaticResource LineBrush}" StrokeThickness="1" StrokeDashArray="3 3"/>
+                                <!-- Y 轴刻度 -->
+                                <TextBlock Canvas.Left="4" Canvas.Top="26" Text="100%" FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Canvas.Left="14" Canvas.Top="186" Text="0" FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
+                                <!-- 折线 -->
+                                <Polyline Points="{Binding YieldPoints}" Stroke="{StaticResource SuccessBrush}" StrokeThickness="2.5" Fill="Transparent"/>
+                                <Polyline Points="{Binding CyclePoints}" Stroke="{StaticResource WarningBrush}" StrokeThickness="2.5" Fill="Transparent"/>
+                            </Canvas>
+                            <!-- 图例 -->
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <Rectangle Width="14" Height="4" Fill="{StaticResource SuccessBrush}" RadiusX="2" RadiusY="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="良率 %" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,18,0"/>
+                                <Rectangle Width="14" Height="4" Fill="{StaticResource WarningBrush}" RadiusX="2" RadiusY="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="节拍 s" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <!-- 折线图 -->
-                <TextBlock Text="生产趋势（良率% / 节拍s）" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
-                <Border Style="{StaticResource CardBorderStyle}" Padding="12">
-                    <StackPanel>
-                        <Canvas Width="640" Height="220" Background="{StaticResource SurfaceBrush}">
-                            <!-- 网格基线 -->
-                            <Line X1="30" Y1="190" X2="630" Y2="190" Stroke="{StaticResource LineBrush}" StrokeThickness="1"/>
-                            <Line X1="30" Y1="30" X2="630" Y2="30" Stroke="{StaticResource LineBrush}" StrokeThickness="1" StrokeDashArray="3 3"/>
-                            <!-- Y 轴刻度 -->
-                            <TextBlock Canvas.Left="4" Canvas.Top="26" Text="100%" FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
-                            <TextBlock Canvas.Left="14" Canvas.Top="186" Text="0" FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
-                            <!-- 折线 -->
-                            <Polyline Points="{Binding YieldPoints}" Stroke="{StaticResource SuccessBrush}" StrokeThickness="2.5" Fill="Transparent"/>
-                            <Polyline Points="{Binding CyclePoints}" Stroke="{StaticResource WarningBrush}" StrokeThickness="2.5" Fill="Transparent"/>
-                        </Canvas>
-                        <!-- 图例 -->
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <Rectangle Width="14" Height="4" Fill="{StaticResource SuccessBrush}" RadiusX="2" RadiusY="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="良率 %" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,18,0"/>
-                            <Rectangle Width="14" Height="4" Fill="{StaticResource WarningBrush}" RadiusX="2" RadiusY="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="节拍 s" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
+                    </Border>
 
                 </StackPanel>
             </ScrollViewer>
 
-                <!-- 时序偏差监控（对应专利「方向二」运行时监控与可视化层）：占满中间区域、内部滚动、列头固定 -->
-                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="16,0,16,16">
-                    <StackPanel>
-                        <TextBlock Text="运行开始后按点位顺序比对「实际触发时刻 − 预期时序标记」：偏差 ≤ ±2ms 为正常，≤ ±5ms 为偏差，超过 ±5ms 报警并写入异常日志。未配置时序标记的点位显示为「未配置」。"
+            <!-- 右列：时序偏差监控（上） + 异常日志（下） -->
+            <Grid Grid.Column="1" Margin="8,0,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="1.3*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- 时序偏差监控（占满上方、内部滚动、列头固定） -->
+                <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,0,0,8">
+                    <DockPanel LastChildFill="True">
+                        <TextBlock DockPanel.Dock="Top" Text="时序偏差监控：实际触发时刻与预期时序标记比对，偏差 ≤ ±2ms 正常，≤ ±5ms 偏差，超出报警并写入异常日志；未配置标记显示「未配置」。"
                                    FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                         <DataGrid ItemsSource="{Binding TimingRows}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
@@ -265,31 +273,34 @@
                                 </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
-                    </StackPanel>
+                    </DockPanel>
                 </Border>
 
-                <!-- 异常日志 -->
-                <TextBlock Grid.Row="2" Text="异常日志" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="16,16,16,8"/>
-                <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" Padding="0" Margin="16,0,16,16">
-                    <ListBox ItemsSource="{Binding Log}" MaxHeight="260" BorderThickness="0" Background="Transparent">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="8,6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding Time, StringFormat=HH:mm:ss}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <Ellipse Grid.Column="1" Style="{StaticResource LogDotStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <TextBlock Grid.Column="2" Style="{StaticResource LogTagStyle}"/>
-                                    <TextBlock Grid.Column="3" Text="{Binding Message}" Style="{StaticResource LogMsgStyle}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                <!-- 异常日志（占满下方、内部滚动） -->
+                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,8,0,0">
+                    <DockPanel LastChildFill="True">
+                        <TextBlock DockPanel.Dock="Top" Text="异常日志" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                        <ListBox ItemsSource="{Binding Log}" BorderThickness="0" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="8,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Time, StringFormat=HH:mm:ss}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <Ellipse Grid.Column="1" Style="{StaticResource LogDotStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Grid.Column="2" Style="{StaticResource LogTagStyle}"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding Message}" Style="{StaticResource LogMsgStyle}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
                 </Border>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>
