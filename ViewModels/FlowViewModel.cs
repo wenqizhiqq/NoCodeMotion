@@ -33,7 +33,7 @@ namespace NoCodeMotion.ViewModels
     /// 右侧表格管理当前流程内的“步骤”（FlowStep）。步骤的增删/移动/复制/粘贴/回撤/重做
     /// 全部由 StepPanel（TablePanelViewModel&lt;FlowStep&gt;）统一提供，并使用通用 TableToolbar。
     /// </summary>
-    public class FlowViewModel : ListEditorViewModel<FlowItem>
+    public class FlowViewModel : ListEditorViewModel<FlowItem>, IEnsureDefaultSelection
     {
         /// <summary>当前选中流程的步骤面板。FlowPage 通过它绑定工具栏与表格。</summary>
         public FlowStepPanel StepPanel { get; }
@@ -58,6 +58,14 @@ namespace NoCodeMotion.ViewModels
             {
                 StepPanel.SetItems(SelectedItem?.Steps ?? new ObservableCollection<FlowStep>());
             }
+        }
+
+        public void EnsureDefaultSelection()
+        {
+            if (SelectedItem == null && Items.Count > 0)
+                SelectedItem = Items[0];
+            if (StepPanel.SelectedItem == null && StepPanel.Items.Count > 0)
+                StepPanel.SelectedItem = StepPanel.Items[0];
         }
     }
 }

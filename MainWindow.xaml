@@ -6,7 +6,7 @@
         Title="NoCodeMotion · 无代码运动控制"  
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
-        
+        FontFamily="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif"
         >
     <Grid Background="{StaticResource CanvasBrush}">
         <Grid.RowDefinitions>

@@ -51,7 +51,7 @@ namespace NoCodeMotion.ViewModels
     }
 
     /// <summary>IO 页面顶层 ViewModel：包含两个面板（输入/输出）。</summary>
-    public class IoViewModel : ViewModelBase
+    public class IoViewModel : ViewModelBase, IEnsureDefaultSelection
     {
         public IoPanelViewModel InputPanel { get; }
         public IoPanelViewModel OutputPanel { get; }
@@ -64,6 +64,14 @@ namespace NoCodeMotion.ViewModels
             // 启动时把当前数据快照一下，让"回撤"可以撤销到首次加载
             InputPanel.Snapshot();
             OutputPanel.Snapshot();
+        }
+
+        public void EnsureDefaultSelection()
+        {
+            if (InputPanel.SelectedItem == null && InputPanel.Items.Count > 0)
+                InputPanel.SelectedItem = InputPanel.Items[0];
+            if (OutputPanel.SelectedItem == null && OutputPanel.Items.Count > 0)
+                OutputPanel.SelectedItem = OutputPanel.Items[0];
         }
     }
 }

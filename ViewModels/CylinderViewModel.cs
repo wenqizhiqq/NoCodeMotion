@@ -4,7 +4,7 @@ using NoCodeMotion.ViewModels;
 
 namespace NoCodeMotion.ViewModels
 {
-    public class CylinderViewModel : ListEditorViewModel<CylinderItem>
+    public class CylinderViewModel : ListEditorViewModel<CylinderItem>, IEnsureDefaultSelection
     {
         public CylinderViewModel()
         {
@@ -15,5 +15,10 @@ namespace NoCodeMotion.ViewModels
         }
 
         protected override CylinderItem CreateNewItem() => new CylinderItem { Name = $"气缸{Counter + 1}" };
+
+        public void EnsureDefaultSelection()
+        {
+            if (SelectedItem == null && Items.Count > 0) SelectedItem = Items[0];
+        }
     }
 }

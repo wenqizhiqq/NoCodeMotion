@@ -4,7 +4,7 @@ using NoCodeMotion.ViewModels;
 
 namespace NoCodeMotion.ViewModels
 {
-    public class TrayViewModel : ListEditorViewModel<TrayItem>
+    public class TrayViewModel : ListEditorViewModel<TrayItem>, IEnsureDefaultSelection
     {
         public TrayViewModel()
         {
@@ -14,5 +14,11 @@ namespace NoCodeMotion.ViewModels
         }
 
         protected override TrayItem CreateNewItem() => new TrayItem { Name = $"料盘{Counter + 1}" };
-    }
+    
+        public void EnsureDefaultSelection()
+        {
+            if (SelectedItem == null && Items.Count > 0)
+                SelectedItem = Items[0];
+        }
+}
 }

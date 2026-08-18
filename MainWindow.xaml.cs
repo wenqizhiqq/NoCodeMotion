@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using NoCodeMotion.Views;
+using NoCodeMotion.ViewModels;
 
 namespace NoCodeMotion
 {
@@ -46,6 +47,10 @@ namespace NoCodeMotion
             }
             PageHost.Content = page;
 
+            // 切换页面后，若页面内尚无选中项，则默认选中第一项
+            if (page.DataContext is IEnsureDefaultSelection eds)
+                eds.EnsureDefaultSelection();
+
             if (_selectedNav != null)
             {
                 _selectedNav.Background = System.Windows.Media.Brushes.Transparent;
@@ -54,7 +59,7 @@ namespace NoCodeMotion
 
             _selectedNav = btn;
             _selectedNav.Background = (System.Windows.Media.Brush)FindResource("NavActiveBrush");
-            _selectedNav.Foreground = System.Windows.Media.Brushes.White;
+            _selectedNav.Foreground = (System.Windows.Media.Brush)FindResource("AccentBrush");
         }
     }
 }

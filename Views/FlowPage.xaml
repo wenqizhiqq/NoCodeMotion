@@ -56,6 +56,81 @@
         </x:Array>
         <local:FunctionToNamesConverter x:Key="FunctionToNamesConverter"/>
         <local:FunctionToPropertiesConverter x:Key="FunctionToPropertiesConverter"/>
+
+        <!--
+            ========== 表格美化样式（与 IoPage 对齐）==========
+            单元格：内边距 + 细网格线 + 透明无焦点虚框。
+            行：白底 + 悬停/选中 = 浅强调；斑马纹 2 行交替（极浅 Surface）。
+            表头：浅强调底 + 加粗 + 强调色 2px 下边框 + 居中。
+            单元格里嵌入的 TextBox / ComboBox 全部去边框、透明、紧凑 24px。
+        -->
+        <Style x:Key="FlowCellStyle" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="2,0"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="FlowRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="FlowHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource HeaderBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,8"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="FlowCellTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="Margin" Value="1"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
 
     <local:EditorPage>
@@ -79,27 +154,36 @@
                 </Grid>
 
                 <!--
-                    步骤列表（DataGrid）。
-                    关键：下拉框/文本框直接内嵌在 CellTemplate 中、一直可交互，DataGrid 设为 IsReadOnly
+                    步骤列表（DataGrid）—— 卡片化外观。
+                    外层 Border 负责圆角 + 边框 + 阴影；DataGrid 自身透明无边框。
+                    下拉框/文本框直接内嵌在 CellTemplate 中、一直可交互，DataGrid 设为 IsReadOnly
                     不再接管单元格编辑。
                 -->
-                <DataGrid Grid.Row="2"
-                          ItemsSource="{Binding StepPanel.Items}"
-                          SelectedItem="{Binding StepPanel.SelectedItem, Mode=TwoWay}"
-                          AutoGenerateColumns="False"
-                          CanUserAddRows="False" CanUserDeleteRows="False"
-                          IsReadOnly="True"
-                          SelectionMode="Single" SelectionUnit="FullRow"
-                          GridLinesVisibility="Horizontal"
-                          HeadersVisibility="Column"
-                          BorderBrush="#DDE3EA" RowHeaderWidth="0">
+                <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
+                    <DataGrid ItemsSource="{Binding StepPanel.Items}"
+                              SelectedItem="{Binding StepPanel.SelectedItem, Mode=TwoWay}"
+                              AlternationCount="2"
+                              RowStyle="{StaticResource FlowRowStyle}"
+                              CellStyle="{StaticResource FlowCellStyle}"
+                              ColumnHeaderStyle="{StaticResource FlowHeaderStyle}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single" SelectionUnit="CellOrRowHeader"
+                              GridLinesVisibility="None"
+                              HeadersVisibility="Column"
+                              BorderThickness="0"
+                              Background="Transparent"
+                              RowHeight="28"
+                              FontSize="12"
+                              AlternatingRowBackground="#FAFBFC">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="逻辑" Width="80">
+                        <DataGridTemplateColumn Header="逻辑" Width="78">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <hc:ComboBox ItemsSource="{StaticResource LogicOptions}"
+                                    <ComboBox ItemsSource="{StaticResource LogicOptions}"
                                                  SelectedItem="{Binding Logic, UpdateSourceTrigger=PropertyChanged}"
-                                                 Margin="2" VerticalAlignment="Center"/>
+                                                 Style="{StaticResource CellComboStyle}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -107,9 +191,9 @@
                         <DataGridTemplateColumn Header="功能" Width="90">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <hc:ComboBox ItemsSource="{StaticResource FunctionOptions}"
+                                    <ComboBox ItemsSource="{StaticResource FunctionOptions}"
                                                  SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}"
-                                                 Margin="2" VerticalAlignment="Center"/>
+                                                 Style="{StaticResource CellComboStyle}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -117,9 +201,9 @@
                         <DataGridTemplateColumn Header="名称" Width="150">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <hc:ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToNamesConverter}}"
+                                    <ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToNamesConverter}}"
                                                  SelectedItem="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                                                 Margin="2" VerticalAlignment="Center"/>
+                                                 Style="{StaticResource CellComboStyle}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -127,9 +211,9 @@
                         <DataGridTemplateColumn Header="属性" Width="130">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <hc:ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToPropertiesConverter}}"
+                                    <ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToPropertiesConverter}}"
                                                  SelectedItem="{Binding Property, UpdateSourceTrigger=PropertyChanged}"
-                                                 Margin="2" VerticalAlignment="Center"/>
+                                                 Style="{StaticResource CellComboStyle}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -137,9 +221,9 @@
                         <DataGridTemplateColumn Header="运算" Width="100">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <hc:ComboBox ItemsSource="{StaticResource OperationOptions}"
+                                    <ComboBox ItemsSource="{StaticResource OperationOptions}"
                                                  SelectedItem="{Binding Operation, UpdateSourceTrigger=PropertyChanged}"
-                                                 Margin="2" VerticalAlignment="Center"/>
+                                                 Style="{StaticResource CellComboStyle}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -148,17 +232,17 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBox Text="{Binding SetValue, UpdateSourceTrigger=PropertyChanged}"
-                                             Margin="2" VerticalAlignment="Center"/>
+                                             Style="{StaticResource FlowCellTextBoxStyle}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="超时" Width="120">
+                        <DataGridTemplateColumn Header="超时" Width="130">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <hc:ComboBox ItemsSource="{StaticResource TimeoutOptions}"
+                                    <ComboBox ItemsSource="{StaticResource TimeoutOptions}"
                                                  SelectedItem="{Binding Timeout, UpdateSourceTrigger=PropertyChanged}"
-                                                 Margin="2" VerticalAlignment="Center"/>
+                                                 Style="{StaticResource CellComboStyle}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -167,21 +251,38 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBox Text="{Binding DurationMs, UpdateSourceTrigger=PropertyChanged}"
-                                             Margin="2" VerticalAlignment="Center"/>
+                                             Style="{StaticResource FlowCellTextBoxStyle}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="实际值" Width="110">
+                        <DataGridTemplateColumn Header="实际值" Width="120">
+                            <DataGridTemplateColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource FlowHeaderStyle}">
+                                    <Setter Property="Background" Value="#DDE9F7"/>
+                                    <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}"/>
+                                </Style>
+                            </DataGridTemplateColumn.HeaderStyle>
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBox Text="{Binding ActualValue, UpdateSourceTrigger=PropertyChanged}"
-                                             Margin="2" VerticalAlignment="Center"/>
+                                    <Border Margin="1" CornerRadius="4" Background="#F2F7FE">
+                                        <Grid>
+                                            <Ellipse Width="6" Height="6" Margin="6,0,0,0"
+                                                     HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                     Fill="{StaticResource AccentBrush}"/>
+                                            <TextBox Text="{Binding ActualValue, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource FlowCellTextBoxStyle}"
+                                                     Margin="16,1,1,1"
+                                                     Foreground="{StaticResource AccentDarkBrush}"
+                                                     FontWeight="SemiBold"/>
+                                        </Grid>
+                                    </Border>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
+                </Border>
             </Grid>
         </local:EditorPage.Detail>
     </local:EditorPage>

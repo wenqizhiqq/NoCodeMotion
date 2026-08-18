@@ -4,7 +4,7 @@ using NoCodeMotion.ViewModels;
 
 namespace NoCodeMotion.ViewModels
 {
-    public class AxisViewModel : ListEditorViewModel<AxisItem>
+    public class AxisViewModel : ListEditorViewModel<AxisItem>, IEnsureDefaultSelection
     {
         public AxisViewModel()
         {
@@ -15,5 +15,10 @@ namespace NoCodeMotion.ViewModels
         }
 
         protected override AxisItem CreateNewItem() => new AxisItem { Name = $"轴{Counter + 1}" };
+
+        public void EnsureDefaultSelection()
+        {
+            if (SelectedItem == null && Items.Count > 0) SelectedItem = Items[0];
+        }
     }
 }

@@ -10,22 +10,27 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!-- ===================== 调色板 ===================== -->
-            <Color x:Key="CAccent">#2D7FF9</Color>
-            <Color x:Key="CAccentDark">#1B6AE0</Color>
-            <Color x:Key="CAccentSoft">#EAF2FE</Color>
-            <Color x:Key="CCanvas">#EEF2F7</Color>
+            <!-- ===================== Apple 风调色板 ===================== -->
+            <Color x:Key="CAccent">#007AFF</Color>
+            <Color x:Key="CAccentDark">#0066CC</Color>
+            <Color x:Key="CAccentSoft">#EAF3FF</Color>
+            <Color x:Key="CHover">#F2F2F7</Color>
+            <Color x:Key="CHeader">#F7F7F9</Color>
+            <Color x:Key="CCanvas">#F5F5F7</Color>
             <Color x:Key="CSurface">#FFFFFF</Color>
-            <Color x:Key="CLine">#E3E8EF</Color>
-            <Color x:Key="CText">#2B3A4B</Color>
-            <Color x:Key="CText2">#5A6B7B</Color>
-            <Color x:Key="CTextMuted">#8895A5</Color>
-            <Color x:Key="CSuccess">#37B24D</Color>
-            <Color x:Key="CDanger">#F04949</Color>
-            <Color x:Key="CWarning">#F59F00</Color>
+            <Color x:Key="CLine">#E5E5EA</Color>
+            <Color x:Key="CText">#1D1D1F</Color>
+            <Color x:Key="CText2">#6E6E73</Color>
+            <Color x:Key="CTextMuted">#8E8E93</Color>
+            <Color x:Key="CSuccess">#34C759</Color>
+            <Color x:Key="CDanger">#FF3B30</Color>
+            <Color x:Key="CWarning">#FF9500</Color>
 
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource CAccent}"/>
             <SolidColorBrush x:Key="AccentDarkBrush" Color="{StaticResource CAccentDark}"/>
             <SolidColorBrush x:Key="AccentSoftBrush" Color="{StaticResource CAccentSoft}"/>
+            <SolidColorBrush x:Key="HoverBrush" Color="{StaticResource CHover}"/>
+            <SolidColorBrush x:Key="HeaderBrush" Color="{StaticResource CHeader}"/>
             <SolidColorBrush x:Key="CanvasBrush" Color="{StaticResource CCanvas}"/>
             <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource CSurface}"/>
             <SolidColorBrush x:Key="LineBrush" Color="{StaticResource CLine}"/>
@@ -35,11 +40,11 @@
             <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource CSuccess}"/>
             <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource CDanger}"/>
             <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource CWarning}"/>
-            <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource CAccent}"/>
+            <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource CAccentSoft}"/>
 
-            <!-- 柔和阴影 -->
-            <DropShadowEffect x:Key="SoftShadow" BlurRadius="9" ShadowDepth="1" Direction="90" Opacity="0.10" Color="#9AA7B8"/>
-            <DropShadowEffect x:Key="SoftShadowSm" BlurRadius="5" ShadowDepth="1" Direction="90" Opacity="0.12" Color="#9AA7B8"/>
+            <!-- 柔和阴影（中性黑、更轻，贴近 Apple） -->
+            <DropShadowEffect x:Key="SoftShadow" BlurRadius="16" ShadowDepth="0" Direction="90" Opacity="0.08" Color="#000000"/>
+            <DropShadowEffect x:Key="SoftShadowSm" BlurRadius="8" ShadowDepth="0" Direction="90" Opacity="0.06" Color="#000000"/>
 
             <!-- ===================== 图标（24x24 矢量路径） ===================== -->
             <Geometry x:Key="AxisIcon">M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z</Geometry>
@@ -88,7 +93,7 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                    <Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -145,6 +150,15 @@
                 <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
             </Style>
 
+            <!-- 浮起白色卡片（圆角 + 发丝线 + 柔和阴影），用于包裹表格 -->
+            <Style x:Key="CardBorderStyle" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="10"/>
+                <Setter Property="Effect" Value="{StaticResource SoftShadow}"/>
+            </Style>
+
             <Style x:Key="FieldGrid" TargetType="DockPanel">
                 <Setter Property="Margin" Value="0,6"/>
                 <Setter Property="LastChildFill" Value="True"/>
@@ -165,8 +179,8 @@
             </Style>
             <Style x:Key="SectionHeaderText" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="13"/>
-                <Setter Property="FontWeight" Value="Bold"/>
-                <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
 
@@ -226,25 +240,23 @@
 
             <!-- ===================== 通用表格外观（隐式样式，作用于所有 DataGrid） ===================== -->
             <Style TargetType="DataGrid">
-                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="RowHeight" Value="30"/>
-                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="RowHeight" Value="32"/>
+                <Setter Property="FontSize" Value="13"/>
                 <Setter Property="ColumnHeaderStyle" Value="{DynamicResource GridHeaderStyle}"/>
-                <Setter Property="Effect" Value="{StaticResource SoftShadow}"/>
                 <Setter Property="EnableRowVirtualization" Value="True"/>
             </Style>
 
             <Style x:Key="GridHeaderStyle" TargetType="DataGridColumnHeader">
-                <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
-                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Background" Value="{StaticResource HeaderBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                <Setter Property="FontWeight" Value="Medium"/>
                 <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Padding" Value="6,7"/>
-                <Setter Property="BorderThickness" Value="0,0,0,2"/>
-                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="Padding" Value="8,8"/>
+                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
                 <Setter Property="HorizontalContentAlignment" Value="Center"/>
             </Style>
 
@@ -262,17 +274,118 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                    <Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBrush}"/>
                                 </Trigger>
                                 <Trigger Property="IsSelected" Value="True">
-                                    <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentBrush}"/>
-                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
             </Style>
+
+        <!-- ============ 表格单元格内嵌 ComboBox（扁平、干净）============
+             完全自定义模板：去掉 HandyControl 默认边框/箭头；平时透明，
+             悬停/展开时浅强调填充，右侧一个干净的 chevron；
+             下拉面板为白色圆角卡片 + 阴影 + 高亮项。 -->
+        <Style x:Key="CellComboStyle" TargetType="ComboBox">
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="Padding" Value="7,0,22,0"/>
+            <Setter Property="Margin" Value="1"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Padding" Value="8,6"/>
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                            Padding="{TemplateBinding Padding}" CornerRadius="4">
+                                        <ContentPresenter VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid x:Name="MainGrid" SnapsToDevicePixels="True">
+                            <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4"/>
+                            <ToggleButton x:Name="ToggleButton"
+                                          Focusable="False"
+                                          ClickMode="Press"
+                                          Background="Transparent" BorderThickness="0"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Grid>
+                                    <ContentPresenter x:Name="PART_ContentSite"
+                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                                      Margin="{TemplateBinding Padding}"
+                                                      VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                    <Path x:Name="Arrow" Data="M0,0 L5,0 L2.5,3 Z"
+                                          Fill="{StaticResource TextMutedBrush}"
+                                          HorizontalAlignment="Right" VerticalAlignment="Center"
+                                          Margin="0,0,8,0" Stretch="Uniform" Width="9" Height="5"/>
+                                </Grid>
+                            </ToggleButton>
+                            <Popup x:Name="PART_Popup"
+                                   AllowsTransparency="True"
+                                   IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Placement="Bottom" PopupAnimation="Slide"
+                                   MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                <Border x:Name="DropDown" Background="White"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        CornerRadius="6" Margin="0,2,0,0"
+                                        Effect="{StaticResource SoftShadow}">
+                                    <ScrollViewer Margin="3">
+                                        <StackPanel IsItemsHost="True"
+                                                    KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                <Setter TargetName="Arrow" Property="Fill" Value="{StaticResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

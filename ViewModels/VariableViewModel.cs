@@ -7,7 +7,7 @@ using NoCodeMotion.Services;
 namespace NoCodeMotion.ViewModels
 {
     /// <summary>变量页 ViewModel：单个表格面板，每行含 5 个 (名称/字符串值)。</summary>
-    public class VariableViewModel : TablePanelViewModel<VariableRow>
+    public class VariableViewModel : TablePanelViewModel<VariableRow>, IEnsureDefaultSelection
     {
         public VariableViewModel() : base("变量", ProjectStore.Data.Variables) { }
 
@@ -28,5 +28,11 @@ namespace NoCodeMotion.ViewModels
         /// <summary>Excel 回读替换后，名称变化发生在订阅之前 → 主动全量同步一次目录。</summary>
         protected override void OnAfterExcelReplace(IList<VariableRow> imported)
             => Catalog.SetVariable(ProjectStore.Data.Variables.SelectMany(r => r.Names()));
-    }
+    
+        public void EnsureDefaultSelection()
+        {
+            if (SelectedItem == null && Items.Count > 0)
+                SelectedItem = Items[0];
+        }
+}
 }

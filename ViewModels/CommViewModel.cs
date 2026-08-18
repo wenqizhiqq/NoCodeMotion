@@ -4,7 +4,7 @@ using NoCodeMotion.ViewModels;
 
 namespace NoCodeMotion.ViewModels
 {
-    public class CommViewModel : ListEditorViewModel<CommItem>
+    public class CommViewModel : ListEditorViewModel<CommItem>, IEnsureDefaultSelection
     {
         public CommViewModel()
         {
@@ -15,5 +15,11 @@ namespace NoCodeMotion.ViewModels
         }
 
         protected override CommItem CreateNewItem() => new CommItem { Name = $"通讯{Counter + 1}" };
-    }
+    
+        public void EnsureDefaultSelection()
+        {
+            if (SelectedItem == null && Items.Count > 0)
+                SelectedItem = Items[0];
+        }
+}
 }
