@@ -22,6 +22,17 @@ namespace NoCodeMotion.ViewModels
     public class OperatorViewModel : ViewModelBase, IEnsureDefaultSelection
     {
         private readonly Random _rand = new();
+        private readonly Random _timingRand = new();
+
+        // ---------- 时序偏差监控（对应专利「方向二」运行时监控与可视化层）----------
+        /// <summary>运行时时序监控行：按点位顺序比对实际触发时刻与预期时序标记。</summary>
+        public ObservableCollection<TimingRow> TimingRows { get; } = new();
+
+        /// <summary>时序偏差阈值（毫秒）：|偏差| 超过此值记为「偏差」，超过 2.5 倍记为「超阈」并报警。</summary>
+        private const double TimingThresholdMs = 2.0;
+
+        /// <summary>累计仿真触发时钟（ms），自运行起始累加，用于测算每步实际触发时刻。</summary>
+        private double _timingClockMs;
 
         // ---------- 工位（点位表）选择 + 运行进度 ----------
         private PointTable? _selectedTable;
@@ -42,6 +53,7 @@ namespace NoCodeMotion.ViewModels
                 if (!SetField(ref _selectedTable, value)) return;
                 _runIndex = -1;
                 SelectedPoint = null;
+                TimingRows.Clear();
                 OnPropertyChanged(nameof(CurrentPoints));
                 OnPropertyChanged(nameof(CanRun));
                 OnPropertyChanged(nameof(CurrentStation));
@@ -222,6 +234,7 @@ namespace NoCodeMotion.ViewModels
         {
             if (!CanRun) return;
             EStopped = false;
+            BuildTimingRows();
 
             // 手动模式：每按一次「启动」前进一个点位（单步，不自动循环）
             if (Mode == OpMode.Manual)
@@ -280,6 +293,7 @@ namespace NoCodeMotion.ViewModels
             EStopped = true;
             _runIndex = -1;
             SelectedPoint = null;
+            TimingRows.Clear();
             StatusText = "急停！所有运动已切断，请复位后重新启动。";
             AddLog(LogLevel.Error, wasRunning ? "急停触发！运行中工位已紧急切断。" : "急停触发！");
         }
@@ -291,6 +305,7 @@ namespace NoCodeMotion.ViewModels
             EStopped = false;
             _runIndex = -1;
             SelectedPoint = null;
+            TimingRows.Clear();
             TotalCount = 0;
             Yield = 99.0;
             CycleTime = 2.4;
@@ -349,6 +364,59 @@ namespace NoCodeMotion.ViewModels
             var p = SelectedTable.Points[idx];
             SelectedPoint = p;
             StatusText = $"运行中：「{SelectedTable.Name}」{p.Name}（{idx + 1}/{SelectedTable.Points.Count}）";
+            RecordTiming(idx, p);
+        }
+
+        /// <summary>构建时序监控行（运行启动时调用）：按点位顺序解析预期触发时刻，未配置时序标记的点位标记为「未配置」。</summary>
+        private void BuildTimingRows()
+        {
+            TimingRows.Clear();
+            _timingClockMs = 0;
+            if (SelectedTable == null) return;
+            int n = 0;
+            foreach (var p in SelectedTable.Points)
+            {
+                var ms = TimingCompiler.ParseTimingMark(p.TimingMark);
+                var row = new TimingRow { Step = n + 1, PointName = p.Name };
+                if (ms.HasValue)
+                    row.ExpectedText = $"T+{ms.Value}ms";
+                else
+                    row.Status = TimingStatus.Unconfigured;
+                TimingRows.Add(row);
+                n++;
+            }
+        }
+
+        /// <summary>记录某步实际触发时刻并比对预期：偏差超阈值时写入异常日志报警（仿真时序）。</summary>
+        private void RecordTiming(int idx, PointItem p)
+        {
+            if (idx < 0 || idx >= TimingRows.Count) return;
+            var row = TimingRows[idx];
+            var ms = TimingCompiler.ParseTimingMark(p.TimingMark);
+            if (!ms.HasValue)
+            {
+                row.Status = TimingStatus.Unconfigured;
+                return;
+            }
+
+            // 实际触发时刻 = 累计仿真时钟 + ±3ms 抖动（仿真，无真实运动硬件）
+            double actual = _timingClockMs + (_timingRand.NextDouble() * 6 - 3);
+            double dev = actual - ms.Value;
+            row.ActualText = $"{actual:F1}ms";
+            row.DeviationText = $"{(dev >= 0 ? "+" : "")}{dev:F1}ms";
+
+            if (Math.Abs(dev) <= TimingThresholdMs)
+                row.Status = TimingStatus.Normal;
+            else if (Math.Abs(dev) <= TimingThresholdMs * 2.5)
+                row.Status = TimingStatus.Deviation;
+            else
+            {
+                row.Status = TimingStatus.OverThreshold;
+                AddLog(LogLevel.Error,
+                    $"时序偏差超阈：点位「{p.Name}」预期 T+{ms.Value}ms，实际 {actual:F1}ms，偏差 {dev:F1}ms（阈值 ±{TimingThresholdMs}ms）。");
+            }
+
+            _timingClockMs += 700.0; // 每步基准 700ms（与自动节拍一致），推进仿真时钟
         }
 
         // ---------- 折线图重算 ----------
@@ -402,5 +470,77 @@ namespace NoCodeMotion.ViewModels
         public double Yield { get; set; }
         public double Cycle { get; set; }
         public double Count { get; set; }
+    }
+
+    /// <summary>时序偏差监控状态。</summary>
+    public enum TimingStatus
+    {
+        Normal,        // 正常：偏差在阈值内
+        Deviation,     // 偏差：超出阈值但未超 2.5 倍
+        OverThreshold, // 超阈：偏差超过 2.5 倍，触发报警
+        Unconfigured   // 未配置：该点位未填时序标记
+    }
+
+    /// <summary>运行时时序监控单行：步骤 / 点位 / 预期 / 实际 / 偏差 / 状态（实现 INPC 以便逐行刷新）。</summary>
+    public class TimingRow : ViewModelBase
+    {
+        private int _step;
+        private string _pointName = string.Empty;
+        private string _expectedText = "—";
+        private string _actualText = "—";
+        private string _deviationText = "—";
+        private TimingStatus _status = TimingStatus.Unconfigured;
+
+        public int Step
+        {
+            get => _step;
+            set => SetField(ref _step, value);
+        }
+
+        public string PointName
+        {
+            get => _pointName;
+            set => SetField(ref _pointName, value);
+        }
+
+        /// <summary>预期触发时刻文本（如 "T+5ms"），未配置时序标记时为 "—"。</summary>
+        public string ExpectedText
+        {
+            get => _expectedText;
+            set => SetField(ref _expectedText, value);
+        }
+
+        /// <summary>实际触发时刻文本（仿真测算，如 "708.3ms"）。</summary>
+        public string ActualText
+        {
+            get => _actualText;
+            set => SetField(ref _actualText, value);
+        }
+
+        /// <summary>偏差文本（实际 − 预期，如 "+3.1ms"）。</summary>
+        public string DeviationText
+        {
+            get => _deviationText;
+            set => SetField(ref _deviationText, value);
+        }
+
+        public TimingStatus Status
+        {
+            get => _status;
+            set
+            {
+                if (SetField(ref _status, value))
+                    OnPropertyChanged(nameof(StatusText));
+            }
+        }
+
+        /// <summary>状态中文文案（绑定显示）。</summary>
+        public string StatusText => Status switch
+        {
+            TimingStatus.Normal => "正常",
+            TimingStatus.Deviation => "偏差",
+            TimingStatus.OverThreshold => "超阈",
+            _ => "未配置"
+        };
     }
 }

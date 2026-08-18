@@ -41,6 +41,49 @@ namespace NoCodeMotion.ViewModels
         /// <summary>当前工位下的点位行集合，供右侧表格绑定；未选工位时为 null。</summary>
         public ObservableCollection<PointItem>? CurrentPoints => SelectedItem?.Points;
 
+        // ---------- 时序编译（对应专利「方向二」：同步组 / 时序标记 编译期冲突检测）----------
+        /// <summary>最近一次「编译时序」的问题列表（空表示通过）。</summary>
+        public ObservableCollection<TimingIssue> CompileIssues { get; } = new();
+
+        private bool _hasCompiled;
+        private bool _hasCompileIssues;
+        private int _errorCount;
+        private int _warningCount;
+        private string _compileSummary = string.Empty;
+
+        /// <summary>是否已执行过编译（控制结果面板可见性）。</summary>
+        public bool HasCompiled
+        {
+            get => _hasCompiled;
+            private set => SetField(ref _hasCompiled, value);
+        }
+
+        /// <summary>本次编译是否存在错误/警告。</summary>
+        public bool HasCompileIssues
+        {
+            get => _hasCompileIssues;
+            private set => SetField(ref _hasCompileIssues, value);
+        }
+
+        public int ErrorCount
+        {
+            get => _errorCount;
+            private set => SetField(ref _errorCount, value);
+        }
+
+        public int WarningCount
+        {
+            get => _warningCount;
+            private set => SetField(ref _warningCount, value);
+        }
+
+        /// <summary>编译结果摘要文本（通过 / N 错误 M 警告）。</summary>
+        public string CompileSummary
+        {
+            get => _compileSummary;
+            private set => SetField(ref _compileSummary, value);
+        }
+
         /// <summary>右侧表格当前选中的点位行（删除点位时使用）。</summary>
         public PointItem? SelectedPoint
         {
@@ -77,6 +120,7 @@ namespace NoCodeMotion.ViewModels
             SaveCurrentCommand = new RelayCommand(SaveCurrent);
             AddPointCommand = new RelayCommand(_ => AddPoint(), _ => SelectedItem != null);
             DeletePointCommand = new RelayCommand(_ => DeletePoint(), _ => CanDeletePoint);
+            CompileCommand = new RelayCommand(_ => Compile(), _ => SelectedItem != null);
 
             // 工位切换 → 重新载入 4 个轴名、刷新右侧表格
             PropertyChanged += OnSelfPropertyChanged;
@@ -171,6 +215,7 @@ namespace NoCodeMotion.ViewModels
 
         public ICommand AddPointCommand { get; }
         public ICommand DeletePointCommand { get; }
+        public ICommand CompileCommand { get; }
 
         private void AddPoint()
         {
@@ -185,6 +230,33 @@ namespace NoCodeMotion.ViewModels
             if (SelectedItem is not PointTable table || SelectedPoint is not PointItem point) return;
             table.Points.Remove(point);
             SelectedPoint = null;
+        }
+
+        /// <summary>编译当前工位的「时序标记 / 同步组」列，做编译期冲突检测，结果填入 CompileIssues。</summary>
+        private void Compile()
+        {
+            CompileIssues.Clear();
+            if (SelectedItem == null)
+            {
+                HasCompiled = true;
+                HasCompileIssues = false;
+                ErrorCount = 0;
+                WarningCount = 0;
+                CompileSummary = "未选择工位，无可编译内容。";
+                return;
+            }
+
+            var issues = TimingCompiler.Compile(SelectedItem.Points);
+            foreach (var i in issues) CompileIssues.Add(i);
+
+            ErrorCount = issues.Count(i => i.Severity == TimingSeverity.Error);
+            WarningCount = issues.Count(i => i.Severity == TimingSeverity.Warning);
+            HasCompileIssues = ErrorCount + WarningCount > 0;
+
+            CompileSummary = HasCompileIssues
+                ? $"发现 {ErrorCount} 个错误、{WarningCount} 个警告，请修正后再下发。"
+                : "时序编译通过，无冲突，可下发到实时调度。";
+            HasCompiled = true;
         }
 
         /// <summary>生成「前缀 + 最小可用序号」的唯一名称，避免删除后重名。</summary>

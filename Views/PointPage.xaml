@@ -67,6 +67,35 @@
             </TextBlock>
         </DataTemplate>
 
+        <!-- 编译时序结果：严重度彩色圆点 + 正文 -->
+        <Style x:Key="IssueDotStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="Fill" Value="{StaticResource AccentBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Severity}" Value="{x:Static svc:TimingSeverity.Warning}">
+                    <Setter Property="Fill" Value="{StaticResource WarningBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Severity}" Value="{x:Static svc:TimingSeverity.Error}">
+                    <Setter Property="Fill" Value="{StaticResource DangerBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="IssueMsgStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Severity}" Value="{x:Static svc:TimingSeverity.Warning}">
+                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Severity}" Value="{x:Static svc:TimingSeverity.Error}">
+                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         </UserControl.Resources>
 
     <Grid Background="{StaticResource CanvasBrush}">
@@ -206,6 +235,12 @@
                                     <TextBlock Text="删除点位" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
+                            <Button Command="{Binding CompileCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="编译当前工位的时序标记与同步组，检测同周期 / 分辨率 / 资源争用冲突。">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource CheckIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                    <TextBlock Text="编译时序" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <TextBlock Text="{Binding CurrentPoints.Count, StringFormat=共 {0} 个点位}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
                         </StackPanel>
                     </Border>
@@ -231,6 +266,15 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- 时序标记：相对工艺起点的触发时刻（T+0ms / T+5ms），对应专利「时序标记」列 -->
+                                <DataGridTemplateColumn Header="时序标记" Width="104">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding TimingMark, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}" ToolTip="相对工艺起点的触发时刻，如 T+0ms / T+5ms。"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -295,6 +339,15 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
+                                <!-- 同步组：同组动作同一 DC 周期原子执行（GroupA…），对应专利「同步组」列 -->
+                                <DataGridTemplateColumn Header="同步组" Width="104">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding SyncGroup, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}" ToolTip="同步组标识（如 GroupA），同组动作同一时刻原子执行；留空表示独立执行。"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
                                 <!-- 行操作：移动到该点位 / 保存当前位置到此行 -->
                                 <DataGridTemplateColumn Header="移动" Width="84">
                                     <DataGridTemplateColumn.CellTemplate>
@@ -314,6 +367,63 @@
                                 </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
+                    </Border>
+
+                    <!-- 编译时序结果面板：点击「编译时序」后显示同周期/分辨率/资源争用冲突 -->
+                    <Border Padding="12" Margin="0,10,0,0">
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource CardBorderStyle}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasCompiled}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel>
+                            <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                <TextBlock DockPanel.Dock="Left" Text="编译时序结果" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding CompileSummary}" FontSize="12.5" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasCompileIssues}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DockPanel>
+                            <ListBox ItemsSource="{Binding CompileIssues}" BorderThickness="0" Background="Transparent" MaxHeight="220">
+                                <ListBox.Style>
+                                    <Style TargetType="ListBox">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasCompileIssues}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.Style>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="4,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse Grid.Column="0" Style="{StaticResource IssueDotStyle}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding PointName}" Foreground="{StaticResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <TextBlock Grid.Column="2" Style="{StaticResource IssueMsgStyle}" Text="{Binding Message}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
             </ScrollViewer>

@@ -18,6 +18,34 @@ namespace NoCodeMotion.Models
             EnsureSlots();
         }
 
+        private string _timingMark = string.Empty;
+        /// <summary>时序标记：相对工艺起点的触发时刻（如 "T+0ms" / "T+5ms"），对应专利「时序标记」列。
+        /// 编译期解析为相对触发时刻（毫秒），用于时序编排与运行时偏差监控。空表示不约束时序。</summary>
+        public string TimingMark
+        {
+            get => _timingMark;
+            set
+            {
+                if (_timingMark == value) return;
+                _timingMark = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private string _syncGroup = string.Empty;
+        /// <summary>同步组标识（如 "GroupA"）：同组动作在同一 DC 周期原子执行，对应专利「同步组」列。
+        /// 空表示独立执行（不与他人同周期对齐）。</summary>
+        public string SyncGroup
+        {
+            get => _syncGroup;
+            set
+            {
+                if (_syncGroup == value) return;
+                _syncGroup = value;
+                OnPropertyChanged();
+            }
+        }
+
         /// <summary>4 个轴槽的目标值（位置 + 速度）。JSON 反序列化会整体替换本集合，setter 负责重新挂钩并补齐槽位。</summary>
         public ObservableCollection<PointAxis> Positions
         {
