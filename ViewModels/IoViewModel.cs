@@ -60,10 +60,5 @@ namespace NoCodeMotion.ViewModels
             InputPanel.Snapshot();
             OutputPanel.Snapshot();
         }
-
-        /// <summary>Excel编辑 按钮占位：未来可以打开 Excel 导入/导出对话框。</summary>
-        public ICommand ExcelEditCommand => new RelayCommand(_ =>
-            System.Windows.MessageBox.Show("Excel 批量编辑功能尚未实现", "提示",
-                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information));
     }
 }

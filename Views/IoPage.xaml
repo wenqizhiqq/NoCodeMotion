@@ -13,16 +13,6 @@
              Background="#FFFFFF">
 
     <UserControl.Resources>
-        <!-- 共同的下拉选项资源 -->
-        <x:Array x:Key="CardTypeOptions" Type="sys:String">
-            <sys:String>雷赛</sys:String>
-            <sys:String>固高</sys:String>
-            <sys:String>众为兴</sys:String>
-            <sys:String>汇川</sys:String>
-            <sys:String>正弦</sys:String>
-            <sys:String>维宏</sys:String>
-        </x:Array>
-
         <x:Array x:Key="LevelOptions" Type="sys:String">
             <sys:String>取反</sys:String>
             <sys:String>原点</sys:String>
@@ -40,16 +30,7 @@
             <sys:String>到位点</sys:String>
         </x:Array>
 
-        <x:Array x:Key="IoNamePrefixOptions" Type="sys:String">
-            <sys:String>感应器</sys:String>
-            <sys:String>out</sys:String>
-            <sys:String>按钮</sys:String>
-            <sys:String>光电</sys:String>
-            <sys:String>气缸</sys:String>
-        </x:Array>
-
-        <!-- 小号文本框样式 -->
-        <Style x:Key="CellTextBoxStyle" TargetType="TextBox">
+        <Style x:Key="IoCellTextBoxStyle" TargetType="TextBox">
             <Setter Property="Padding" Value="2,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -59,13 +40,7 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
 
-        <!-- 小号数字框样式 -->
-        <Style x:Key="CellIntBoxStyle" TargetType="TextBox" BasedOn="{StaticResource CellTextBoxStyle}">
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-        </Style>
-
-        <!-- 小号下拉框样式 -->
-        <Style x:Key="CellComboStyle" TargetType="hc:ComboBox">
+        <Style x:Key="IoCellComboStyle" TargetType="hc:ComboBox">
             <Setter Property="Padding" Value="2,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -76,8 +51,7 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
 
-        <!-- DataGrid 单元格样式（无 padding、无边框） -->
-        <Style x:Key="CellStyle" TargetType="DataGridCell">
+        <Style x:Key="IoCellStyle" TargetType="DataGridCell">
             <Setter Property="Padding" Value="2,0"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -95,8 +69,7 @@
             </Setter>
         </Style>
 
-        <!-- DataGrid 行样式（高亮偶数行） -->
-        <Style x:Key="IoDataGridRowStyle" TargetType="DataGridRow">
+        <Style x:Key="IoRowStyle" TargetType="DataGridRow">
             <Style.Triggers>
                 <Trigger Property="AlternationIndex" Value="1">
                     <Setter Property="Background" Value="#C8F2C4"/>
@@ -107,7 +80,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- DataGrid 标题样式 -->
         <Style x:Key="IoHeaderStyle" TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#E8EDF5"/>
             <Setter Property="Foreground" Value="#2B3A4B"/>
@@ -119,59 +91,11 @@
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
 
-        <!-- 标题样式 -->
         <Style x:Key="IoSectionTitleStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Foreground" Value="#2B3A4B"/>
             <Setter Property="Margin" Value="0,0,0,6"/>
-        </Style>
-
-        <!-- 顶部工具栏小按钮（蓝底白字） -->
-        <Style x:Key="IoToolBtnStyle" TargetType="Button">
-            <Setter Property="MinWidth" Value="60"/>
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="Margin" Value="4,0"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#3F8EF7"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8,0"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#1B6AE0"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="bd" Property="Background" Value="#A9C2E8"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="IoExcelBtnStyle" TargetType="Button" BasedOn="{StaticResource IoToolBtnStyle}">
-            <Setter Property="Background" Value="#4CAF50"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#3D8B40"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style x:Key="IoDeleteBtnStyle" TargetType="Button" BasedOn="{StaticResource IoToolBtnStyle}">
-            <Setter Property="Background" Value="#F66E6E"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#E04D4D"/>
-                </Trigger>
-            </Style.Triggers>
         </Style>
     </UserControl.Resources>
 
@@ -185,30 +109,17 @@
         <DockPanel Grid.Column="0" Margin="0,0,4,0">
             <TextBlock DockPanel.Dock="Top" Text="输入IO" Style="{StaticResource IoSectionTitleStyle}"/>
 
-            <!-- 工具栏 -->
-            <Border DockPanel.Dock="Top" Style="{StaticResource ToolbarStyle}" Margin="0,0,0,6">
-                <StackPanel Orientation="Horizontal">
-                    <Button Content="Excel编辑" Style="{StaticResource IoExcelBtnStyle}"
-                            Command="{Binding DataContext.ExcelEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-                    <Button Content="添加" Style="{StaticResource IoToolBtnStyle}" Command="{Binding InputPanel.AddCommand}"/>
-                    <Button Content="删除" Style="{StaticResource IoDeleteBtnStyle}" Command="{Binding InputPanel.DeleteCommand}"/>
-                    <Button Content="上移" Style="{StaticResource IoToolBtnStyle}" Command="{Binding InputPanel.MoveUpCommand}"/>
-                    <Button Content="下移" Style="{StaticResource IoToolBtnStyle}" Command="{Binding InputPanel.MoveDownCommand}"/>
-                    <Button Content="复制" Style="{StaticResource IoToolBtnStyle}" Command="{Binding InputPanel.CopyCommand}"/>
-                    <Button Content="粘贴" Style="{StaticResource IoToolBtnStyle}" Command="{Binding InputPanel.PasteCommand}"/>
-                    <Button Content="回撤" Style="{StaticResource IoToolBtnStyle}" Command="{Binding InputPanel.UndoCommand}"/>
-                    <Button Content="重做" Style="{StaticResource IoToolBtnStyle}" Command="{Binding InputPanel.RedoCommand}"/>
-                    <TextBlock Text="{Binding InputPanel.Items.Count, StringFormat=共 {0} 项}"
-                               VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#607080"/>
-                </StackPanel>
-            </Border>
+            <!-- 工具栏（继承通用 TableToolbar），用 Grid 绑定 DataContext 到 InputPanel，使命令解析到面板 VM -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,6" DataContext="{Binding InputPanel}">
+                <local:TableToolbar Count="{Binding Items.Count}"/>
+            </Grid>
 
             <!-- IO 表格 -->
             <DataGrid ItemsSource="{Binding InputPanel.Items}"
                       SelectedItem="{Binding InputPanel.SelectedItem, Mode=TwoWay}"
                       AlternationCount="2"
-                      RowStyle="{StaticResource IoDataGridRowStyle}"
-                      CellStyle="{StaticResource CellStyle}"
+                      RowStyle="{StaticResource IoRowStyle}"
+                      CellStyle="{StaticResource IoCellStyle}"
                       ColumnHeaderStyle="{StaticResource IoHeaderStyle}"
                       AutoGenerateColumns="False"
                       HeadersVisibility="Column"
@@ -231,7 +142,7 @@
                             <DataTemplate>
                                 <hc:ComboBox ItemsSource="{StaticResource LevelOptions}"
                                              SelectedItem="{Binding Level, UpdateSourceTrigger=PropertyChanged}"
-                                             Style="{StaticResource CellComboStyle}"/>
+                                             Style="{StaticResource IoCellComboStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -241,7 +152,7 @@
                             <DataTemplate>
                                 <hc:ComboBox ItemsSource="{StaticResource FunctionOptions}"
                                              SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}"
-                                             Style="{StaticResource CellComboStyle}"/>
+                                             Style="{StaticResource IoCellComboStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -254,28 +165,15 @@
         <DockPanel Grid.Column="1" Margin="4,0,0,0">
             <TextBlock DockPanel.Dock="Top" Text="输出IO" Style="{StaticResource IoSectionTitleStyle}"/>
 
-            <Border DockPanel.Dock="Top" Style="{StaticResource ToolbarStyle}" Margin="0,0,0,6">
-                <StackPanel Orientation="Horizontal">
-                    <Button Content="Excel编辑" Style="{StaticResource IoExcelBtnStyle}"
-                            Command="{Binding DataContext.ExcelEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
-                    <Button Content="添加" Style="{StaticResource IoToolBtnStyle}" Command="{Binding OutputPanel.AddCommand}"/>
-                    <Button Content="删除" Style="{StaticResource IoDeleteBtnStyle}" Command="{Binding OutputPanel.DeleteCommand}"/>
-                    <Button Content="上移" Style="{StaticResource IoToolBtnStyle}" Command="{Binding OutputPanel.MoveUpCommand}"/>
-                    <Button Content="下移" Style="{StaticResource IoToolBtnStyle}" Command="{Binding OutputPanel.MoveDownCommand}"/>
-                    <Button Content="复制" Style="{StaticResource IoToolBtnStyle}" Command="{Binding OutputPanel.CopyCommand}"/>
-                    <Button Content="粘贴" Style="{StaticResource IoToolBtnStyle}" Command="{Binding OutputPanel.PasteCommand}"/>
-                    <Button Content="回撤" Style="{StaticResource IoToolBtnStyle}" Command="{Binding OutputPanel.UndoCommand}"/>
-                    <Button Content="重做" Style="{StaticResource IoToolBtnStyle}" Command="{Binding OutputPanel.RedoCommand}"/>
-                    <TextBlock Text="{Binding OutputPanel.Items.Count, StringFormat=共 {0} 项}"
-                               VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#607080"/>
-                </StackPanel>
-            </Border>
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,6" DataContext="{Binding OutputPanel}">
+                <local:TableToolbar Count="{Binding Items.Count}"/>
+            </Grid>
 
             <DataGrid ItemsSource="{Binding OutputPanel.Items}"
                       SelectedItem="{Binding OutputPanel.SelectedItem, Mode=TwoWay}"
                       AlternationCount="2"
-                      RowStyle="{StaticResource IoDataGridRowStyle}"
-                      CellStyle="{StaticResource CellStyle}"
+                      RowStyle="{StaticResource IoRowStyle}"
+                      CellStyle="{StaticResource IoCellStyle}"
                       ColumnHeaderStyle="{StaticResource IoHeaderStyle}"
                       AutoGenerateColumns="False"
                       HeadersVisibility="Column"
@@ -298,7 +196,7 @@
                             <DataTemplate>
                                 <hc:ComboBox ItemsSource="{StaticResource LevelOptions}"
                                              SelectedItem="{Binding Level, UpdateSourceTrigger=PropertyChanged}"
-                                             Style="{StaticResource CellComboStyle}"/>
+                                             Style="{StaticResource IoCellComboStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -308,7 +206,7 @@
                             <DataTemplate>
                                 <hc:ComboBox ItemsSource="{StaticResource FunctionOptions}"
                                              SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}"
-                                             Style="{StaticResource CellComboStyle}"/>
+                                             Style="{StaticResource IoCellComboStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

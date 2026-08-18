@@ -66,24 +66,20 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- 步骤增删工具栏 -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                    <Button Content="添加步骤" Command="{Binding AddStepCommand}" Style="{StaticResource ToolButtonStyle}"/>
-                    <Button Content="删除步骤" Command="{Binding DeleteStepCommand}" Style="{StaticResource ToolButtonStyle}"/>
-                    <TextBlock Text="{Binding SelectedItem.Steps.Count, StringFormat=共 {0} 步}"
-                               VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#607080"/>
-                </StackPanel>
+                <!-- 步骤表格工具栏（继承通用 TableToolbar：Excel编辑/添加/删除/上移/下移/复制/粘贴/回撤/重做）。
+                     用 Grid 绑定 DataContext 到 StepPanel，使命令/计数都解析到步骤面板 VM。 -->
+                <Grid Grid.Row="0" Margin="0,0,0,8" DataContext="{Binding StepPanel}">
+                    <local:TableToolbar Count="{Binding Items.Count}" CountLabel="步"/>
+                </Grid>
 
                 <!--
                     步骤列表（DataGrid）。
                     关键：下拉框/文本框直接内嵌在 CellTemplate 中、一直可交互，DataGrid 设为 IsReadOnly
-                    不再接管单元格编辑，因此：
-                      1) 点一下即展开下拉，无需两次点击；
-                      2) 已展开某列下拉时，点击其它列是「同一次点击」直接切换，不再需要点两次。
+                    不再接管单元格编辑。
                 -->
                 <DataGrid Grid.Row="1"
-                          ItemsSource="{Binding SelectedItem.Steps}"
-                          SelectedItem="{Binding SelectedStep, Mode=TwoWay}"
+                          ItemsSource="{Binding StepPanel.Items}"
+                          SelectedItem="{Binding StepPanel.SelectedItem, Mode=TwoWay}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False" CanUserDeleteRows="False"
                           IsReadOnly="True"

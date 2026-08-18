@@ -1,33 +1,45 @@
-using System.Collections.Specialized;
-using System.ComponentModel;
-using System.Windows.Input;
+using System.Collections.ObjectModel;
+using System.Text.Json;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 
 namespace NoCodeMotion.ViewModels
 {
     /// <summary>
+    /// 单个流程的步骤面板：复用通用表格面板，定制步骤行的创建与克隆逻辑。
+    /// 步骤集合跟随“当前选中流程”的 Steps —— FlowViewModel 在选中流程变化时调用 SetItems 切换。
+    /// </summary>
+    public class FlowStepPanel : TablePanelViewModel<FlowStep>
+    {
+        public FlowStepPanel(ObservableCollection<FlowStep> steps) : base("步骤", steps) { }
+
+        protected override FlowStep MakeNew(int index)
+            => new FlowStep { Name = $"步骤{Items.Count + 1}" };
+
+        protected override FlowStep Clone(FlowStep src)
+        {
+            var json = JsonSerializer.Serialize(src);
+            var copy = JsonSerializer.Deserialize<FlowStep>(json)!;
+            copy.Name = $"{copy.Name}_副本";
+            return copy;
+        }
+
+        protected override void OnItemChanged(FlowStep item, string? propertyName)
+            => ProjectStore.ScheduleSave();
+
+        public override System.Windows.Input.ICommand ExcelEditCommand => new RelayCommand(_ =>
+            System.Windows.MessageBox.Show("步骤的 Excel 批量编辑尚未实现", "提示"));
+    }
+
+    /// <summary>
     /// 流程页 ViewModel：左侧列表管理“流程”项目（复用基类增删 + 自动保存），
-    /// 右侧表格管理当前流程内的“步骤”（FlowStep），步骤的增删改同样自动保存。
+    /// 右侧表格管理当前流程内的“步骤”（FlowStep）。步骤的增删/移动/复制/粘贴/回撤/重做
+    /// 全部由 StepPanel（TablePanelViewModel&lt;FlowStep&gt;）统一提供，并使用通用 TableToolbar。
     /// </summary>
     public class FlowViewModel : ListEditorViewModel<FlowItem>
     {
-        private FlowStep? _selectedStep;
-
-        public FlowStep? SelectedStep
-        {
-            get => _selectedStep;
-            set
-            {
-                if (SetField(ref _selectedStep, value))
-                    OnPropertyChanged(nameof(CanDeleteStep));
-            }
-        }
-
-        public bool CanDeleteStep => SelectedStep != null && SelectedItem != null;
-
-        public ICommand AddStepCommand => new RelayCommand(_ => AddStep(), _ => SelectedItem != null);
-        public ICommand DeleteStepCommand => new RelayCommand(_ => DeleteStep(), _ => CanDeleteStep);
+        /// <summary>当前选中流程的步骤面板。FlowPage 通过它绑定工具栏与表格。</summary>
+        public FlowStepPanel StepPanel { get; }
 
         public FlowViewModel()
         {
@@ -35,55 +47,20 @@ namespace NoCodeMotion.ViewModels
             Counter = Items.Count;
             AttachAutoSave();
 
-            foreach (var flow in Items) AttachSteps(flow);
-            Items.CollectionChanged += OnFlowsChanged;
+            StepPanel = new FlowStepPanel(new ObservableCollection<FlowStep>());
+            StepPanel.SetItems(SelectedItem?.Steps ?? new ObservableCollection<FlowStep>());
         }
 
         protected override FlowItem CreateNewItem() => new FlowItem { Name = $"流程{Counter + 1}" };
 
-        private void AddStep()
+        protected override void OnPropertyChanged(string? propertyName)
         {
-            if (SelectedItem is null) return;
-            var step = new FlowStep { Name = $"步骤{SelectedItem.Steps.Count + 1}" };
-            SelectedItem.Steps.Add(step);
-            SelectedStep = step;
+            base.OnPropertyChanged(propertyName);
+            // 选中流程变化时，把步骤面板切换到该流程的 Steps 集合
+            if (propertyName == nameof(SelectedItem))
+            {
+                StepPanel.SetItems(SelectedItem?.Steps ?? new ObservableCollection<FlowStep>());
+            }
         }
-
-        private void DeleteStep()
-        {
-            if (SelectedItem is null || SelectedStep is null) return;
-            SelectedItem.Steps.Remove(SelectedStep);
-            SelectedStep = null;
-        }
-
-        private void OnFlowsChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.NewItems != null) foreach (FlowItem f in e.NewItems) AttachSteps(f);
-            if (e.OldItems != null) foreach (FlowItem f in e.OldItems) DetachSteps(f);
-        }
-
-        private void AttachSteps(FlowItem flow)
-        {
-            flow.Steps.CollectionChanged += OnStepsChanged;
-            foreach (var step in flow.Steps) step.PropertyChanged += OnStepPropertyChanged;
-        }
-
-        private void DetachSteps(FlowItem flow)
-        {
-            flow.Steps.CollectionChanged -= OnStepsChanged;
-        }
-
-        private void OnStepsChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.NewItems != null)
-                foreach (FlowStep st in e.NewItems) st.PropertyChanged += OnStepPropertyChanged;
-            if (e.OldItems != null)
-                foreach (FlowStep st in e.OldItems) st.PropertyChanged -= OnStepPropertyChanged;
-
-            ProjectStore.ScheduleSave();
-        }
-
-        private void OnStepPropertyChanged(object? sender, PropertyChangedEventArgs e)
-            => ProjectStore.ScheduleSave();
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
 using System.Text.Json;
 using System.Windows.Input;
 using NoCodeMotion.Models;
@@ -11,15 +12,23 @@ using NoCodeMotion.Services;
 namespace NoCodeMotion.ViewModels
 {
     /// <summary>
-    /// 通用表格面板 ViewModel（输入IO / 输出IO / 变量 等都在用它）：
+    /// 通用表格面板 ViewModel（输入IO / 输出IO / 变量 / 流程步骤 等都在用它）：
     /// 维护一份 ObservableCollection&lt;T&gt;，提供 添加/删除/上移/下移/复制/粘贴/回撤/重做，
     /// 并通过 JSON 快照栈支持回撤 / 重做。任何增删改都会自动保存。
     /// 具体行类型由子类通过 MakeNew / Clone 定制。
+    /// SetItems 可把面板切换到另一份集合（如切换选中流程时切换其步骤集合），
+    /// 会安全地清理旧集合订阅、建立新订阅并打快照。
     /// </summary>
     public abstract class TablePanelViewModel<T> : ViewModelBase where T : INotifyPropertyChanged
     {
         public string Title { get; }
-        public ObservableCollection<T> Items { get; }
+
+        private ObservableCollection<T> _items = new();
+        public ObservableCollection<T> Items
+        {
+            get => _items;
+            private set => SetItems(value);
+        }
 
         private T? _selectedItem;
         public T? SelectedItem
@@ -37,6 +46,11 @@ namespace NoCodeMotion.ViewModels
         public ICommand UndoCommand { get; }
         public ICommand RedoCommand { get; }
 
+        /// <summary>Excel 编辑：默认占位实现（弹窗），各面板可重写。</summary>
+        public virtual ICommand ExcelEditCommand => new RelayCommand(_ =>
+            System.Windows.MessageBox.Show("Excel 批量编辑功能尚未实现", "提示",
+                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information));
+
         private readonly Stack<List<T>> _undo = new();
         private readonly Stack<List<T>> _redo = new();
         private T? _clipboard;
@@ -45,7 +59,7 @@ namespace NoCodeMotion.ViewModels
         protected TablePanelViewModel(string title, ObservableCollection<T> items)
         {
             Title = title;
-            Items = items;
+            SetItems(items);
 
             AddCommand = new RelayCommand(_ => Add());
             DeleteCommand = new RelayCommand(_ => Delete(), _ => SelectedItem != null);
@@ -55,25 +69,47 @@ namespace NoCodeMotion.ViewModels
             PasteCommand = new RelayCommand(_ => Paste(), _ => _clipboard != null);
             UndoCommand = new RelayCommand(_ => Undo(), _ => _undo.Count > 0);
             RedoCommand = new RelayCommand(_ => Redo(), _ => _redo.Count > 0);
+        }
 
-            Items.CollectionChanged += OnItemsChanged;
+        /// <summary>
+        /// 把面板绑定到另一份集合（如切换到某个流程时，切换为其步骤集合）。
+        /// 会清理旧集合及其中各项的订阅、建立新订阅、打快照，并通知 UI。
+        /// </summary>
+        public void SetItems(ObservableCollection<T>? items)
+        {
+            if (ReferenceEquals(_items, items)) return;
+            DetachItems(_items);
+            _items = items ?? new ObservableCollection<T>();
+            _items.CollectionChanged += OnItemsChanged;
+            AttachItems(_items);
+            OnPropertyChanged(nameof(Items));
+            RaiseCommandsChanged();
+            Snapshot();
         }
 
         protected abstract T MakeNew(int index);
         protected abstract T Clone(T src);
         protected virtual void OnItemChanged(T item, string? propertyName) { }
 
+        private void AttachItems(IEnumerable<T> items)
+        {
+            foreach (var it in items) it.PropertyChanged += OnItemPropertyChanged;
+        }
+
+        private void DetachItems(IEnumerable<T>? items)
+        {
+            if (items == null) return;
+            foreach (var it in items) it.PropertyChanged -= OnItemPropertyChanged;
+        }
+
         private void OnItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (!_applyingUndoRedo) Snapshot();
-            if (e.NewItems != null) foreach (T it in e.NewItems) Subscribe(it);
-            if (e.OldItems != null) foreach (T it in e.OldItems) Unsubscribe(it);
+            if (e.NewItems != null) AttachItems(e.NewItems.Cast<T>());
+            if (e.OldItems != null) DetachItems(e.OldItems.Cast<T>());
             ProjectStore.ScheduleSave();
             RaiseCommandsChanged();
         }
-
-        private void Subscribe(T it) => it.PropertyChanged += OnItemPropertyChanged;
-        private void Unsubscribe(T it) => it.PropertyChanged -= OnItemPropertyChanged;
 
         private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {

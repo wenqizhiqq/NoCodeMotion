@@ -117,6 +117,63 @@
                 <Setter Property="Foreground" Value="#2D7FF9"/>
                 <Setter Property="Margin" Value="0,14,0,4"/>
             </Style>
+
+            <!-- ============== 通用表格工具栏按钮（所有表格页共用） ============== -->
+            <Style x:Key="TtBaseBtn" TargetType="Button">
+                <Setter Property="MinWidth" Value="64"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Margin" Value="4,0"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="Background" Value="#3F8EF7"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="10,0"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="#1B6AE0"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="bd" Property="Background" Value="#C8D4E2"/>
+                                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="TtAddBtn" TargetType="Button" BasedOn="{StaticResource TtBaseBtn}"/>
+
+            <Style x:Key="TtDeleteBtn" TargetType="Button" BasedOn="{StaticResource TtBaseBtn}">
+                <Setter Property="Background" Value="#F66E6E"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#E04D4D"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="TtExcelBtn" TargetType="Button" BasedOn="{StaticResource TtBaseBtn}">
+                <Setter Property="Background" Value="#4CAF50"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#3D8B40"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="TtCountText" TargetType="TextBlock">
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="14,0,0,0"/>
+                <Setter Property="Foreground" Value="#5A6B7B"/>
+                <Setter Property="FontSize" Value="13"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

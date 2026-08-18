@@ -57,43 +57,6 @@
             <Setter Property="BorderBrush" Value="#DDE3EA"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
-
-        <Style x:Key="VarToolBtnStyle" TargetType="Button">
-            <Setter Property="MinWidth" Value="60"/>
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="Margin" Value="4,0"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#3F8EF7"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8,0"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#1B6AE0"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="bd" Property="Background" Value="#A9C2E8"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="VarDeleteBtnStyle" TargetType="Button" BasedOn="{StaticResource VarToolBtnStyle}">
-            <Setter Property="Background" Value="#F66E6E"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#E04D4D"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
     </UserControl.Resources>
 
     <Grid Margin="8">
@@ -102,21 +65,10 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 顶部工具栏 -->
-        <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}" Margin="0,0,0,6">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="添加" Style="{StaticResource VarToolBtnStyle}" Command="{Binding AddCommand}"/>
-                <Button Content="删除" Style="{StaticResource VarDeleteBtnStyle}" Command="{Binding DeleteCommand}"/>
-                <Button Content="上移" Style="{StaticResource VarToolBtnStyle}" Command="{Binding MoveUpCommand}"/>
-                <Button Content="下移" Style="{StaticResource VarToolBtnStyle}" Command="{Binding MoveDownCommand}"/>
-                <Button Content="复制" Style="{StaticResource VarToolBtnStyle}" Command="{Binding CopyCommand}"/>
-                <Button Content="粘贴" Style="{StaticResource VarToolBtnStyle}" Command="{Binding PasteCommand}"/>
-                <Button Content="回撤" Style="{StaticResource VarToolBtnStyle}" Command="{Binding UndoCommand}"/>
-                <Button Content="重做" Style="{StaticResource VarToolBtnStyle}" Command="{Binding RedoCommand}"/>
-                <TextBlock Text="{Binding Items.Count, StringFormat=共 {0} 行}"
-                           VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#607080"/>
-            </StackPanel>
-        </Border>
+        <!-- 工具栏（继承通用 TableToolbar：Excel编辑/添加/删除/上移/下移/复制/粘贴/回撤/重做） -->
+        <local:TableToolbar Grid.Row="0" Margin="0,0,0,6"
+                            Count="{Binding Items.Count}"
+                            CountLabel="行"/>
 
         <!-- 变量表格：每行 5 组 (名称 / 字符串值) -->
         <DataGrid Grid.Row="1"
