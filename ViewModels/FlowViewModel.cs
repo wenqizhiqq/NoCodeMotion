@@ -26,9 +26,6 @@ namespace NoCodeMotion.ViewModels
 
         protected override void OnItemChanged(FlowStep item, string? propertyName)
             => ProjectStore.ScheduleSave();
-
-        public override System.Windows.Input.ICommand ExcelEditCommand => new RelayCommand(_ =>
-            System.Windows.MessageBox.Show("步骤的 Excel 批量编辑尚未实现", "提示"));
     }
 
     /// <summary>

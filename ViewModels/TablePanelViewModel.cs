@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Windows;
 using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
@@ -12,14 +15,14 @@ using NoCodeMotion.Services;
 namespace NoCodeMotion.ViewModels
 {
     /// <summary>
-    /// é€šç”¨è¡¨æ ¼é¢æ¿ ViewModelï¼ˆè¾“å…¥IO / è¾“å‡ºIO / å˜é‡ / æµç¨‹æ­¥éª¤ ç­‰éƒ½åœ¨ç”¨å®ƒï¼‰ï¼š
-    /// ç»´æŠ¤ä¸€ä»½ ObservableCollection&lt;T&gt;ï¼Œæä¾› æ·»åŠ /åˆ é™¤/ä¸Šç§»/ä¸‹ç§»/å¤åˆ¶/ç²˜è´´/å›æ’¤/é‡åšï¼Œ
-    /// å¹¶é€šè¿‡ JSON å¿«ç…§æ ˆæ”¯æŒå›æ’¤ / é‡åšã€‚ä»»ä½•å¢åˆ æ”¹éƒ½ä¼šè‡ªåŠ¨ä¿å­˜ã€‚
-    /// å…·ä½“è¡Œç±»å‹ç”±å­ç±»é€šè¿‡ MakeNew / Clone å®šåˆ¶ã€‚
-    /// SetItems å¯æŠŠé¢æ¿åˆ‡æ¢åˆ°å¦ä¸€ä»½é›†åˆï¼ˆå¦‚åˆ‡æ¢é€‰ä¸­æµç¨‹æ—¶åˆ‡æ¢å…¶æ­¥éª¤é›†åˆï¼‰ï¼Œ
-    /// ä¼šå®‰å…¨åœ°æ¸…ç†æ—§é›†åˆè®¢é˜…ã€å»ºç«‹æ–°è®¢é˜…å¹¶æ‰“å¿«ç…§ã€‚
+    /// Í¨ÓÃ±í¸ñÃæ°å ViewModel£¨ÊäÈëIO / Êä³öIO / ±äÁ¿ / Á÷³Ì²½Öè µÈ¶¼ÔÚÓÃËü£©£º
+    /// Î¬»¤Ò»·İ ObservableCollection&lt;T&gt;£¬Ìá¹© Ìí¼Ó/É¾³ı/ÉÏÒÆ/ÏÂÒÆ/¸´ÖÆ/Õ³Ìù/»Ø³·/ÖØ×ö/ExcelÅú±à¼­£¬
+    /// ²¢Í¨¹ı JSON ¿ìÕÕÕ»Ö§³Ö»Ø³· / ÖØ×ö¡£ÈÎºÎÔöÉ¾¸Ä¶¼»á×Ô¶¯±£´æ¡£
+    /// ¾ßÌåĞĞÀàĞÍÓÉ×ÓÀàÍ¨¹ı MakeNew / Clone ¶¨ÖÆ¡£
+    /// SetItems ¿É°ÑÃæ°åÇĞ»»µ½ÁíÒ»·İ¼¯ºÏ£¨ÈçÇĞ»»Ñ¡ÖĞÁ÷³ÌÊ±ÇĞ»»Æä²½Öè¼¯ºÏ£©£¬
+    /// »á°²È«µØÇåÀí¾É¼¯ºÏ¶©ÔÄ¡¢½¨Á¢ĞÂ¶©ÔÄ²¢´ò¿ìÕÕ¡£
     /// </summary>
-    public abstract class TablePanelViewModel<T> : ViewModelBase where T : INotifyPropertyChanged
+    public abstract class TablePanelViewModel<T> : ViewModelBase where T : INotifyPropertyChanged, new()
     {
         public string Title { get; }
 
@@ -46,10 +49,8 @@ namespace NoCodeMotion.ViewModels
         public ICommand UndoCommand { get; }
         public ICommand RedoCommand { get; }
 
-        /// <summary>Excel ç¼–è¾‘ï¼šé»˜è®¤å ä½å®ç°ï¼ˆå¼¹çª—ï¼‰ï¼Œå„é¢æ¿å¯é‡å†™ã€‚</summary>
-        public virtual ICommand ExcelEditCommand => new RelayCommand(_ =>
-            System.Windows.MessageBox.Show("Excel æ‰¹é‡ç¼–è¾‘åŠŸèƒ½å°šæœªå®ç°", "æç¤º",
-                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information));
+        /// <summary>Excel Åú±à¼­£ºµ¼³öµ±Ç°ĞĞµ½ .xlsx ¡ú ´ò¿ª Excel/WPS ¡ú ¹Ø±Õºó×Ô¶¯»Ø¶Á²¢Ìæ»» Items¡£</summary>
+        public virtual ICommand ExcelEditCommand => new RelayCommand(_ => OpenExcelForBatchEdit());
 
         private readonly Stack<List<T>> _undo = new();
         private readonly Stack<List<T>> _redo = new();
@@ -72,8 +73,8 @@ namespace NoCodeMotion.ViewModels
         }
 
         /// <summary>
-        /// æŠŠé¢æ¿ç»‘å®šåˆ°å¦ä¸€ä»½é›†åˆï¼ˆå¦‚åˆ‡æ¢åˆ°æŸä¸ªæµç¨‹æ—¶ï¼Œåˆ‡æ¢ä¸ºå…¶æ­¥éª¤é›†åˆï¼‰ã€‚
-        /// ä¼šæ¸…ç†æ—§é›†åˆåŠå…¶ä¸­å„é¡¹çš„è®¢é˜…ã€å»ºç«‹æ–°è®¢é˜…ã€æ‰“å¿«ç…§ï¼Œå¹¶é€šçŸ¥ UIã€‚
+        /// °ÑÃæ°å°ó¶¨µ½ÁíÒ»·İ¼¯ºÏ£¨ÈçÇĞ»»µ½Ä³¸öÁ÷³ÌÊ±£¬ÇĞ»»ÎªÆä²½Öè¼¯ºÏ£©¡£
+        /// »áÇåÀí¾É¼¯ºÏ¼°ÆäÖĞ¸÷ÏîµÄ¶©ÔÄ¡¢½¨Á¢ĞÂ¶©ÔÄ¡¢´ò¿ìÕÕ£¬²¢Í¨Öª UI¡£
         /// </summary>
         public void SetItems(ObservableCollection<T>? items)
         {
@@ -175,7 +176,7 @@ namespace NoCodeMotion.ViewModels
 
         private List<T> DeepCopy()
         {
-            var json = JsonSerializer.Serialize(Items);
+            var json = JsonSerializer.Serialize(Items.ToList());
             return JsonSerializer.Deserialize<List<T>>(json) ?? new();
         }
 
@@ -205,5 +206,94 @@ namespace NoCodeMotion.ViewModels
             Apply(_redo.Pop());
             SelectedItem = Items.Count > 0 ? Items[0] : default(T);
         }
+
+        // ==================== Excel ÅúÁ¿±à¼­ ====================
+
+        /// <summary>°Ñµ±Ç° Items µ¼³öµ½ .xlsx£¬ÓÃÏµÍ³Ä¬ÈÏ³ÌĞò£¨Excel/WPS£©´ò¿ª£»¹Ø±Õºó×Ô¶¯»Ø¶ÁÌæ»» Items¡£</summary>
+        protected void OpenExcelForBatchEdit()
+        {
+            string path;
+            try
+            {
+                path = ExcelBatchEdit.Export(Items, Title);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("µ¼³ö Excel Ê§°Ü£º" + ex.Message, "ÌáÊ¾",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher == null) return;
+
+            Process? p = null;
+            try
+            {
+                var psi = new ProcessStartInfo(path) { UseShellExecute = true };
+                p = Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("´ò¿ª Excel Ê§°Ü£º" + ex.Message +
+                    "\nÇëÈ·ÈÏÒÑ°²×° Excel »ò WPS µÈ¿É´¦Àí .xlsx µÄ³ÌĞò¡£", "ÌáÊ¾",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (p == null)
+            {
+                MessageBox.Show("ÎŞ·¨Æô¶¯ Excel£¨ÎŞ¹ØÁª³ÌĞò£©¡£", "ÌáÊ¾",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            p.EnableRaisingEvents = true;
+            p.Exited += (_, _) =>
+            {
+                try
+                {
+                    var imported = ExcelBatchEdit.Import<T>(path);
+                    dispatcher.Invoke(() => ReplaceItemsFromExcel(imported));
+                }
+                catch (Exception ex)
+                {
+                    dispatcher.Invoke(() => MessageBox.Show("¶ÁÈ¡ Excel Ê§°Ü£º" + ex.Message, "ÌáÊ¾",
+                        MessageBoxButton.OK, MessageBoxImage.Warning));
+                }
+                finally
+                {
+                    try { File.Delete(path); } catch { /* ºöÂÔ */ }
+                }
+            };
+        }
+
+        /// <summary>ÓÃ Excel »Ø¶ÁµÄ½á¹ûÌæ»» Items¡£ÈôÄÚÈİÎ´±äÔòÌø¹ı£¨±ÜÃâÎŞÒâÒå undo£©¡£</summary>
+        protected void ReplaceItemsFromExcel(IList<T> imported)
+        {
+            var oldJson = JsonSerializer.Serialize(Items.ToList());
+            var newJson = JsonSerializer.Serialize(imported.ToList());
+            if (oldJson == newJson) return;
+
+            ReplaceItemsInternal(imported);
+            OnAfterExcelReplace(imported);
+        }
+
+        /// <summary>ÅúÁ¿Ìæ»» Items£¨Ò»´Î undo ²½£©¡£</summary>
+        private void ReplaceItemsInternal(IEnumerable<T> newItems)
+        {
+            _applyingUndoRedo = true;
+            try
+            {
+                Items.Clear();
+                foreach (var it in newItems) Items.Add(it);
+            }
+            finally { _applyingUndoRedo = false; }
+            Snapshot();
+            ProjectStore.ScheduleSave();
+        }
+
+        /// <summary>Excel »Ø¶ÁÌæ»»Íê³Éºó¸ø×ÓÀàÒ»¸ö²¹¾È»ú»á£¨ÖØĞÂÍ¬²½Ä¿Â¼µÈ£©¡£</summary>
+        protected virtual void OnAfterExcelReplace(IList<T> imported) { }
     }
 }

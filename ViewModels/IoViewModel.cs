@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Windows.Input;
@@ -43,6 +44,10 @@ namespace NoCodeMotion.ViewModels
                 .Concat(ProjectStore.Data.Outputs.Select(i => i.Name));
             Catalog.SetIo(all);
         }
+
+        /// <summary>Excel 回读替换后，名称变化发生在订阅之前，OnItemChanged 收不到 → 主动全量同步一次目录。</summary>
+        protected override void OnAfterExcelReplace(IList<IoItem> imported)
+            => SyncIoCatalog();
     }
 
     /// <summary>IO 页面顶层 ViewModel：包含两个面板（输入/输出）。</summary>
