@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
@@ -7,12 +9,18 @@ using NoCodeMotion.Views;
 
 namespace NoCodeMotion.ViewModels
 {
-    /// <summary>点位表页 ViewModel：选择 4 个轴，维护点位列表（点位名称 + 4 轴位置/速度），并提供轴的使能/回原/寸动/JOG 控制。</summary>
-    public class PointViewModel : ListEditorViewModel<PointItem>, IEnsureDefaultSelection
+    /// <summary>
+    /// 点位表页 ViewModel：左侧维护多个点位表（一个点位表 = 一个工位，可新增/删除/切换）；
+    /// 右侧针对当前选中的工位，选择 4 个轴、维护该工位的点位行（名称 + 4 轴位置/速度），
+    /// 并提供轴的使能/回原/寸动/JOG 控制。
+    /// </summary>
+    public class PointViewModel : ListEditorViewModel<PointTable>, IEnsureDefaultSelection
     {
-        /// <summary>4 个轴槽的运行/配置状态。轴名持久化到工程；使能/回原/当前位置为运行态（不落盘）。</summary>
+        /// <summary>4 个轴槽的运行/配置状态。轴名属于当前工位并持久化；使能/回原/当前位置为运行态（不落盘）。</summary>
         public ObservableCollection<AxisState> AxisStates { get; } = new();
 
+        private bool _loadingAxisNames;
+        private PointItem? _selectedPoint;
         private double _inchStep = 1.0;
         private double _jogStep = 10.0;
 
@@ -30,17 +38,33 @@ namespace NoCodeMotion.ViewModels
             set => SetField(ref _jogStep, value);
         }
 
+        /// <summary>当前工位下的点位行集合，供右侧表格绑定；未选工位时为 null。</summary>
+        public ObservableCollection<PointItem>? CurrentPoints => SelectedItem?.Points;
+
+        /// <summary>右侧表格当前选中的点位行（删除点位时使用）。</summary>
+        public PointItem? SelectedPoint
+        {
+            get => _selectedPoint;
+            set
+            {
+                if (SetField(ref _selectedPoint, value))
+                    OnPropertyChanged(nameof(CanDeletePoint));
+            }
+        }
+
+        public bool CanDeletePoint => SelectedPoint != null;
+
+        /// <summary>是否已选中一个工位（未选中时右侧显示空状态提示）。</summary>
+        public bool HasTable => SelectedItem != null;
+
         public PointViewModel()
         {
-            CatalogCategory = "Point";
-            Items = ProjectStore.Data.Points;
-            Counter = Items.Count;
+            Items = ProjectStore.Data.PointTables;
 
-            // 初始化 4 个轴槽（轴名从工程载入）
-            var saved = ProjectStore.Data.PointAxes;
-            for (int i = 0; i < 4; i++)
+            // 4 个轴槽（轴名随当前工位切换而重新载入）
+            for (int i = 0; i < PointTable.SlotCount; i++)
             {
-                var st = new AxisState(i) { AxisName = i < saved.Count ? saved[i] : string.Empty };
+                var st = new AxisState(i);
                 st.PropertyChanged += OnAxisStateChanged;
                 AxisStates.Add(st);
             }
@@ -51,28 +75,127 @@ namespace NoCodeMotion.ViewModels
             JogCommand = new RelayCommand(p => Move(p, true));
             MoveToPointCommand = new RelayCommand(MoveToPoint);
             SaveCurrentCommand = new RelayCommand(SaveCurrent);
+            AddPointCommand = new RelayCommand(_ => AddPoint(), _ => SelectedItem != null);
+            DeletePointCommand = new RelayCommand(_ => DeletePoint(), _ => CanDeletePoint);
+
+            // 工位切换 → 重新载入 4 个轴名、刷新右侧表格
+            PropertyChanged += OnSelfPropertyChanged;
+
+            // 工位增删 / 工位内点位名变化 → 重新汇总点位名称库
+            Items.CollectionChanged += OnTablesCollectionChanged;
+            foreach (var t in Items) t.PropertyChanged += OnTableChanged;
 
             AttachAutoSave();
+            EnsureDefaultSelection();
         }
 
-        // 轴名变更 → 写回工程并保存
-        private void OnAxisStateChanged(object? sender, PropertyChangedEventArgs e)
+        // ===== 工位（点位表）级操作 =====
+
+        protected override PointTable CreateNewItem()
         {
-            if (e.PropertyName == nameof(AxisState.AxisName) && sender is AxisState st)
+            var table = new PointTable { Name = UniqueName("工位", Items.Select(t => t.Name)) };
+            // 新工位默认带一行点位，便于立即录入
+            table.Points.Add(new PointItem { Name = "点位1" });
+            return table;
+        }
+
+        /// <summary>删除工位前弹窗确认，避免误删整张点位表。</summary>
+        protected override void Delete()
+        {
+            if (SelectedItem is not PointTable table) return;
+            var dlg = new ConfirmDialog(
+                "删除确认",
+                $"是否删除点位表「{table.Name}」？该工位下的 {table.Points.Count} 个点位会一并删除。",
+                "删除");
+            if (dlg.ShowDialog() != true) return;
+            base.Delete();
+        }
+
+        /// <summary>点位名称库汇总所有工位下的点位行（而不是工位名）。</summary>
+        protected override void SyncCatalog()
+            => Catalog.SetPoint(Items.SelectMany(t => t.Points).Select(p => p.Name));
+
+        private void OnTablesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.OldItems != null)
+                foreach (PointTable t in e.OldItems) t.PropertyChanged -= OnTableChanged;
+            if (e.NewItems != null)
+                foreach (PointTable t in e.NewItems) t.PropertyChanged += OnTableChanged;
+        }
+
+        private void OnTableChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(PointTable.PointNamesSignature))
+                SyncCatalog();
+        }
+
+        private void OnSelfPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(SelectedItem)) return;
+            LoadAxisNamesFromTable();
+            SelectedPoint = null;
+            OnPropertyChanged(nameof(CurrentPoints));
+            OnPropertyChanged(nameof(HasTable));
+        }
+
+        // 切换工位时把该工位保存的 4 个轴名填进轴槽（此期间不回写，避免污染其它工位）
+        private void LoadAxisNamesFromTable()
+        {
+            var table = SelectedItem;
+            _loadingAxisNames = true;
+            try
             {
-                while (ProjectStore.Data.PointAxes.Count <= st.Index)
-                    ProjectStore.Data.PointAxes.Add(string.Empty);
-                ProjectStore.Data.PointAxes[st.Index] = st.AxisName;
-                ProjectStore.ScheduleSave();
+                for (int i = 0; i < AxisStates.Count; i++)
+                    AxisStates[i].AxisName =
+                        table != null && i < table.AxisNames.Count ? table.AxisNames[i] : string.Empty;
+            }
+            finally
+            {
+                _loadingAxisNames = false;
             }
         }
 
-        protected override PointItem CreateNewItem()
+        // 用户改选轴 → 写回当前工位并保存
+        private void OnAxisStateChanged(object? sender, PropertyChangedEventArgs e)
         {
-            var point = new PointItem { Name = $"点位{Counter + 1}" };
-            for (int i = 0; i < 4; i++)
-                point.Positions.Add(new PointAxis());
-            return point;
+            if (_loadingAxisNames) return;
+            if (e.PropertyName != nameof(AxisState.AxisName)) return;
+            if (sender is not AxisState st || SelectedItem is not PointTable table) return;
+
+            table.EnsureAxisSlots();
+            if (st.Index < table.AxisNames.Count)
+                table.AxisNames[st.Index] = st.AxisName;
+        }
+
+        // ===== 当前工位内的点位行增删 =====
+
+        public ICommand AddPointCommand { get; }
+        public ICommand DeletePointCommand { get; }
+
+        private void AddPoint()
+        {
+            if (SelectedItem is not PointTable table) return;
+            var point = new PointItem { Name = UniqueName("点位", table.Points.Select(p => p.Name)) };
+            table.Points.Add(point);
+            SelectedPoint = point;
+        }
+
+        private void DeletePoint()
+        {
+            if (SelectedItem is not PointTable table || SelectedPoint is not PointItem point) return;
+            table.Points.Remove(point);
+            SelectedPoint = null;
+        }
+
+        /// <summary>生成「前缀 + 最小可用序号」的唯一名称，避免删除后重名。</summary>
+        private static string UniqueName(string prefix, System.Collections.Generic.IEnumerable<string> existing)
+        {
+            var used = new System.Collections.Generic.HashSet<string>(existing);
+            for (int n = 1; ; n++)
+            {
+                var name = prefix + n;
+                if (!used.Contains(name)) return name;
+            }
         }
 
         // ===== 轴控制命令（运行态仿真：当前无运动硬件层，命令在此更新运行态，后续接运动引擎）=====
@@ -137,6 +260,8 @@ namespace NoCodeMotion.ViewModels
         {
             if (SelectedItem == null && Items.Count > 0)
                 SelectedItem = Items[0];
+            if (SelectedPoint == null && CurrentPoints is { Count: > 0 } points)
+                SelectedPoint = points[0];
         }
     }
 

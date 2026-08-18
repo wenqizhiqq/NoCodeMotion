@@ -95,7 +95,8 @@ namespace NoCodeMotion.ViewModels
                 SyncCatalog();
         }
 
-        private void SyncCatalog()
+        /// <summary>把当前列表的名称汇入全局 Catalog。子类可重写以自定义汇总口径（例如点位表页要汇总所有工位下的点位名）。</summary>
+        protected virtual void SyncCatalog()
         {
             if (CatalogCategory == null) return;
             var names = Items.Select(i => i.Name).ToList();

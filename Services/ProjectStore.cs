@@ -28,16 +28,17 @@ namespace NoCodeMotion.Services
                     var json = File.ReadAllText(FilePath);
                     var data = JsonSerializer.Deserialize<ProjectData>(json);
                     if (data != null)
-                    {
                         Data = data;
-                        Catalog.SyncAllFromData(Data);
-                    }
                 }
             }
             catch
             {
                 // 载入失败则保持空数据，避免崩溃
             }
+
+            // 迁移旧的单一点位表 → 多工位结构，并补齐 4 个轴槽；然后重建全局名称库
+            Data.EnsurePointTables();
+            Catalog.SyncAllFromData(Data);
         }
 
         public static void Save()

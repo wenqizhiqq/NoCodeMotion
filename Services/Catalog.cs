@@ -56,7 +56,8 @@ namespace NoCodeMotion.Services
             SetCylinder(data.Cylinders.Select(c => c.Name));
             SetComm(data.Comms.Select(c => c.Name));
             SetVariable(data.Variables.SelectMany(v => v.Names()));
-            SetPoint(data.Points.Select(p => p.Name));
+            // 点位名称来自所有点位表（工位）下的全部点位行
+            SetPoint(data.PointTables.SelectMany(t => t.Points).Select(p => p.Name));
         }
     }
 }

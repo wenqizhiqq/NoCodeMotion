@@ -205,165 +205,254 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource CanvasBrush}">
-        <StackPanel Margin="16">
+    <Grid Background="{StaticResource CanvasBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="232"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-            <!-- ===== 页面标题与说明 ===== -->
-            <StackPanel Margin="0,0,0,14">
-                <TextBlock Text="点位表" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                <TextBlock Text="选择 4 个轴并记录每个点位的名称与 4 轴的目标位置、速度，供流程步骤调用。上方可对 4 个轴进行使能、回原、寸动与 JOG 移动；下方表格逐行维护点位数据。"
-                           FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
-            </StackPanel>
-
-            <!-- ===== 轴控制 ===== -->
-            <TextBlock Text="轴控制" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,4"/>
-            <TextBlock Text="为 4 个槽位各选择一个轴，然后对该轴进行使能、回原、寸动或 JOG 移动。寸动 / JOG 步长可在下方设置。"
-                       FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-            <ItemsControl ItemsSource="{Binding AxisStates}" ItemTemplate="{StaticResource AxisCardTemplate}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-            </ItemsControl>
-
-            <DockPanel LastChildFill="False" Margin="6,10,6,4">
-                <TextBlock DockPanel.Dock="Left" Text="寸动步长" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                <TextBox DockPanel.Dock="Left" Text="{Binding InchStep, UpdateSourceTrigger=PropertyChanged}" Width="72" Style="{StaticResource PointCellTextBoxStyle}"/>
-                <TextBlock DockPanel.Dock="Left" Text="JOG 步长" VerticalAlignment="Center" Margin="18,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                <TextBox DockPanel.Dock="Left" Text="{Binding JogStep, UpdateSourceTrigger=PropertyChanged}" Width="72" Style="{StaticResource PointCellTextBoxStyle}"/>
-            </DockPanel>
-
-            <!-- ===== 点位列表 ===== -->
-            <TextBlock Text="点位列表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,4"/>
-            <TextBlock Text="每行一个点位：第一列为点位名称，其后依次为 4 个轴的目标位置，最后为 4 个轴的目标速度。在上方选择轴后，对应列头会显示轴名。行末「移动」按确认后将 4 轴移到该点位目标位置；「保存」按确认后将当前位置存回该行单元。"
-                       FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-            <!-- 工具栏：添加 / 删除 -->
-            <Border Style="{StaticResource ToolbarStyle}" Margin="0,0,0,8">
-                <StackPanel Orientation="Horizontal">
-                    <Button Command="{Binding AddCommand}" Style="{StaticResource ToolButtonStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                            <TextBlock Text="添加" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding DeleteCommand}" Style="{StaticResource ToolButtonStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                            <TextBlock Text="删除" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <TextBlock Text="{Binding Items.Count, StringFormat=共 {0} 项}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+        <!-- ===================== 左侧：点位表（工位）列表 ===================== -->
+        <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="12,14,12,10">
+                    <TextBlock Text="点位表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="一个点位表就是一个工位。可以新增多个工位，每个工位各自保存自己的 4 个轴和点位数据；点下面的条目即可切换。"
+                               FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                 </StackPanel>
-            </Border>
 
-            <Border Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
-                <DataGrid ItemsSource="{Binding Items}"
-                          SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
-                          RowStyle="{StaticResource PointRowStyle}"
-                          CellStyle="{StaticResource PointCellStyle}"
-                          ColumnHeaderStyle="{StaticResource PointHeaderStyle}"
-                          AutoGenerateColumns="False"
-                          CanUserAddRows="False" CanUserDeleteRows="False"
-                          IsReadOnly="True"
-                          SelectionMode="Single" SelectionUnit="CellOrRowHeader"
-                          GridLinesVisibility="None"
-                          HeadersVisibility="Column"
-                          BorderThickness="0"
-                          Background="Transparent"
-                          RowHeight="28"
-                          FontSize="12">
-                    <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="点位名称" Width="130">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                <UniformGrid DockPanel.Dock="Top" Columns="2" Margin="8,0,8,10">
+                    <Button Command="{Binding AddCommand}" Style="{StaticResource TtBaseBtn}" Content="新增工位"
+                            ToolTip="新增一个点位表（工位），默认带 1 行点位。"/>
+                    <Button Command="{Binding DeleteCommand}" Style="{StaticResource TtDeleteBtn}" Content="删除工位"
+                            ToolTip="删除当前选中的工位，删除前会弹窗确认。"/>
+                </UniformGrid>
 
-                        <!-- 先排 4 个轴的目标位置 -->
-                        <DataGridTemplateColumn HeaderTemplate="{StaticResource H0Pos}" Width="92">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding Positions[0].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn HeaderTemplate="{StaticResource H1Pos}" Width="92">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding Positions[1].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn HeaderTemplate="{StaticResource H2Pos}" Width="92">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding Positions[2].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn HeaderTemplate="{StaticResource H3Pos}" Width="92">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding Positions[3].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding Items.Count, StringFormat=共 {0} 个工位}"
+                           Margin="14,8,14,12" FontSize="11.5" Foreground="{StaticResource TextMutedBrush}"/>
 
-                        <!-- 最后排 4 个轴的目标速度 -->
-                        <DataGridTemplateColumn HeaderTemplate="{StaticResource H0Spd}" Width="92">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding Positions[0].Speed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn HeaderTemplate="{StaticResource H1Spd}" Width="92">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding Positions[1].Speed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn HeaderTemplate="{StaticResource H2Spd}" Width="92">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding Positions[2].Speed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn HeaderTemplate="{StaticResource H3Spd}" Width="92">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding Positions[3].Speed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                <ListBox ItemsSource="{Binding Items}"
+                         SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                         Style="{StaticResource ProjectListStyle}"
+                         BorderThickness="0">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel LastChildFill="True" MinHeight="20">
+                                <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="11" Margin="6,0,0,0"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Text="{Binding Points.Count, StringFormat={}{0} 点}"/>
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
 
-                        <!-- 行操作：移动到该点位 / 保存当前位置到此行 -->
-                        <DataGridTemplateColumn Header="移动" Width="84">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Button Command="{Binding DataContext.MoveToPointCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                            CommandParameter="{Binding}" Style="{StaticResource TtBaseBtn}" Content="移动" Margin="3,0" HorizontalAlignment="Center"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="保存" Width="84">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Button Command="{Binding DataContext.SaveCurrentCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                            CommandParameter="{Binding}" Style="{StaticResource TtExcelBtn}" Content="保存" Margin="3,0" HorizontalAlignment="Center"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Border>
-        </StackPanel>
-    </ScrollViewer>
+        <!-- ===================== 右侧：当前工位的轴控制 + 点位列表 ===================== -->
+        <Grid Grid.Column="1">
+
+            <!-- 空状态：一个工位都没有时的提示 -->
+            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                       FontSize="13" Foreground="{StaticResource TextMutedBrush}"
+                       Text="左侧还没有点位表。点「新增工位」创建第一个工位。">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasTable}" Value="False">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer.Style>
+                    <Style TargetType="ScrollViewer">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasTable}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ScrollViewer.Style>
+
+                <StackPanel Margin="16">
+
+                    <!-- ===== 当前工位标题与重命名 ===== -->
+                    <StackPanel Margin="0,0,0,14">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="{StaticResource PointIcon}" Width="17" Height="17" Stretch="Uniform"
+                                  Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding SelectedItem.Name}" FontSize="20" FontWeight="Bold"
+                                       Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="当前工位的轴与点位配置：上方为该工位所用的 4 个轴（选轴 + 使能 / 回原 / 寸动 / JOG），下方表格逐行维护该工位的点位数据。切换左侧工位后，这里的内容会随之切换。"
+                                   FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                        <DockPanel LastChildFill="False" Margin="0,10,0,0">
+                            <TextBlock DockPanel.Dock="Left" Text="工位名称" VerticalAlignment="Center" Margin="0,0,8,0"
+                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                            <TextBox DockPanel.Dock="Left" Width="200" Height="30" VerticalContentAlignment="Center"
+                                     Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="修改当前工位的名称，左侧列表会同步更新。"/>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- ===== 轴控制 ===== -->
+                    <TextBlock Text="轴控制" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,4"/>
+                    <TextBlock Text="为本工位的 4 个槽位各选择一个轴，然后对该轴进行使能、回原、寸动或 JOG 移动。轴的选择只影响当前工位。"
+                               FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                    <ItemsControl ItemsSource="{Binding AxisStates}" ItemTemplate="{StaticResource AxisCardTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+
+                    <DockPanel LastChildFill="False" Margin="6,10,6,4">
+                        <TextBlock DockPanel.Dock="Left" Text="寸动步长" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                        <TextBox DockPanel.Dock="Left" Text="{Binding InchStep, UpdateSourceTrigger=PropertyChanged}" Width="72" Style="{StaticResource PointCellTextBoxStyle}"/>
+                        <TextBlock DockPanel.Dock="Left" Text="JOG 步长" VerticalAlignment="Center" Margin="18,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                        <TextBox DockPanel.Dock="Left" Text="{Binding JogStep, UpdateSourceTrigger=PropertyChanged}" Width="72" Style="{StaticResource PointCellTextBoxStyle}"/>
+                    </DockPanel>
+
+                    <!-- ===== 点位列表 ===== -->
+                    <TextBlock Text="点位列表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,4"/>
+                    <TextBlock Text="每行一个点位：第一列为点位名称，其后依次为 4 个轴的目标位置，最后为 4 个轴的目标速度。在上方选择轴后，对应列头会显示轴名。行末「移动」按确认后将 4 轴移到该点位目标位置；「保存」按确认后将当前位置存回该行单元。"
+                               FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                    <!-- 工具栏：添加 / 删除点位（作用于当前工位） -->
+                    <Border Style="{StaticResource ToolbarStyle}" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Command="{Binding AddPointCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="在当前工位下新增一行点位。">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                    <TextBlock Text="添加点位" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding DeletePointCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="删除表格中选中的那一行点位。">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                    <TextBlock Text="删除点位" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <TextBlock Text="{Binding CurrentPoints.Count, StringFormat=共 {0} 个点位}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
+                        <DataGrid ItemsSource="{Binding CurrentPoints}"
+                                  SelectedItem="{Binding SelectedPoint, Mode=TwoWay}"
+                                  RowStyle="{StaticResource PointRowStyle}"
+                                  CellStyle="{StaticResource PointCellStyle}"
+                                  ColumnHeaderStyle="{StaticResource PointHeaderStyle}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Single" SelectionUnit="CellOrRowHeader"
+                                  GridLinesVisibility="None"
+                                  HeadersVisibility="Column"
+                                  BorderThickness="0"
+                                  Background="Transparent"
+                                  RowHeight="28"
+                                  FontSize="12">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="点位名称" Width="130">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- 先排 4 个轴的目标位置 -->
+                                <DataGridTemplateColumn HeaderTemplate="{StaticResource H0Pos}" Width="92">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Positions[0].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn HeaderTemplate="{StaticResource H1Pos}" Width="92">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Positions[1].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn HeaderTemplate="{StaticResource H2Pos}" Width="92">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Positions[2].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn HeaderTemplate="{StaticResource H3Pos}" Width="92">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Positions[3].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- 最后排 4 个轴的目标速度 -->
+                                <DataGridTemplateColumn HeaderTemplate="{StaticResource H0Spd}" Width="92">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Positions[0].Speed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn HeaderTemplate="{StaticResource H1Spd}" Width="92">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Positions[1].Speed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn HeaderTemplate="{StaticResource H2Spd}" Width="92">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Positions[2].Speed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn HeaderTemplate="{StaticResource H3Spd}" Width="92">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Positions[3].Speed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- 行操作：移动到该点位 / 保存当前位置到此行 -->
+                                <DataGridTemplateColumn Header="移动" Width="84">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Command="{Binding DataContext.MoveToPointCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" Style="{StaticResource TtBaseBtn}" Content="移动" Margin="3,0" HorizontalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="保存" Width="84">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Command="{Binding DataContext.SaveCurrentCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" Style="{StaticResource TtExcelBtn}" Content="保存" Margin="3,0" HorizontalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
 </UserControl>

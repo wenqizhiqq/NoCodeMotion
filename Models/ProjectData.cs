@@ -12,11 +12,14 @@ namespace NoCodeMotion.Models
         public ObservableCollection<TrayItem> Trays { get; set; } = new();
         public ObservableCollection<FlowItem> Flows { get; set; } = new();
 
-        /// <summary>轴点位表（流程可引用的命名位置，含各轴目标坐标）。</summary>
+        /// <summary>点位表列表：一个点位表 = 一个工位，含该工位的 4 个轴与全部点位行。</summary>
+        public ObservableCollection<PointTable> PointTables { get; set; } = new();
+
+        /// <summary>【旧字段，仅用于兼容早期工程】单一点位表的点位行，载入后会迁移到 PointTables。</summary>
         public ObservableCollection<PointItem> Points { get; set; } = new();
 
-        /// <summary>点位表页所选的 4 个轴（按槽位 0..3），持久化以便表头显示轴名。</summary>
-        public ObservableCollection<string> PointAxes { get; set; } = new() { "", "", "", "" };
+        /// <summary>【旧字段，仅用于兼容早期工程】单一点位表所选的 4 个轴，载入后会迁移到 PointTables。</summary>
+        public ObservableCollection<string> PointAxes { get; set; } = new();
 
         /// <summary>输入 IO 点位（左侧输入IO面板）</summary>
         public ObservableCollection<IoItem> Inputs { get; set; } = new();
@@ -32,6 +35,33 @@ namespace NoCodeMotion.Models
         public ObservableCollection<IoItem> Io
         {
             get => Inputs;
+        }
+
+        /// <summary>
+        /// 载入工程后调用：把旧的单一点位表（Points / PointAxes）迁移为「工位1」，
+        /// 并保证工程中至少存在一个点位表，同时补齐每个点位表的 4 个轴槽。
+        /// </summary>
+        public void EnsurePointTables()
+        {
+            if (PointTables.Count == 0)
+            {
+                var table = new PointTable { Name = "工位1" };
+                for (int i = 0; i < PointTable.SlotCount && i < PointAxes.Count; i++)
+                    table.AxisNames[i] = PointAxes[i];
+                foreach (var p in Points)
+                    table.Points.Add(p);
+                PointTables.Add(table);
+            }
+
+            foreach (var t in PointTables)
+            {
+                t.EnsureAxisSlots();
+                foreach (var p in t.Points) p.EnsureSlots();
+            }
+
+            // 旧字段已迁移完毕，清空避免下次载入重复迁移
+            Points.Clear();
+            PointAxes.Clear();
         }
     }
 }
