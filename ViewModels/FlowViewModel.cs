@@ -1,5 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Linq;
 using System.Text.Json;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -36,6 +39,8 @@ namespace NoCodeMotion.ViewModels
     /// 右侧表格管理当前流程内的“步骤”（FlowStep）。步骤的增删/移动/复制/粘贴/回撤/重做
     /// 全部由 StepPanel（TablePanelViewModel&lt;FlowStep&gt;）统一提供，并使用通用 TableToolbar。
     /// 另含流程执行仿真控制（运行 / 单步 / 跳到指定行 / 暂停 / 停止），纯运行态，无真实运动硬件。
+    /// 顶部提供两个具体添加命令：添加表格流程（Kind=Table）/ 添加脚本流程（Kind=Lua），
+    /// 由 EditorPage 的 LeftToolbarContent 注入并隐藏默认「添加」按钮。
     /// </summary>
     public class FlowViewModel : ListEditorViewModel<FlowItem>, IEnsureDefaultSelection
     {
@@ -90,6 +95,22 @@ namespace NoCodeMotion.ViewModels
         public bool CanPause => IsRunning && !IsPaused;
         public bool CanStop => IsRunning || IsPaused || _currentStep >= 0;
 
+        // ---------- 新建流程的两个具体添加命令（EditorPage 注入用）----------
+        /// <summary>下次「添加」时要用的流程类型（AddTable/AddScript 命令临时改写它）。</summary>
+        private FlowKind _nextAddKind = FlowKind.Table;
+
+        /// <summary>添加表格流程（Kind=Table）。</summary>
+        public ICommand AddTableFlowCommand { get; }
+
+        /// <summary>添加 Lua 脚本流程（Kind=Lua，自动填默认脚本模板）。</summary>
+        public ICommand AddScriptFlowCommand { get; }
+
+        /// <summary>当前选中流程是表格流程（驱动右侧显示表格编辑器）。</summary>
+        public bool IsKindTable => SelectedItem?.Kind == FlowKind.Table;
+
+        /// <summary>当前选中流程是 Lua 脚本流程（驱动右侧显示 Lua 编辑器）。</summary>
+        public bool IsKindLua => SelectedItem?.Kind == FlowKind.Lua;
+
         public ICommand RunCommand { get; }
         public ICommand StepCommand { get; }
         public ICommand JumpCommand { get; }
@@ -101,6 +122,10 @@ namespace NoCodeMotion.ViewModels
             Items = ProjectStore.Data.Flows;
             Counter = Items.Count;
             AttachAutoSave();
+
+            // 监听每个 FlowItem.Kind 变化（用于驱动 IsKindTable/IsKindLua + 类型切换时复位执行态）
+            foreach (FlowItem item in Items) item.PropertyChanged += OnFlowItemPropertyChanged;
+            Items.CollectionChanged += OnFlowsCollectionChanged;
 
             StepPanel = new FlowStepPanel(new ObservableCollection<FlowStep>());
             StepPanel.SetItems(SelectedItem?.Steps ?? new ObservableCollection<FlowStep>());
@@ -114,8 +139,39 @@ namespace NoCodeMotion.ViewModels
             PauseCommand = new RelayCommand(_ => Pause());
             StopCommand = new RelayCommand(_ => Stop());
 
+            // 顶部两个具体「添加」：先设置 Kind 再调基类 Add()，执行后复位 _nextAddKind
+            AddTableFlowCommand = new RelayCommand(_ => AddNewOfKind(FlowKind.Table));
+            AddScriptFlowCommand = new RelayCommand(_ => AddNewOfKind(FlowKind.Lua));
+
             _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
             _runTimer.Tick += (_, _) => StepOnce();
+        }
+
+        private void OnFlowsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.NewItems != null)
+                foreach (FlowItem item in e.NewItems) item.PropertyChanged += OnFlowItemPropertyChanged;
+            if (e.OldItems != null)
+                foreach (FlowItem item in e.OldItems) item.PropertyChanged -= OnFlowItemPropertyChanged;
+        }
+
+        /// <summary>监听每个 FlowItem 的属性变化：Kind 变更时刷新右侧编辑器的可见性属性 + 复位执行态。</summary>
+        private void OnFlowItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(FlowItem.Kind))
+            {
+                OnPropertyChanged(nameof(IsKindTable));
+                OnPropertyChanged(nameof(IsKindLua));
+                Stop(); // Lua 流程没有步骤表，运行态不再有效
+            }
+        }
+
+        /// <summary>用指定 Kind 新建一个流程（由顶部两个「添加」按钮调用）。</summary>
+        private void AddNewOfKind(FlowKind kind)
+        {
+            _nextAddKind = kind;
+            try { Add(); }
+            finally { _nextAddKind = FlowKind.Table; }
         }
 
         private void RaiseRunState()
@@ -189,7 +245,17 @@ namespace NoCodeMotion.ViewModels
             RaiseRunState();
         }
 
-        protected override FlowItem CreateNewItem() => new FlowItem { Name = $"流程{Counter + 1}" };
+        protected override FlowItem CreateNewItem()
+        {
+            var kind = _nextAddKind;
+            int idx = Items.Count(i => i.Kind == kind) + 1;
+            string prefix = kind == FlowKind.Table ? "表格流程" : "脚本流程";
+            return new FlowItem
+            {
+                Name = $"{prefix}{idx}",
+                Kind = kind,
+            };
+        }
 
         protected override void OnPropertyChanged(string? propertyName)
         {
@@ -199,6 +265,8 @@ namespace NoCodeMotion.ViewModels
             {
                 StepPanel.SetItems(SelectedItem?.Steps ?? new ObservableCollection<FlowStep>());
                 Stop();
+                OnPropertyChanged(nameof(IsKindTable));
+                OnPropertyChanged(nameof(IsKindLua));
             }
         }
 

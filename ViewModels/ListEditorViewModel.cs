@@ -5,11 +5,12 @@ using System.Linq;
 using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using NoCodeMotion.Views;
 
 namespace NoCodeMotion.ViewModels
 {
     /// <summary>
-    /// 列表编辑页的通用 ViewModel：维护 Items 集合、当前选中项，以及“添加/删除”命令。
+    /// 列表编辑页的通用 ViewModel：维护 Items 集合、当前选中项，以及“添加/删除/重命名”命令。
     /// Items 直接引用 ProjectStore.Data 中的共享集合（单一真实来源），任何增删改都会自动保存。
     /// 同时把配置项的名称同步到全局 Catalog，供流程页“名称”下拉框引用。
     /// </summary>
@@ -37,6 +38,15 @@ namespace NoCodeMotion.ViewModels
 
         public ICommand AddCommand => new RelayCommand(_ => Add());
         public ICommand DeleteCommand => new RelayCommand(_ => Delete(), _ => CanDelete);
+        public ICommand RenameCommand => new RelayCommand(_ => Rename(), _ => SelectedItem != null);
+
+        private void Rename()
+        {
+            if (SelectedItem is null) return;
+            var dlg = new RenameDialog("重命名", SelectedItem.Name);
+            if (dlg.ShowDialog() == true && !string.IsNullOrEmpty(dlg.ResultName))
+                SelectedItem.Name = dlg.ResultName!;
+        }
 
         /// <summary>
         /// 子类构造函数设置好 Items（共享集合）后调用：订阅增删改以自动保存，并同步名称库。

@@ -1,0 +1,27 @@
+<Window x:Class="NoCodeMotion.Views.RenameDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight" WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+    <!-- 透明窗口 + 圆角白卡 + 柔和阴影 = Apple 风重命名弹窗 -->
+    <Border CornerRadius="14" Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Margin="16" Effect="{StaticResource SoftShadow}">
+        <StackPanel MinWidth="360" MaxWidth="480">
+            <Border Padding="22,18,22,14" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">
+                <TextBlock x:Name="TitleText" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+            </Border>
+            <DockPanel LastChildFill="True" Margin="24,18,24,8">
+                <TextBlock Text="名称" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                <TextBox x:Name="NameBox" VerticalContentAlignment="Center" FontSize="14" Padding="8,6"
+                         BorderThickness="1" BorderBrush="{StaticResource LineBrush}" Background="White"
+                         Foreground="{StaticResource TextPrimaryBrush}"/>
+            </DockPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,12,16,16">
+                <Button x:Name="CancelButton" Content="取消" Style="{StaticResource TtGrayBtn}" Click="CancelButton_Click" IsCancel="True"/>
+                <Button x:Name="ConfirmButton" Content="确定" Style="{StaticResource TtBaseBtn}" Margin="8,0,0,0" Click="ConfirmButton_Click" IsDefault="True"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

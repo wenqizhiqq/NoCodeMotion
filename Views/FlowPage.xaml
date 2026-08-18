@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:models="clr-namespace:NoCodeMotion.Models"
              xmlns:hc="https://handyorg.github.io/handycontrol"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
@@ -133,201 +134,287 @@
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
-
-    <local:EditorPage>
-        <local:EditorPage.Detail>
-            <Grid Margin="12">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <StackPanel Grid.Row="0" Style="{StaticResource SectionHeaderStyle}">
-                <Path Data="{StaticResource FlowIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                <TextBlock Text="流程步骤" Style="{StaticResource SectionHeaderText}"/>
+    <!-- 流程页：EditorPage 宿主，顶部工具栏注入「添加表格 / 添加脚本」两个具体按钮并隐藏默认「添加」 -->
+    <local:EditorPage ShowDefaultAddButton="False">
+        <local:EditorPage.LeftToolbarContent>
+            <StackPanel Orientation="Horizontal">
+                <!-- 添加表格流程（Kind=Table） -->
+                <Button Command="{Binding AddTableFlowCommand}" Style="{StaticResource ToolButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="添加表格" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <!-- 添加 Lua 脚本流程（Kind=Lua，自动填默认脚本模板） -->
+                <Button Command="{Binding AddScriptFlowCommand}" Style="{StaticResource ToolButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="添加脚本" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
+        </local:EditorPage.LeftToolbarContent>
 
-                <!-- 步骤表格工具栏（继承通用 TableToolbar：Excel编辑/添加/删除/上移/下移/复制/粘贴/回撤/重做）。
-                     用 Grid 绑定 DataContext 到 StepPanel，使命令/计数都解析到步骤面板 VM。 -->
-                <Grid Grid.Row="1" Margin="0,0,0,8" DataContext="{Binding StepPanel}">
-                    <local:TableToolbar Count="{Binding Items.Count}" CountLabel="步"/>
-                </Grid>
+        <local:EditorPage.Detail>
+            <!-- 整体两行：标题 + 编辑器主体（主体内部按 Kind 切换表格 / Lua） -->
+            <Grid Margin="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                <!--
-                    步骤列表（DataGrid）—— 卡片化外观。
-                    外层 Border 负责圆角 + 边框 + 阴影；DataGrid 自身透明无边框。
-                    下拉框/文本框直接内嵌在 CellTemplate 中、一直可交互，DataGrid 设为 IsReadOnly
-                    不再接管单元格编辑。
-                -->
-                <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
-                    <DataGrid ItemsSource="{Binding StepPanel.Items}"
-                              SelectedItem="{Binding StepPanel.SelectedItem, Mode=TwoWay}"
-                              AlternationCount="2"
-                              RowStyle="{StaticResource FlowRowStyle}"
-                              CellStyle="{StaticResource FlowCellStyle}"
-                              ColumnHeaderStyle="{StaticResource FlowHeaderStyle}"
-                              AutoGenerateColumns="False"
-                              CanUserAddRows="False" CanUserDeleteRows="False"
-                              IsReadOnly="True"
-                              SelectionMode="Single" SelectionUnit="CellOrRowHeader"
-                              GridLinesVisibility="None"
-                              HeadersVisibility="Column"
-                              BorderThickness="0"
-                              Background="Transparent"
-                              RowHeight="28"
-                              FontSize="12"
-                              AlternatingRowBackground="#FAFBFC">
-                    <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="逻辑" Width="78">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{StaticResource LogicOptions}"
-                                                 SelectedItem="{Binding Logic, UpdateSourceTrigger=PropertyChanged}"
-                                                 Style="{StaticResource CellComboStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                <!-- Row 0：节标题 + 右上角当前流程类型 chip -->
+                <DockPanel Grid.Row="0" LastChildFill="False">
+                    <StackPanel DockPanel.Dock="Left" Style="{StaticResource SectionHeaderStyle}">
+                        <Path Data="{StaticResource FlowIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="流程" Style="{StaticResource SectionHeaderText}"/>
+                        <TextBlock Text="{Binding SelectedItem.Name}" Margin="6,0,0,0" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <!-- 右上角「当前类型」chip（SelectedItem.Kind：表格 / Lua 文本由 enum.ToString 直出） -->
+                    <Border DockPanel.Dock="Right" Padding="10,3" CornerRadius="10" Background="{StaticResource AccentSoftBrush}" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding SelectedItem.Kind}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource AccentDarkBrush}"/>
+                    </Border>
+                </DockPanel>
 
-                        <DataGridTemplateColumn Header="功能" Width="90">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{StaticResource FunctionOptions}"
-                                                 SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}"
-                                                 Style="{StaticResource CellComboStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                <!-- Row 1：编辑器主体（按 Kind 互斥可见） -->
+                <Grid Grid.Row="1">
 
-                        <DataGridTemplateColumn Header="名称" Width="150">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToNamesConverter}}"
-                                                 SelectedItem="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                                                 Style="{StaticResource CellComboStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                    <!-- ============ 表格流程编辑器（Steps 表格 + 工具栏 + 执行控制栏） ============ -->
+                    <Grid Visibility="{Binding IsKindTable, Converter={StaticResource BoolToVis}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                        <DataGridTemplateColumn Header="属性" Width="130">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToPropertiesConverter}}"
-                                                 SelectedItem="{Binding Property, UpdateSourceTrigger=PropertyChanged}"
-                                                 Style="{StaticResource CellComboStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                        <!-- 步骤表格工具栏（继承通用 TableToolbar：Excel编辑/添加/删除/上移/下移/复制/粘贴/回撤/重做）。
+                             用 Grid 绑定 DataContext 到 StepPanel，使命令/计数都解析到步骤面板 VM。 -->
+                        <Grid Grid.Row="0" Margin="0,0,0,8" DataContext="{Binding StepPanel}">
+                            <local:TableToolbar Count="{Binding Items.Count}" CountLabel="步"/>
+                        </Grid>
 
-                        <DataGridTemplateColumn Header="运算" Width="100">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{StaticResource OperationOptions}"
-                                                 SelectedItem="{Binding Operation, UpdateSourceTrigger=PropertyChanged}"
-                                                 Style="{StaticResource CellComboStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                        <!-- 步骤列表（DataGrid）—— 卡片化外观 -->
+                        <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
+                            <DataGrid ItemsSource="{Binding StepPanel.Items}"
+                                      SelectedItem="{Binding StepPanel.SelectedItem, Mode=TwoWay}"
+                                      AlternationCount="2"
+                                      RowStyle="{StaticResource FlowRowStyle}"
+                                      CellStyle="{StaticResource FlowCellStyle}"
+                                      ColumnHeaderStyle="{StaticResource FlowHeaderStyle}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False" CanUserDeleteRows="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Single" SelectionUnit="CellOrRowHeader"
+                                      GridLinesVisibility="None"
+                                      HeadersVisibility="Column"
+                                      BorderThickness="0"
+                                      Background="Transparent"
+                                      RowHeight="28"
+                                      FontSize="12"
+                                      AlternatingRowBackground="#FAFBFC">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="逻辑" Width="78">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox ItemsSource="{StaticResource LogicOptions}"
+                                                          SelectedItem="{Binding Logic, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource CellComboStyle}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="设置值" Width="110">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding SetValue, UpdateSourceTrigger=PropertyChanged}"
-                                             Style="{StaticResource FlowCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="功能" Width="90">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox ItemsSource="{StaticResource FunctionOptions}"
+                                                          SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource CellComboStyle}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="超时" Width="130">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{StaticResource TimeoutOptions}"
-                                                 SelectedItem="{Binding Timeout, UpdateSourceTrigger=PropertyChanged}"
-                                                 Style="{StaticResource CellComboStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="名称" Width="150">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToNamesConverter}}"
+                                                          SelectedItem="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource CellComboStyle}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="耗时(ms)" Width="90">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding DurationMs, UpdateSourceTrigger=PropertyChanged}"
-                                             Style="{StaticResource FlowCellTextBoxStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="属性" Width="130">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToPropertiesConverter}}"
+                                                          SelectedItem="{Binding Property, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource CellComboStyle}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="实际值" Width="120">
-                            <DataGridTemplateColumn.HeaderStyle>
-                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource FlowHeaderStyle}">
-                                    <Setter Property="Background" Value="#DDE9F7"/>
-                                    <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}"/>
-                                </Style>
-                            </DataGridTemplateColumn.HeaderStyle>
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Border Margin="1" CornerRadius="4" Background="#F2F7FE">
-                                        <Grid>
-                                            <Ellipse Width="6" Height="6" Margin="6,0,0,0"
-                                                     HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                     Fill="{StaticResource AccentBrush}"/>
-                                            <!-- 实际值：只读显示（执行器回填结果，不允许编辑），统一蓝色调 -->
-                                            <TextBlock Text="{Binding ActualValue}"
-                                                       VerticalAlignment="Center"
-                                                       Margin="16,1,1,1"
-                                                       Padding="6,0"
-                                                       Foreground="{StaticResource AccentDarkBrush}"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="12"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-                </Border>
+                                    <DataGridTemplateColumn Header="运算" Width="100">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox ItemsSource="{StaticResource OperationOptions}"
+                                                          SelectedItem="{Binding Operation, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource CellComboStyle}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                <!-- 流程执行控制栏：运行 / 单步运行 / 跳到指定行 / 暂停 / 停止（固定底部，不占表格行的内部滚动高度） -->
-                <Border Grid.Row="3" Margin="0,10,0,0" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
-                    <Grid Margin="12,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                                    <DataGridTemplateColumn Header="设置值" Width="110">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding SetValue, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource FlowCellTextBoxStyle}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                        <Button Grid.Column="0" Content="运行" Style="{StaticResource TtBaseBtn}"
-                                Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" Margin="0,0,8,0"/>
-                        <Button Grid.Column="1" Content="单步运行" Style="{StaticResource TtBaseBtn}"
-                                Command="{Binding StepCommand}" IsEnabled="{Binding CanStep}" Margin="0,0,8,0"/>
+                                    <DataGridTemplateColumn Header="超时" Width="130">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox ItemsSource="{StaticResource TimeoutOptions}"
+                                                          SelectedItem="{Binding Timeout, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource CellComboStyle}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,8,0" VerticalAlignment="Center">
-                            <TextBlock Text="跳到行" VerticalAlignment="Center" Margin="0,0,6,0"
-                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                            <TextBox Width="58" Height="28" Text="{Binding JumpRow, UpdateSourceTrigger=PropertyChanged}"
-                                     VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                                     Margin="0,0,6,0" BorderThickness="1" BorderBrush="{StaticResource LineBrush}"
-                                     Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <Button Content="跳转" Style="{StaticResource TtBaseBtn}" Command="{Binding JumpCommand}"/>
-                        </StackPanel>
+                                    <DataGridTemplateColumn Header="耗时(ms)" Width="90">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding DurationMs, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource FlowCellTextBoxStyle}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                        <Button Grid.Column="3" Content="暂停" Style="{StaticResource TtWarnBtn}"
-                                Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}" Margin="0,0,8,0"/>
-                        <Button Grid.Column="4" Content="停止" Style="{StaticResource TtDeleteBtn}"
-                                Command="{Binding StopCommand}" IsEnabled="{Binding CanStop}"/>
+                                    <DataGridTemplateColumn Header="实际值" Width="120">
+                                        <DataGridTemplateColumn.HeaderStyle>
+                                            <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource FlowHeaderStyle}">
+                                                <Setter Property="Background" Value="#DDE9F7"/>
+                                                <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}"/>
+                                            </Style>
+                                        </DataGridTemplateColumn.HeaderStyle>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border Margin="1" CornerRadius="4" Background="#F2F7FE">
+                                                    <Grid>
+                                                        <Ellipse Width="6" Height="6" Margin="6,0,0,0"
+                                                                 HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                                 Fill="{StaticResource AccentBrush}"/>
+                                                        <!-- 实际值：只读显示（执行器回填结果，不允许编辑），统一蓝色调 -->
+                                                        <TextBlock Text="{Binding ActualValue}"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="16,1,1,1"
+                                                                   Padding="6,0"
+                                                                   Foreground="{StaticResource AccentDarkBrush}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="12"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
 
-                        <TextBlock Grid.Column="6" Text="{Binding CurrentStepText}" VerticalAlignment="Center"
-                                   HorizontalAlignment="Right" FontSize="12"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <!-- 流程执行控制栏：运行 / 单步运行 / 跳到指定行 / 暂停 / 停止（固定底部） -->
+                        <Border Grid.Row="2" Margin="0,10,0,0" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
+                            <Grid Margin="12,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="0" Content="运行" Style="{StaticResource TtBaseBtn}"
+                                        Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" Margin="0,0,8,0"/>
+                                <Button Grid.Column="1" Content="单步运行" Style="{StaticResource TtBaseBtn}"
+                                        Command="{Binding StepCommand}" IsEnabled="{Binding CanStep}" Margin="0,0,8,0"/>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,8,0" VerticalAlignment="Center">
+                                    <TextBlock Text="跳到行" VerticalAlignment="Center" Margin="0,0,6,0"
+                                               Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                                    <TextBox Width="58" Height="28" Text="{Binding JumpRow, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                             Margin="0,0,6,0" BorderThickness="1" BorderBrush="{StaticResource LineBrush}"
+                                             Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <Button Content="跳转" Style="{StaticResource TtBaseBtn}" Command="{Binding JumpCommand}"/>
+                                </StackPanel>
+
+                                <Button Grid.Column="3" Content="暂停" Style="{StaticResource TtWarnBtn}"
+                                        Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}" Margin="0,0,8,0"/>
+                                <Button Grid.Column="4" Content="停止" Style="{StaticResource TtDeleteBtn}"
+                                        Command="{Binding StopCommand}" IsEnabled="{Binding CanStop}"/>
+
+                                <TextBlock Grid.Column="6" Text="{Binding CurrentStepText}" VerticalAlignment="Center"
+                                           HorizontalAlignment="Right" FontSize="12"
+                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                            </Grid>
+                        </Border>
                     </Grid>
-                </Border>
+
+                    <!-- ============ Lua 脚本流程编辑器（多行源码 + 行号提示，后续接 Lua 引擎） ============ -->
+                    <Grid Visibility="{Binding IsKindLua, Converter={StaticResource BoolToVis}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 顶部说明 -->
+                        <Border Grid.Row="0" Margin="0,0,0,8" Padding="12,8" CornerRadius="8"
+                                Background="{StaticResource AccentSoftBrush}">
+                            <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap">
+                                <Run Text="编辑 Lua 脚本以实现自定义流程逻辑。可用变量："/>
+                                <Run Text="flow_name" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <Run Text="。" FontWeight="SemiBold"/>
+                                <Run Text="（执行器后续集成）" Foreground="{StaticResource TextMutedBrush}"/>
+                            </TextBlock>
+                        </Border>
+
+                        <!-- 源码编辑卡片 -->
+                        <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
+                            <TextBox Text="{Binding SelectedItem.LuaSource, UpdateSourceTrigger=PropertyChanged}"
+                                     FontFamily="Consolas, Cascadia Mono, Courier New"
+                                     FontSize="13"
+                                     Padding="10"
+                                     Margin="0"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     Foreground="{StaticResource TextPrimaryBrush}"
+                                     AcceptsReturn="True"
+                                     AcceptsTab="True"
+                                     TextWrapping="NoWrap"
+                                     VerticalScrollBarVisibility="Auto"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     VerticalContentAlignment="Top"/>
+                        </Border>
+
+                        <!-- 底部占位（保留与表格编辑器同样的高度感） -->
+                        <Border Grid.Row="2" Margin="0,10,0,0" Padding="12,8" CornerRadius="8"
+                                Background="#F8FAFC" BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+                            <DockPanel LastChildFill="True">
+                                <TextBlock DockPanel.Dock="Left" Text="脚本长度" FontSize="12"
+                                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="12"
+                                           Foreground="{StaticResource TextSecondaryBrush}">
+                                    <Run Text="{Binding SelectedItem.LuaSource.Length, Mode=OneWay, FallbackValue=0}"/>
+                                    <Run Text=" 字符"/>
+                                </TextBlock>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
             </Grid>
         </local:EditorPage.Detail>
     </local:EditorPage>

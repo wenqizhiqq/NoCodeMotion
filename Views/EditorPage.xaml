@@ -4,7 +4,41 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:models="clr-namespace:NoCodeMotion.Models"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <!-- 左侧列表项模板：图标（按流程类型切换）+ 名称（只读显示） -->
+        <DataTemplate x:Key="EditorListItemTemplate">
+            <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Path Grid.Column="0" Width="15" Height="15" Stretch="Uniform" Margin="0,0,6,0"
+                      VerticalAlignment="Center" Fill="{StaticResource TextSecondaryBrush}">
+                    <Path.Style>
+                        <Style TargetType="Path">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Setter Property="Data" Value="{StaticResource TableIconGeometry}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Kind}" Value="{x:Static models:FlowKind.Table}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Setter Property="Data" Value="{StaticResource TableIconGeometry}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Kind}" Value="{x:Static models:FlowKind.Lua}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Setter Property="Data" Value="{StaticResource ScriptIconGeometry}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Path.Style>
+                </Path>
+                <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" Foreground="{StaticResource TextPrimaryBrush}"/>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -12,10 +46,16 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 顶部工具栏：添加 / 删除 -->
+        <!-- 顶部工具栏：添加 / 删除 / 重命名 -->
         <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}">
             <StackPanel Orientation="Horizontal">
-                <Button Command="{Binding AddCommand}" Style="{StaticResource ToolButtonStyle}">
+                <!-- 注入的额外左侧按钮（流程页用：添加表格 / 添加脚本） -->
+                <ContentPresenter Content="{Binding LeftToolbarContent, RelativeSource={RelativeSource AncestorType=local:EditorPage}}"/>
+
+                <!-- 默认「添加」按钮：宿主页设置 ShowDefaultAddButton=false 时隐藏 -->
+                <Button Command="{Binding AddCommand}"
+                        Visibility="{Binding ShowDefaultAddButton, RelativeSource={RelativeSource AncestorType=local:EditorPage}, Converter={StaticResource BoolToVis}}"
+                        Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                         <TextBlock Text="添加" VerticalAlignment="Center"/>
@@ -25,6 +65,12 @@
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                         <TextBlock Text="删除" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding RenameCommand}" Style="{StaticResource ToolButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource RenameIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="重命名" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <TextBlock Text="{Binding Items.Count, StringFormat=共 {0} 项}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
@@ -41,8 +87,8 @@
             <ListBox Grid.Column="0"
                      ItemsSource="{Binding Items}"
                      SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
-                     DisplayMemberPath="Name"
-                     Style="{StaticResource ProjectListStyle}"/>
+                     Style="{StaticResource ProjectListStyle}"
+                     ItemTemplate="{StaticResource EditorListItemTemplate}"/>
 
             <!-- 注意：不要在这里套 ScrollViewer。套了会给 Detail 无限高上下文，
                  使 FlowPage 内 Grid.Row=2 Height=* 的表格无法被约束高度、整表被撑开，
