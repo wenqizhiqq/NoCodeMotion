@@ -51,6 +51,7 @@ namespace NoCodeMotion.Services
                     ["SetValue"] = "设置值",
                     ["Timeout"] = "超时",
                     ["DurationMs"] = "耗时(ms)",
+                    ["ActualValue"] = "实际值",
                 },
             };
 

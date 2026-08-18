@@ -10,7 +10,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="1100"
-             Background="#FFFFFF">
+             Background="Transparent">
 
     <UserControl.Resources>
         <x:Array x:Key="LevelOptions" Type="sys:String">
@@ -72,16 +72,24 @@
 
         <Style x:Key="IoRowStyle" TargetType="DataGridRow">
             <Setter Property="Background" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="IoHeaderStyle" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#E8EDF5"/>
-            <Setter Property="Foreground" Value="#2B3A4B"/>
-            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="4,4"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-            <Setter Property="BorderBrush" Value="#DDE3EA"/>
+            <Setter Property="Padding" Value="6,7"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
 
@@ -101,7 +109,10 @@
 
         <!-- ============== 输入 IO 面板 ============== -->
         <DockPanel Grid.Column="0" Margin="0,0,4,0">
-            <TextBlock DockPanel.Dock="Top" Text="输入IO" Style="{StaticResource IoSectionTitleStyle}"/>
+            <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
+                <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock Text="输入IO" Style="{StaticResource SectionHeaderText}"/>
+            </StackPanel>
 
             <!-- 工具栏（继承通用 TableToolbar），用 Grid 绑定 DataContext 到 InputPanel，使命令解析到面板 VM -->
             <Grid DockPanel.Dock="Top" Margin="0,0,0,6" DataContext="{Binding InputPanel}">
@@ -156,7 +167,10 @@
 
         <!-- ============== 输出 IO 面板 ============== -->
         <DockPanel Grid.Column="1" Margin="4,0,0,0">
-            <TextBlock DockPanel.Dock="Top" Text="输出IO" Style="{StaticResource IoSectionTitleStyle}"/>
+            <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
+                <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock Text="输出IO" Style="{StaticResource SectionHeaderText}"/>
+            </StackPanel>
 
             <Grid DockPanel.Dock="Top" Margin="0,0,0,6" DataContext="{Binding OutputPanel}">
                 <local:TableToolbar Count="{Binding Items.Count}"/>

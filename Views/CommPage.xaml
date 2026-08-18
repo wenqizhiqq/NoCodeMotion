@@ -11,6 +11,10 @@
     <local:EditorPage>
         <local:EditorPage.Detail>
             <StackPanel Margin="16" MinWidth="320">
+                <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                    <Path Data="{StaticResource CommIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="通讯配置" Style="{StaticResource SectionHeaderText}"/>
+                </StackPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="名称" Style="{StaticResource FieldLabel}"/>
                     <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>

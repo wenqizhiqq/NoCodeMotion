@@ -47,10 +47,14 @@ namespace NoCodeMotion
             PageHost.Content = page;
 
             if (_selectedNav != null)
+            {
                 _selectedNav.Background = System.Windows.Media.Brushes.Transparent;
+                _selectedNav.Foreground = (System.Windows.Media.Brush)FindResource("TextPrimaryBrush");
+            }
 
             _selectedNav = btn;
             _selectedNav.Background = (System.Windows.Media.Brush)FindResource("NavActiveBrush");
+            _selectedNav.Foreground = System.Windows.Media.Brushes.White;
         }
     }
 }

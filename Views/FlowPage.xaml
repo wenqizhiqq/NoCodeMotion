@@ -61,14 +61,20 @@
     <local:EditorPage>
         <local:EditorPage.Detail>
             <Grid Margin="12">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Style="{StaticResource SectionHeaderStyle}">
+                <Path Data="{StaticResource FlowIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock Text="流程步骤" Style="{StaticResource SectionHeaderText}"/>
+            </StackPanel>
 
                 <!-- 步骤表格工具栏（继承通用 TableToolbar：Excel编辑/添加/删除/上移/下移/复制/粘贴/回撤/重做）。
                      用 Grid 绑定 DataContext 到 StepPanel，使命令/计数都解析到步骤面板 VM。 -->
-                <Grid Grid.Row="0" Margin="0,0,0,8" DataContext="{Binding StepPanel}">
+                <Grid Grid.Row="1" Margin="0,0,0,8" DataContext="{Binding StepPanel}">
                     <local:TableToolbar Count="{Binding Items.Count}" CountLabel="步"/>
                 </Grid>
 
@@ -77,7 +83,7 @@
                     关键：下拉框/文本框直接内嵌在 CellTemplate 中、一直可交互，DataGrid 设为 IsReadOnly
                     不再接管单元格编辑。
                 -->
-                <DataGrid Grid.Row="1"
+                <DataGrid Grid.Row="2"
                           ItemsSource="{Binding StepPanel.Items}"
                           SelectedItem="{Binding StepPanel.SelectedItem, Mode=TwoWay}"
                           AutoGenerateColumns="False"
@@ -161,6 +167,15 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBox Text="{Binding DurationMs, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="2" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="实际值" Width="110">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding ActualValue, UpdateSourceTrigger=PropertyChanged}"
                                              Margin="2" VerticalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>

@@ -15,9 +15,19 @@
         <!-- 顶部工具栏：添加 / 删除 -->
         <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}">
             <StackPanel Orientation="Horizontal">
-                <Button Content="添加" Command="{Binding AddCommand}" Style="{StaticResource ToolButtonStyle}"/>
-                <Button Content="删除" Command="{Binding DeleteCommand}" Style="{StaticResource ToolButtonStyle}"/>
-                <TextBlock Text="{Binding Items.Count, StringFormat=共 {0} 项}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#607080"/>
+                <Button Command="{Binding AddCommand}" Style="{StaticResource ToolButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="添加" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding DeleteCommand}" Style="{StaticResource ToolButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="删除" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock Text="{Binding Items.Count, StringFormat=共 {0} 项}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
             </StackPanel>
         </Border>
 

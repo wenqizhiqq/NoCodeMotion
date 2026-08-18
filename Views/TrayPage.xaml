@@ -46,7 +46,10 @@
     <local:EditorPage>
         <local:EditorPage.Detail>
             <StackPanel Margin="16">
-                <TextBlock Text="料盘参数" Style="{StaticResource GroupHeaderStyle}"/>
+                <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                    <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="料盘参数" Style="{StaticResource SectionHeaderText}"/>
+                </StackPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="名称" Style="{StaticResource FieldLabel}"/>
                     <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
@@ -76,7 +79,10 @@
                     <TextBox Text="{Binding SelectedItem.PitchY, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
 
-                <TextBlock Text="二维料盘（点击单元格切换 有料/空）" Style="{StaticResource GroupHeaderStyle}"/>
+                <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                    <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="二维料盘（点击单元格切换 有料/空）" Style="{StaticResource SectionHeaderText}"/>
+                </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                     <Border Width="14" Height="14" Background="#D7F0DD" BorderBrush="#37B24D" BorderThickness="1" CornerRadius="3" VerticalAlignment="Center"/>
                     <TextBlock Text="有料" VerticalAlignment="Center" Margin="4,0,12,0" Foreground="#5A6B7B"/>

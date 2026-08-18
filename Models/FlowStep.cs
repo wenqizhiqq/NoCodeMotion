@@ -13,6 +13,7 @@ namespace NoCodeMotion.Models
         private string _setValue = string.Empty;
         private string _timeout = "空";       // 超时：等待3秒就统计 / 空 / 不停机
         private int _durationMs;
+        private string _actualValue = string.Empty; // 实际值：属性列对应的实际测量值
 
         public string Logic { get => _logic; set => SetField(ref _logic, value); }
         public string Function { get => _function; set => SetField(ref _function, value); }
@@ -21,5 +22,6 @@ namespace NoCodeMotion.Models
         public string SetValue { get => _setValue; set => SetField(ref _setValue, value); }
         public string Timeout { get => _timeout; set => SetField(ref _timeout, value); }
         public int DurationMs { get => _durationMs; set => SetField(ref _durationMs, value); }
+        public string ActualValue { get => _actualValue; set => SetField(ref _actualValue, value); }
     }
 }

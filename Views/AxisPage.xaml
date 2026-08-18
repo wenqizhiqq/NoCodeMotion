@@ -9,7 +9,10 @@
     <local:EditorPage>
         <local:EditorPage.Detail>
             <StackPanel Margin="16" MinWidth="360">
-                <TextBlock Text="基本信息" Style="{StaticResource GroupHeaderStyle}"/>
+                <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                    <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="基本信息" Style="{StaticResource SectionHeaderText}"/>
+                </StackPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="名称" Style="{StaticResource FieldLabel}"/>
                     <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
@@ -44,7 +47,10 @@
                     <CheckBox VerticalAlignment="Center" IsChecked="{Binding SelectedItem.Enabled}"/>
                 </DockPanel>
 
-                <TextBlock Text="运动参数" Style="{StaticResource GroupHeaderStyle}"/>
+                <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                    <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="运动参数" Style="{StaticResource SectionHeaderText}"/>
+                </StackPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="脉冲当量" Style="{StaticResource FieldLabel}"/>
                     <TextBox Text="{Binding SelectedItem.PulsePerUnit}"/>
@@ -66,7 +72,10 @@
                     <TextBox Text="{Binding SelectedItem.Jerk}"/>
                 </DockPanel>
 
-                <TextBlock Text="回零参数" Style="{StaticResource GroupHeaderStyle}"/>
+                <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                    <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="回零参数" Style="{StaticResource SectionHeaderText}"/>
+                </StackPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="回零方式" Style="{StaticResource FieldLabel}"/>
                     <ComboBox SelectedValue="{Binding SelectedItem.HomeMode}" SelectedValuePath="Content">
@@ -93,7 +102,10 @@
                     <TextBox Text="{Binding SelectedItem.HomeOffset}"/>
                 </DockPanel>
 
-                <TextBlock Text="限位与保护" Style="{StaticResource GroupHeaderStyle}"/>
+                <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                    <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="限位与保护" Style="{StaticResource SectionHeaderText}"/>
+                </StackPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="软正限位" Style="{StaticResource FieldLabel}"/>
                     <TextBox Text="{Binding SelectedItem.PosLimitPlus}"/>
@@ -107,7 +119,10 @@
                     <TextBox Text="{Binding SelectedItem.InPosError}"/>
                 </DockPanel>
 
-                <TextBlock Text="电平与编码器" Style="{StaticResource GroupHeaderStyle}"/>
+                <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                    <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="电平与编码器" Style="{StaticResource SectionHeaderText}"/>
+                </StackPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="使能电平" Style="{StaticResource FieldLabel}"/>
                     <ComboBox SelectedValue="{Binding SelectedItem.EnableLevel}" SelectedValuePath="Content">

@@ -6,17 +6,63 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
              d:DesignHeight="48" d:DesignWidth="700">
-    <Border Style="{StaticResource ToolbarStyle}">
+    <Border Style="{StaticResource ToolbarStyle}" Margin="0,0,-235,0">
         <StackPanel Orientation="Horizontal">
-            <Button Content="Excel编辑" Style="{StaticResource TtExcelBtn}" Command="{Binding ExcelEditCommand}"/>
-            <Button Content="添加" Style="{StaticResource TtAddBtn}" Command="{Binding AddCommand}"/>
-            <Button Content="删除" Style="{StaticResource TtDeleteBtn}" Command="{Binding DeleteCommand}"/>
-            <Button Content="上移" Style="{StaticResource TtBaseBtn}" Command="{Binding MoveUpCommand}"/>
-            <Button Content="下移" Style="{StaticResource TtBaseBtn}" Command="{Binding MoveDownCommand}"/>
-            <Button Content="复制" Style="{StaticResource TtBaseBtn}" Command="{Binding CopyCommand}"/>
-            <Button Content="粘贴" Style="{StaticResource TtBaseBtn}" Command="{Binding PasteCommand}"/>
-            <Button Content="回撤" Style="{StaticResource TtBaseBtn}" Command="{Binding UndoCommand}"/>
-            <Button Content="重做" Style="{StaticResource TtBaseBtn}" Command="{Binding RedoCommand}"/>
+           
+            <Button Style="{StaticResource TtAddBtn}" Command="{Binding AddCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    <TextBlock Text="添加" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource TtDeleteBtn}" Command="{Binding DeleteCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    <TextBlock Text="删除" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource TtBaseBtn}" Command="{Binding MoveUpCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource UpIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    <TextBlock Text="上移" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource TtBaseBtn}" Command="{Binding MoveDownCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource DownIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    <TextBlock Text="下移" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource TtBaseBtn}" Command="{Binding CopyCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource CopyIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    <TextBlock Text="复制" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource TtBaseBtn}" Command="{Binding PasteCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource PasteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    <TextBlock Text="粘贴" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource TtBaseBtn}" Command="{Binding UndoCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource UndoIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    <TextBlock Text="回撤" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource TtBaseBtn}" Command="{Binding RedoCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource RedoIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    <TextBlock Text="重做" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource TtExcelBtn}" Command="{Binding ExcelEditCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource ExcelIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                    <TextBlock Text="Excel编辑" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
             <TextBlock Style="{StaticResource TtCountText}">
                 <TextBlock.Inlines>
                     <Run Text="共 "/>
