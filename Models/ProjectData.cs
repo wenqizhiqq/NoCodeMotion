@@ -12,6 +12,9 @@ namespace NoCodeMotion.Models
         public ObservableCollection<TrayItem> Trays { get; set; } = new();
         public ObservableCollection<FlowItem> Flows { get; set; } = new();
 
+        /// <summary>轴点位表（流程可引用的命名位置，含各轴目标坐标）。</summary>
+        public ObservableCollection<PointItem> Points { get; set; } = new();
+
         /// <summary>输入 IO 点位（左侧输入IO面板）</summary>
         public ObservableCollection<IoItem> Inputs { get; set; } = new();
 

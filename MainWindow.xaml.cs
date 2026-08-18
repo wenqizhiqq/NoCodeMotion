@@ -14,6 +14,7 @@ namespace NoCodeMotion
             ["Axis"] = () => new AxisPage(),
             ["Io"] = () => new IoPage(),
             ["Cylinder"] = () => new CylinderPage(),
+            ["Point"] = () => new PointPage(),
             ["Comm"] = () => new CommPage(),
             ["Tray"] = () => new TrayPage(),
             ["Flow"] = () => new FlowPage(),

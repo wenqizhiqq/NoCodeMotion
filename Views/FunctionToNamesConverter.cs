@@ -20,6 +20,7 @@ namespace NoCodeMotion.Views
                 "气缸" => Catalog.CylinderNames,
                 "modbus" => Catalog.CommNames,
                 "变量" => Catalog.VariableNames,
+                "点位" => Catalog.PointNames,
                 _ => Catalog.AllNames
             };
         }

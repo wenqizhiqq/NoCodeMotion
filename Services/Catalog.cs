@@ -17,12 +17,14 @@ namespace NoCodeMotion.Services
         public static ObservableCollection<string> CommNames { get; } = new();
         public static ObservableCollection<string> VariableNames { get; } = new();
         public static ObservableCollection<string> AllNames { get; } = new();
+        public static ObservableCollection<string> PointNames { get; } = new();
 
         public static void SetAxis(IEnumerable<string> names) => Set(AxisNames, names);
         public static void SetIo(IEnumerable<string> names) => Set(IoNames, names);
         public static void SetCylinder(IEnumerable<string> names) => Set(CylinderNames, names);
         public static void SetComm(IEnumerable<string> names) => Set(CommNames, names);
         public static void SetVariable(IEnumerable<string> names) => Set(VariableNames, names);
+        public static void SetPoint(IEnumerable<string> names) => Set(PointNames, names);
 
         private static void Set(ObservableCollection<string> target, IEnumerable<string> names)
         {
@@ -41,6 +43,7 @@ namespace NoCodeMotion.Services
             foreach (var n in CylinderNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in CommNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in VariableNames) if (!AllNames.Contains(n)) AllNames.Add(n);
+            foreach (var n in PointNames) if (!AllNames.Contains(n)) AllNames.Add(n);
         }
 
         /// <summary>从已载入的工程中重建名称库（用于启动后填充下拉选项）。</summary>
@@ -53,6 +56,7 @@ namespace NoCodeMotion.Services
             SetCylinder(data.Cylinders.Select(c => c.Name));
             SetComm(data.Comms.Select(c => c.Name));
             SetVariable(data.Variables.SelectMany(v => v.Names()));
+            SetPoint(data.Points.Select(p => p.Name));
         }
     }
 }

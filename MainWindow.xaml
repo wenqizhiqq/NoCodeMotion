@@ -35,6 +35,12 @@
                         <TextBlock Text="气缸" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
+                <Button Tag="Point" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource PointIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="点位表" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
                 <Button Tag="Comm" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource CommIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>

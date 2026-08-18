@@ -25,6 +25,7 @@
             <sys:String>轴</sys:String>
             <sys:String>IO</sys:String>
             <sys:String>气缸</sys:String>
+            <sys:String>点位</sys:String>
             <sys:String>modbus</sys:String>
             <sys:String>变量</sys:String>
             <sys:String>系统</sys:String>
