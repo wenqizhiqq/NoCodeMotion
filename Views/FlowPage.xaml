@@ -13,12 +13,23 @@
             <sys:String>如果</sys:String>
             <sys:String>就</sys:String>
             <sys:String>否则</sys:String>
+            <sys:String>否则如果</sys:String>
+            <sys:String>循环开始</sys:String>
+            <sys:String>循环结束</sys:String>
+            <sys:String>等待</sys:String>
+            <sys:String>延时</sys:String>
+            <sys:String>结束</sys:String>
+            <sys:String>注释</sys:String>
         </x:Array>
         <x:Array x:Key="FunctionOptions" Type="sys:String">
             <sys:String>轴</sys:String>
             <sys:String>IO</sys:String>
             <sys:String>气缸</sys:String>
             <sys:String>modbus</sys:String>
+            <sys:String>变量</sys:String>
+            <sys:String>系统</sys:String>
+            <sys:String>相机</sys:String>
+            <sys:String>延时</sys:String>
         </x:Array>
         <x:Array x:Key="OperationOptions" Type="sys:String">
             <sys:String>加</sys:String>
@@ -27,9 +38,19 @@
             <sys:String>除</sys:String>
             <sys:String>等于</sys:String>
             <sys:String>是否等于</sys:String>
+            <sys:String>大于</sys:String>
+            <sys:String>小于</sys:String>
+            <sys:String>大于等于</sys:String>
+            <sys:String>小于等于</sys:String>
+            <sys:String>取反</sys:String>
+            <sys:String>与</sys:String>
+            <sys:String>或</sys:String>
+            <sys:String>取模</sys:String>
         </x:Array>
         <x:Array x:Key="TimeoutOptions" Type="sys:String">
+            <sys:String>等待1秒就统计</sys:String>
             <sys:String>等待3秒就统计</sys:String>
+            <sys:String>等待5秒就统计</sys:String>
             <sys:String>空</sys:String>
             <sys:String>不停机</sys:String>
         </x:Array>

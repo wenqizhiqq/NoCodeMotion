@@ -8,7 +8,8 @@
 
     <local:EditorPage>
         <local:EditorPage.Detail>
-            <StackPanel Margin="16" MinWidth="320">
+            <StackPanel Margin="16" MinWidth="360">
+                <TextBlock Text="基本信息" Style="{StaticResource GroupHeaderStyle}"/>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="名称" Style="{StaticResource FieldLabel}"/>
                     <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
@@ -19,6 +20,9 @@
                         <ComboBoxItem Content="脉冲"/>
                         <ComboBoxItem Content="总线"/>
                         <ComboBoxItem Content="EtherCAT"/>
+                        <ComboBoxItem Content="CANopen"/>
+                        <ComboBoxItem Content="模拟量"/>
+                        <ComboBoxItem Content="虚拟轴"/>
                     </ComboBox>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
@@ -26,19 +30,27 @@
                     <TextBox Text="{Binding SelectedItem.AxisNo}"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="使能" Style="{StaticResource FieldLabel}"/>
-                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding SelectedItem.Enabled}"/>
-                </DockPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="回零方式" Style="{StaticResource FieldLabel}"/>
-                    <ComboBox SelectedValue="{Binding SelectedItem.HomeMode}" SelectedValuePath="Content">
-                        <ComboBoxItem Content="原点回零"/>
-                        <ComboBoxItem Content="限位回零"/>
-                        <ComboBoxItem Content="当前位置设零"/>
+                    <TextBlock DockPanel.Dock="Left" Text="单位" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox SelectedValue="{Binding SelectedItem.Unit}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="mm"/>
+                        <ComboBoxItem Content="°"/>
+                        <ComboBoxItem Content="脉冲"/>
+                        <ComboBoxItem Content="um"/>
+                        <ComboBoxItem Content="自定义"/>
                     </ComboBox>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="速度" Style="{StaticResource FieldLabel}"/>
+                    <TextBlock DockPanel.Dock="Left" Text="使能" Style="{StaticResource FieldLabel}"/>
+                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding SelectedItem.Enabled}"/>
+                </DockPanel>
+
+                <TextBlock Text="运动参数" Style="{StaticResource GroupHeaderStyle}"/>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="脉冲当量" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.PulsePerUnit}"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="运行速度" Style="{StaticResource FieldLabel}"/>
                     <TextBox Text="{Binding SelectedItem.Speed}"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
@@ -46,8 +58,93 @@
                     <TextBox Text="{Binding SelectedItem.Accel}"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="当前位置" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.CurrentPos}"/>
+                    <TextBlock DockPanel.Dock="Left" Text="减速度" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.Decel}"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="加加速度" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.Jerk}"/>
+                </DockPanel>
+
+                <TextBlock Text="回零参数" Style="{StaticResource GroupHeaderStyle}"/>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="回零方式" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox SelectedValue="{Binding SelectedItem.HomeMode}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="原点开关+限位"/>
+                        <ComboBoxItem Content="仅正限位"/>
+                        <ComboBoxItem Content="仅负限位"/>
+                        <ComboBoxItem Content="编码器Z相"/>
+                        <ComboBoxItem Content="当前位置设零"/>
+                        <ComboBoxItem Content="负向限位回零"/>
+                        <ComboBoxItem Content="正向限位回零"/>
+                        <ComboBoxItem Content="索引回零"/>
+                    </ComboBox>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="回零速度" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.HomeSpeed}"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="爬行速度" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.CreepSpeed}"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="原点偏移" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.HomeOffset}"/>
+                </DockPanel>
+
+                <TextBlock Text="限位与保护" Style="{StaticResource GroupHeaderStyle}"/>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="软正限位" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.PosLimitPlus}"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="软负限位" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.PosLimitMinus}"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="到位误差" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.InPosError}"/>
+                </DockPanel>
+
+                <TextBlock Text="电平与编码器" Style="{StaticResource GroupHeaderStyle}"/>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="使能电平" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox SelectedValue="{Binding SelectedItem.EnableLevel}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="高电平"/>
+                        <ComboBoxItem Content="低电平"/>
+                    </ComboBox>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="方向电平" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox SelectedValue="{Binding SelectedItem.DirLevel}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="正向"/>
+                        <ComboBoxItem Content="负向"/>
+                    </ComboBox>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="报警电平" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox SelectedValue="{Binding SelectedItem.AlarmLevel}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="高电平"/>
+                        <ComboBoxItem Content="低电平"/>
+                        <ComboBoxItem Content="无"/>
+                    </ComboBox>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="编码器类型" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox SelectedValue="{Binding SelectedItem.EncoderType}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="无"/>
+                        <ComboBoxItem Content="增量式"/>
+                        <ComboBoxItem Content="绝对式"/>
+                    </ComboBox>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="编码器分辨率" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.EncoderRes}"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="急停减速" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Text="{Binding SelectedItem.EStopDecel}"/>
                 </DockPanel>
             </StackPanel>
         </local:EditorPage.Detail>

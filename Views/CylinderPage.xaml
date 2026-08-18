@@ -4,6 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:svc="clr-namespace:NoCodeMotion.Services"
+             xmlns:hc="https://handyorg.github.io/handycontrol"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
     <local:EditorPage>
@@ -15,15 +17,28 @@
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="输出点" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.OutPoint, UpdateSourceTrigger=PropertyChanged}"/>
+                    <hc:ComboBox ItemsSource="{x:Static svc:Catalog.IoNames}"
+                                 SelectedItem="{Binding SelectedItem.OutPoint, UpdateSourceTrigger=PropertyChanged}"
+                                 hc:InfoElement.Placeholder="选择 IO 输出点"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="伸出感应" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.SensorExtend, UpdateSourceTrigger=PropertyChanged}"/>
+                    <hc:ComboBox ItemsSource="{x:Static svc:Catalog.IoNames}"
+                                 SelectedItem="{Binding SelectedItem.SensorExtend, UpdateSourceTrigger=PropertyChanged}"
+                                 hc:InfoElement.Placeholder="选择 IO 输入点"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="缩回感应" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.SensorRetract, UpdateSourceTrigger=PropertyChanged}"/>
+                    <hc:ComboBox ItemsSource="{x:Static svc:Catalog.IoNames}"
+                                 SelectedItem="{Binding SelectedItem.SensorRetract, UpdateSourceTrigger=PropertyChanged}"
+                                 hc:InfoElement.Placeholder="选择 IO 输入点"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="默认动作" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox SelectedValue="{Binding SelectedItem.Action, TargetNullValue=伸出}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="伸出"/>
+                        <ComboBoxItem Content="缩回"/>
+                    </ComboBox>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="动作延时(ms)" Style="{StaticResource FieldLabel}"/>

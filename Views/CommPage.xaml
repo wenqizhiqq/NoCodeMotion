@@ -4,6 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+             xmlns:hc="https://handyorg.github.io/handycontrol"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
     <local:EditorPage>
@@ -18,6 +20,12 @@
                     <ComboBox SelectedValue="{Binding SelectedItem.CommType}" SelectedValuePath="Content">
                         <ComboBoxItem Content="串口"/>
                         <ComboBoxItem Content="网口TCP"/>
+                        <ComboBoxItem Content="网口UDP"/>
+                        <ComboBoxItem Content="ModbusTCP"/>
+                        <ComboBoxItem Content="ModbusRTU"/>
+                        <ComboBoxItem Content="相机网口"/>
+                        <ComboBoxItem Content="西门子S7"/>
+                        <ComboBoxItem Content="三菱MC"/>
                     </ComboBox>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
@@ -27,6 +35,29 @@
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="波特率/端口" Style="{StaticResource FieldLabel}"/>
                     <TextBox Text="{Binding SelectedItem.BaudOrPort}"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="数据位" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox SelectedValue="{Binding SelectedItem.DataBits, TargetNullValue=8}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="7"/>
+                        <ComboBoxItem Content="8"/>
+                    </ComboBox>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="校验位" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox SelectedValue="{Binding SelectedItem.Parity}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="无"/>
+                        <ComboBoxItem Content="奇校验"/>
+                        <ComboBoxItem Content="偶校验"/>
+                    </ComboBox>
+                </DockPanel>
+                <DockPanel Style="{StaticResource FieldGrid}">
+                    <TextBlock DockPanel.Dock="Left" Text="停止位" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox SelectedValue="{Binding SelectedItem.StopBits, TargetNullValue=1}" SelectedValuePath="Content">
+                        <ComboBoxItem Content="1"/>
+                        <ComboBoxItem Content="1.5"/>
+                        <ComboBoxItem Content="2"/>
+                    </ComboBox>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="超时(ms)" Style="{StaticResource FieldLabel}"/>

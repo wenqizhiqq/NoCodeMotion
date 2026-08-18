@@ -109,6 +109,14 @@
                 <Setter Property="Foreground" Value="#5A6B7B"/>
                 <Setter Property="Margin" Value="0,0,8,0"/>
             </Style>
+
+            <!-- 表单分组标题 -->
+            <Style x:Key="GroupHeaderStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Foreground" Value="#2D7FF9"/>
+                <Setter Property="Margin" Value="0,14,0,4"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

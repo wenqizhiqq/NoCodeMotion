@@ -4,39 +4,101 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:models="clr-namespace:NoCodeMotion.Models"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <local:OccupiedTextConverter x:Key="OccupiedTextConverter"/>
+
+        <!-- 二维单元格按钮样式 -->
+        <Style x:Key="TrayCellToggle" TargetType="ToggleButton">
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#DDE3EA"/>
+            <Setter Property="Background" Value="#F4F7FB"/>
+            <Setter Property="Foreground" Value="#5A6B7B"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Row, StringFormat=R{0}}" FontSize="11"/>
+                                <TextBlock Text="{Binding Col, StringFormat=C{0}}" FontSize="11"/>
+                                <TextBlock Text="{Binding Occupied, Converter={StaticResource OccupiedTextConverter}}"
+                                           FontSize="10" Foreground="#8895A5"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Background" Value="#D7F0DD"/>
+                                <Setter Property="BorderBrush" Value="#37B24D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
 
     <local:EditorPage>
         <local:EditorPage.Detail>
-            <StackPanel Margin="16" MinWidth="320">
+            <StackPanel Margin="16">
+                <TextBlock Text="料盘参数" Style="{StaticResource GroupHeaderStyle}"/>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="名称" Style="{StaticResource FieldLabel}"/>
                     <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="行数" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.Rows}"/>
+                    <TextBox Text="{Binding SelectedItem.Rows, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="列数" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.Cols}"/>
+                    <TextBox Text="{Binding SelectedItem.Cols, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="起始X" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.StartX}"/>
+                    <TextBox Text="{Binding SelectedItem.StartX, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="起始Y" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.StartY}"/>
+                    <TextBox Text="{Binding SelectedItem.StartY, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="间距X" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.PitchX}"/>
+                    <TextBox Text="{Binding SelectedItem.PitchX, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
                 <DockPanel Style="{StaticResource FieldGrid}">
                     <TextBlock DockPanel.Dock="Left" Text="间距Y" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.PitchY}"/>
+                    <TextBox Text="{Binding SelectedItem.PitchY, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
+
+                <TextBlock Text="二维料盘（点击单元格切换 有料/空）" Style="{StaticResource GroupHeaderStyle}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Border Width="14" Height="14" Background="#D7F0DD" BorderBrush="#37B24D" BorderThickness="1" CornerRadius="3" VerticalAlignment="Center"/>
+                    <TextBlock Text="有料" VerticalAlignment="Center" Margin="4,0,12,0" Foreground="#5A6B7B"/>
+                    <Border Width="14" Height="14" Background="#F4F7FB" BorderBrush="#DDE3EA" BorderThickness="1" CornerRadius="3" VerticalAlignment="Center"/>
+                    <TextBlock Text="空" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="#5A6B7B"/>
+                </StackPanel>
+
+                <ScrollViewer MaxHeight="380" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding SelectedItem.Cells}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="{Binding SelectedItem.Rows}" Columns="{Binding SelectedItem.Cols}"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="models:TrayCell">
+                                <ToggleButton Style="{StaticResource TrayCellToggle}"
+                                              IsChecked="{Binding Occupied, Mode=TwoWay}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </StackPanel>
         </local:EditorPage.Detail>
     </local:EditorPage>

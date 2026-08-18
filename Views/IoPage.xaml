@@ -1,38 +1,92 @@
 <UserControl x:Class="NoCodeMotion.Views.IoPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:hc="https://handyorg.github.io/handycontrol"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <x:Array x:Key="IoDirOptions" Type="sys:String">
+            <sys:String>输入</sys:String>
+            <sys:String>输出</sys:String>
+        </x:Array>
+    </UserControl.Resources>
 
     <local:EditorPage>
         <local:EditorPage.Detail>
-            <StackPanel Margin="16" MinWidth="320">
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="名称" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
-                </DockPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="点位类型" Style="{StaticResource FieldLabel}"/>
-                    <ComboBox SelectedValue="{Binding SelectedItem.IoType}" SelectedValuePath="Content">
-                        <ComboBoxItem Content="输入"/>
-                        <ComboBoxItem Content="输出"/>
-                    </ComboBox>
-                </DockPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="板卡号" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.CardNo}"/>
-                </DockPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="端口号" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.PortNo}"/>
-                </DockPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="当前状态" Style="{StaticResource FieldLabel}"/>
-                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding SelectedItem.State}"/>
-                </DockPanel>
-            </StackPanel>
+            <Grid Margin="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="输入输出表（每行一个点位，方向可直接下拉选择）"
+                           Margin="0,0,0,8" Foreground="#607080"/>
+
+                <!-- 输入输出表格：常驻控件 + 只读 DataGrid，单击即编辑，切换不点两次 -->
+                <DataGrid Grid.Row="1"
+                          ItemsSource="{Binding Items}"
+                          SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False" CanUserDeleteRows="False"
+                          IsReadOnly="True"
+                          SelectionMode="Single" SelectionUnit="FullRow"
+                          GridLinesVisibility="Horizontal"
+                          HeadersVisibility="Column"
+                          BorderBrush="#DDE3EA" RowHeaderWidth="0">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="名称" Width="160">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="2" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="方向" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <hc:ComboBox ItemsSource="{StaticResource IoDirOptions}"
+                                                 SelectedItem="{Binding IoType, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="2" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="板卡号" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding CardNo, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="2" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="端口号" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding PortNo, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="2" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="当前状态" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding State}"
+                                              IsEnabled="False"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>
