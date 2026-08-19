@@ -53,7 +53,6 @@ namespace NoCodeMotion.ViewModels
         private bool _isRunning;
         private bool _isPaused;
         private int _currentStep = -1;
-        private int _jumpRow = 1;
 
         public int CurrentStep
         {
@@ -82,14 +81,9 @@ namespace NoCodeMotion.ViewModels
             set { if (SetField(ref _isPaused, value)) RaiseRunState(); }
         }
 
-        public int JumpRow
-        {
-            get => _jumpRow;
-            set => SetField(ref _jumpRow, value);
-        }
-
         public bool CanRun => !IsRunning && StepPanel.Items.Count > 0;
         public bool CanStep => StepPanel.Items.Count > 0 && (_currentStep < 0 || _currentStep < StepPanel.Items.Count - 1);
+        public bool CanJump => !IsRunning && StepPanel.SelectedItem != null;
         public bool CanPause => IsRunning && !IsPaused;
         public bool CanStop => IsRunning || IsPaused || _currentStep >= 0;
 
@@ -122,7 +116,7 @@ namespace NoCodeMotion.ViewModels
 
             RunCommand = new RelayCommand(_ => Run());
             StepCommand = new RelayCommand(_ => StepOnce());
-            JumpCommand = new RelayCommand(_ => JumpToRow());
+            JumpCommand = new RelayCommand(_ => JumpToRow(), _ => CanJump);
             PauseCommand = new RelayCommand(_ => Pause());
             StopCommand = new RelayCommand(_ => Stop());
 
@@ -162,6 +156,7 @@ namespace NoCodeMotion.ViewModels
         {
             OnPropertyChanged(nameof(CanRun));
             OnPropertyChanged(nameof(CanStep));
+            OnPropertyChanged(nameof(CanJump));
             OnPropertyChanged(nameof(CanPause));
             OnPropertyChanged(nameof(CanStop));
             OnPropertyChanged(nameof(CurrentStepText));
@@ -201,8 +196,9 @@ namespace NoCodeMotion.ViewModels
 
         private void JumpToRow()
         {
-            if (StepPanel.Items.Count == 0) return;
-            int idx = _jumpRow - 1;
+            var target = StepPanel.SelectedItem;
+            if (target == null || StepPanel.Items.Count == 0) return;
+            int idx = StepPanel.Items.IndexOf(target);
             if (idx < 0) idx = 0;
             if (idx >= StepPanel.Items.Count) idx = StepPanel.Items.Count - 1;
             CurrentStep = idx;
