@@ -19,61 +19,61 @@
             <StackPanel Orientation="Horizontal" x:Name="NavPanel">
                 <Button Tag="Axis" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource AxisIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource AxisIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconAxisBrush}"/>
                         <TextBlock Text="轴" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Io" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource IoIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource IoIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconIoBrush}"/>
                         <TextBlock Text="IO" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Cylinder" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource CylinderIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource CylinderIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconCylinderBrush}"/>
                         <TextBlock Text="气缸" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Point" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource PointIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource PointIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconPointBrush}"/>
                         <TextBlock Text="点位表" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Comm" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource CommIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource CommIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconCommBrush}"/>
                         <TextBlock Text="通讯" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Tray" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource TrayIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource TrayIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconTrayBrush}"/>
                         <TextBlock Text="料盘" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Flow" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource FlowIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource FlowIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconFlowBrush}"/>
                         <TextBlock Text="流程" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Variable" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource VariableIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource VariableIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconVariableBrush}"/>
                         <TextBlock Text="变量" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Engineer" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource EngineerIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource EngineerIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconEngineerBrush}"/>
                         <TextBlock Text="工程师" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Operator" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource OperatorIcon}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource OperatorIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconOperatorBrush}"/>
                         <TextBlock Text="操作员" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>

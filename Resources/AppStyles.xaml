@@ -67,6 +67,18 @@
     <Geometry x:Key="UndoIcon">M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z</Geometry>
     <Geometry x:Key="RedoIcon">M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z</Geometry>
     <Geometry x:Key="SectionIcon">M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z</Geometry>
+
+    <!-- 导航图标配色：iOS 系统色板，每个模块一个固定品牌色（苹果风多彩图标） -->
+    <SolidColorBrush x:Key="NavIconAxisBrush" Color="#007AFF"/>
+    <SolidColorBrush x:Key="NavIconIoBrush" Color="#34C759"/>
+    <SolidColorBrush x:Key="NavIconCylinderBrush" Color="#FF9500"/>
+    <SolidColorBrush x:Key="NavIconPointBrush" Color="#AF52DE"/>
+    <SolidColorBrush x:Key="NavIconCommBrush" Color="#5AC8FA"/>
+    <SolidColorBrush x:Key="NavIconTrayBrush" Color="#FF3B30"/>
+    <SolidColorBrush x:Key="NavIconFlowBrush" Color="#5856D6"/>
+    <SolidColorBrush x:Key="NavIconVariableBrush" Color="#FFCC00"/>
+    <SolidColorBrush x:Key="NavIconEngineerBrush" Color="#FF2D55"/>
+    <SolidColorBrush x:Key="NavIconOperatorBrush" Color="#30D158"/>
     <Geometry x:Key="TableIconGeometry">M3 3h18v18H3V3zM3 9h18M3 15h18M9 3v18M15 3v18</Geometry>
     <Geometry x:Key="ScriptIconGeometry">M9 7l-5 5 5 5M15 7l5 5-5 5M13 5l-2 14</Geometry>
     <Geometry x:Key="RenameIcon">M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z</Geometry>
@@ -201,17 +213,17 @@
         <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
         <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
         <Setter Property="BorderThickness" Value="0,0,0,1"/>
-        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="Padding" Value="14,16"/>
         <Setter Property="Effect" Value="{StaticResource SoftShadowSm}"/>
     </Style>
     <Style x:Key="NavButtonStyle" TargetType="Button">
-        <Setter Property="MinWidth" Value="84"/>
-        <Setter Property="Height" Value="36"/>
+        <Setter Property="MinWidth" Value="92"/>
+        <Setter Property="Height" Value="56"/>
         <Setter Property="Margin" Value="4,0"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="16"/>
         <Setter Property="FontWeight" Value="Medium"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
