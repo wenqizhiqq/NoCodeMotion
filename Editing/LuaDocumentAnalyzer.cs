@@ -8,7 +8,7 @@ namespace NoCodeMotion.Editing
 {
     /// <summary>
     /// 轻量级源码扫描：从当前文档里提取用户定义的函数、局部变量、全局变量和表字段，
-    /// 供智能提示使用。
+    /// 供智能提示与变量悬停使用。
     /// </summary>
     public static class LuaDocumentAnalyzer
     {
