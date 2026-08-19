@@ -757,7 +757,6 @@ namespace NoCodeMotion.Views
             int offset = Editor.CaretOffset;
             Editor.Document.Insert(offset, line + "\n");
             Editor.CaretOffset = offset + line.Length + 1;
-            AppendLog("已插入：" + line, LogKind.Info);
         }
 
         /// <summary>插入一段多行代码块（逻辑结构），并写回 LuaItem.LuaSource。</summary>
@@ -772,7 +771,6 @@ namespace NoCodeMotion.Views
             int offset = Editor.CaretOffset;
             Editor.Document.Insert(offset, body + "\n");
             Editor.CaretOffset = offset + body.Length + 1;
-            AppendLog("已插入代码块", LogKind.Info);
         }
 
         private void ClearRuntimeMarkers()

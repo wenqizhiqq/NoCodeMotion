@@ -142,17 +142,12 @@ namespace NoCodeMotion.Services
                 info.Terminated = true;
                 info.Message = "脚本已被停止";
             }
-            catch (SyntaxErrorException ex)
+            catch (InterpreterException ex)
             {
+                var r = LuaErrorLocalizer.Localize(ex);
                 info.IsError = true;
-                info.Message = "语法错误：" + ex.DecoratedMessage;
-                info.ErrorLine = ExtractLine(ex.DecoratedMessage);
-            }
-            catch (ScriptRuntimeException ex)
-            {
-                info.IsError = true;
-                info.Message = "运行时错误：" + ex.DecoratedMessage;
-                info.ErrorLine = ExtractLine(ex.DecoratedMessage);
+                info.Message = r.Message;
+                info.ErrorLine = r.Line;
             }
             catch (Exception ex) when (IsTermination(ex))
             {
@@ -334,8 +329,10 @@ namespace NoCodeMotion.Services
 
             if (hasError)
             {
+                var r = LuaErrorLocalizer.Localize(_pendingError);
                 info.IsError = true;
-                info.Message = _pendingError.DecoratedMessage;
+                info.Message = r.Message;
+                info.Line = r.Line;
                 _pendingError = null;
             }
 
@@ -556,8 +553,16 @@ namespace NoCodeMotion.Services
                 new Script(CoreModules.Preset_Complete).LoadString(code, null, "main");
                 return (true, 0, string.Empty);
             }
-            catch (SyntaxErrorException ex) { return (false, ExtractLine(ex.DecoratedMessage), ex.DecoratedMessage); }
-            catch (InterpreterException ex) { return (false, ExtractLine(ex.DecoratedMessage), ex.DecoratedMessage); }
+            catch (SyntaxErrorException ex)
+            {
+                var r = LuaErrorLocalizer.Localize(ex);
+                return (false, r.Line, r.Message);
+            }
+            catch (InterpreterException ex)
+            {
+                var r = LuaErrorLocalizer.Localize(ex);
+                return (false, r.Line, r.Message);
+            }
             catch (Exception ex) { return (false, 0, ex.Message); }
         }
     }
