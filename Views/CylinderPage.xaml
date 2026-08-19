@@ -8,49 +8,340 @@
              xmlns:hc="https://handyorg.github.io/handycontrol"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
+    <UserControl.Resources>
+        <!-- ===== Apple 风分组卡片样式（复用 App.xaml 调色板） ===== -->
+        <Style x:Key="AppleGroupCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Effect" Value="{StaticResource SoftShadow}"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        <Style x:Key="AppleSectionHeader" TargetType="TextBlock">
+            <Setter Property="Margin" Value="12,9,12,2"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+        </Style>
+        <Style x:Key="AppleRow" TargetType="DockPanel">
+            <Setter Property="LastChildFill" Value="False"/>
+            <Setter Property="Margin" Value="12,6"/>
+        </Style>
+        <Style x:Key="AppleLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="AppleTextField" TargetType="TextBox">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="TextAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="MinWidth" Value="120"/>
+        </Style>
+        <Style x:Key="AppleUnit" TargetType="TextBlock">
+            <Setter Property="Margin" Value="5,0,0,0"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="AppleHairline" TargetType="Rectangle">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Margin" Value="12,0"/>
+            <Setter Property="Fill" Value="{StaticResource LineBrush}"/>
+        </Style>
+        <Style x:Key="AppleNumBox" TargetType="TextBox" BasedOn="{StaticResource AppleTextField}">
+            <Setter Property="Width" Value="60"/>
+        </Style>
+        <Style x:Key="ApplePillList" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ItemsPanel">
+                <Setter.Value>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" Margin="-3"/>
+                    </ItemsPanelTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Margin" Value="3"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="bd" Background="{StaticResource HoverBrush}" CornerRadius="8" Padding="11,5">
+                                        <ContentPresenter VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                            <Setter TargetName="bd" Property="TextBlock.Foreground" Value="White"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="AppleToggle" TargetType="CheckBox">
+            <Setter Property="Width" Value="42"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="track" Width="42" Height="24" CornerRadius="12" Background="{StaticResource LineBrush}">
+                            <Ellipse x:Name="knob" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,0,0">
+                                <Ellipse.Effect>
+                                    <DropShadowEffect BlurRadius="4" ShadowDepth="0" Opacity="0.25" Color="#000000"/>
+                                </Ellipse.Effect>
+                            </Ellipse>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="track" Property="Background" Value="{StaticResource SuccessBrush}"/>
+                                <Setter TargetName="knob" Property="Margin" Value="20,0,0,0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="AppleCombo" TargetType="ComboBox" BasedOn="{StaticResource CellComboStyle}">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinWidth" Value="140"/>
+        </Style>
+    </UserControl.Resources>
+
     <local:EditorPage>
         <local:EditorPage.Detail>
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="16" MinWidth="320">
-                <StackPanel Style="{StaticResource SectionHeaderStyle}">
-                    <Path Data="{StaticResource CylinderIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="气缸配置" Style="{StaticResource SectionHeaderText}"/>
+            <Grid Background="{StaticResource CanvasBrush}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 顶部标题（跨两列） -->
+                <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="12,10,12,8" VerticalAlignment="Center">
+                    <Path Data="{StaticResource CylinderIcon}" Width="16" Height="16" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,7,0"/>
+                    <TextBlock Text="气缸配置" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                 </StackPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="名称" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
-                </DockPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="输出点" Style="{StaticResource FieldLabel}"/>
-                    <hc:ComboBox ItemsSource="{x:Static svc:Catalog.IoNames}"
-                                 SelectedItem="{Binding SelectedItem.OutPoint, UpdateSourceTrigger=PropertyChanged}"
-                                 hc:InfoElement.Placeholder="选择 IO 输出点"/>
-                </DockPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="伸出感应" Style="{StaticResource FieldLabel}"/>
-                    <hc:ComboBox ItemsSource="{x:Static svc:Catalog.IoNames}"
-                                 SelectedItem="{Binding SelectedItem.SensorExtend, UpdateSourceTrigger=PropertyChanged}"
-                                 hc:InfoElement.Placeholder="选择 IO 输入点"/>
-                </DockPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="缩回感应" Style="{StaticResource FieldLabel}"/>
-                    <hc:ComboBox ItemsSource="{x:Static svc:Catalog.IoNames}"
-                                 SelectedItem="{Binding SelectedItem.SensorRetract, UpdateSourceTrigger=PropertyChanged}"
-                                 hc:InfoElement.Placeholder="选择 IO 输入点"/>
-                </DockPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="默认动作" Style="{StaticResource FieldLabel}"/>
-                    <ComboBox SelectedValue="{Binding SelectedItem.Action, TargetNullValue=伸出}" SelectedValuePath="Content">
-                        <ComboBoxItem Content="伸出"/>
-                        <ComboBoxItem Content="缩回"/>
-                    </ComboBox>
-                </DockPanel>
-                <DockPanel Style="{StaticResource FieldGrid}">
-                    <TextBlock DockPanel.Dock="Left" Text="动作延时(ms)" Style="{StaticResource FieldLabel}"/>
-                    <TextBox Text="{Binding SelectedItem.DelayMs}"/>
-                </DockPanel>
-            </StackPanel>
-            </ScrollViewer>
+
+                <!-- ============ 左列：基本信息 + 动作参数 ============ -->
+                <StackPanel Grid.Row="1" Grid.Column="0" Margin="12,0,6,12" VerticalAlignment="Top">
+
+                    <!-- 基本信息 -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="基本信息"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="设备编号"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.DeviceId, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="气缸类型"/>
+                                <ListBox DockPanel.Dock="Right" ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding SelectedItem.Type, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ApplePillList}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="默认动作"/>
+                                <ListBox DockPanel.Dock="Right" ItemsSource="{Binding ActionOptions}" SelectedItem="{Binding SelectedItem.Action, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ApplePillList}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="初始状态"/>
+                                <ListBox DockPanel.Dock="Right" ItemsSource="{Binding InitialStateOptions}" SelectedItem="{Binding SelectedItem.InitialState, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ApplePillList}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="备注"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Remark, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 动作参数 -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="动作参数"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="动作延时"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.DelayMs}"/>
+                                    <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
+                                </StackPanel>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="伸出延时"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.ExtendMs}"/>
+                                    <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
+                                </StackPanel>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缩回延时"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.RetractMs}"/>
+                                    <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
+                                </StackPanel>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="伸出速度"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.ExtendSpeed}"/>
+                                    <TextBlock Style="{StaticResource AppleUnit}" Text="%"/>
+                                </StackPanel>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缩回速度"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.RetractSpeed}"/>
+                                    <TextBlock Style="{StaticResource AppleUnit}" Text="%"/>
+                                </StackPanel>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="到位容差"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.ToleranceMs}"/>
+                                    <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+
+                <!-- ============ 右列：IO配置 + 安全与逻辑 + 高级 ============ -->
+                <StackPanel Grid.Row="1" Grid.Column="1" Margin="6,0,12,12" VerticalAlignment="Top">
+
+                    <!-- IO 配置 -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="IO 配置"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="输出点"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource AppleCombo}"
+                                          ItemsSource="{x:Static svc:Catalog.IoNames}"
+                                          SelectedItem="{Binding SelectedItem.OutPoint, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="伸出感应"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource AppleCombo}"
+                                          ItemsSource="{x:Static svc:Catalog.IoNames}"
+                                          SelectedItem="{Binding SelectedItem.SensorExtend, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缩回感应"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource AppleCombo}"
+                                          ItemsSource="{x:Static svc:Catalog.IoNames}"
+                                          SelectedItem="{Binding SelectedItem.SensorRetract, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="感应类型"/>
+                                <ListBox DockPanel.Dock="Right" ItemsSource="{Binding SensorTypeOptions}" SelectedItem="{Binding SelectedItem.SensorType, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ApplePillList}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="备用感应"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource AppleCombo}"
+                                          ItemsSource="{x:Static svc:Catalog.IoNames}"
+                                          SelectedItem="{Binding SelectedItem.BackupSensor, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 安全与逻辑 -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="安全与逻辑"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="互锁使能"/>
+                                <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.Interlock}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="双线圈"/>
+                                <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.DoubleCoil}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="报警使能"/>
+                                <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.AlarmEnable}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="手动使能"/>
+                                <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.ManualEnable}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="动作超时"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.TimeoutMs}"/>
+                                    <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 高级 -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="高级"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="脉冲输出"/>
+                                <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.PulseOutput}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="脉冲宽度"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.PulseWidthMs}"/>
+                                    <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
+                                </StackPanel>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="关联轴"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource AppleCombo}"
+                                          ItemsSource="{x:Static svc:Catalog.AxisNames}"
+                                          SelectedItem="{Binding SelectedItem.LinkedAxis, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </Grid>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>

@@ -6,6 +6,12 @@ namespace NoCodeMotion.ViewModels
 {
     public class CylinderViewModel : ListEditorViewModel<CylinderItem>, IEnsureDefaultSelection
     {
+        // 药丸选择的可选项（多选一）
+        public string[] TypeOptions { get; } = { "单作用", "双作用" };
+        public string[] SensorTypeOptions { get; } = { "NPN", "PNP" };
+        public string[] InitialStateOptions { get; } = { "伸出", "缩回" };
+        public string[] ActionOptions { get; } = { "伸出", "缩回" };
+
         public CylinderViewModel()
         {
             CatalogCategory = "Cylinder";
@@ -14,7 +20,7 @@ namespace NoCodeMotion.ViewModels
             AttachAutoSave();
         }
 
-        protected override CylinderItem CreateNewItem() => new CylinderItem { Name = $"姘旂几{Counter + 1}" };
+        protected override CylinderItem CreateNewItem() => new CylinderItem { Name = $"气缸{Counter + 1}" };
 
         public void EnsureDefaultSelection()
         {

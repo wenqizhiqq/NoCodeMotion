@@ -3,19 +3,75 @@ using System.Runtime.CompilerServices;
 
 namespace NoCodeMotion.Models
 {
-    /// <summary>æ°”ç¼¸é…ç½®</summary>
+    /// <summary>Æø¸×ÅäÖÃ¡ª¡ªº­¸Ç»ù±¾ĞÅÏ¢¡¢IO µãÎ»¡¢¶¯×÷²ÎÊı¡¢°²È«Âß¼­Óë¸ß¼¶ÉèÖÃ¡£</summary>
     public class CylinderItem : EditorItemBase
     {
-        private string _outPoint = string.Empty;     // è¾“å‡ºç‚¹ï¼ˆå…³è” IO åç§°ï¼Œæ¥è‡ª IO åº“ï¼‰
-        private string _sensorExtend = string.Empty;  // ä¼¸å‡ºåˆ°ä½æ„Ÿåº”ï¼ˆå…³è” IO åç§°ï¼‰
-        private string _sensorRetract = string.Empty; // ç¼©å›åˆ°ä½æ„Ÿåº”ï¼ˆå…³è” IO åç§°ï¼‰
-        private string _action = "ä¼¸å‡º";              // é»˜è®¤åŠ¨ä½œï¼šä¼¸å‡º / ç¼©å›
-        private int _delayMs = 200;
+        // ===================== »ù±¾ĞÅÏ¢ =====================
+        private string _deviceId = string.Empty;       // Éè±¸±àºÅ
+        private string _type = "Ë«×÷ÓÃ";               // Æø¸×ÀàĞÍ£ºµ¥×÷ÓÃ / Ë«×÷ÓÃ
+        private string _action = "Éì³ö";               // Ä¬ÈÏ¶¯×÷£ºÉì³ö / Ëõ»Ø
+        private string _initialState = "Ëõ»Ø";         // ³õÊ¼×´Ì¬£ºÉì³ö / Ëõ»Ø
+        private string _remark = string.Empty;         // ±¸×¢ËµÃ÷
 
+        // ===================== IO µãÎ» =====================
+        private string _outPoint = string.Empty;       // Êä³öµã£¨¹ØÁª IO Ãû³Æ£©
+        private string _sensorExtend = string.Empty;   // Éì³öµ½Î»¸ĞÓ¦£¨¹ØÁª IO Ãû³Æ£©
+        private string _sensorRetract = string.Empty;  // Ëõ»Øµ½Î»¸ĞÓ¦£¨¹ØÁª IO Ãû³Æ£©
+        private string _sensorType = "NPN";            // ¸ĞÓ¦ÀàĞÍ£ºNPN / PNP
+        private string _backupSensor = string.Empty;   // ±¸ÓÃ¸ĞÓ¦µã
+
+        // ===================== ¶¯×÷²ÎÊı =====================
+        private int _delayMs = 200;                    // ¶¯×÷ÑÓÊ±(ms)
+        private int _extendMs = 300;                   // Éì³öÑÓÊ±(ms)
+        private int _retractMs = 300;                  // Ëõ»ØÑÓÊ±(ms)
+        private int _extendSpeed = 100;                // Éì³öËÙ¶È(%)
+        private int _retractSpeed = 100;               // Ëõ»ØËÙ¶È(%)
+        private int _toleranceMs = 50;                 // µ½Î»Èİ²î(ms)
+
+        // ===================== °²È«ÓëÂß¼­ =====================
+        private bool _interlock = false;              // »¥ËøÊ¹ÄÜ
+        private bool _doubleCoil = false;              // Ë«ÏßÈ¦
+        private bool _alarmEnable = true;              // ±¨¾¯Ê¹ÄÜ
+        private bool _manualEnable = true;             // ÊÖ¶¯Ê¹ÄÜ
+        private int _timeoutMs = 3000;                // ¶¯×÷³¬Ê±(ms)
+
+        // ===================== ¸ß¼¶ =====================
+        private bool _pulseOutput = false;             // Âö³åÊä³ö
+        private int _pulseWidthMs = 100;               // Âö³å¿í¶È(ms)
+        private string _linkedAxis = string.Empty;     // ¹ØÁªÖá
+
+        // ===================== »ù±¾ĞÅÏ¢ =====================
+        public string DeviceId { get => _deviceId; set => SetField(ref _deviceId, value); }
+        public string Type { get => _type; set => SetField(ref _type, value); }
+        public string Action { get => _action; set => SetField(ref _action, value); }
+        public string InitialState { get => _initialState; set => SetField(ref _initialState, value); }
+        public string Remark { get => _remark; set => SetField(ref _remark, value); }
+
+        // ===================== IO µãÎ» =====================
         public string OutPoint { get => _outPoint; set => SetField(ref _outPoint, value); }
         public string SensorExtend { get => _sensorExtend; set => SetField(ref _sensorExtend, value); }
         public string SensorRetract { get => _sensorRetract; set => SetField(ref _sensorRetract, value); }
-        public string Action { get => _action; set => SetField(ref _action, value); }
+        public string SensorType { get => _sensorType; set => SetField(ref _sensorType, value); }
+        public string BackupSensor { get => _backupSensor; set => SetField(ref _backupSensor, value); }
+
+        // ===================== ¶¯×÷²ÎÊı =====================
         public int DelayMs { get => _delayMs; set => SetField(ref _delayMs, value); }
+        public int ExtendMs { get => _extendMs; set => SetField(ref _extendMs, value); }
+        public int RetractMs { get => _retractMs; set => SetField(ref _retractMs, value); }
+        public int ExtendSpeed { get => _extendSpeed; set => SetField(ref _extendSpeed, value); }
+        public int RetractSpeed { get => _retractSpeed; set => SetField(ref _retractSpeed, value); }
+        public int ToleranceMs { get => _toleranceMs; set => SetField(ref _toleranceMs, value); }
+
+        // ===================== °²È«ÓëÂß¼­ =====================
+        public bool Interlock { get => _interlock; set => SetField(ref _interlock, value); }
+        public bool DoubleCoil { get => _doubleCoil; set => SetField(ref _doubleCoil, value); }
+        public bool AlarmEnable { get => _alarmEnable; set => SetField(ref _alarmEnable, value); }
+        public bool ManualEnable { get => _manualEnable; set => SetField(ref _manualEnable, value); }
+        public int TimeoutMs { get => _timeoutMs; set => SetField(ref _timeoutMs, value); }
+
+        // ===================== ¸ß¼¶ =====================
+        public bool PulseOutput { get => _pulseOutput; set => SetField(ref _pulseOutput, value); }
+        public int PulseWidthMs { get => _pulseWidthMs; set => SetField(ref _pulseWidthMs, value); }
+        public string LinkedAxis { get => _linkedAxis; set => SetField(ref _linkedAxis, value); }
     }
 }
