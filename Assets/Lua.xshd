@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SyntaxDefinition name="Lua" extensions=".lua" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+
+  <Color name="Comment"     foreground="#3E8F3E" />
+  <Color name="String"      foreground="#A31515" />
+  <Color name="Keyword"     foreground="#0000C0" fontWeight="bold" />
+  <Color name="Constant"    foreground="#0070C1" fontWeight="bold" />
+  <Color name="StdLib"      foreground="#1F7A8C" />
+  <Color name="FunctionCall" foreground="#795E26" />
+  <Color name="Number"      foreground="#098658" />
+  <Color name="Operator"    foreground="#6C3483" />
+
+  <RuleSet ignoreCase="false">
+
+    <!-- 长注释 --[[ ... ]] 必须排在行注释之前 -->
+    <Span color="Comment" multiline="true">
+      <Begin>--\[\[</Begin>
+      <End>\]\]</End>
+    </Span>
+
+    <Span color="Comment">
+      <Begin>--</Begin>
+    </Span>
+
+    <!-- 长字符串 -->
+    <Span color="String" multiline="true">
+      <Begin>\[\[</Begin>
+      <End>\]\]</End>
+    </Span>
+
+    <Span color="String">
+      <Begin>"</Begin>
+      <End>"</End>
+      <RuleSet>
+        <Span begin="\\" end="." />
+      </RuleSet>
+    </Span>
+
+    <Span color="String">
+      <Begin>'</Begin>
+      <End>'</End>
+      <RuleSet>
+        <Span begin="\\" end="." />
+      </RuleSet>
+    </Span>
+
+    <Keywords color="Keyword">
+      <Word>and</Word>
+      <Word>break</Word>
+      <Word>do</Word>
+      <Word>else</Word>
+      <Word>elseif</Word>
+      <Word>end</Word>
+      <Word>for</Word>
+      <Word>function</Word>
+      <Word>goto</Word>
+      <Word>if</Word>
+      <Word>in</Word>
+      <Word>local</Word>
+      <Word>not</Word>
+      <Word>or</Word>
+      <Word>repeat</Word>
+      <Word>return</Word>
+      <Word>then</Word>
+      <Word>until</Word>
+      <Word>while</Word>
+    </Keywords>
+
+    <Keywords color="Constant">
+      <Word>true</Word>
+      <Word>false</Word>
+      <Word>nil</Word>
+      <Word>self</Word>
+      <Word>_G</Word>
+      <Word>_VERSION</Word>
+    </Keywords>
+
+    <Keywords color="StdLib">
+      <Word>assert</Word>
+      <Word>collectgarbage</Word>
+      <Word>dofile</Word>
+      <Word>error</Word>
+      <Word>getmetatable</Word>
+      <Word>ipairs</Word>
+      <Word>load</Word>
+      <Word>loadstring</Word>
+      <Word>next</Word>
+      <Word>pairs</Word>
+      <Word>pcall</Word>
+      <Word>print</Word>
+      <Word>rawequal</Word>
+      <Word>rawget</Word>
+      <Word>rawlen</Word>
+      <Word>rawset</Word>
+      <Word>require</Word>
+      <Word>select</Word>
+      <Word>setmetatable</Word>
+      <Word>tonumber</Word>
+      <Word>tostring</Word>
+      <Word>type</Word>
+      <Word>unpack</Word>
+      <Word>xpcall</Word>
+      <Word>string</Word>
+      <Word>table</Word>
+      <Word>math</Word>
+      <Word>io</Word>
+      <Word>os</Word>
+      <Word>coroutine</Word>
+      <Word>json</Word>
+    </Keywords>
+
+    <!-- 函数调用名 -->
+    <Rule color="FunctionCall">
+      \b[A-Za-z_][A-Za-z0-9_]*(?=\s*[\(\{"'])
+    </Rule>
+
+    <Rule color="Number">
+      \b0[xX][0-9a-fA-F]+\b|(\b\d+(\.[0-9]+)?|\.[0-9]+)([eE][+-]?[0-9]+)?
+    </Rule>
+
+    <Rule color="Operator">
+      [?,.;()\[\]{}+\-/%*&lt;&gt;^+~!|&amp;=#]+
+    </Rule>
+
+  </RuleSet>
+</SyntaxDefinition>
