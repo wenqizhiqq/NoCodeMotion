@@ -15,6 +15,42 @@
             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
+
+        <!-- 调试工具栏按钮：明显彩色底 + 白字；禁用时仅整体淡化（不换灰底），避免调试时闪烁 -->
+        <Style x:Key="LuaDbgButton" TargetType="Button">
+            <Setter Property="Background" Value="#7A8794"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="5"/>
+                            <Border x:Name="hover" Background="White" Opacity="0" CornerRadius="5"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="hover" Property="Opacity" Value="0.16"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="hover" Property="Opacity" Value="0.30"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid Margin="10">
@@ -195,63 +231,63 @@
                     <TextBlock FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="Lua 5.2 (MoonSharp)" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button x:Name="BtnRun" Style="{StaticResource TtBaseBtn}" Click="BtnRun_Click" ToolTip="运行 / 继续 (F5)">
+                    <Button x:Name="BtnRun" Style="{StaticResource LuaDbgButton}" Background="#2E7D32" Click="BtnRun_Click" ToolTip="运行 / 继续 (F5)">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="▶" Foreground="#2E7D32" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="▶" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock x:Name="RunLabel" Text="运行" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnPause" Style="{StaticResource TtWarnBtn}" Click="BtnPause_Click" ToolTip="中断执行 (F6)" Margin="6,0,0,0">
+                    <Button x:Name="BtnPause" Style="{StaticResource LuaDbgButton}" Background="#E69500" Click="BtnPause_Click" ToolTip="中断执行 (F6)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="❚❚" FontSize="10" Foreground="#B26A00" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="❚❚" FontSize="10" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock Text="中断" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnStop" Style="{StaticResource TtDeleteBtn}" Click="BtnStop_Click" ToolTip="停止 (Shift+F5)" Margin="6,0,0,0">
+                    <Button x:Name="BtnStop" Style="{StaticResource LuaDbgButton}" Background="#C62828" Click="BtnStop_Click" ToolTip="停止 (Shift+F5)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="■" Foreground="#C62828" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="■" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock Text="停止" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnStepOver" Style="{StaticResource TtBaseBtn}" Click="BtnStepOver_Click" ToolTip="单步执行 (F10)" Margin="6,0,0,0">
+                    <Button x:Name="BtnStepOver" Style="{StaticResource LuaDbgButton}" Background="#0F6CBD" Click="BtnStepOver_Click" ToolTip="单步执行 (F10)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="↷" Foreground="#0F6CBD" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="↷" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock Text="单步" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnStepIn" Style="{StaticResource TtBaseBtn}" Click="BtnStepIn_Click" ToolTip="步入函数 (F11)" Margin="6,0,0,0">
+                    <Button x:Name="BtnStepIn" Style="{StaticResource LuaDbgButton}" Background="#0F6CBD" Click="BtnStepIn_Click" ToolTip="步入函数 (F11)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="↴" Foreground="#0F6CBD" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="↴" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock Text="步入" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnStepOut" Style="{StaticResource TtBaseBtn}" Click="BtnStepOut_Click" ToolTip="跳出函数 (Shift+F11)" Margin="6,0,0,0">
+                    <Button x:Name="BtnStepOut" Style="{StaticResource LuaDbgButton}" Background="#0F6CBD" Click="BtnStepOut_Click" ToolTip="跳出函数 (Shift+F11)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="↰" Foreground="#0F6CBD" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="↰" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock Text="步出" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnBreakpoint" Style="{StaticResource TtGrayBtn}" Click="BtnBreakpoint_Click" ToolTip="在光标所在行设置 / 取消断点 (F9)" Margin="6,0,0,0">
+                    <Button x:Name="BtnBreakpoint" Style="{StaticResource LuaDbgButton}" Background="#E53935" Click="BtnBreakpoint_Click" ToolTip="在光标所在行设置 / 取消断点 (F9)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="●" Foreground="#E51C23" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="●" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock Text="断点" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnClearBreakpoints" Style="{StaticResource TtGrayBtn}" Click="BtnClearBreakpoints_Click" ToolTip="清除全部断点" Margin="6,0,0,0">
+                    <Button x:Name="BtnClearBreakpoints" Style="{StaticResource LuaDbgButton}" Background="#7A8794" Click="BtnClearBreakpoints_Click" ToolTip="清除全部断点" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="○" Foreground="#8A939C" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="○" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock Text="清除断点" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnHint" Style="{StaticResource TtGrayBtn}" Click="BtnHint_Click" ToolTip="手动唤出智能提示 (Ctrl+Space)" Margin="6,0,0,0">
+                    <Button x:Name="BtnHint" Style="{StaticResource LuaDbgButton}" Background="#8E44AD" Click="BtnHint_Click" ToolTip="手动唤出智能提示 (Ctrl+Space)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="✦" Foreground="#8E44AD" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="✦" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock Text="智能提示" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnExample" Style="{StaticResource TtGrayBtn}" Click="BtnExample_Click" ToolTip="在编辑器中插入示例脚本" Margin="6,0,0,0">
+                    <Button x:Name="BtnExample" Style="{StaticResource LuaDbgButton}" Background="#0E7C7B" Click="BtnExample_Click" ToolTip="在编辑器中插入示例脚本" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="📄" Foreground="#0F6CBD" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="📄" Margin="0,0,5,0" VerticalAlignment="Center"/>
                             <TextBlock Text="插入示例" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>

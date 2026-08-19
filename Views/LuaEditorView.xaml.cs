@@ -146,6 +146,9 @@ namespace NoCodeMotion.Views
             view.BackgroundRenderers.Add(_errorLineRenderer);
             view.BackgroundRenderers.Add(_currentLineRenderer);
 
+            // 语义着色：变量 / 函数 / 标准库名区别着色（在语法高亮之上）
+            view.LineTransformers.Add(new LuaSemanticColorizer());
+
             Editor.TextArea.TextEntering += TextArea_TextEntering;
             Editor.TextArea.TextEntered += TextArea_TextEntered;
             Editor.TextArea.Caret.PositionChanged += (s, e) =>
