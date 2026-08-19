@@ -763,6 +763,22 @@ namespace NoCodeMotion.Views
             ShowWordCompletion(true);
         }
 
+        private void BtnExample_Click(object sender, RoutedEventArgs e)
+        {
+            if (LuaItem == null)
+            {
+                AppendLog("请先选择或新建一个脚本流程，再插入示例", LogKind.Info);
+                return;
+            }
+
+            _settingText = true;
+            Editor.Text = FlowItem.DefaultLuaTemplate;
+            _settingText = false;
+            LuaItem.LuaSource = FlowItem.DefaultLuaTemplate;
+            CheckSyntaxNow();
+            AppendLog("已插入示例脚本，可运行 / 单步查看效果", LogKind.Info);
+        }
+
         private void BtnClearOutput_Click(object sender, RoutedEventArgs e) => _log.Clear();
 
         private void ToggleBreakpointAtCaret()

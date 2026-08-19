@@ -249,6 +249,12 @@
                             <TextBlock Text="智能提示" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <Button x:Name="BtnExample" Style="{StaticResource TtGrayBtn}" Click="BtnExample_Click" ToolTip="在编辑器中插入示例脚本" Margin="6,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📄" Foreground="#0F6CBD" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="插入示例" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>

@@ -34,8 +34,45 @@ namespace NoCodeMotion.Models
         }
 
         public const string DefaultLuaTemplate =
-@"-- Lua 流程脚本
--- 在此编写流程逻辑，返回 true 表示成功
+@"-- ============ Lua 流程脚本示例 ============
+-- 在编辑器中：F5 运行，F10 单步，F9 在行号左侧打断点
+-- print 的内容会显示在下方「输出」面板
+
+-- 1. 变量
+local title = ""运动流程示例""
+print(""开始执行："" .. title)
+
+-- 2. 表格（可在右侧「变量」面板展开查看）
+local cfg = {
+    name = ""轴1"",
+    speed = 120,
+    target = 500,
+    enabled = true
+}
+print(""配置："" .. cfg.name .. ""  目标位置="" .. cfg.target)
+
+-- 3. 函数定义（F11 步入函数内部单步）
+local function moveTo(pos)
+    local step = 10
+    print(""移动到 "" .. pos)
+    return pos + step
+end
+
+-- 4. 循环（单步观察 i 与累计值变化）
+local total = 0
+for i = 1, 5 do
+    total = moveTo(total)
+    print(""第 "" .. i .. "" 步，累计="" .. total)
+end
+
+-- 5. 条件判断
+if total >= cfg.target then
+    print(""已到达目标位置"")
+else
+    print(""未到达目标，当前="" .. total)
+end
+
+-- 6. 结束：流程成功返回 true
 return true";
     }
 }
