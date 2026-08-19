@@ -186,23 +186,23 @@
                 </TextBlock>
                 <UniformGrid Columns="2" Margin="0,0,0,8">
                     <Button Command="{Binding DataContext.EnableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index}" Style="{DynamicResource TtBaseBtn}" Content="使能"/>
+                            CommandParameter="{Binding Index}" Style="{DynamicResource TtPillBlueBtn}" Content="使能"/>
                     <Button Command="{Binding DataContext.HomeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index}" Style="{DynamicResource TtBaseBtn}" Content="回原"/>
+                            CommandParameter="{Binding Index}" Style="{DynamicResource TtPillGrayBtn}" Content="回原"/>
                 </UniformGrid>
                 <TextBlock Text="寸动（每次移动寸动步长）" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4"/>
                 <UniformGrid Columns="2" Margin="0,0,0,8">
                     <Button Command="{Binding DataContext.InchCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtWarnBtn}" Content="− 减"/>
+                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtPillOrangeBtn}" Content="− 减"/>
                     <Button Command="{Binding DataContext.InchCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtBaseBtn}" Content="+ 加"/>
+                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtPillBlueBtn}" Content="+ 加"/>
                 </UniformGrid>
                 <TextBlock Text="JOG（每次移动 JOG 步长）" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4"/>
                 <UniformGrid Columns="2">
                     <Button Command="{Binding DataContext.JogCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtWarnBtn}" Content="− 减"/>
+                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtPillOrangeBtn}" Content="− 减"/>
                     <Button Command="{Binding DataContext.JogCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtBaseBtn}" Content="+ 加"/>
+                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtPillBlueBtn}" Content="+ 加"/>
                 </UniformGrid>
             </StackPanel>
         </Border>
@@ -366,6 +366,66 @@
                 <Setter Property="Background" Value="#E08600"/>
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- iOS 风格"染色药丸"按钮：浅色背景 + 同色加粗文字，半径更大，高度更小。
+         用于轴控制卡的 -/+/使能/回原 以及点位表行末的 移动/保存。 -->
+    <Style x:Key="TtPillBase" TargetType="Button">
+        <Setter Property="MinWidth" Value="56"/>
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="Margin" Value="4,0"/>
+        <Setter Property="Padding" Value="14,0"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                            CornerRadius="9" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.82"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.65"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Background" Value="#F2F2F7"/>
+                            <Setter Property="Foreground" Value="#AEAEB2"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <!-- 蓝：+ 加 / 使能 / 移动 等正向主操作 -->
+    <Style x:Key="TtPillBlueBtn" TargetType="Button" BasedOn="{StaticResource TtPillBase}">
+        <Setter Property="Background" Value="#E5F1FF"/>
+        <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+    </Style>
+    <!-- 橙：- 减 / 反向操作（不破坏性，与破坏性红色区分） -->
+    <Style x:Key="TtPillOrangeBtn" TargetType="Button" BasedOn="{StaticResource TtPillBase}">
+        <Setter Property="Background" Value="#FFEDD5"/>
+        <Setter Property="Foreground" Value="#C97600"/>
+    </Style>
+    <!-- 绿：保存（成功语义） -->
+    <Style x:Key="TtPillGreenBtn" TargetType="Button" BasedOn="{StaticResource TtPillBase}">
+        <Setter Property="Background" Value="#DDF5E5"/>
+        <Setter Property="Foreground" Value="#1F7A38"/>
+    </Style>
+    <!-- 灰：回原（次要操作） -->
+    <Style x:Key="TtPillGrayBtn" TargetType="Button" BasedOn="{StaticResource TtPillBase}">
+        <Setter Property="Background" Value="#F2F2F7"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+    </Style>
+    <!-- 红：删除（破坏性，但仍用浅染以与饱和红区分） -->
+    <Style x:Key="TtPillRedBtn" TargetType="Button" BasedOn="{StaticResource TtPillBase}">
+        <Setter Property="Background" Value="#FFE3E3"/>
+        <Setter Property="Foreground" Value="#C92A2A"/>
     </Style>
     <Style x:Key="TtGrayBtn" TargetType="Button">
         <Setter Property="MinWidth" Value="88"/>

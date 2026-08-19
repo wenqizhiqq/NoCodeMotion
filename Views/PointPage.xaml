@@ -115,9 +115,9 @@
                 </StackPanel>
 
                 <UniformGrid DockPanel.Dock="Top" Columns="2" Margin="8,0,8,10">
-                    <Button Command="{Binding AddCommand}" Style="{StaticResource TtBaseBtn}" Content="新增工位"
+                    <Button Command="{Binding AddCommand}" Style="{StaticResource TtPillBlueBtn}" Content="新增工位"
                             ToolTip="新增一个点位表（工位），默认带 1 行点位。"/>
-                    <Button Command="{Binding DeleteCommand}" Style="{StaticResource TtDeleteBtn}" Content="删除工位"
+                    <Button Command="{Binding DeleteCommand}" Style="{StaticResource TtPillRedBtn}" Content="删除工位"
                             ToolTip="删除当前选中的工位，删除前会弹窗确认。"/>
                 </UniformGrid>
 
@@ -232,21 +232,21 @@
                     <!-- 工具栏：添加 / 删除点位（作用于当前工位） -->
                     <Border Style="{StaticResource ToolbarStyle}" Margin="0,0,0,8">
                         <StackPanel Orientation="Horizontal">
-                            <Button Command="{Binding AddPointCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="在当前工位下新增一行点位。">
+                            <Button Command="{Binding AddPointCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="在当前工位下新增一行点位。">
                                 <StackPanel Orientation="Horizontal">
-                                    <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                    <Path Data="{StaticResource AddIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                     <TextBlock Text="添加点位" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-                            <Button Command="{Binding DeletePointCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="删除表格中选中的那一行点位。">
+                            <Button Command="{Binding DeletePointCommand}" Style="{StaticResource TtPillRedBtn}" ToolTip="删除表格中选中的那一行点位。">
                                 <StackPanel Orientation="Horizontal">
-                                    <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                    <Path Data="{StaticResource DeleteIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                     <TextBlock Text="删除点位" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-                            <Button Command="{Binding CompileCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="编译当前工位的时序标记与同步组，检测同周期 / 分辨率 / 资源争用冲突。">
+                            <Button Command="{Binding CompileCommand}" Style="{StaticResource TtPillGrayBtn}" ToolTip="编译当前工位的时序标记与同步组，检测同周期 / 分辨率 / 资源争用冲突。">
                                 <StackPanel Orientation="Horizontal">
-                                    <Path Data="{StaticResource CheckIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                    <Path Data="{StaticResource CheckIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                     <TextBlock Text="编译时序" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -359,12 +359,12 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <!-- 行操作：移动到该点位 / 保存当前位置到此行 -->
+                                <!-- 行操作：移动到该点位 / 保存当前位置到此行（iOS 染色药丸） -->
                                 <DataGridTemplateColumn Header="移动" Width="84">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Command="{Binding DataContext.MoveToPointCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    CommandParameter="{Binding}" Style="{StaticResource TtBaseBtn}" Content="移动" Margin="3,0" HorizontalAlignment="Center"/>
+                                                    CommandParameter="{Binding}" Style="{StaticResource TtPillBlueBtn}" Content="移动" Margin="3,0" HorizontalAlignment="Center"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -372,7 +372,7 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Command="{Binding DataContext.SaveCurrentCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    CommandParameter="{Binding}" Style="{StaticResource TtExcelBtn}" Content="保存" Margin="3,0" HorizontalAlignment="Center"/>
+                                                    CommandParameter="{Binding}" Style="{StaticResource TtPillGreenBtn}" Content="保存" Margin="3,0" HorizontalAlignment="Center"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
