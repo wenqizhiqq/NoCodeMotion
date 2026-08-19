@@ -158,7 +158,8 @@
 
         <local:EditorPage.Detail>
             <!-- 整体两行：标题 + 编辑器主体（主体内部按 Kind 切换表格 / Lua） -->
-            <Grid Margin="12">
+            <Border Background="{StaticResource CanvasBrush}">
+                <Grid Margin="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
@@ -212,7 +213,7 @@
                                       Background="Transparent"
                                       RowHeight="28"
                                       FontSize="12"
-                                      AlternatingRowBackground="#FAFBFC">
+                                      AlternatingRowBackground="{StaticResource HoverBrush}">
                                 <DataGrid.Columns>
                                     <DataGridTemplateColumn Header="逻辑" Width="78">
                                         <DataGridTemplateColumn.CellTemplate>
@@ -295,13 +296,13 @@
                                     <DataGridTemplateColumn Header="实际值" Width="120">
                                         <DataGridTemplateColumn.HeaderStyle>
                                             <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource FlowHeaderStyle}">
-                                                <Setter Property="Background" Value="#DDE9F7"/>
+                                                <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
                                                 <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}"/>
                                             </Style>
                                         </DataGridTemplateColumn.HeaderStyle>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <Border Margin="1" CornerRadius="4" Background="#F2F7FE">
+                                                <Border Margin="1" CornerRadius="4" Background="{StaticResource AccentSoftBrush}">
                                                     <Grid>
                                                         <Ellipse Width="6" Height="6" Margin="6,0,0,0"
                                                                  HorizontalAlignment="Left" VerticalAlignment="Center"
@@ -369,6 +370,7 @@
 
                 </Grid>
             </Grid>
+            </Border>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>

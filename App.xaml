@@ -27,6 +27,7 @@
             <Color x:Key="CSuccess">#34C759</Color>
             <Color x:Key="CDanger">#FF3B30</Color>
             <Color x:Key="CWarning">#FF9500</Color>
+            <Color x:Key="CSuccessSoft">#D7F0DD</Color>
 
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource CAccent}"/>
             <SolidColorBrush x:Key="AccentDarkBrush" Color="{StaticResource CAccentDark}"/>
@@ -42,6 +43,7 @@
             <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource CSuccess}"/>
             <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource CDanger}"/>
             <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource CWarning}"/>
+            <SolidColorBrush x:Key="SuccessSoftBrush" Color="{StaticResource CSuccessSoft}"/>
             <SolidColorBrush x:Key="NavActiveBrush" Color="{StaticResource CAccentSoft}"/>
 
             <!-- 柔和阴影（中性黑、更轻，贴近 Apple） -->
@@ -586,6 +588,204 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+            <!-- ===================== Apple 表单样式（全局统一：气缸/通讯/料盘/轴等表单页共用） ===================== -->
+            <Style x:Key="AppleGroupCard" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="12"/>
+                <Setter Property="Effect" Value="{StaticResource SoftShadow}"/>
+                <Setter Property="Margin" Value="0,0,0,10"/>
+                <Setter Property="Padding" Value="0"/>
+            </Style>
+            <Style x:Key="AppleSectionHeader" TargetType="TextBlock">
+                <Setter Property="Margin" Value="12,9,12,2"/>
+                <Setter Property="FontSize" Value="11.5"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+            </Style>
+            <Style x:Key="AppleRow" TargetType="DockPanel">
+                <Setter Property="LastChildFill" Value="False"/>
+                <Setter Property="Margin" Value="12,6"/>
+            </Style>
+            <Style x:Key="AppleLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12.5"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <Style x:Key="AppleTextField" TargetType="TextBox">
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="HorizontalAlignment" Value="Right"/>
+                <Setter Property="TextAlignment" Value="Right"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="FontSize" Value="12.5"/>
+                <Setter Property="MinWidth" Value="120"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            </Style>
+            <Style x:Key="AppleUnit" TargetType="TextBlock">
+                <Setter Property="Margin" Value="5,0,0,0"/>
+                <Setter Property="FontSize" Value="11.5"/>
+                <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <Style x:Key="AppleHairline" TargetType="Rectangle">
+                <Setter Property="Height" Value="1"/>
+                <Setter Property="Margin" Value="12,0"/>
+                <Setter Property="Fill" Value="{StaticResource LineBrush}"/>
+            </Style>
+            <Style x:Key="AppleNumBox" TargetType="TextBox" BasedOn="{StaticResource AppleTextField}">
+                <Setter Property="Width" Value="60"/>
+            </Style>
+            <Style x:Key="AppleCombo" TargetType="ComboBox" BasedOn="{StaticResource CellComboStyle}">
+                <Setter Property="Height" Value="28"/>
+                <Setter Property="MinWidth" Value="140"/>
+            </Style>
+            <Style x:Key="ApplePillList" TargetType="ListBox">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="SelectionMode" Value="Single"/>
+                <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+                <Setter Property="ItemsPanel">
+                    <Setter.Value>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" Margin="-3"/>
+                        </ItemsPanelTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="ItemContainerStyle">
+                    <Setter.Value>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Margin" Value="3"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="bd" Background="{StaticResource HoverBrush}" CornerRadius="8" Padding="11,5">
+                                            <ContentPresenter VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                                <Setter TargetName="bd" Property="TextBlock.Foreground" Value="White"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="AppleToggle" TargetType="CheckBox">
+                <Setter Property="Width" Value="46"/>
+                <Setter Property="Height" Value="26"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="CheckBox">
+                            <Border x:Name="track" Width="46" Height="26" CornerRadius="13" Background="{StaticResource LineBrush}">
+                                <Ellipse x:Name="knob" Width="22" Height="22" Fill="White" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,0,0">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect BlurRadius="4" ShadowDepth="0" Opacity="0.25" Color="#000000"/>
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="track" Property="Background" Value="{StaticResource SuccessBrush}"/>
+                                    <Setter TargetName="knob" Property="Margin" Value="22,0,0,0"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <!-- 通讯页参数芯片 -->
+            <Style x:Key="AppleChip" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="10"/>
+                <Setter Property="Padding" Value="10,8"/>
+                <Setter Property="Margin" Value="5"/>
+                <Setter Property="Width" Value="232"/>
+            </Style>
+            <Style x:Key="AppleChipLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+                <Setter Property="Margin" Value="0,0,0,5"/>
+            </Style>
+            <Style x:Key="AppleNumField" TargetType="TextBox" BasedOn="{StaticResource AppleTextField}">
+                <Setter Property="Width" Value="74"/>
+            </Style>
+            <Style x:Key="AppleBtn" TargetType="Button">
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="MinWidth" Value="88"/>
+                <Setter Property="Margin" Value="0,0,8,0"/>
+                <Setter Property="Padding" Value="14,0"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="9" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource AccentDarkBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Background" Value="{StaticResource LineBrush}"/>
+                                    <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="AppleBtnSecondary" TargetType="Button">
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="MinWidth" Value="88"/>
+                <Setter Property="Margin" Value="0,0,8,0"/>
+                <Setter Property="Padding" Value="14,0"/>
+                <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="9" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="AppleTerminal" TargetType="ListBox">
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="FontFamily" Value="Consolas, SF Mono, Menlo, monospace"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                <Setter Property="Padding" Value="8"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

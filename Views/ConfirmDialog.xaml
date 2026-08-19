@@ -7,7 +7,7 @@
         FontFamily="Segoe UI" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
     <!-- 透明窗口 + 圆角 14 白卡 + 柔和阴影 = Apple 风格自定义确认弹窗 -->
-    <Border CornerRadius="14" Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Margin="16" Effect="{StaticResource SoftShadow}">
+    <Border CornerRadius="14" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Margin="16" Effect="{StaticResource SoftShadow}">
         <StackPanel MinWidth="360" MaxWidth="480">
             <!-- 标题区（与内容用发丝线分隔） -->
             <Border Padding="22,18,22,14" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">

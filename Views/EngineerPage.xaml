@@ -215,7 +215,7 @@
                                                         <Ellipse Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,6,0">
                                                             <Ellipse.Style>
                                                                 <Style TargetType="Ellipse">
-                                                                    <Setter Property="Fill" Value="#C7C7CC"/>
+                                                                    <Setter Property="Fill" Value="{StaticResource TextMutedBrush}"/>
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding Value}" Value="1">
                                                                             <Setter Property="Fill" Value="{StaticResource SuccessBrush}"/>
