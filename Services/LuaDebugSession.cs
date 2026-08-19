@@ -119,6 +119,11 @@ namespace NoCodeMotion.Services
             {
                 _script = new Script(CoreModules.Preset_Complete);
                 _script.Options.DebugPrint = s => Log?.Invoke(s, LogKind.Output);
+
+                // 预留硬件接口：把轴/IO/气缸/通讯/料盘的运动控制函数注册成 Lua 全局函数。
+                // 名称解析与 Lua 绑定在 HardwareApi 里完成，真正的设备对接在 IHardwareBridge。
+                HardwareApi.Register(_script, new HardwareApi(HardwareBridge.Current, s => Log?.Invoke(s, LogKind.Output)));
+
                 _baselineGlobals = new HashSet<string>(
                     _script.Globals.Pairs.Select(p => p.Key.CastToString() ?? string.Empty));
 

@@ -181,6 +181,30 @@ namespace NoCodeMotion.Editing
             S("repeat", "repeat-until 循环", "repeat\n\t" + CaretMarker + "\nuntil ")
         };
 
+        /// <summary>硬件运动控制函数（轴 / IO / 气缸 / 通讯 / 料盘），由 HardwareApi 注册到运行时。</summary>
+        public static readonly List<LuaSymbol> HardwareList = new List<LuaSymbol>
+        {
+            F("AxisMove", "AxisMove(name)", "驱动指定轴运动到目标位置（目标位取轴配置）"),
+            F("SetAxisSpeed", "SetAxisSpeed(name, speed)", "设置轴运行速度"),
+            F("AxisHome", "AxisHome(name)", "轴回零"),
+            F("StopAxis", "StopAxis(name)", "立即停止轴"),
+            F("WaitAxisDone", "WaitAxisDone(name)", "阻塞等待轴到位"),
+            F("EnableAxis", "EnableAxis(name)", "轴使能 / 解除使能"),
+            F("MoveAxisRel", "MoveAxisRel(name, distance)", "轴相对当前位置移动 distance"),
+            F("MoveAxisAbs", "MoveAxisAbs(name, position)", "轴运动到绝对位置 position"),
+            F("ReadIO", "ReadIO(name)", "读取输入 IO，返回 0 / 1"),
+            F("WaitIO", "WaitIO(name, value)", "阻塞等待输入 IO 变为 value（0/1）"),
+            F("SetIO", "SetIO(name, value)", "设置输出 IO 电平 value（0/1）"),
+            F("ToggleIO", "ToggleIO(name)", "输出 IO 电平取反"),
+            F("CylinderMove", "CylinderMove(name, state)", "气缸动作：state=1 伸出 / 0 缩回"),
+            F("WaitCylinder", "WaitCylinder(name)", "等待气缸到位（按感应点轮询）"),
+            F("CylinderReset", "CylinderReset(name)", "气缸复位到初始状态"),
+            F("CommSend", "CommSend(name, data)", "通过指定通讯通道发送数据"),
+            F("CommRecv", "CommRecv(name)", "从指定通讯通道接收数据，返回字符串"),
+            F("TrayPick", "TrayPick(name)", "料盘取料"),
+            F("TrayPlace", "TrayPlace(name)", "料盘放料")
+        };
+
         public static IReadOnlyList<LuaSymbol> Globals => GlobalsList;
 
         public static bool TryGetMembers(string module, out List<LuaSymbol> members) =>
@@ -194,6 +218,9 @@ namespace NoCodeMotion.Editing
             if (string.IsNullOrEmpty(name)) return null;
 
             var hit = GlobalsList.FirstOrDefault(s => s.Name == name);
+            if (hit != null) return hit;
+
+            hit = HardwareList.FirstOrDefault(s => s.Name == name);
             if (hit != null) return hit;
 
             foreach (var kv in Members)
