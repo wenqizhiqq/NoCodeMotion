@@ -138,17 +138,16 @@
                           GridLinesVisibility="None"
                           BorderThickness="0"
                           Background="Transparent"
-                          IsReadOnly="True"
                           SelectionMode="Single" SelectionUnit="CellOrRowHeader"
                           RowHeight="30"
                           FontSize="13">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="卡类" Binding="{Binding CardType}" Width="80"/>
-                        <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="60"/>
-                        <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="60"/>
-                        <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="60"/>
-                        <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="120"/>
-                        <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="80"/>
+                        <DataGridTextColumn Header="卡类" Binding="{Binding CardType}" Width="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="120" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTemplateColumn Header="电平" Width="80">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -167,7 +166,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="值" Binding="{Binding Value}" Width="50"/>
+                        <DataGridTextColumn Header="值" Binding="{Binding Value}" Width="50" IsReadOnly="True"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
@@ -195,17 +194,16 @@
                           GridLinesVisibility="None"
                           BorderThickness="0"
                           Background="Transparent"
-                          IsReadOnly="True"
                           SelectionMode="Single" SelectionUnit="CellOrRowHeader"
                           RowHeight="30"
                           FontSize="13">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="卡类" Binding="{Binding CardType}" Width="80"/>
-                        <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="60"/>
-                        <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="60"/>
-                        <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="60"/>
-                        <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="120"/>
-                        <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="80"/>
+                        <DataGridTextColumn Header="卡类" Binding="{Binding CardType}" Width="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="120" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTemplateColumn Header="电平" Width="80">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -224,7 +222,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="值" Binding="{Binding Value}" Width="50"/>
+                        <DataGridTextColumn Header="值" Binding="{Binding Value}" Width="50" IsReadOnly="True"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
