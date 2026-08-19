@@ -61,6 +61,7 @@ namespace NoCodeMotion.Views
             SetupEditor();
 
             OutputList.ItemsSource = _log;
+            RebuildInsertPanel();
             UpdateCaretStatus();
             SetSessionState(SessionState.Idle);
             AppendLog("就绪。F5 运行，F10 单步，F9 断点。", LogKind.Info);
@@ -91,9 +92,7 @@ namespace NoCodeMotion.Views
             ClearRuntimeMarkers();
             _log.Clear();
             _varIndex.Clear();
-            TxtInspect.Text = "—";
-            VarTree.ItemsSource = null;
-            CallStackList.ItemsSource = null;
+            RebuildInsertPanel();
             _bpMargin.ClearAll();
             UpdateBreakpointCount();
             SetSessionState(SessionState.Idle);
@@ -353,7 +352,6 @@ namespace NoCodeMotion.Views
             string path = GetQualifiedNameAt(Editor.CaretOffset);
             if (string.IsNullOrEmpty(path))
             {
-                TxtInspect.Text = "—";
                 if (showPopup) VarPopup.IsOpen = false;
                 return;
             }
@@ -363,12 +361,10 @@ namespace NoCodeMotion.Views
 
             if (info != null)
             {
-                TxtInspect.Text = $"{path} = {info.Value}";
                 if (showPopup) ShowVarPopup(path, info.Value, $"类型：{info.TypeName}", info.Scope);
             }
             else if (api != null)
             {
-                TxtInspect.Text = $"{path}（{api.Signature}）";
                 if (showPopup) ShowVarPopup(path, api.Signature, api.Description, "标准库");
             }
             else
@@ -377,7 +373,6 @@ namespace NoCodeMotion.Views
                 string hint = _session != null && _session.IsBusy
                     ? "当前作用域内没有该变量"
                     : "尚无运行时值，运行或单步后再查看";
-                TxtInspect.Text = $"{path} = ?  （{hint}）";
                 if (showPopup)
                     ShowVarPopup(path, "?", doc != null ? doc.Signature + " · " + hint : hint,
                         doc != null ? "本文件" : "未知");
@@ -591,8 +586,7 @@ namespace NoCodeMotion.Views
                 Editor.TextArea.Caret.Column = 1;
             }
 
-            RebuildVariables(info.Locals, info.Globals);
-            CallStackList.ItemsSource = info.CallStack;
+            RefreshVarIndex(info.Locals, info.Globals);
 
             if (info.IsError)
             {
@@ -628,41 +622,157 @@ namespace NoCodeMotion.Views
                 AppendLog($"✔ {info.Message}（耗时 {info.ElapsedMs} ms）", LogKind.Success);
             }
 
-            RebuildVariables(new List<VarInfo>(), info.Globals);
-            CallStackList.ItemsSource = null;
+            RefreshVarIndex(new List<VarInfo>(), info.Globals);
             SetSessionState(SessionState.Idle);
             InspectAtCaret(false);
         }));
 
-        private void RebuildVariables(List<VarInfo> locals, List<VarInfo> globals)
+        /// <summary>仅刷新运行时变量索引（供补全 / 悬停提示使用），不再绑定到右侧面板。</summary>
+        private void RefreshVarIndex(List<VarInfo> locals, List<VarInfo> globals)
         {
             _varIndex.Clear();
             foreach (VarInfo g in globals) _varIndex[g.Name] = g;
             foreach (VarInfo l in locals) _varIndex[l.Name] = l;   // 局部变量优先
+        }
 
-            var roots = new List<VarInfo>();
+        #endregion
 
-            var localRoot = new VarInfo
+        #region 智能插入（左函数 · 右名称 / 逻辑结构 · 插入代码）
+
+        /// <summary>左侧函数项：Kind=Object 时右侧列出对象名称（用 Template 格式化插入一行）；Kind=Snippet 时右侧列出 if/for/while 等代码块。</summary>
+        public sealed class LuaInsertFunc
+        {
+            public string Name { get; set; } = string.Empty;
+            public string Kind { get; set; } = "Object";   // Object / Snippet
+            public string Source { get; set; } = string.Empty; // Object 时名称来源：Axis/Input/Output/Cylinder/Comm/Tray
+            public string Template { get; set; } = string.Empty; // Object 时行模板，{0}=名称
+        }
+
+        /// <summary>右侧列表项（统一类型，便于用 DisplayMemberPath=Name 显示）。</summary>
+        public sealed class LuaPickItem
+        {
+            public string Name { get; set; } = string.Empty;
+            /// <summary>非空=直接插入的代码块（逻辑结构）；空=用所属函数的 Template 把 Name 格式化后插入。</summary>
+            public string Body { get; set; } = string.Empty;
+        }
+
+        /// <summary>构建左侧函数列表（轴 / IO / 气缸 / 通讯 / 料盘 各类操作 + 逻辑结构），尽量齐全。</summary>
+        private void RebuildInsertPanel()
+        {
+            var funcs = new List<LuaInsertFunc>
             {
-                Name = "局部变量",
-                Value = locals.Count + " 项",
-                TypeName = string.Empty,
-                IsExpanded = true
+                // 轴
+                new LuaInsertFunc { Name = "轴-移动", Source = "Axis", Template = "AxisMove(\"{0}\")" },
+                new LuaInsertFunc { Name = "轴-速度设置", Source = "Axis", Template = "SetAxisSpeed(\"{0}\", 100)" },
+                new LuaInsertFunc { Name = "轴-回零", Source = "Axis", Template = "AxisHome(\"{0}\")" },
+                new LuaInsertFunc { Name = "轴-停止", Source = "Axis", Template = "StopAxis(\"{0}\")" },
+                new LuaInsertFunc { Name = "轴-等待到位", Source = "Axis", Template = "WaitAxisDone(\"{0}\")" },
+                new LuaInsertFunc { Name = "轴-使能", Source = "Axis", Template = "EnableAxis(\"{0}\")" },
+                new LuaInsertFunc { Name = "轴-相对移动", Source = "Axis", Template = "MoveAxisRel(\"{0}\", 10)" },
+                new LuaInsertFunc { Name = "轴-绝对移动", Source = "Axis", Template = "MoveAxisAbs(\"{0}\", 0)" },
+                // IO
+                new LuaInsertFunc { Name = "IO-读取", Source = "Input", Template = "local v = ReadIO(\"{0}\")" },
+                new LuaInsertFunc { Name = "IO-等待", Source = "Input", Template = "WaitIO(\"{0}\", 1)" },
+                new LuaInsertFunc { Name = "IO-设置", Source = "Output", Template = "SetIO(\"{0}\", 1)" },
+                new LuaInsertFunc { Name = "IO-取反", Source = "Output", Template = "ToggleIO(\"{0}\")" },
+                // 气缸
+                new LuaInsertFunc { Name = "气缸-动作", Source = "Cylinder", Template = "CylinderMove(\"{0}\", 1)" },
+                new LuaInsertFunc { Name = "气缸-等待到位", Source = "Cylinder", Template = "WaitCylinder(\"{0}\")" },
+                new LuaInsertFunc { Name = "气缸-复位", Source = "Cylinder", Template = "CylinderReset(\"{0}\")" },
+                // 通讯
+                new LuaInsertFunc { Name = "通讯-发送", Source = "Comm", Template = "CommSend(\"{0}\", data)" },
+                new LuaInsertFunc { Name = "通讯-接收", Source = "Comm", Template = "local s = CommRecv(\"{0}\")" },
+                // 料盘
+                new LuaInsertFunc { Name = "料盘-取料", Source = "Tray", Template = "TrayPick(\"{0}\")" },
+                new LuaInsertFunc { Name = "料盘-放料", Source = "Tray", Template = "TrayPlace(\"{0}\")" },
+                // 逻辑结构（右侧显示 if / for / while 等代码块）
+                new LuaInsertFunc { Name = "逻辑结构", Kind = "Snippet" },
             };
-            foreach (VarInfo l in locals) localRoot.Children.Add(l);
+            FuncList.ItemsSource = funcs;
+            FuncList.SelectedIndex = funcs.Count > 0 ? 0 : -1;
+        }
 
-            var globalRoot = new VarInfo
+        private void FuncList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (FuncList.SelectedItem is not LuaInsertFunc fn)
             {
-                Name = "全局变量",
-                Value = globals.Count + " 项",
-                TypeName = string.Empty,
-                IsExpanded = true
-            };
-            foreach (VarInfo g in globals) globalRoot.Children.Add(g);
+                NameList.ItemsSource = null;
+                return;
+            }
 
-            roots.Add(localRoot);
-            roots.Add(globalRoot);
-            VarTree.ItemsSource = roots;
+            if (fn.Kind == "Snippet")
+            {
+                // 右侧列出 if / for / while / repeat / function 等代码块（取自 LuaApi.Snippets，去掉插入符标记）
+                string marker = LuaApi.CaretMarker.ToString();
+                NameList.ItemsSource = LuaApi.Snippets
+                    .Select(s => new LuaPickItem { Name = s.Name, Body = (s.InsertText ?? "").Replace(marker, "") })
+                    .ToList();
+            }
+            else
+            {
+                NameList.ItemsSource = GetNamesForSource(fn.Source)
+                    .Select(n => new LuaPickItem { Name = n })
+                    .ToList();
+            }
+        }
+
+        private static IEnumerable<string> GetNamesForSource(string source)
+        {
+            static IEnumerable<string> NonEmpty(IEnumerable<string> xs) => xs.Where(n => !string.IsNullOrEmpty(n));
+            return source switch
+            {
+                "Axis" => NonEmpty(ProjectStore.Data.Axes.Select(a => a.Name)),
+                "Input" => NonEmpty(ProjectStore.Data.Inputs.Select(i => i.Name)),
+                "Output" => NonEmpty(ProjectStore.Data.Outputs.Select(o => o.Name)),
+                "Cylinder" => NonEmpty(ProjectStore.Data.Cylinders.Select(c => c.Name)),
+                "Comm" => NonEmpty(ProjectStore.Data.Comms.Select(c => c.Name)),
+                "Tray" => NonEmpty(ProjectStore.Data.Trays.Select(t => t.Name)),
+                _ => Enumerable.Empty<string>()
+            };
+        }
+
+        private void NameList_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (FuncList.SelectedItem is not LuaInsertFunc fn) return;
+            if (NameList.SelectedItem is not LuaPickItem item || string.IsNullOrEmpty(item.Name)) return;
+
+            if (!string.IsNullOrEmpty(item.Body))
+                InsertCodeBlock(item.Body);
+            else
+                InsertFunctionLine(fn.Template, item.Name);
+
+            e.Handled = true;
+        }
+
+        /// <summary>把函数模板（{0}=名称）格式化成一行 Lua，插入到编辑器光标处并写回 LuaItem.LuaSource。</summary>
+        private void InsertFunctionLine(string template, string name)
+        {
+            if (LuaItem == null)
+            {
+                AppendLog("请先选择或新建一个脚本流程，再插入", LogKind.Info);
+                return;
+            }
+            string line = string.Format(template, name);
+            Editor.Focus();
+            int offset = Editor.CaretOffset;
+            Editor.Document.Insert(offset, line + "\n");
+            Editor.CaretOffset = offset + line.Length + 1;
+            AppendLog("已插入：" + line, LogKind.Info);
+        }
+
+        /// <summary>插入一段多行代码块（逻辑结构），并写回 LuaItem.LuaSource。</summary>
+        private void InsertCodeBlock(string body)
+        {
+            if (LuaItem == null)
+            {
+                AppendLog("请先选择或新建一个脚本流程，再插入", LogKind.Info);
+                return;
+            }
+            Editor.Focus();
+            int offset = Editor.CaretOffset;
+            Editor.Document.Insert(offset, body + "\n");
+            Editor.CaretOffset = offset + body.Length + 1;
+            AppendLog("已插入代码块", LogKind.Info);
         }
 
         private void ClearRuntimeMarkers()

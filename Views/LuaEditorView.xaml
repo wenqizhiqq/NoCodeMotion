@@ -125,64 +125,41 @@
             </Grid>
         </Border>
 
-        <!-- ============ 右侧：变量 + 调用栈 ============ -->
+        <!-- ============ 右侧：智能插入（左函数 · 右名称 · 插入一行） ============ -->
         <Grid Grid.Row="0" Grid.Column="2">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="6"/>
-                <RowDefinition Height="170" MinHeight="90"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="{StaticResource AccentSoftBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="10,7">
-                        <TextBlock Style="{StaticResource LuaPanelHeaderText}" Text="变量"/>
-                    </Border>
-                    <Border Grid.Row="1" Background="#F7FAFE" BorderBrush="#E1E9F2" BorderThickness="0,0,0,1" Padding="10,7">
-                        <StackPanel>
-                            <TextBlock Text="光标处变量" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}"/>
-                            <TextBlock x:Name="TxtInspect" Margin="0,3,0,0" FontFamily="Consolas" FontSize="13" TextWrapping="Wrap" Text="—" Foreground="#1F3B63"/>
-                        </StackPanel>
-                    </Border>
-                    <TreeView x:Name="VarTree" Grid.Row="2" BorderThickness="0" Padding="4">
-                        <TreeView.ItemContainerStyle>
-                            <Style TargetType="TreeViewItem">
-                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-                                <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Microsoft YaHei UI"/>
-                                <Setter Property="FontSize" Value="12.5"/>
-                            </Style>
-                        </TreeView.ItemContainerStyle>
-                        <TreeView.Resources>
-                            <HierarchicalDataTemplate DataType="{x:Type dbg:VarInfo}" ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource AccentBrush}"/>
-                                    <TextBlock Text=" = " Foreground="{StaticResource TextMutedBrush}"/>
-                                    <TextBlock Text="{Binding Value}" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="{Binding TypeName}" Margin="8,0,0,0" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </HierarchicalDataTemplate>
-                        </TreeView.Resources>
-                    </TreeView>
-                </Grid>
+            <Border Grid.Row="0" Background="{StaticResource AccentSoftBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="10,7">
+                <DockPanel>
+                    <TextBlock Style="{StaticResource LuaPanelHeaderText}" Text="智能插入"/>
+                    <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Text="左选函数 · 右选名称 · 插入一行"/>
+                </DockPanel>
             </Border>
 
-            <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="{StaticResource AccentSoftBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="10,7">
-                        <TextBlock Style="{StaticResource LuaPanelHeaderText}" Text="调用栈"/>
-                    </Border>
-                    <ListBox x:Name="CallStackList" Grid.Row="1" BorderThickness="0" FontFamily="Consolas, Cascadia Mono" FontSize="12"/>
-                </Grid>
-            </Border>
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="80"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="*" MinWidth="80"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左：函数列表 -->
+                <ListBox x:Name="FuncList" Grid.Column="0" BorderThickness="0"
+                         FontFamily="Microsoft YaHei UI, Consolas" FontSize="12.5"
+                         DisplayMemberPath="Name"
+                         SelectionChanged="FuncList_SelectionChanged"/>
+
+                <Rectangle Grid.Column="1" Fill="{StaticResource LineBrush}"/>
+
+                <!-- 右：所选函数需要的名称列表（或逻辑结构代码块） -->
+                <ListBox x:Name="NameList" Grid.Column="2" BorderThickness="0"
+                         FontFamily="Consolas, Cascadia Mono, Microsoft YaHei UI" FontSize="12.5"
+                         DisplayMemberPath="Name"
+                         MouseLeftButtonUp="NameList_MouseLeftButtonUp"/>
+            </Grid>
         </Grid>
 
         <!-- ============ 输出 ============ -->
