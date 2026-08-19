@@ -190,7 +190,7 @@
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <Path Data="{StaticResource PointIcon}" Width="17" Height="17" Stretch="Uniform"
                                   Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding SelectedItem.Name}" FontSize="20" FontWeight="Bold"
+                            <TextBlock Text="{Binding SelectedItem.Name}" FontSize="20" FontWeight="SemiBold"
                                        Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
                         <TextBlock Text="当前工位的轴与点位配置：上方为该工位所用的 4 个轴（选轴 + 使能 / 回原 / 寸动 / JOG），下方表格逐行维护该工位的点位数据。切换左侧工位后，这里的内容会随之切换。"

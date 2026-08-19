@@ -51,6 +51,18 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- iOS 矢量图标：白色字形 + iOS 系统色底，统一替代原 emoji 字形 -->
+        <Geometry x:Key="LuaPlayIcon">M8 5v14l11-7z</Geometry>
+        <Geometry x:Key="LuaPauseIcon">M6 5h4v14H6zM14 5h4v14h-4z</Geometry>
+        <Geometry x:Key="LuaStopIcon">M6 6h12v12H6z</Geometry>
+        <Geometry x:Key="LuaStepOverIcon">M4 12h11M11 7l5 5-5 5</Geometry>
+        <Geometry x:Key="LuaStepInIcon">M4 12h6M10 6l5 6-5 6</Geometry>
+        <Geometry x:Key="LuaStepOutIcon">M4 12h6M10 18l5-6-5-6</Geometry>
+        <Geometry x:Key="LuaBreakpointIcon">M12 2a10 10 0 100 20 10 10 0 000-20z</Geometry>
+        <Geometry x:Key="LuaClearBpIcon">M12 2a10 10 0 100 20 10 10 0 000-20zM5 5l14 14</Geometry>
+        <Geometry x:Key="LuaHintIcon">M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z</Geometry>
+        <Geometry x:Key="LuaExampleIcon">M6 2h8l4 4v16H6zM14 2v4h4M9 13h6M9 16h6</Geometry>
     </UserControl.Resources>
 
     <Grid Margin="10">
@@ -86,25 +98,25 @@
                                             FontFamily="Consolas, Cascadia Mono, Courier New"
                                             FontSize="13"
                                             ShowLineNumbers="True"
-                                            LineNumbersForeground="#9AA5B1"
+                                            LineNumbersForeground="#8E8E93"
                                             HorizontalScrollBarVisibility="Auto"
                                             VerticalScrollBarVisibility="Auto"
                                             Padding="4,6,0,6"
                                             Background="White"/>
                     <Popup x:Name="VarPopup" AllowsTransparency="True" StaysOpen="False"
                            Placement="Relative" PlacementTarget="{Binding ElementName=Editor}">
-                        <Border Background="White" BorderBrush="#B9C6D6" BorderThickness="1" CornerRadius="6" Padding="12,9" MaxWidth="460">
+                        <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="6" Padding="12,9" MaxWidth="460">
                             <Border.Effect>
-                                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.22" Color="#33445A"/>
+                                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.22" Color="#000000"/>
                             </Border.Effect>
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock x:Name="PopupName" FontWeight="Bold" FontSize="13" FontFamily="Consolas" Foreground="#1F3B63"/>
-                                    <Border x:Name="PopupScopeBox" Background="#EAF1FA" CornerRadius="3" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock x:Name="PopupScope" FontSize="10.5" Foreground="#3C6FA8" Text="局部"/>
+                                    <TextBlock x:Name="PopupName" FontWeight="SemiBold" FontSize="13" FontFamily="Consolas" Foreground="{StaticResource AccentBrush}"/>
+                                    <Border x:Name="PopupScopeBox" Background="{StaticResource AccentSoftBrush}" CornerRadius="3" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock x:Name="PopupScope" FontSize="10.5" Foreground="{StaticResource AccentDarkBrush}" Text="局部"/>
                                     </Border>
                                 </StackPanel>
-                                <TextBlock x:Name="PopupValue" Margin="0,6,0,0" FontFamily="Consolas" FontSize="13" TextWrapping="Wrap" Foreground="#A31515"/>
+                                <TextBlock x:Name="PopupValue" Margin="0,6,0,0" FontFamily="Consolas" FontSize="13" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}"/>
                                 <TextBlock x:Name="PopupType" Margin="0,4,0,0" FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
@@ -148,10 +160,10 @@
                         <TreeView.Resources>
                             <HierarchicalDataTemplate DataType="{x:Type dbg:VarInfo}" ItemsSource="{Binding Children}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Name}" Foreground="#376BB5"/>
-                                    <TextBlock Text=" = " Foreground="#98A2AE"/>
-                                    <TextBlock Text="{Binding Value}" Foreground="#A31515"/>
-                                    <TextBlock Text="{Binding TypeName}" Margin="8,0,0,0" FontSize="10.5" Foreground="#A8B2BD" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource AccentBrush}"/>
+                                    <TextBlock Text=" = " Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding Value}" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding TypeName}" Margin="8,0,0,0" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </HierarchicalDataTemplate>
                         </TreeView.Resources>
@@ -222,72 +234,72 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Ellipse x:Name="StateDot" Width="9" Height="9" Fill="#9AA5B1" VerticalAlignment="Center"/>
+                    <Ellipse x:Name="StateDot" Width="9" Height="9" Fill="#8E8E93" VerticalAlignment="Center"/>
                     <TextBlock x:Name="TxtState" Margin="6,0,0,0" FontSize="12" Text="就绪" VerticalAlignment="Center"/>
                     <TextBlock x:Name="TxtBreakCount" Margin="12,0,0,0" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="断点 0" VerticalAlignment="Center"/>
-                    <TextBlock Text="  |  " FontSize="12" Foreground="#C6CCD3"/>
+                    <TextBlock Text="  |  " FontSize="12" Foreground="#C7C7CC"/>
                     <TextBlock x:Name="TxtCaret" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="行 1，列 1" VerticalAlignment="Center"/>
-                    <TextBlock Text="  |  " FontSize="12" Foreground="#C6CCD3"/>
+                    <TextBlock Text="  |  " FontSize="12" Foreground="#C7C7CC"/>
                     <TextBlock FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="Lua 5.2 (MoonSharp)" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button x:Name="BtnRun" Style="{StaticResource LuaDbgButton}" Background="#2E7D32" Click="BtnRun_Click" ToolTip="运行 / 继续 (F5)">
+                    <Button x:Name="BtnRun" Style="{StaticResource LuaDbgButton}" Background="#34C759" Click="BtnRun_Click" ToolTip="运行 / 继续 (F5)">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="▶" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource LuaPlayIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock x:Name="RunLabel" Text="运行" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnPause" Style="{StaticResource LuaDbgButton}" Background="#E69500" Click="BtnPause_Click" ToolTip="中断执行 (F6)" Margin="6,0,0,0">
+                    <Button x:Name="BtnPause" Style="{StaticResource LuaDbgButton}" Background="#FF9500" Click="BtnPause_Click" ToolTip="中断执行 (F6)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="❚❚" FontSize="10" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource LuaPauseIcon}" Width="13" Height="13" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="中断" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnStop" Style="{StaticResource LuaDbgButton}" Background="#C62828" Click="BtnStop_Click" ToolTip="停止 (Shift+F5)" Margin="6,0,0,0">
+                    <Button x:Name="BtnStop" Style="{StaticResource LuaDbgButton}" Background="#FF3B30" Click="BtnStop_Click" ToolTip="停止 (Shift+F5)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="■" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource LuaStopIcon}" Width="13" Height="13" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="停止" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnStepOver" Style="{StaticResource LuaDbgButton}" Background="#0F6CBD" Click="BtnStepOver_Click" ToolTip="单步执行 (F10)" Margin="6,0,0,0">
+                    <Button x:Name="BtnStepOver" Style="{StaticResource LuaDbgButton}" Background="#007AFF" Click="BtnStepOver_Click" ToolTip="单步执行 (F10)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="↷" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource LuaStepOverIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="单步" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnStepIn" Style="{StaticResource LuaDbgButton}" Background="#0F6CBD" Click="BtnStepIn_Click" ToolTip="步入函数 (F11)" Margin="6,0,0,0">
+                    <Button x:Name="BtnStepIn" Style="{StaticResource LuaDbgButton}" Background="#007AFF" Click="BtnStepIn_Click" ToolTip="步入函数 (F11)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="↴" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource LuaStepInIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="步入" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnStepOut" Style="{StaticResource LuaDbgButton}" Background="#0F6CBD" Click="BtnStepOut_Click" ToolTip="跳出函数 (Shift+F11)" Margin="6,0,0,0">
+                    <Button x:Name="BtnStepOut" Style="{StaticResource LuaDbgButton}" Background="#007AFF" Click="BtnStepOut_Click" ToolTip="跳出函数 (Shift+F11)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="↰" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource LuaStepOutIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="步出" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnBreakpoint" Style="{StaticResource LuaDbgButton}" Background="#E53935" Click="BtnBreakpoint_Click" ToolTip="在光标所在行设置 / 取消断点 (F9)" Margin="6,0,0,0">
+                    <Button x:Name="BtnBreakpoint" Style="{StaticResource LuaDbgButton}" Background="#FF3B30" Click="BtnBreakpoint_Click" ToolTip="在光标所在行设置 / 取消断点 (F9)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="●" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource LuaBreakpointIcon}" Width="13" Height="13" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="断点" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnClearBreakpoints" Style="{StaticResource LuaDbgButton}" Background="#7A8794" Click="BtnClearBreakpoints_Click" ToolTip="清除全部断点" Margin="6,0,0,0">
+                    <Button x:Name="BtnClearBreakpoints" Style="{StaticResource LuaDbgButton}" Background="#8E8E93" Click="BtnClearBreakpoints_Click" ToolTip="清除全部断点" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="○" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource LuaClearBpIcon}" Width="13" Height="13" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="清除断点" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnHint" Style="{StaticResource LuaDbgButton}" Background="#8E44AD" Click="BtnHint_Click" ToolTip="手动唤出智能提示 (Ctrl+Space)" Margin="6,0,0,0">
+                    <Button x:Name="BtnHint" Style="{StaticResource LuaDbgButton}" Background="#5856D6" Click="BtnHint_Click" ToolTip="手动唤出智能提示 (Ctrl+Space)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="✦" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource LuaHintIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="智能提示" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnExample" Style="{StaticResource LuaDbgButton}" Background="#0E7C7B" Click="BtnExample_Click" ToolTip="在编辑器中插入示例脚本" Margin="6,0,0,0">
+                    <Button x:Name="BtnExample" Style="{StaticResource LuaDbgButton}" Background="#5AC8FA" Click="BtnExample_Click" ToolTip="在编辑器中插入示例脚本" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="📄" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource LuaExampleIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="插入示例" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
