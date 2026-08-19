@@ -160,8 +160,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- 左列：生产数据 + 控制 + 折线图（可内部滚动） -->
-            <ScrollViewer Grid.Column="0" Margin="0,0,8,0" VerticalScrollBarVisibility="Auto">
-                <StackPanel>
+            <StackPanel Grid.Column="0" Margin="0,0,8,0">
 
                     <!-- 生产数据 KPI -->
                     <TextBlock Text="生产数据" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,8"/>
@@ -215,7 +214,8 @@
                     <TextBlock Text="生产趋势（良率% / 节拍s）" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
                     <Border Style="{StaticResource CardBorderStyle}" Padding="12">
                         <StackPanel>
-                            <Canvas Width="640" Height="220" Background="{StaticResource SurfaceBrush}">
+                            <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+                    <Canvas Width="640" Height="220" Background="{StaticResource SurfaceBrush}">
                                 <!-- 网格基线 -->
                                 <Line X1="30" Y1="190" X2="630" Y2="190" Stroke="{StaticResource LineBrush}" StrokeThickness="1"/>
                                 <Line X1="30" Y1="30" X2="630" Y2="30" Stroke="{StaticResource LineBrush}" StrokeThickness="1" StrokeDashArray="3 3"/>
@@ -226,6 +226,7 @@
                                 <Polyline Points="{Binding YieldPoints}" Stroke="{StaticResource SuccessBrush}" StrokeThickness="2.5" Fill="Transparent"/>
                                 <Polyline Points="{Binding CyclePoints}" Stroke="{StaticResource WarningBrush}" StrokeThickness="2.5" Fill="Transparent"/>
                             </Canvas>
+                    </Viewbox>
                             <!-- 图例 -->
                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                 <Rectangle Width="14" Height="4" Fill="{StaticResource SuccessBrush}" RadiusX="2" RadiusY="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
@@ -236,8 +237,7 @@
                         </StackPanel>
                     </Border>
 
-                </StackPanel>
-            </ScrollViewer>
+            </StackPanel>
 
             <!-- 右列：时序偏差监控（上） + 异常日志（下） -->
             <Grid Grid.Column="1" Margin="8,0,0,0">

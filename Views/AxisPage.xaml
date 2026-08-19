@@ -8,10 +8,10 @@
 
     <local:EditorPage>
         <local:EditorPage.Detail>
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="16" MaxWidth="720">
+            <WrapPanel Orientation="Horizontal" Margin="14" ItemWidth="372"
+                       Background="{StaticResource CanvasBrush}">
                     <!-- ============ 基本信息 ============ -->
-                    <Border Style="{StaticResource AppleGroupCard}">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="基本信息"/>
                             <DockPanel Style="{StaticResource AppleRow}">
@@ -55,7 +55,7 @@
                     </Border>
 
                     <!-- ============ 运动参数 ============ -->
-                    <Border Style="{StaticResource AppleGroupCard}">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="运动参数"/>
                             <DockPanel Style="{StaticResource AppleRow}">
@@ -86,7 +86,7 @@
                     </Border>
 
                     <!-- ============ 回零参数 ============ -->
-                    <Border Style="{StaticResource AppleGroupCard}">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="回零参数"/>
                             <DockPanel Style="{StaticResource AppleRow}">
@@ -121,7 +121,7 @@
                     </Border>
 
                     <!-- ============ 限位与保护 ============ -->
-                    <Border Style="{StaticResource AppleGroupCard}">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="限位与保护"/>
                             <DockPanel Style="{StaticResource AppleRow}">
@@ -142,7 +142,7 @@
                     </Border>
 
                     <!-- ============ 电平与编码器 ============ -->
-                    <Border Style="{StaticResource AppleGroupCard}">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="电平与编码器"/>
                             <DockPanel Style="{StaticResource AppleRow}">
@@ -190,8 +190,7 @@
                             </DockPanel>
                         </StackPanel>
                     </Border>
-                </StackPanel>
-            </ScrollViewer>
+            </WrapPanel>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>

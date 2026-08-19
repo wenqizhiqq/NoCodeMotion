@@ -45,11 +45,13 @@
 
     <local:EditorPage>
         <local:EditorPage.Detail>
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <Border Background="{StaticResource CanvasBrush}">
-                    <StackPanel Margin="16" MaxWidth="720">
+            <Grid Margin="14" Background="{StaticResource CanvasBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="300"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
                         <!-- ============ 料盘参数 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}">
+                        <Border Grid.Column="0" Style="{StaticResource AppleGroupCard}" Margin="0,0,12,0">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="料盘参数"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -90,19 +92,19 @@
                         </Border>
 
                         <!-- ============ 二维料盘 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="二维料盘（点击单元格切换 有料/空）"/>
+                        <Border Grid.Column="1" Style="{StaticResource AppleGroupCard}">
+                            <DockPanel LastChildFill="True">
+                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource AppleSectionHeader}" Text="二维料盘（点击单元格切换 有料/空）"/>
 
                                 <!-- 图例 -->
-                                <StackPanel Orientation="Horizontal" Margin="12,4,12,8">
+                                <StackPanel Orientation="Horizontal" Margin="12,4,12,8" DockPanel.Dock="Top">
                                     <Border Width="14" Height="14" Background="{StaticResource SuccessSoftBrush}" BorderBrush="{StaticResource SuccessBrush}" BorderThickness="1" CornerRadius="3" VerticalAlignment="Center"/>
                                     <TextBlock Text="有料" VerticalAlignment="Center" Margin="4,0,12,0" Foreground="{StaticResource TextSecondaryBrush}"/>
                                     <Border Width="14" Height="14" Background="{StaticResource HoverBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="3" VerticalAlignment="Center"/>
                                     <TextBlock Text="空" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
 
-                                <ScrollViewer MaxHeight="380" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Margin="12,0,12,10">
+                                <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Margin="12,0,12,10">
                                     <ItemsControl ItemsSource="{Binding SelectedItem.Cells}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -116,12 +118,10 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                </ScrollViewer>
-                            </StackPanel>
+                                </Viewbox>
+                            </DockPanel>
                         </Border>
-                    </StackPanel>
-                </Border>
-            </ScrollViewer>
+            </Grid>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>
