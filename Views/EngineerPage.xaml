@@ -124,21 +124,21 @@
                             <TextBlock Text="轴控制" Style="{StaticResource SectionHeaderText}"/>
                         </StackPanel>
                     </StackPanel>
-                                            <StackPanel>
-                            <ItemsControl ItemsSource="{Binding AxisStates}" ItemTemplate="{StaticResource AxisCardTemplate}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
-                            <DockPanel LastChildFill="False" Margin="6,12,6,0">
-                                <TextBlock DockPanel.Dock="Left" Text="寸动步长" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                                <TextBox DockPanel.Dock="Left" Text="{Binding InchStep, UpdateSourceTrigger=PropertyChanged}" Width="72" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                <TextBlock DockPanel.Dock="Left" Text="JOG 步长" VerticalAlignment="Center" Margin="18,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                                <TextBox DockPanel.Dock="Left" Text="{Binding JogStep, UpdateSourceTrigger=PropertyChanged}" Width="72" Style="{StaticResource PointCellTextBoxStyle}"/>
-                            </DockPanel>
-                        </StackPanel>
+                    <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="6,12,6,0">
+                        <TextBlock DockPanel.Dock="Left" Text="寸动步长" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                        <TextBox DockPanel.Dock="Left" Text="{Binding InchStep, UpdateSourceTrigger=PropertyChanged}" Width="72" Style="{StaticResource PointCellTextBoxStyle}"/>
+                        <TextBlock DockPanel.Dock="Left" Text="JOG 步长" VerticalAlignment="Center" Margin="18,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                        <TextBox DockPanel.Dock="Left" Text="{Binding JogStep, UpdateSourceTrigger=PropertyChanged}" Width="72" Style="{StaticResource PointCellTextBoxStyle}"/>
+                    </DockPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding AxisStates}" ItemTemplate="{StaticResource AxisCardTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </ScrollViewer>
                                     </DockPanel>
             </Border>
 
@@ -151,6 +151,7 @@
                             <TextBlock Text="气缸控制" Style="{StaticResource SectionHeaderText}"/>
                         </StackPanel>
                     </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                             <ItemsControl ItemsSource="{Binding Cylinders}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
@@ -168,6 +169,7 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                    </ScrollViewer>
                                     </DockPanel>
             </Border>
         </Grid>
@@ -188,6 +190,7 @@
                             <TextBlock Text="IO 控制" Style="{StaticResource SectionHeaderText}"/>
                         </StackPanel>
                     </StackPanel>
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                             <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -260,6 +263,7 @@
                                 </ItemsControl>
                             </StackPanel>
                         </Grid>
+                                    </ScrollViewer>
                                     </DockPanel>
             </Border>
 
