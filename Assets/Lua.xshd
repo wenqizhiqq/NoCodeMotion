@@ -4,6 +4,7 @@
   <Color name="Comment"     foreground="#3E8F3E" />
   <Color name="String"      foreground="#A31515" />
   <Color name="Keyword"     foreground="#0000C0" fontWeight="bold" />
+  <Color name="ControlFlow" foreground="#C2410C" fontWeight="bold" />
   <Color name="Constant"    foreground="#0070C1" fontWeight="bold" />
   <Color name="StdLib"      foreground="#1F7A8C" />
   <Color name="FunctionCall" foreground="#795E26" />
@@ -44,26 +45,30 @@
       </RuleSet>
     </Span>
 
-    <Keywords color="Keyword">
-      <Word>and</Word>
-      <Word>break</Word>
-      <Word>do</Word>
+    <!-- 控制流关键字：醒目的橙色，与变量(蓝)/函数(棕)/标准库(青)区分 -->
+    <Keywords color="ControlFlow">
+      <Word>if</Word>
+      <Word>then</Word>
       <Word>else</Word>
       <Word>elseif</Word>
       <Word>end</Word>
       <Word>for</Word>
+      <Word>while</Word>
+      <Word>do</Word>
+      <Word>repeat</Word>
+      <Word>until</Word>
+      <Word>return</Word>
+      <Word>break</Word>
       <Word>function</Word>
-      <Word>goto</Word>
-      <Word>if</Word>
-      <Word>in</Word>
       <Word>local</Word>
+    </Keywords>
+
+    <Keywords color="Keyword">
+      <Word>and</Word>
       <Word>not</Word>
       <Word>or</Word>
-      <Word>repeat</Word>
-      <Word>return</Word>
-      <Word>then</Word>
-      <Word>until</Word>
-      <Word>while</Word>
+      <Word>in</Word>
+      <Word>goto</Word>
     </Keywords>
 
     <Keywords color="Constant">
