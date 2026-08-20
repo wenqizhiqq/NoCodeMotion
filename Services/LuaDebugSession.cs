@@ -74,6 +74,12 @@ namespace NoCodeMotion.Services
         private int _lastPauseDepth = -1;
         private int _lastPauseIp = -1;
 
+        // 每行执行耗时（毫秒，含该行所有指令累计）。line→累计毫秒。
+        private readonly Dictionary<int, double> _lineTimes = new Dictionary<int, double>();
+        private readonly object _lineTimeSync = new object();
+        private int _measureLine = -1;
+        private Stopwatch _measureStart;
+
         /// <summary>输出（print / 运行信息 / 错误）。在后台线程触发。</summary>
         public event Action<string, LogKind> Log;
 
@@ -114,6 +120,11 @@ namespace NoCodeMotion.Services
         {
             var sw = Stopwatch.StartNew();
             var info = new ExecutionEndedInfo();
+
+            // 每行耗时统计：清空上一次运行的数据，并启动总测量计时
+            _lineTimes.Clear();
+            _measureLine = -1;
+            _measureStart = Stopwatch.StartNew();
 
             try
             {
@@ -169,6 +180,18 @@ namespace NoCodeMotion.Services
                 sw.Stop();
                 info.ElapsedMs = sw.ElapsedMilliseconds;
 
+                // 结算最后一行的累计耗时
+                if (_measureLine > 0 && _measureStart != null)
+                {
+                    double dt = _measureStart.Elapsed.TotalMilliseconds;
+                    lock (_lineTimeSync)
+                    {
+                        _lineTimes[_measureLine] =
+                            _lineTimes.TryGetValue(_measureLine, out double prev) ? prev + dt : dt;
+                    }
+                }
+                _measureLine = -1;
+
                 try
                 {
                     info.Globals = SnapshotGlobals();
@@ -200,8 +223,17 @@ namespace NoCodeMotion.Services
         {
             if (State != SessionState.Paused) return;
             _nextAction = action;
+            // 复位计时起点，排除暂停（用户思考 / 单步）期间的时间
+            if (_measureLine > 0 && _measureStart != null) _measureStart.Restart();
             State = SessionState.Running;
             _resumeEvent.Set();
+        }
+
+        /// <summary>返回每行累计耗时（毫秒）的只读快照，供 UI 边栏显示。</summary>
+        public IReadOnlyDictionary<int, double> GetLineTimesSnapshot()
+        {
+            lock (_lineTimeSync)
+                return new Dictionary<int, double>(_lineTimes);
         }
 
         /// <summary>请求中断正在运行的脚本（下一条指令处挂起）。</summary>
@@ -287,6 +319,29 @@ namespace NoCodeMotion.Services
         public DebuggerAction GetAction(int ip, SourceRef sourceref)
         {
             if (_stopRequested) throw new ScriptTerminatedException();
+
+            // —— 每行执行耗时统计 ——
+            // 仅在遇到真实源行（FromLine>0）时，结算上一行的累计耗时并开始计时当前行。
+            // 同一行被多次访问（循环 / 函数内多语句）时保持累计，不重复结算。
+            // 暂停期间（用户思考 / 单步）不计入：Resume 时复位计时起点。
+            if (sourceref != null && sourceref.FromLine > 0 && _measureStart != null)
+            {
+                int line = sourceref.FromLine;
+                if (_measureLine != line)
+                {
+                    if (_measureLine > 0)
+                    {
+                        double dt = _measureStart.Elapsed.TotalMilliseconds;
+                        lock (_lineTimeSync)
+                        {
+                            _lineTimes[_measureLine] =
+                                _lineTimes.TryGetValue(_measureLine, out double prev) ? prev + dt : dt;
+                        }
+                    }
+                    _measureLine = line;
+                    _measureStart.Restart();
+                }
+            }
 
             bool isBreakpoint = sourceref != null && sourceref.Breakpoint;
             bool userPause = _pauseRequested;

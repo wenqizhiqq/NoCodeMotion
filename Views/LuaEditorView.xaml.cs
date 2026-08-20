@@ -40,6 +40,7 @@ namespace NoCodeMotion.Views
         private static readonly Brush BrushSuccess = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
 
         private readonly BreakpointMargin _bpMargin = new BreakpointMargin();
+        private readonly LineTimeMargin _lineTimeMargin = new LineTimeMargin();
         private readonly LineHighlightRenderer _currentLineRenderer =
             new LineHighlightRenderer(Color.FromArgb(0x66, 0xFF, 0xE0, 0x82), Color.FromArgb(0xAA, 0xE0, 0xB4, 0x33));
         private readonly LineHighlightRenderer _errorLineRenderer =
@@ -90,7 +91,9 @@ namespace NoCodeMotion.Views
         {
             _session?.Stop();
             ClearRuntimeMarkers();
+            _lineTimeMargin.Clear();
             _log.Clear();
+            TxtPrint.Text = string.Empty;
             _varIndex.Clear();
             RebuildInsertPanel();
             _bpMargin.ClearAll();
@@ -133,8 +136,9 @@ namespace NoCodeMotion.Views
             Editor.Options.AllowScrollBelowDocument = true;
             Editor.TextArea.IndentationStrategy = new LuaIndentationStrategy();
 
-            // 断点边栏放在行号左侧
-            Editor.TextArea.LeftMargins.Insert(0, _bpMargin);
+            // 每行耗时边栏放在最左侧，断点边栏紧随其后，行号在最右
+            Editor.TextArea.LeftMargins.Insert(0, _lineTimeMargin);
+            Editor.TextArea.LeftMargins.Insert(1, _bpMargin);
             _bpMargin.BreakpointsChanged += (s, e) =>
             {
                 UpdateBreakpointCount();
@@ -588,6 +592,9 @@ namespace NoCodeMotion.Views
 
             RefreshVarIndex(info.Locals, info.Globals);
 
+            // 暂停时把当前每行耗时快照推给左侧边栏
+            _lineTimeMargin.SetLineTimes(_session.GetLineTimesSnapshot());
+
             if (info.IsError)
             {
                 _errorLineRenderer.Line = info.Line;
@@ -624,6 +631,8 @@ namespace NoCodeMotion.Views
 
             RefreshVarIndex(new List<VarInfo>(), info.Globals);
             SetSessionState(SessionState.Idle);
+            // 结束时刷新最终每行耗时
+            _lineTimeMargin.SetLineTimes(_session.GetLineTimesSnapshot());
             InspectAtCaret(false);
         }));
 
@@ -970,6 +979,9 @@ namespace NoCodeMotion.Views
             _log.Add(new LogEntry { Text = text ?? string.Empty, Brush = brush });
             if (_log.Count > 2000) _log.RemoveAt(0);
             OutputList.ScrollIntoView(_log[_log.Count - 1]);
+
+            // 编辑器底部的 print 输出回显（仅最新一行）
+            if (kind == LogKind.Output) TxtPrint.Text = text ?? string.Empty;
         }
 
         private void UpdateCaretStatus() =>
