@@ -661,6 +661,8 @@ namespace NoCodeMotion.Views
         {
             var funcs = new List<LuaInsertFunc>
             {
+                // 逻辑结构（右侧显示 if / for / while 等代码块）
+                new LuaInsertFunc { Name = "逻辑结构", Kind = "Snippet" },
                 // 轴
                 new LuaInsertFunc { Name = "轴-移动", Source = "Axis", Template = "AxisMove(\"{0}\")" },
                 new LuaInsertFunc { Name = "轴-速度设置", Source = "Axis", Template = "SetAxisSpeed(\"{0}\", 100)" },
@@ -679,14 +681,19 @@ namespace NoCodeMotion.Views
                 new LuaInsertFunc { Name = "气缸-动作", Source = "Cylinder", Template = "CylinderMove(\"{0}\", 1)" },
                 new LuaInsertFunc { Name = "气缸-等待到位", Source = "Cylinder", Template = "WaitCylinder(\"{0}\")" },
                 new LuaInsertFunc { Name = "气缸-复位", Source = "Cylinder", Template = "CylinderReset(\"{0}\")" },
-                // 通讯
+                // 通讯（真实串口 / 网口 / Modbus）
                 new LuaInsertFunc { Name = "通讯-发送", Source = "Comm", Template = "CommSend(\"{0}\", data)" },
                 new LuaInsertFunc { Name = "通讯-接收", Source = "Comm", Template = "local s = CommRecv(\"{0}\")" },
+                new LuaInsertFunc { Name = "通讯-发十六进制", Source = "Comm", Template = "CommSend(\"{0}\", \"HEX:02 41 42 03\")" },
+                new LuaInsertFunc { Name = "Modbus-读保持寄存器", Source = "Comm", Template = "CommSend(\"{0}\", \"RH,1,0,2\")\nlocal v = CommRecv(\"{0}\")" },
+                new LuaInsertFunc { Name = "Modbus-写保持寄存器", Source = "Comm", Template = "CommSend(\"{0}\", \"WH,1,10,1234\")" },
+                new LuaInsertFunc { Name = "Modbus-读线圈", Source = "Comm", Template = "CommSend(\"{0}\", \"RC,1,0,8\")\nlocal s = CommRecv(\"{0}\")" },
+                new LuaInsertFunc { Name = "Modbus-写线圈", Source = "Comm", Template = "CommSend(\"{0}\", \"WC,1,5,1\")" },
                 // 料盘
                 new LuaInsertFunc { Name = "料盘-取料", Source = "Tray", Template = "TrayPick(\"{0}\")" },
                 new LuaInsertFunc { Name = "料盘-放料", Source = "Tray", Template = "TrayPlace(\"{0}\")" },
-                // 逻辑结构（右侧显示 if / for / while 等代码块）
-                new LuaInsertFunc { Name = "逻辑结构", Kind = "Snippet" },
+                // 硬件状态 / 模式（右侧列出可直接插入的代码块，无需选名称）
+                new LuaInsertFunc { Name = "硬件状态", Kind = "Hardware" }, 
             };
             FuncList.ItemsSource = funcs;
             FuncList.SelectedIndex = funcs.Count > 0 ? 0 : -1;
@@ -707,6 +714,18 @@ namespace NoCodeMotion.Views
                 NameList.ItemsSource = LuaApi.Snippets
                     .Select(s => new LuaPickItem { Name = s.Name, Body = (s.InsertText ?? "").Replace(marker, "") })
                     .ToList();
+            }
+            else if (fn.Kind == "Hardware")
+            {
+                // 硬件对接状态 / 模式切换：不依赖任何配置名称，直接插入整行代码
+                NameList.ItemsSource = new List<LuaPickItem>
+                {
+                    new LuaPickItem { Name = "查看对接状态", Body = "print(HardwareStatus())" },
+                    new LuaPickItem { Name = "控制卡是否就绪", Body = "if HardwareReady() == 1 then\n\tprint(\"控制卡已就绪\")\nelse\n\tprint(\"控制卡未就绪：\" .. HardwareStatus())\nend" },
+                    new LuaPickItem { Name = "重连控制卡", Body = "print(HardwareReconnect())" },
+                    new LuaPickItem { Name = "切换到真实硬件", Body = "print(UseRealHardware())" },
+                    new LuaPickItem { Name = "切换到仿真", Body = "print(UseSimulation())" }
+                };
             }
             else
             {

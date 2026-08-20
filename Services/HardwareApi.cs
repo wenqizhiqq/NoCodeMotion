@@ -108,6 +108,38 @@ namespace NoCodeMotion.Services
         public void TrayPick(string name) => _bridge.TrayPick(FindTray(name));
         public void TrayPlace(string name) => _bridge.TrayPlace(FindTray(name));
 
+        // ===================== 硬件状态 / 模式 =====================
+
+        /// <summary>返回当前对接状态（中文），例：雷赛控制卡已连接（卡数量 1）…</summary>
+        public string HardwareStatus() => Hardware.HardwareSetup.StatusMessage;
+
+        /// <summary>控制卡是否已就绪（1 就绪 / 0 未就绪）。</summary>
+        public double HardwareReady() => Hardware.HardwareSetup.IsCardReady ? 1 : 0;
+
+        /// <summary>重新连接控制卡（现场插好卡 / 装好驱动后调用），返回中文结果。</summary>
+        public string HardwareReconnect()
+        {
+            string msg = Hardware.HardwareSetup.Reconnect();
+            _log?.Invoke("[硬件] " + msg);
+            return msg;
+        }
+
+        /// <summary>切换到真实硬件（雷赛控制卡 + 真实串口 / 网口 / Modbus），返回中文结果。</summary>
+        public string UseRealHardware()
+        {
+            string msg = Hardware.HardwareSetup.UseLeadshine();
+            _log?.Invoke("[硬件] " + msg);
+            return msg;
+        }
+
+        /// <summary>切换到仿真（不碰任何设备），返回中文结果。</summary>
+        public string UseSimulation()
+        {
+            string msg = Hardware.HardwareSetup.UseSimulation();
+            _log?.Invoke("[硬件] " + msg);
+            return msg;
+        }
+
         // ===================== 注册到 MoonSharp =====================
 
         /// <summary>
@@ -139,6 +171,12 @@ namespace NoCodeMotion.Services
 
             script.Globals["TrayPick"] = (Action<string>)api.TrayPick;
             script.Globals["TrayPlace"] = (Action<string>)api.TrayPlace;
+
+            script.Globals["HardwareStatus"] = (Func<string>)api.HardwareStatus;
+            script.Globals["HardwareReady"] = (Func<double>)api.HardwareReady;
+            script.Globals["HardwareReconnect"] = (Func<string>)api.HardwareReconnect;
+            script.Globals["UseRealHardware"] = (Func<string>)api.UseRealHardware;
+            script.Globals["UseSimulation"] = (Func<string>)api.UseSimulation;
         }
     }
 }

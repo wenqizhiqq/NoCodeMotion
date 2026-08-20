@@ -199,10 +199,15 @@ namespace NoCodeMotion.Editing
             F("CylinderMove", "CylinderMove(name, state)", "气缸动作：state=1 伸出 / 0 缩回"),
             F("WaitCylinder", "WaitCylinder(name)", "等待气缸到位（按感应点轮询）"),
             F("CylinderReset", "CylinderReset(name)", "气缸复位到初始状态"),
-            F("CommSend", "CommSend(name, data)", "通过指定通讯通道发送数据"),
-            F("CommRecv", "CommRecv(name)", "从指定通讯通道接收数据，返回字符串"),
+            F("CommSend", "CommSend(name, data)", "发送数据：文本直接发，\"HEX:02 41 03\" 按十六进制发；Modbus 通道用命令语法，如 \"RH,1,0,2\" 读保持寄存器、\"WH,1,10,1234\" 写保持寄存器"),
+            F("CommRecv", "CommRecv(name)", "接收数据并返回字符串；Modbus 通道返回上一条读命令的结果（逗号分隔）"),
             F("TrayPick", "TrayPick(name)", "料盘取料"),
-            F("TrayPlace", "TrayPlace(name)", "料盘放料")
+            F("TrayPlace", "TrayPlace(name)", "料盘放料"),
+            F("HardwareStatus", "HardwareStatus()", "返回当前硬件对接状态（中文），如雷赛控制卡是否已连接"),
+            F("HardwareReady", "HardwareReady()", "控制卡是否就绪：1 就绪 / 0 未就绪"),
+            F("HardwareReconnect", "HardwareReconnect()", "重新连接雷赛控制卡，返回中文结果"),
+            F("UseRealHardware", "UseRealHardware()", "切换到真实硬件：雷赛控制卡 + 真实串口 / 网口 / Modbus"),
+            F("UseSimulation", "UseSimulation()", "切换到仿真模式：不驱动任何设备，只打印日志")
         };
 
         public static IReadOnlyList<LuaSymbol> Globals => GlobalsList;
