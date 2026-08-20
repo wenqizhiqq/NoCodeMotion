@@ -347,12 +347,16 @@ namespace NoCodeMotion.Services
             bool userPause = _pauseRequested;
             bool hasError = _pendingError != null;
 
-            // 处于“继续运行”模式且不是断点 / 暂停请求 / 错误：直接放行，不打扰 UI
+            // 处于“继续运行”模式且不是断点 / 暂停请求 / 错误：放行。
+            // 注意：返回 StepOver 而非 Run —— MoonSharp 在 Run 模式下会在 ListenDebugger
+            // 直接 return，整段运行都不再回调 GetAction，导致每行耗时无法累计；
+            // 返回 StepOver 后引擎会在每一行真实源行重新回调 GetAction（从而能逐行计时），
+            // 但本分支在暂停逻辑之前返回，不会真正卡住 UI，脚本照常跑完。
             if (!userPause && !hasError &&
                 _nextAction == DebuggerAction.ActionType.Run &&
                 !isBreakpoint)
             {
-                return new DebuggerAction { Action = DebuggerAction.ActionType.Run };
+                return new DebuggerAction { Action = DebuggerAction.ActionType.StepOver };
             }
 
             // 代码块入口等没有真实行号的位置不值得停，按原动作继续

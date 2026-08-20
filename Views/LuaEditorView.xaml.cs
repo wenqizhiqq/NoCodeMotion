@@ -49,6 +49,8 @@ namespace NoCodeMotion.Views
         private readonly Dictionary<string, VarInfo> _varIndex = new Dictionary<string, VarInfo>(StringComparer.Ordinal);
         private readonly ToolTip _hoverTip = new ToolTip { Placement = System.Windows.Controls.Primitives.PlacementMode.Mouse };
         private readonly DispatcherTimer _syntaxTimer;
+        // 运行（非单步）期间按节奏把每行耗时快照推给左侧边栏，做到运行中也实时显示
+        private readonly DispatcherTimer _lineTimeTimer;
 
         private LuaDebugSession _session;
         private CompletionWindow _completionWindow;
@@ -71,6 +73,14 @@ namespace NoCodeMotion.Views
             _syntaxTimer.Tick += (s, e) => CheckSyntaxNow();
             _syntaxTimer.Start();
 
+            _lineTimeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            _lineTimeTimer.Tick += (s, e) =>
+            {
+                // 运行（含暂停）期间持续把每行耗时快照推给左侧边栏，做到运行中也实时显示
+                if (_session != null && _session.IsBusy)
+                    _lineTimeMargin.SetLineTimes(_session.GetLineTimesSnapshot());
+            };
+
             Unloaded += (s, e) => _session?.Stop();
             Loaded += (s, e) => Editor.Focus();
         }
@@ -91,6 +101,7 @@ namespace NoCodeMotion.Views
         {
             _session?.Stop();
             ClearRuntimeMarkers();
+            _lineTimeTimer.Stop();
             _lineTimeMargin.Clear();
             _log.Clear();
             TxtPrint.Text = string.Empty;
@@ -571,6 +582,7 @@ namespace NoCodeMotion.Views
 
             AppendLog(breakAtEntry ? "▶ 开始调试（停在第一条语句）" : "▶ 开始运行", LogKind.Info);
             SetSessionState(SessionState.Running);
+            _lineTimeTimer.Start();
             _session.Start(Editor.Text, breakAtEntry);
         }
 
@@ -631,7 +643,8 @@ namespace NoCodeMotion.Views
 
             RefreshVarIndex(new List<VarInfo>(), info.Globals);
             SetSessionState(SessionState.Idle);
-            // 结束时刷新最终每行耗时
+            // 结束时刷新最终每行耗时，并停止运行期轮询
+            _lineTimeTimer.Stop();
             _lineTimeMargin.SetLineTimes(_session.GetLineTimesSnapshot());
             InspectAtCaret(false);
         }));
