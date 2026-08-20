@@ -14,6 +14,8 @@
         <x:Array x:Key="LogicOptions" Type="sys:String">
             <sys:String>如果</sys:String>
             <sys:String>就</sys:String>
+            <sys:String>并且</sys:String>
+            <sys:String>或者</sys:String>
             <sys:String>否则</sys:String>
             <sys:String>否则如果</sys:String>
             <sys:String>循环开始</sys:String>
@@ -101,6 +103,10 @@
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
                 </Trigger>
+                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource WarningBrush}"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 
@@ -341,6 +347,15 @@
                         <!-- 流程执行控制栏：运行 / 单步运行 / 跳到指定行 / 暂停 / 停止（固定底部） -->
                         <Border Grid.Row="2" Margin="0,10,0,0" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
                             <Grid Margin="12,10">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0"
+                                           Text="运行 / 单步会按「逻辑」列跳转：如果 / 否则如果 / 否则 选择分支，循环开始 / 循环结束 重复执行；橙色行 = 当前执行行。"
+                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                <Grid Grid.Row="1">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -368,7 +383,8 @@
                                            HorizontalAlignment="Right" FontSize="12"
                                            Foreground="{StaticResource TextSecondaryBrush}"/>
                             </Grid>
-                        </Border>
+                        </Grid>
+                    </Border>
                     </Grid>
 
                                         <!-- ============ Lua 脚本流程编辑器（直接复用 LuaStudio 完整编辑器代码） ============ -->

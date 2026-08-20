@@ -54,6 +54,22 @@ namespace NoCodeMotion.ViewModels
         private bool _isPaused;
         private int _currentStep = -1;
 
+        // 「实际值」列 1 秒定时刷新：不管是否在运行，每秒把当前选中流程里
+        // Function=="变量" 的步骤 ActualValue 回填为变量当前值，方便用户实时看到变量读数变化。
+        private readonly DispatcherTimer _actualValueRefreshTimer;
+
+        // 控制流运行态（与 _currentStep 解耦，避免高亮滞后一行）
+        private const int TickIntervalMs = 1000; // 与 _runTimer.Interval 对齐，单步/运行每步默认耗时（1 秒刷新）
+        private int _pendingNext = -1;          // 下一拍要执行的行索引
+        private readonly Stack<bool> _ifStack = new();     // 每个「如果」块是否已有分支命中
+        private readonly Stack<LoopFrame> _loopStack = new();
+        private sealed class LoopFrame
+        {
+            public int Start;
+            public int End;
+            public int Remaining;
+        }
+
         public int CurrentStep
         {
             get => _currentStep;
@@ -82,7 +98,7 @@ namespace NoCodeMotion.ViewModels
         }
 
         public bool CanRun => !IsRunning && StepPanel.Items.Count > 0;
-        public bool CanStep => StepPanel.Items.Count > 0 && (_currentStep < 0 || _currentStep < StepPanel.Items.Count - 1);
+        public bool CanStep => !IsRunning && StepPanel.Items.Count > 0;
         public bool CanJump => !IsRunning && StepPanel.SelectedItem != null;
         public bool CanPause => IsRunning && !IsPaused;
         public bool CanStop => IsRunning || IsPaused || _currentStep >= 0;
@@ -123,8 +139,16 @@ namespace NoCodeMotion.ViewModels
             AddTableFlowCommand = new RelayCommand(_ => AddNewOfKind(FlowKind.Table));
             AddScriptFlowCommand = new RelayCommand(_ => AddNewOfKind(FlowKind.Lua));
 
-            _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+            _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
             _runTimer.Tick += (_, _) => StepOnce();
+
+            // 「实际值」列 1 秒刷新：遍历当前选中流程的步骤，对 Function=="变量" 的步骤
+            // 重新调用 GetVariableValue 写回 ActualValue；其他步骤 ActualValue 不动。
+            // Timer 与流程选择/运行状态解耦，构造后即开始，迭代的 StepPanel.Items
+            // 会在 SelectedItem 变化时随之切换（SetItems 时已经把 Items 换成新流程的 Steps）。
+            _actualValueRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
+            _actualValueRefreshTimer.Tick += (_, _) => RefreshActualValues();
+            _actualValueRefreshTimer.Start();
         }
 
         private void OnFlowsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -173,7 +197,15 @@ namespace NoCodeMotion.ViewModels
         private void Run()
         {
             if (!CanRun) return;
-            if (_currentStep < 0 || _currentStep >= StepPanel.Items.Count) CurrentStep = 0;
+            bool fresh = (_currentStep < 0 || _currentStep >= StepPanel.Items.Count);
+            if (fresh)
+            {
+                _pendingNext = -1;
+                _ifStack.Clear();
+                _loopStack.Clear();
+                ClearCurrentFlags();
+                CurrentStep = 0;
+            }
             IsPaused = false;
             IsRunning = true;
             _runTimer.Start();
@@ -181,17 +213,257 @@ namespace NoCodeMotion.ViewModels
 
         private void StepOnce()
         {
-            if (StepPanel.Items.Count == 0) { Stop(); return; }
-            int next = _currentStep < 0 ? 0 : _currentStep + 1;
-            if (next >= StepPanel.Items.Count)
+            var items = StepPanel.Items;
+            if (items.Count == 0) { Stop(); return; }
+            // 未开始或已走完时从头开始：保证「单步运行」走完流程后按钮不卡死，可重新点击从头走
+            if (!IsRunning && (_currentStep < 0 || _currentStep >= items.Count))
             {
-                Stop();
-                _currentStep = StepPanel.Items.Count;
-                OnPropertyChanged(nameof(CurrentStepText));
-                HighlightCurrent();
-                return;
+                _pendingNext = -1;
+                _ifStack.Clear();
+                _loopStack.Clear();
+                ClearCurrentFlags();
             }
-            CurrentStep = next;
+            int i = _pendingNext >= 0 ? _pendingNext : (_currentStep < 0 || _currentStep >= items.Count ? 0 : _currentStep);
+            if (i >= items.Count) { FinishRun(); return; }
+            var step = items[i];
+            string logic = step.Logic;
+            int dur = (logic == "延时" || logic == "等待")
+                ? (step.DurationMs > 0 ? step.DurationMs : TickIntervalMs)
+                : TickIntervalMs;
+            step.DurationMs = dur;
+
+            // 实际值回填：功能=变量时，把变量当前值写回 ActualValue（让「实际值」列显示真实测量值，而不是停留在手动输入的占位）
+            if (step.Function == "变量" && !string.IsNullOrWhiteSpace(step.Name))
+                step.ActualValue = GetVariableValue(step.Name);
+
+            int next;
+            switch (logic)
+            {
+                case "如果":
+                {
+                    bool r = EvalCondition(step);
+                    int j = MergeCompound(items, i, ref r);
+                    _ifStack.Push(r);
+                    if (r)
+                    {
+                        next = j;
+                        if (next < items.Count && (items[next].Logic == "否则" || items[next].Logic == "否则如果"))
+                            next = FindEnd(items, next);
+                    }
+                    else
+                    {
+                        next = FindElse(items, i);
+                    }
+                    break;
+                }
+                case "否则如果":
+                {
+                    if (_ifStack.Count > 0 && _ifStack.Peek())
+                    {
+                        next = FindEnd(items, i);
+                    }
+                    else
+                    {
+                        bool r = EvalCondition(step);
+                        int j = MergeCompound(items, i, ref r);
+                        if (r && _ifStack.Count > 0) { _ifStack.Pop(); _ifStack.Push(true); }
+                        if (r)
+                        {
+                            next = j;
+                            if (next < items.Count && (items[next].Logic == "否则" || items[next].Logic == "否则如果"))
+                                next = FindEnd(items, next);
+                        }
+                        else
+                        {
+                            next = FindElse(items, i);
+                        }
+                    }
+                    break;
+                }
+                case "否则":
+                {
+                    next = (_ifStack.Count > 0 && _ifStack.Peek()) ? FindEnd(items, i) : i + 1;
+                    break;
+                }
+                case "结束":
+                {
+                    if (_ifStack.Count > 0) { _ifStack.Pop(); next = i + 1; }
+                    else { FinishRun(); return; }
+                    break;
+                }
+                case "循环开始":
+                {
+                    var ex = (_loopStack.Count > 0 && _loopStack.Peek().Start == i) ? _loopStack.Peek() : null;
+                    if (ex == null)
+                    {
+                        int cnt = ParseLoopCount(step.SetValue);
+                        int end = FindLoopEnd(items, i);
+                        if (cnt <= 0 || end >= items.Count) next = end + 1;
+                        else { _loopStack.Push(new LoopFrame { Start = i, End = end, Remaining = cnt }); next = i + 1; }
+                    }
+                    else
+                    {
+                        next = i + 1;
+                    }
+                    break;
+                }
+                case "循环结束":
+                {
+                    if (_loopStack.Count > 0)
+                    {
+                        var f = _loopStack.Peek();
+                        f.Remaining--;
+                        if (f.Remaining > 0) next = f.Start;
+                        else { next = i + 1; _loopStack.Pop(); }
+                    }
+                    else
+                    {
+                        next = i + 1;
+                    }
+                    break;
+                }
+                default:
+                {
+                    next = i + 1;
+                    if (next < items.Count && (items[next].Logic == "否则" || items[next].Logic == "否则如果"))
+                        next = FindEnd(items, next);
+                    break;
+                }
+            }
+
+            if (next >= items.Count) { FinishRun(); return; }
+            ClearCurrentFlags();
+            step.IsCurrent = true;
+            _pendingNext = next;
+            CurrentStep = i;
+        }
+
+        private void ClearCurrentFlags()
+        {
+            foreach (var s in StepPanel.Items)
+                if (s.IsCurrent) s.IsCurrent = false;
+        }
+
+        private void FinishRun()
+        {
+            _runTimer.Stop();
+            IsRunning = false;
+            IsPaused = false;
+            _pendingNext = -1;
+            ClearCurrentFlags();
+            _currentStep = StepPanel.Items.Count; // 标记已完成（CurrentStepText 显示“已完成”）
+            OnPropertyChanged(nameof(CurrentStepText));
+            HighlightCurrent();
+            RaiseRunState();
+        }
+
+        private int MergeCompound(IReadOnlyList<FlowStep> items, int i, ref bool r)
+        {
+            int k = i + 1;
+            while (k < items.Count)
+            {
+                var lg = items[k].Logic;
+                if (lg == "并且") { r = r && EvalCondition(items[k]); k++; }
+                else if (lg == "或者") { r = r || EvalCondition(items[k]); k++; }
+                else break;
+            }
+            return k;
+        }
+
+        private int FindElse(IReadOnlyList<FlowStep> items, int i)
+        {
+            int depth = 0;
+            for (int k = i + 1; k < items.Count; k++)
+            {
+                var lg = items[k].Logic;
+                if (lg == "如果") depth++;
+                else if (lg == "结束") { if (depth > 0) depth--; else return k; }
+                else if (depth == 0 && (lg == "否则" || lg == "否则如果")) return k;
+            }
+            return items.Count;
+        }
+
+        private int FindEnd(IReadOnlyList<FlowStep> items, int i)
+        {
+            int depth = 0;
+            for (int k = i + 1; k < items.Count; k++)
+            {
+                var lg = items[k].Logic;
+                if (lg == "如果") depth++;
+                else if (lg == "结束") { if (depth > 0) depth--; else return k; }
+            }
+            return items.Count;
+        }
+
+        private int FindLoopEnd(IReadOnlyList<FlowStep> items, int i)
+        {
+            int depth = 0;
+            for (int k = i + 1; k < items.Count; k++)
+            {
+                var lg = items[k].Logic;
+                if (lg == "循环开始") depth++;
+                else if (lg == "循环结束") { if (depth == 0) return k; else depth--; }
+            }
+            return items.Count;
+        }
+
+        private bool EvalCondition(FlowStep s)
+        {
+            string left = (s.Function == "变量") ? GetVariableValue(s.Name) : s.ActualValue;
+            string right = s.SetValue;
+            if (string.IsNullOrWhiteSpace(left)) return false;
+            bool okL = double.TryParse(left, out double lnum);
+            bool okR = double.TryParse(right, out double rnum);
+            switch (s.Operation)
+            {
+                case "大于": return okL && okR && lnum > rnum;
+                case "小于": return okL && okR && lnum < rnum;
+                case "大于等于": return okL && okR && lnum >= rnum;
+                case "小于等于": return okL && okR && lnum <= rnum;
+                case "不等于": return !string.Equals((left ?? "").Trim(), (right ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+                default: return string.Equals((left ?? "").Trim(), (right ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        private int ParseLoopCount(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return 1;
+            var m = System.Text.RegularExpressions.Regex.Match(s ?? string.Empty, @"-?\d+");
+            return m.Success ? int.Parse(m.Value) : 1;
+        }
+
+        private string GetVariableValue(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+            var vars = ProjectStore.Data.Variables;
+            foreach (var row in vars)
+            {
+                if (string.Equals((row.Name1 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) return row.Value1 ?? string.Empty;
+                if (string.Equals((row.Name2 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) return row.Value2 ?? string.Empty;
+                if (string.Equals((row.Name3 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) return row.Value3 ?? string.Empty;
+                if (string.Equals((row.Name4 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) return row.Value4 ?? string.Empty;
+                if (string.Equals((row.Name5 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) return row.Value5 ?? string.Empty;
+            }
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// 「实际值」列 1 秒定时刷新：遍历当前选中流程的步骤，对 Function=="变量" 的步骤
+        /// 调用 GetVariableValue 把变量当前值写回 ActualValue。
+        /// 其他功能的步骤 ActualValue 由执行器在 StepOnce 中按需回填，这里不动。
+        /// 空集合（未选中流程）直接返回。
+        /// </summary>
+        private void RefreshActualValues()
+        {
+            var items = StepPanel?.Items;
+            if (items == null || items.Count == 0) return;
+            foreach (var step in items)
+            {
+                if (step == null) continue;
+                if (step.Function != "变量") continue;
+                if (string.IsNullOrWhiteSpace(step.Name)) continue;
+                step.ActualValue = GetVariableValue(step.Name);
+            }
         }
 
         private void JumpToRow()
@@ -201,6 +473,10 @@ namespace NoCodeMotion.ViewModels
             int idx = StepPanel.Items.IndexOf(target);
             if (idx < 0) idx = 0;
             if (idx >= StepPanel.Items.Count) idx = StepPanel.Items.Count - 1;
+            _pendingNext = -1;
+            _ifStack.Clear();
+            _loopStack.Clear();
+            ClearCurrentFlags();
             CurrentStep = idx;
         }
 
@@ -209,6 +485,7 @@ namespace NoCodeMotion.ViewModels
             if (!CanPause) return;
             _runTimer.Stop();
             IsPaused = true;
+            IsRunning = false; // 暂停后允许用“运行”继续（_currentStep 未越界时 Run 不会重置）
         }
 
         private void Stop()
@@ -216,6 +493,10 @@ namespace NoCodeMotion.ViewModels
             _runTimer.Stop();
             IsRunning = false;
             IsPaused = false;
+            _pendingNext = -1;
+            _ifStack.Clear();
+            _loopStack.Clear();
+            ClearCurrentFlags();
             _currentStep = -1;
             OnPropertyChanged(nameof(CurrentStepText));
             HighlightCurrent();

@@ -813,6 +813,9 @@ namespace NoCodeMotion.Views
             BtnStepOver.IsEnabled = idle || paused;
             BtnStepIn.IsEnabled = idle || paused;
             BtnStepOut.IsEnabled = paused;
+            // 编辑器在运行 / 暂停期间为只读，回撤 / 重做同步禁用，避免按钮看似可点但无效果
+            BtnUndo.IsEnabled = idle;
+            BtnRedo.IsEnabled = idle;
             Editor.IsReadOnly = !idle;
 
             if (idle)
@@ -887,26 +890,16 @@ namespace NoCodeMotion.Views
             AppendLog("已清除全部断点", LogKind.Info);
         }
 
-        private void BtnHint_Click(object sender, RoutedEventArgs e)
+        private void BtnUndo_Click(object sender, RoutedEventArgs e)
         {
             Editor.Focus();
-            ShowWordCompletion(true);
+            Editor.Undo();
         }
 
-        private void BtnExample_Click(object sender, RoutedEventArgs e)
+        private void BtnRedo_Click(object sender, RoutedEventArgs e)
         {
-            if (LuaItem == null)
-            {
-                AppendLog("请先选择或新建一个脚本流程，再插入示例", LogKind.Info);
-                return;
-            }
-
-            _settingText = true;
-            Editor.Text = FlowItem.DefaultLuaTemplate;
-            _settingText = false;
-            LuaItem.LuaSource = FlowItem.DefaultLuaTemplate;
-            CheckSyntaxNow();
-            AppendLog("已插入示例脚本，可运行 / 单步查看效果", LogKind.Info);
+            Editor.Focus();
+            Editor.Redo();
         }
 
         private void BtnClearOutput_Click(object sender, RoutedEventArgs e) => _log.Clear();

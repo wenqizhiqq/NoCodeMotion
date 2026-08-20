@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace NoCodeMotion.Models
 {
@@ -22,6 +23,14 @@ namespace NoCodeMotion.Models
         public string SetValue { get => _setValue; set => SetField(ref _setValue, value); }
         public string Timeout { get => _timeout; set => SetField(ref _timeout, value); }
         public int DurationMs { get => _durationMs; set => SetField(ref _durationMs, value); }
+
+
+
+        private bool _isCurrent;
+
+        /// <summary>运行态：当前是否正在执行此行（用于流程表格高亮，不落盘）。</summary>
+        [JsonIgnore]
+        public bool IsCurrent { get => _isCurrent; set => SetField(ref _isCurrent, value); }
         public string ActualValue { get => _actualValue; set => SetField(ref _actualValue, value); }
     }
 }

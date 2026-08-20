@@ -61,8 +61,6 @@
         <Geometry x:Key="LuaStepOutIcon">M4 12h6M10 18l5-6-5-6</Geometry>
         <Geometry x:Key="LuaBreakpointIcon">M12 2a10 10 0 100 20 10 10 0 000-20z</Geometry>
         <Geometry x:Key="LuaClearBpIcon">M12 2a10 10 0 100 20 10 10 0 000-20zM5 5l14 14</Geometry>
-        <Geometry x:Key="LuaHintIcon">M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z</Geometry>
-        <Geometry x:Key="LuaExampleIcon">M6 2h8l4 4v16H6zM14 2v4h4M9 13h6M9 16h6</Geometry>
     </UserControl.Resources>
 
     <Grid Margin="10">
@@ -210,16 +208,8 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
+                <!-- 调试按钮贴在容器最左边；状态信息移到右侧 -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Ellipse x:Name="StateDot" Width="9" Height="9" Fill="#8E8E93" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="TxtState" Margin="6,0,0,0" FontSize="12" Text="就绪" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="TxtBreakCount" Margin="12,0,0,0" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="断点 0" VerticalAlignment="Center"/>
-                    <TextBlock Text="  |  " FontSize="12" Foreground="#C7C7CC"/>
-                    <TextBlock x:Name="TxtCaret" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="行 1，列 1" VerticalAlignment="Center"/>
-                    <TextBlock Text="  |  " FontSize="12" Foreground="#C7C7CC"/>
-                    <TextBlock FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="Lua 5.2 (MoonSharp)" VerticalAlignment="Center"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <Button x:Name="BtnRun" Style="{StaticResource LuaDbgButton}" Background="#34C759" Click="BtnRun_Click" ToolTip="运行 / 继续 (F5)">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource LuaPlayIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
@@ -268,18 +258,28 @@
                             <TextBlock Text="清除断点" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnHint" Style="{StaticResource LuaDbgButton}" Background="#5856D6" Click="BtnHint_Click" ToolTip="手动唤出智能提示 (Ctrl+Space)" Margin="6,0,0,0">
+                    <Button x:Name="BtnUndo" Style="{StaticResource LuaDbgButton}" Background="#5856D6" Click="BtnUndo_Click" ToolTip="回撤编辑 (Ctrl+Z)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <Path Data="{StaticResource LuaHintIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="智能提示" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource UndoIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="回撤" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnExample" Style="{StaticResource LuaDbgButton}" Background="#5AC8FA" Click="BtnExample_Click" ToolTip="在编辑器中插入示例脚本" Margin="6,0,0,0">
+                    <Button x:Name="BtnRedo" Style="{StaticResource LuaDbgButton}" Background="#5AC8FA" Click="BtnRedo_Click" ToolTip="重做编辑 (Ctrl+Y)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <Path Data="{StaticResource LuaExampleIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="插入示例" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource RedoIcon}" Width="14" Height="14" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="重做" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                </StackPanel>
+                <!-- 状态信息移到 Column=1，右对齐显示 -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Ellipse x:Name="StateDot" Width="9" Height="9" Fill="#8E8E93" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TxtState" Margin="6,0,0,0" FontSize="12" Text="就绪" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TxtBreakCount" Margin="12,0,0,0" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="断点 0" VerticalAlignment="Center"/>
+                    <TextBlock Text="  |  " FontSize="12" Foreground="#C7C7CC"/>
+                    <TextBlock x:Name="TxtCaret" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="行 1，列 1" VerticalAlignment="Center"/>
+                    <TextBlock Text="  |  " FontSize="12" Foreground="#C7C7CC"/>
+                    <TextBlock FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="Lua 5.2 (MoonSharp)" VerticalAlignment="Center"/>
                 </StackPanel>
             </Grid>
         </Border>
