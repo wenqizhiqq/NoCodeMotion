@@ -226,15 +226,22 @@ namespace NoCodeMotion.ViewModels
             int i = _pendingNext >= 0 ? _pendingNext : (_currentStep < 0 || _currentStep >= items.Count ? 0 : _currentStep);
             if (i >= items.Count) { FinishRun(); return; }
             var step = items[i];
-            string logic = step.Logic;
+            // Trim 防御：流程数据若从文件加载带有不可见字符/空格（如 "如果 "），switch 会全部落 default → 线性逐行不跳转。
+            // 进 switch 前统一去空白，确保 "如果"/"就"/"否则" 等能精确命中分支。
+            string logic = (step.Logic ?? string.Empty).Trim();
             int dur = (logic == "延时" || logic == "等待")
                 ? (step.DurationMs > 0 ? step.DurationMs : TickIntervalMs)
                 : TickIntervalMs;
             step.DurationMs = dur;
 
             // 实际值回填：功能=变量时，把变量当前值写回 ActualValue（让「实际值」列显示真实测量值，而不是停留在手动输入的占位）
+            // 当 Operation="修改" 时，先执行赋值：把变量值改为「设置值」列里的值，再回填 ActualValue 显示新值。
             if (step.Function == "变量" && !string.IsNullOrWhiteSpace(step.Name))
+            {
+                if (step.Operation == "修改")
+                    SetVariableValue(step.Name, step.SetValue);
                 step.ActualValue = GetVariableValue(step.Name);
+            }
 
             int next;
             switch (logic)
@@ -247,7 +254,7 @@ namespace NoCodeMotion.ViewModels
                     if (r)
                     {
                         next = j;
-                        if (next < items.Count && (items[next].Logic == "否则" || items[next].Logic == "否则如果"))
+                        if (next < items.Count && ((items[next].Logic ?? string.Empty).Trim() == "否则" || (items[next].Logic ?? string.Empty).Trim() == "否则如果"))
                             next = FindEnd(items, next);
                     }
                     else
@@ -270,7 +277,7 @@ namespace NoCodeMotion.ViewModels
                         if (r)
                         {
                             next = j;
-                            if (next < items.Count && (items[next].Logic == "否则" || items[next].Logic == "否则如果"))
+                            if (next < items.Count && ((items[next].Logic ?? string.Empty).Trim() == "否则" || (items[next].Logic ?? string.Empty).Trim() == "否则如果"))
                                 next = FindEnd(items, next);
                         }
                         else
@@ -325,7 +332,7 @@ namespace NoCodeMotion.ViewModels
                 default:
                 {
                     next = i + 1;
-                    if (next < items.Count && (items[next].Logic == "否则" || items[next].Logic == "否则如果"))
+                    if (next < items.Count && ((items[next].Logic ?? string.Empty).Trim() == "否则" || (items[next].Logic ?? string.Empty).Trim() == "否则如果"))
                         next = FindEnd(items, next);
                     break;
                 }
@@ -362,7 +369,7 @@ namespace NoCodeMotion.ViewModels
             int k = i + 1;
             while (k < items.Count)
             {
-                var lg = items[k].Logic;
+                var lg = (items[k].Logic ?? string.Empty).Trim();
                 if (lg == "并且") { r = r && EvalCondition(items[k]); k++; }
                 else if (lg == "或者") { r = r || EvalCondition(items[k]); k++; }
                 else break;
@@ -375,7 +382,7 @@ namespace NoCodeMotion.ViewModels
             int depth = 0;
             for (int k = i + 1; k < items.Count; k++)
             {
-                var lg = items[k].Logic;
+                var lg = (items[k].Logic ?? string.Empty).Trim();
                 if (lg == "如果") depth++;
                 else if (lg == "结束") { if (depth > 0) depth--; else return k; }
                 else if (depth == 0 && (lg == "否则" || lg == "否则如果")) return k;
@@ -388,7 +395,7 @@ namespace NoCodeMotion.ViewModels
             int depth = 0;
             for (int k = i + 1; k < items.Count; k++)
             {
-                var lg = items[k].Logic;
+                var lg = (items[k].Logic ?? string.Empty).Trim();
                 if (lg == "如果") depth++;
                 else if (lg == "结束") { if (depth > 0) depth--; else return k; }
             }
@@ -400,7 +407,7 @@ namespace NoCodeMotion.ViewModels
             int depth = 0;
             for (int k = i + 1; k < items.Count; k++)
             {
-                var lg = items[k].Logic;
+                var lg = (items[k].Logic ?? string.Empty).Trim();
                 if (lg == "循环开始") depth++;
                 else if (lg == "循环结束") { if (depth == 0) return k; else depth--; }
             }
@@ -445,6 +452,25 @@ namespace NoCodeMotion.ViewModels
                 if (string.Equals((row.Name5 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) return row.Value5 ?? string.Empty;
             }
             return string.Empty;
+        }
+
+        /// <summary>
+        /// 按变量名在 Variables 表里写入新值。匹配规则与 GetVariableValue 一致（按 Name1..Name5
+        /// 顺序扫描整个表，首个命中即更新对应 ValueN；找不到则静默不抛）。
+        /// 用于流程行 Operation="修改" 时的赋值。
+        /// </summary>
+        private void SetVariableValue(string name, string value)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+            var vars = ProjectStore.Data.Variables;
+            foreach (var row in vars)
+            {
+                if (string.Equals((row.Name1 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) { row.Value1 = value ?? string.Empty; return; }
+                if (string.Equals((row.Name2 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) { row.Value2 = value ?? string.Empty; return; }
+                if (string.Equals((row.Name3 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) { row.Value3 = value ?? string.Empty; return; }
+                if (string.Equals((row.Name4 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) { row.Value4 = value ?? string.Empty; return; }
+                if (string.Equals((row.Name5 ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)) { row.Value5 = value ?? string.Empty; return; }
+            }
         }
 
         /// <summary>

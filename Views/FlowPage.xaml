@@ -37,6 +37,7 @@
             <sys:String>延时</sys:String>
         </x:Array>
         <x:Array x:Key="OperationOptions" Type="sys:String">
+            <sys:String>修改</sys:String>
             <sys:String>加</sys:String>
             <sys:String>减</sys:String>
             <sys:String>乘</sys:String>
@@ -102,6 +103,9 @@
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
                 </Trigger>
                 <DataTrigger Binding="{Binding IsCurrent}" Value="True">
                     <Setter Property="Background" Value="{StaticResource WarningBrush}"/>
@@ -205,21 +209,20 @@
                         <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
                             <DataGrid ItemsSource="{Binding StepPanel.Items}"
                                       SelectedItem="{Binding StepPanel.SelectedItem, Mode=TwoWay}"
-                                      AlternationCount="2"
                                       RowStyle="{StaticResource FlowRowStyle}"
                                       CellStyle="{StaticResource FlowCellStyle}"
                                       ColumnHeaderStyle="{StaticResource FlowHeaderStyle}"
                                       AutoGenerateColumns="False"
                                       CanUserAddRows="False" CanUserDeleteRows="False"
                                       IsReadOnly="True"
-                                      SelectionMode="Single" SelectionUnit="CellOrRowHeader"
+                                      SelectionMode="Single" SelectionUnit="FullRow"
                                       GridLinesVisibility="None"
                                       HeadersVisibility="Column"
                                       BorderThickness="0"
                                       Background="Transparent"
                                       RowHeight="28"
                                       FontSize="12"
-                                      AlternatingRowBackground="{StaticResource HoverBrush}">
+                                      AlternatingRowBackground="Transparent">
                                 <DataGrid.Columns>
                                     <DataGridTemplateColumn Header="逻辑" Width="78">
                                         <DataGridTemplateColumn.CellTemplate>

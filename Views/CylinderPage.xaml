@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:ctl="clr-namespace:NoCodeMotion.Views.Controls"
              xmlns:svc="clr-namespace:NoCodeMotion.Services"
              xmlns:hc="https://handyorg.github.io/handycontrol"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
@@ -73,7 +74,7 @@
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="动作延时"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.DelayMs}"/>
+                                    <ctl:NumSliderBox Value="{Binding SelectedItem.DelayMs}" Min="0" Max="10000"/>
                                     <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
                                 </StackPanel>
                             </DockPanel>
@@ -81,7 +82,7 @@
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="伸出延时"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.ExtendMs}"/>
+                                    <ctl:NumSliderBox Value="{Binding SelectedItem.ExtendMs}" Min="0" Max="10000"/>
                                     <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
                                 </StackPanel>
                             </DockPanel>
@@ -89,7 +90,7 @@
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缩回延时"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.RetractMs}"/>
+                                    <ctl:NumSliderBox Value="{Binding SelectedItem.RetractMs}" Min="0" Max="10000"/>
                                     <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
                                 </StackPanel>
                             </DockPanel>
@@ -97,7 +98,7 @@
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="伸出速度"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.ExtendSpeed}"/>
+                                    <ctl:NumSliderBox Value="{Binding SelectedItem.ExtendSpeed}" Min="0" Max="100"/>
                                     <TextBlock Style="{StaticResource AppleUnit}" Text="%"/>
                                 </StackPanel>
                             </DockPanel>
@@ -105,7 +106,7 @@
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缩回速度"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.RetractSpeed}"/>
+                                    <ctl:NumSliderBox Value="{Binding SelectedItem.RetractSpeed}" Min="0" Max="100"/>
                                     <TextBlock Style="{StaticResource AppleUnit}" Text="%"/>
                                 </StackPanel>
                             </DockPanel>
@@ -113,7 +114,7 @@
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="到位容差"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.ToleranceMs}"/>
+                                    <ctl:NumSliderBox Value="{Binding SelectedItem.ToleranceMs}" Min="0" Max="10000"/>
                                     <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
                                 </StackPanel>
                             </DockPanel>
@@ -191,7 +192,7 @@
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="动作超时"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.TimeoutMs}"/>
+                                    <ctl:NumSliderBox Value="{Binding SelectedItem.TimeoutMs}" Min="0" Max="10000"/>
                                     <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
                                 </StackPanel>
                             </DockPanel>
@@ -210,7 +211,7 @@
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="脉冲宽度"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBox Style="{StaticResource AppleNumBox}" Text="{Binding SelectedItem.PulseWidthMs}"/>
+                                    <ctl:NumSliderBox Value="{Binding SelectedItem.PulseWidthMs}" Min="0" Max="10000"/>
                                     <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
                                 </StackPanel>
                             </DockPanel>

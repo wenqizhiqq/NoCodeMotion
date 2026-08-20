@@ -1,0 +1,45 @@
+<UserControl x:Class="NoCodeMotion.Views.Controls.NumSliderBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="root"
+             Focusable="False">
+    <Grid VerticalAlignment="Center">
+        <Grid.ColumnDefinitions>
+            <!-- 文本框（左，弹性） -->
+            <ColumnDefinition Width="*"/>
+            <!-- 滑块（右，固定宽） -->
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- 数字输入框 -->
+        <TextBox x:Name="NumTextBox"
+                 Grid.Column="0"
+                 BorderThickness="0"
+                 Background="Transparent"
+                 HorizontalAlignment="Stretch"
+                 TextAlignment="Right"
+                 VerticalAlignment="Center"
+                 VerticalContentAlignment="Center"
+                 FontSize="12.5"
+                 Foreground="{StaticResource TextPrimaryBrush}"
+                 Text="{Binding Value, ElementName=root, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="{Binding ToolTip, ElementName=root, Mode=OneWay}"
+                 PreviewTextInput="NumTextBox_PreviewTextInput"
+                 LostFocus="NumTextBox_LostFocus"/>
+
+        <!-- 滑块（拖动调整，文本仍可手输精确值） -->
+        <Slider x:Name="NumSlider"
+                Grid.Column="1"
+                Width="68"
+                MinWidth="48"
+                Margin="8,0,0,0"
+                VerticalAlignment="Center"
+                Minimum="{Binding Min, ElementName=root}"
+                Maximum="{Binding Max, ElementName=root}"
+                SmallChange="1"
+                LargeChange="10"
+                IsMoveToPointEnabled="True"
+                IsSnapToTickEnabled="False"
+                Value="{Binding SliderValue, ElementName=root, Mode=TwoWay}"/>
+    </Grid>
+</UserControl>
