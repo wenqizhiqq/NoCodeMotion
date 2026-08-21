@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using NoCodeMotion.Views;
 using NoCodeMotion.ViewModels;
+using NoCodeMotion.Services;
 
 namespace NoCodeMotion
 {
@@ -81,5 +82,9 @@ namespace NoCodeMotion
                 _selectedNav.Foreground = (System.Windows.Media.Brush)FindResource("AccentBrush");
             }
         }
+
+        /// <summary>导航栏「在线下发」开关：开启后配置页改值实时下发到设备（仅真实硬件桥生效）。</summary>
+        private void OnlinePushChk_Checked(object sender, RoutedEventArgs e) => HardwarePush.Online = true;
+        private void OnlinePushChk_Unchecked(object sender, RoutedEventArgs e) => HardwarePush.Online = false;
     }
 }

@@ -16,6 +16,16 @@ namespace NoCodeMotion.ViewModels
 
         protected override AxisItem CreateNewItem() => new AxisItem { Name = $"轴{Counter + 1}" };
 
+        /// <summary>配置页改值实时下发设备：速度变化下发到卡，使能/电平变化重新使能轴。</summary>
+        protected override void PushItem(AxisItem item, string? propertyName)
+        {
+            var bridge = HardwareBridge.Current;
+            if (propertyName == nameof(AxisItem.Speed))
+                bridge.SetAxisSpeed(item, item.Speed);
+            else if (propertyName == nameof(AxisItem.Enabled) || propertyName == nameof(AxisItem.EnableLevel))
+                bridge.EnableAxis(item);
+        }
+
         public void EnsureDefaultSelection()
         {
             if (SelectedItem == null && Items.Count > 0) SelectedItem = Items[0];

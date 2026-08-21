@@ -36,6 +36,10 @@ namespace NoCodeMotion.ViewModels
         {
             if (propertyName == nameof(EditorItemBase.Name))
                 SyncIoCatalog();
+
+            // 配置页改值实时下发设备：输出点电平变化 → 写输出到设备。
+            if (HardwarePush.ShouldPush && Title == "输出" && propertyName == nameof(IoItem.Value))
+                HardwareBridge.Current.WriteOutput(item, item.Value);
         }
 
         private void SyncIoCatalog()

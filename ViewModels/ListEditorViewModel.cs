@@ -103,7 +103,18 @@ namespace NoCodeMotion.ViewModels
             ProjectStore.ScheduleSave();
             if (e.PropertyName == nameof(EditorItemBase.Name))
                 SyncCatalog();
+
+            // 配置页改值实时下发设备：仅当在线模式且已挂载真实硬件桥时生效。
+            if (HardwarePush.ShouldPush && sender is T t)
+                PushItem(t, e.PropertyName);
         }
+
+        /// <summary>
+        /// 配置页改值实时下发设备的钩子：HardwarePush.ShouldPush 为真时由 OnItemPropertyChanged 调用。
+        /// 基类默认空实现（不触发任何运动）；子类（如 AxisViewModel）重写以把速度、使能等安全参数下发到硬件。
+        /// 设计原则：仅下发非运动类参数，避免编辑坐标误触发轴运动。
+        /// </summary>
+        protected virtual void PushItem(T item, string? propertyName) { }
 
         /// <summary>把当前列表的名称汇入全局 Catalog。子类可重写以自定义汇总口径（例如点位表页要汇总所有工位下的点位名）。</summary>
         protected virtual void SyncCatalog()
