@@ -18,7 +18,10 @@
             <Border Background="{StaticResource CanvasBrush}">
                 <StackPanel Margin="14">
                     <!-- 页标题 -->
-                    <TextBlock Text="通讯" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="2,0,2,10"/>
+                    <StackPanel Style="{StaticResource PageHeaderPanel}">
+                        <Path Style="{StaticResource PageHeaderIcon}" Data="{StaticResource CommIcon}"/>
+                        <TextBlock Style="{StaticResource PageHeaderTitle}" Text="通讯"/>
+                    </StackPanel>
 
                     <!-- 通讯类型（驱动其余参数显隐）-->
                     <Border Style="{StaticResource AppleGroupCard}" Padding="12,10">
@@ -198,11 +201,36 @@
                             </DockPanel>
 
                             <WrapPanel Margin="0,0,0,8">
-                                <Button Content="测试连接" Style="{StaticResource AppleBtn}" Command="{Binding TestConnectionCommand}"/>
-                                <Button Content="打开连接" Style="{StaticResource AppleBtn}" Command="{Binding OpenCommand}"/>
-                                <Button Content="关闭连接" Style="{StaticResource AppleBtnSecondary}" Command="{Binding CloseCommand}"/>
-                                <Button Content="自动扫描端口" Style="{StaticResource AppleBtnSecondary}" Command="{Binding AutoScanCommand}"/>
-                                <Button Content="清空日志" Style="{StaticResource AppleBtnSecondary}" Command="{Binding ClearLogCommand}"/>
+                                <Button Style="{StaticResource AppleBtn}" Command="{Binding TestConnectionCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource SignalIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="测试连接" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource AppleBtn}" Command="{Binding OpenCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource LinkIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="打开连接" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding CloseCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource StopIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="关闭连接" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding AutoScanCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource SearchIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="自动扫描端口" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding ClearLogCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource EraserIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="清空日志" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </WrapPanel>
 
                             <DockPanel LastChildFill="True" Margin="0,0,0,8">

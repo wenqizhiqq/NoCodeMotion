@@ -11,7 +11,10 @@
         <StackPanel MinWidth="360" MaxWidth="480">
             <!-- 标题区（与内容用发丝线分隔） -->
             <Border Padding="22,18,22,14" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">
-                <TextBlock x:Name="TitleText" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource WarnIcon}" Width="20" Height="20" Stretch="Uniform" Fill="{StaticResource WarningBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TitleText" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
             </Border>
             <!-- 消息正文 -->
             <TextBlock x:Name="MessageText" Padding="24,20,24,8" FontSize="14" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" LineHeight="22"/>

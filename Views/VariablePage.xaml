@@ -79,16 +79,23 @@
     <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- 页标题 -->
+        <StackPanel Grid.Row="0" Style="{StaticResource PageHeaderPanel}">
+            <Path Style="{StaticResource PageHeaderIcon}" Data="{StaticResource VariableIcon}"/>
+            <TextBlock Style="{StaticResource PageHeaderTitle}" Text="变量"/>
+        </StackPanel>
+
         <!-- 工具栏（继承通用 TableToolbar：Excel编辑/添加/删除/上移/下移/复制/粘贴/回撤/重做） -->
-        <local:TableToolbar Grid.Row="0" Margin="0,0,0,6"
+        <local:TableToolbar Grid.Row="1" Margin="0,0,0,6"
                             Count="{Binding Items.Count}"
                             CountLabel="行"/>
 
         <!-- 变量表格（白色卡片包裹）：每行 5 组 (名称 / 字符串值) -->
-        <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
+        <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}">
             <DataGrid ItemsSource="{Binding Items}"
                       SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                       RowStyle="{StaticResource VarRowStyle}"

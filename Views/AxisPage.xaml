@@ -9,8 +9,13 @@
 
     <local:EditorPage>
         <local:EditorPage.Detail>
-            <WrapPanel Orientation="Horizontal" Margin="14" ItemWidth="372"
-                       Background="{StaticResource CanvasBrush}">
+            <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}">
+                <!-- 页标题 -->
+                <StackPanel DockPanel.Dock="Top" Style="{StaticResource PageHeaderPanel}">
+                    <Path Style="{StaticResource PageHeaderIcon}" Data="{StaticResource AxisIcon}"/>
+                    <TextBlock Style="{StaticResource PageHeaderTitle}" Text="轴"/>
+                </StackPanel>
+                <WrapPanel Orientation="Horizontal" Margin="14" ItemWidth="372">
                     <!-- ============ 基本信息 ============ -->
                     <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
                         <StackPanel>
@@ -196,7 +201,8 @@
                             </DockPanel>
                         </StackPanel>
                     </Border>
-            </WrapPanel>
+                </WrapPanel>
+            </DockPanel>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>

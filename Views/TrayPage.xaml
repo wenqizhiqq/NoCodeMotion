@@ -45,11 +45,17 @@
 
     <local:EditorPage>
         <local:EditorPage.Detail>
-            <Grid Margin="14" Background="{StaticResource CanvasBrush}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="300"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}" Margin="14">
+                <!-- 页标题 -->
+                <StackPanel DockPanel.Dock="Top" Style="{StaticResource PageHeaderPanel}">
+                    <Path Style="{StaticResource PageHeaderIcon}" Data="{StaticResource TrayIcon}"/>
+                    <TextBlock Style="{StaticResource PageHeaderTitle}" Text="料盘"/>
+                </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
                         <!-- ============ 料盘参数 ============ -->
                         <Border Grid.Column="0" Style="{StaticResource AppleGroupCard}" Margin="0,0,12,0">
                             <StackPanel>
@@ -121,7 +127,8 @@
                                 </Viewbox>
                             </DockPanel>
                         </Border>
-            </Grid>
+                </Grid>
+            </DockPanel>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>

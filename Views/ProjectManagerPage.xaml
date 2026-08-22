@@ -23,10 +23,16 @@
                     </StackPanel>
                 </Button>
                 <Button Command="{Binding OpenCommand}" Style="{StaticResource ToolButtonStyle}">
-                    <TextBlock Text="打开" VerticalAlignment="Center" Margin="6,0"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource FolderIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="打开" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Button>
                 <Button Command="{Binding SaveCommand}" Style="{StaticResource ToolButtonStyle}">
-                    <TextBlock Text="保存" VerticalAlignment="Center" Margin="6,0"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource SaveIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="保存" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Button>
                 <Button Command="{Binding DeleteCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
@@ -35,10 +41,16 @@
                     </StackPanel>
                 </Button>
                 <Button Command="{Binding RenameCommand}" Style="{StaticResource ToolButtonStyle}">
-                    <TextBlock Text="重命名" VerticalAlignment="Center" Margin="6,0"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource RenameIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="重命名" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Button>
                 <Button Command="{Binding RefreshCommand}" Style="{StaticResource ToolButtonStyle}">
-                    <TextBlock Text="刷新" VerticalAlignment="Center" Margin="6,0"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource RefreshIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="刷新" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Button>
                 <TextBlock Text="{Binding Projects.Count, StringFormat=共 {0} 个工程}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
             </StackPanel>
