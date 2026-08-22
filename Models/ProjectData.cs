@@ -33,6 +33,15 @@ namespace NoCodeMotion.Models
         /// <summary>变量表（流程/逻辑中可引用的计算与状态变量），每行含 5 个 (名称/字符串值)。</summary>
         public ObservableCollection<VariableRow> Variables { get; set; } = new();
 
+        /// <summary>工程创建时间（首次保存时写入）。</summary>
+        public DateTime? CreatedAt { get; set; }
+
+        /// <summary>工程最后修改时间（每次保存时更新）。</summary>
+        public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>工程备注（自由文本，可在项目管理页编辑）。</summary>
+        public string? Remark { get; set; }
+
         // === 兼容旧的 JSON 文件（保留一个旧字段 "Io"，反序列化时把内容迁移到 Inputs/Outputs） ===
         [JsonIgnore]
         public ObservableCollection<IoItem> Io
@@ -86,6 +95,9 @@ namespace NoCodeMotion.Models
             Inputs.Clear(); foreach (var x in src.Inputs) Inputs.Add(x);
             Outputs.Clear(); foreach (var x in src.Outputs) Outputs.Add(x);
             Variables.Clear(); foreach (var x in src.Variables) Variables.Add(x);
+            CreatedAt = src.CreatedAt;
+            UpdatedAt = src.UpdatedAt;
+            Remark = src.Remark;
         }
     }
 }

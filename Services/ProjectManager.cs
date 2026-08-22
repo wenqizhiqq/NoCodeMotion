@@ -8,7 +8,7 @@ namespace NoCodeMotion.Services
 {
     /// <summary>
     /// 多工程管理：在 %LocalAppData%\NoCodeMotion\Projects 下以「工程名.json」文件管理多个工程，
-    /// 提供 列出 / 新建 / 打开(读取) / 保存 / 删除 / 重命名。
+    /// 提供 列出 / 新建 / 打开(读取) / 保存 / 删除 / 重命名 / 改备注。
     /// 打开/新建采用「原地载入」：只替换 ProjectStore.Data 各集合的内容，不替换 Data 实例，
     /// 因此各页面 ViewModel 持有的集合引用始终有效，无需重建即可看到新工程数据。
     /// </summary>
@@ -24,22 +24,38 @@ namespace NoCodeMotion.Services
         /// <summary>工程数据被原地替换后触发，供主窗口清空页面缓存并重建当前页。</summary>
         public static event System.Action? DataReloaded;
 
-        /// <summary>列出全部工程名（按名称排序）。</summary>
-        public static List<string> ListProjects()
+        /// <summary>列出全部工程条目（含创建/修改时间、备注）。</summary>
+        public static List<ProjectEntry> ListProjectEntries()
         {
+            var list = new List<ProjectEntry>();
             try
             {
-                if (!Directory.Exists(RootDir)) return new List<string>();
-                return Directory.EnumerateFiles(RootDir, "*.json")
-                                .Select(p => Path.GetFileNameWithoutExtension(p))
-                                .Where(n => !string.IsNullOrWhiteSpace(n))
-                                .OrderBy(n => n)
-                                .ToList();
+                if (!Directory.Exists(RootDir)) return list;
+                foreach (var file in Directory.EnumerateFiles(RootDir, "*.json")
+                             .OrderBy(f => Path.GetFileNameWithoutExtension(f)))
+                {
+                    var name = Path.GetFileNameWithoutExtension(file) ?? "";
+                    DateTime? created = null, updated = null;
+                    string? remark = "";
+                    try
+                    {
+                        var data = JsonSerializer.Deserialize<ProjectData>(File.ReadAllText(file));
+                        if (data != null)
+                        {
+                            created = data.CreatedAt;
+                            updated = data.UpdatedAt;
+                            remark = data.Remark;
+                        }
+                    }
+                    catch { }
+                    if (created == null) { try { created = File.GetCreationTime(file); } catch { } }
+                    if (updated == null) { try { updated = File.GetLastWriteTime(file); } catch { } }
+                    updated = updated ?? created;
+                    list.Add(new ProjectEntry { Name = name, CreatedAt = created, UpdatedAt = updated, Remark = remark });
+                }
             }
-            catch
-            {
-                return new List<string>();
-            }
+            catch { }
+            return list;
         }
 
         private static string FileFor(string name) => Path.Combine(RootDir, name + ".json");
@@ -51,6 +67,8 @@ namespace NoCodeMotion.Services
         {
             var fresh = new ProjectData();
             fresh.EnsurePointTables();
+            fresh.CreatedAt = DateTime.Now;
+            CurrentName = name;
             WriteFile(name, fresh);
             LoadInto(fresh);
         }
@@ -86,7 +104,22 @@ namespace NoCodeMotion.Services
         {
             name = name ?? CurrentName;
             if (string.IsNullOrEmpty(name)) return;
+            CurrentName = name;
             WriteFile(name, ProjectStore.Data);
+        }
+
+        /// <summary>修改指定工程的备注（改写其 JSON 文件，并更新修改时间）。</summary>
+        public static void SetRemark(string name, string? remark)
+        {
+            var path = FileFor(name);
+            if (!File.Exists(path)) return;
+            try
+            {
+                var data = JsonSerializer.Deserialize<ProjectData>(File.ReadAllText(path)) ?? new ProjectData();
+                data.Remark = remark ?? "";
+                WriteFile(name, data);
+            }
+            catch { }
         }
 
         public static void DeleteProject(string name)
@@ -111,9 +144,9 @@ namespace NoCodeMotion.Services
             try
             {
                 Directory.CreateDirectory(RootDir);
+                data.UpdatedAt = DateTime.Now;
                 var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(FileFor(name), json);
-                CurrentName = name;
             }
             catch { }
         }

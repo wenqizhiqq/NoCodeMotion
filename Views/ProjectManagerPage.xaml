@@ -49,15 +49,41 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="当前工程：" Foreground="{StaticResource TextSecondaryBrush}"/>
                 <TextBlock Text="{Binding CurrentProject, TargetNullValue=未指定}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                <TextBlock Text="　·　双击列表中的工程可快速打开" Foreground="{StaticResource TextMutedBrush}" Margin="16,0,0,0"/>
+                <TextBlock Text="　·　双击列表中的工程可快速打开；备注列可直接编辑" Foreground="{StaticResource TextMutedBrush}" Margin="16,0,0,0"/>
             </StackPanel>
         </Border>
 
-        <!-- 工程列表 -->
-        <ListBox Grid.Row="2" Margin="12"
-                 ItemsSource="{Binding Projects}"
-                 SelectedItem="{Binding SelectedProject, Mode=TwoWay}"
-                 Style="{StaticResource ProjectListStyle}"
-                 MouseDoubleClick="ProjectList_DoubleClick"/>
+        <!-- 工程表格：名称 / 创建时间 / 修改时间 / 备注 -->
+        <DataGrid Grid.Row="2" Margin="12"
+                  ItemsSource="{Binding Projects}"
+                  SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False" CanUserDeleteRows="False"
+                  GridLinesVisibility="Horizontal"
+                  HeadersVisibility="Column"
+                  BorderBrush="{StaticResource LineBrush}"
+                  Background="{StaticResource SurfaceBrush}"
+                  RowBackground="{StaticResource SurfaceBrush}"
+                  AlternatingRowBackground="{StaticResource CanvasBrush}"
+                  Foreground="{StaticResource TextPrimaryBrush}"
+                  MouseDoubleClick="ProjectGrid_DoubleClick"
+                  CellEditEnding="ProjectGrid_CellEditEnding">
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="Background" Value="{StaticResource HeaderBrush}"/>
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                    <Setter Property="Padding" Value="8,6"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="工程名称" Binding="{Binding Name}" IsReadOnly="True" Width="*"/>
+                <DataGridTextColumn Header="创建时间" Binding="{Binding CreatedAt, StringFormat='yyyy-MM-dd HH:mm'}" IsReadOnly="True" Width="160"/>
+                <DataGridTextColumn Header="修改时间" Binding="{Binding UpdatedAt, StringFormat='yyyy-MM-dd HH:mm'}" IsReadOnly="True" Width="160"/>
+                <DataGridTextColumn Header="备注" Binding="{Binding Remark, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
     </Grid>
 </UserControl>

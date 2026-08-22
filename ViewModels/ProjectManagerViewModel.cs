@@ -6,25 +6,25 @@ using NoCodeMotion.Views;
 
 namespace NoCodeMotion.ViewModels
 {
-    /// <summary>项目管理页面：列出全部工程，并提供 新建 / 打开(读取) / 保存 / 删除 / 重命名 / 刷新。</summary>
+    /// <summary>项目管理页面：以表格列出全部工程（名称/创建时间/修改时间/备注），并提供 新建 / 打开(读取) / 保存 / 删除 / 重命名 / 刷新。</summary>
     public class ProjectManagerViewModel : ViewModelBase, IEnsureDefaultSelection
     {
-        public ObservableCollection<string> Projects { get; } = new();
+        public ObservableCollection<ProjectEntry> Projects { get; } = new();
 
-        private string? _selectedProject;
-        public string? SelectedProject
+        private ProjectEntry? _selectedEntry;
+        public ProjectEntry? SelectedEntry
         {
-            get => _selectedProject;
-            set => SetField(ref _selectedProject, value);
+            get => _selectedEntry;
+            set => SetField(ref _selectedEntry, value);
         }
 
         public string? CurrentProject => ProjectManager.CurrentName;
 
         public ICommand NewCommand => new RelayCommand(_ => New());
-        public ICommand OpenCommand => new RelayCommand(_ => Open(), _ => SelectedProject != null);
+        public ICommand OpenCommand => new RelayCommand(_ => Open(), _ => SelectedEntry != null);
         public ICommand SaveCommand => new RelayCommand(_ => Save());
-        public ICommand DeleteCommand => new RelayCommand(_ => Delete(), _ => SelectedProject != null);
-        public ICommand RenameCommand => new RelayCommand(_ => Rename(), _ => SelectedProject != null);
+        public ICommand DeleteCommand => new RelayCommand(_ => Delete(), _ => SelectedEntry != null);
+        public ICommand RenameCommand => new RelayCommand(_ => Rename(), _ => SelectedEntry != null);
         public ICommand RefreshCommand => new RelayCommand(_ => Refresh());
 
         public ProjectManagerViewModel()
@@ -35,10 +35,13 @@ namespace NoCodeMotion.ViewModels
         private void Refresh()
         {
             Projects.Clear();
-            foreach (var n in ProjectManager.ListProjects())
-                Projects.Add(n);
+            foreach (var e in ProjectManager.ListProjectEntries())
+                Projects.Add(e);
             OnPropertyChanged(nameof(CurrentProject));
         }
+
+        /// <summary>备注单元格编辑结束后调用：把备注写回对应工程文件。</summary>
+        public void PersistRemark(ProjectEntry entry) => ProjectManager.SetRemark(entry.Name, entry.Remark);
 
         private void New()
         {
@@ -54,13 +57,13 @@ namespace NoCodeMotion.ViewModels
 
         private void Open()
         {
-            if (SelectedProject == null) return;
-            ProjectManager.OpenProject(SelectedProject);
+            if (SelectedEntry == null) return;
+            ProjectManager.OpenProject(SelectedEntry.Name);
         }
 
         private void Save()
         {
-            string? name = SelectedProject ?? ProjectManager.CurrentName;
+            string? name = SelectedEntry?.Name ?? ProjectManager.CurrentName;
             if (string.IsNullOrEmpty(name))
             {
                 var dlg = new RenameDialog("保存工程", "工程1");
@@ -69,36 +72,36 @@ namespace NoCodeMotion.ViewModels
             }
             ProjectManager.SaveCurrent(name);
             Refresh();
-            SelectedProject = name;
+            SelectedEntry = Projects.FirstOrDefault(p => p.Name == name);
         }
 
         private void Delete()
         {
-            if (SelectedProject == null) return;
-            var dlg = new ConfirmDialog("删除工程", $"确定删除工程「{SelectedProject}」？此操作不可撤销。");
+            if (SelectedEntry == null) return;
+            var dlg = new ConfirmDialog("删除工程", $"确定删除工程「{SelectedEntry.Name}」？此操作不可撤销。");
             if (dlg.ShowDialog() != true) return;
-            ProjectManager.DeleteProject(SelectedProject);
+            ProjectManager.DeleteProject(SelectedEntry.Name);
             Refresh();
-            SelectedProject = null;
+            SelectedEntry = null;
         }
 
         private void Rename()
         {
-            if (SelectedProject == null) return;
-            var dlg = new RenameDialog("重命名工程", SelectedProject);
+            if (SelectedEntry == null) return;
+            var dlg = new RenameDialog("重命名工程", SelectedEntry.Name);
             if (dlg.ShowDialog() != true || string.IsNullOrEmpty(dlg.ResultName)) return;
             var newName = dlg.ResultName!;
-            if (newName != SelectedProject && ProjectManager.Exists(newName)) return;
-            ProjectManager.RenameProject(SelectedProject, newName);
+            if (newName != SelectedEntry.Name && ProjectManager.Exists(newName)) return;
+            ProjectManager.RenameProject(SelectedEntry.Name, newName);
             Refresh();
-            SelectedProject = newName;
+            SelectedEntry = Projects.FirstOrDefault(p => p.Name == newName);
         }
 
         public void EnsureDefaultSelection()
         {
             Refresh();
-            if (SelectedProject == null && Projects.Count > 0)
-                SelectedProject = Projects[0];
+            if (SelectedEntry == null && Projects.Count > 0)
+                SelectedEntry = Projects[0];
         }
     }
 }
