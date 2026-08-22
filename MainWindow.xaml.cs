@@ -37,8 +37,8 @@ namespace NoCodeMotion
         {
             InitializeComponent();
             Instance = this;
-            var first = NavPanel.Children.OfType<Button>().FirstOrDefault();
-            if (first != null) Navigate("Axis", first);
+            // 默认打开「流程」页面
+            NavigateTo("Flow");
         }
 
         private void Nav_Click(object sender, RoutedEventArgs e)
