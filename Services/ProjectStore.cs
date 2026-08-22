@@ -51,6 +51,13 @@ namespace NoCodeMotion.Services
         {
             try
             {
+                // 若当前已打开某个工程，则把所有页面参数保存到该工程文件（单一真实来源）
+                if (!string.IsNullOrEmpty(ProjectManager.CurrentName))
+                {
+                    ProjectManager.SaveCurrent();
+                    return;
+                }
+
                 var dir = Path.GetDirectoryName(FilePath);
                 if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 

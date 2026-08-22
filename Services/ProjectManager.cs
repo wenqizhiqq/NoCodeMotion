@@ -62,6 +62,49 @@ namespace NoCodeMotion.Services
 
         public static bool Exists(string name) => File.Exists(FileFor(name));
 
+        /// <summary>记录「最后打开的工程」名称的文件路径（位于 %LocalAppData%\NoCodeMotion\）。</summary>
+        private static string LastProjectPath =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                         "NoCodeMotion", "lastproject.txt");
+
+        /// <summary>记录最后打开的工程名，供下次启动自动打开并读取其全部参数。</summary>
+        public static void SaveLastProject(string? name)
+        {
+            try
+            {
+                Directory.CreateDirectory(RootDir);
+                File.WriteAllText(LastProjectPath, name ?? "");
+            }
+            catch { }
+        }
+
+        /// <summary>读取最后打开的工程名；无记录则返回 null。</summary>
+        public static string? LoadLastProject()
+        {
+            try
+            {
+                if (File.Exists(LastProjectPath))
+                {
+                    var n = File.ReadAllText(LastProjectPath).Trim();
+                    return string.IsNullOrEmpty(n) ? null : n;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>启动时尝试打开上次使用的工程；成功返回 true，否则返回 false。</summary>
+        public static bool OpenLastProject()
+        {
+            var name = LoadLastProject();
+            if (name != null && Exists(name))
+            {
+                OpenProject(name);
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>新建工程：写入空工程文件并原地载入为当前数据。</summary>
         public static void NewProject(string name)
         {
@@ -69,6 +112,7 @@ namespace NoCodeMotion.Services
             fresh.EnsurePointTables();
             fresh.CreatedAt = DateTime.Now;
             CurrentName = name;
+            SaveLastProject(name);
             WriteFile(name, fresh);
             LoadInto(fresh);
         }
@@ -96,6 +140,7 @@ namespace NoCodeMotion.Services
             }
             data.EnsurePointTables();
             CurrentName = name;
+            SaveLastProject(name);
             LoadInto(data);
         }
 
@@ -126,6 +171,7 @@ namespace NoCodeMotion.Services
         {
             try { File.Delete(FileFor(name)); } catch { }
             if (CurrentName == name) CurrentName = null;
+            SaveLastProject("");
         }
 
         public static void RenameProject(string oldName, string newName)
@@ -137,6 +183,7 @@ namespace NoCodeMotion.Services
             }
             catch { }
             if (CurrentName == oldName) CurrentName = newName;
+            SaveLastProject(newName);
         }
 
         private static void WriteFile(string name, ProjectData data)
