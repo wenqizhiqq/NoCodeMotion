@@ -12,6 +12,7 @@ namespace NoCodeMotion
     {
         private readonly Dictionary<string, System.Func<UserControl>> _pages = new()
         {
+            ["AxisController"] = () => new AxisControllerPage(),
             ["Axis"] = () => new AxisPage(),
             ["Io"] = () => new IoPage(),
             ["Cylinder"] = () => new CylinderPage(),

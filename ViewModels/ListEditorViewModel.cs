@@ -129,6 +129,7 @@ namespace NoCodeMotion.ViewModels
                 case "Comm": Catalog.SetComm(names); break;
                 case "Variable": Catalog.SetVariable(names); break;
                 case "Point": Catalog.SetPoint(names); break;
+                case "Controller": Catalog.SetController(names); break;
             }
         }
     }

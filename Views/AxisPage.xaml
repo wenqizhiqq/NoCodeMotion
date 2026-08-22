@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:svc="clr-namespace:NoCodeMotion.Services"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
     <local:EditorPage>
@@ -45,6 +46,11 @@
                                     <ComboBoxItem Content="um"/>
                                     <ComboBoxItem Content="自定义"/>
                                 </ComboBox>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="控制器"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" ItemsSource="{x:Static svc:Catalog.ControllerNames}" SelectedItem="{Binding SelectedItem.Controller, UpdateSourceTrigger=PropertyChanged}" ToolTip="选择该轴所属的轴控制器（在「轴控制器」页面添加）"/>
                             </DockPanel>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
                             <DockPanel Style="{StaticResource AppleRow}">

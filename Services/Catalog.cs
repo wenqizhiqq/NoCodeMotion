@@ -18,6 +18,7 @@ namespace NoCodeMotion.Services
         public static ObservableCollection<string> VariableNames { get; } = new();
         public static ObservableCollection<string> AllNames { get; } = new();
         public static ObservableCollection<string> PointNames { get; } = new();
+        public static ObservableCollection<string> ControllerNames { get; } = new();
 
         public static void SetAxis(IEnumerable<string> names) => Set(AxisNames, names);
         public static void SetIo(IEnumerable<string> names) => Set(IoNames, names);
@@ -25,6 +26,7 @@ namespace NoCodeMotion.Services
         public static void SetComm(IEnumerable<string> names) => Set(CommNames, names);
         public static void SetVariable(IEnumerable<string> names) => Set(VariableNames, names);
         public static void SetPoint(IEnumerable<string> names) => Set(PointNames, names);
+        public static void SetController(IEnumerable<string> names) => Set(ControllerNames, names);
 
         private static void Set(ObservableCollection<string> target, IEnumerable<string> names)
         {
@@ -44,6 +46,7 @@ namespace NoCodeMotion.Services
             foreach (var n in CommNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in VariableNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in PointNames) if (!AllNames.Contains(n)) AllNames.Add(n);
+            foreach (var n in ControllerNames) if (!AllNames.Contains(n)) AllNames.Add(n);
         }
 
         /// <summary>从已载入的工程中重建名称库（用于启动后填充下拉选项）。</summary>
@@ -58,6 +61,7 @@ namespace NoCodeMotion.Services
             SetVariable(data.Variables.SelectMany(v => v.Names()));
             // 点位名称来自所有点位表（工位）下的全部点位行
             SetPoint(data.PointTables.SelectMany(t => t.Points).Select(p => p.Name));
+            SetController(data.Controllers.Select(c => c.Name));
         }
     }
 }

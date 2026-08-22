@@ -47,6 +47,7 @@
 
     <!-- ===================== 图标 ===================== -->
     <Geometry x:Key="AxisIcon">M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z</Geometry>
+    <Geometry x:Key="ControllerIcon">M3 6h18v12H3zM6 9h3v3H6zM15 9h3v3h-3zM9 13h6v2H9z</Geometry>
     <Geometry x:Key="IoIcon">M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0L19.2 12l-4.6-4.6L16 6l6 6-6 6-1.4-1.4z</Geometry>
     <Geometry x:Key="CylinderIcon">M4 6h16v3H4zM4 10h16v3H4zM4 14h16v3H4z</Geometry>
     <Geometry x:Key="CommIcon">M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.65-4.35-1.65-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z</Geometry>
@@ -70,6 +71,7 @@
 
     <!-- 导航图标配色：iOS 系统色板，每个模块一个固定品牌色（苹果风多彩图标） -->
     <SolidColorBrush x:Key="NavIconAxisBrush" Color="#007AFF"/>
+    <SolidColorBrush x:Key="NavIconControllerBrush" Color="#FF3B30"/>
     <SolidColorBrush x:Key="NavIconIoBrush" Color="#34C759"/>
     <SolidColorBrush x:Key="NavIconCylinderBrush" Color="#FF9500"/>
     <SolidColorBrush x:Key="NavIconPointBrush" Color="#AF52DE"/>

@@ -7,6 +7,9 @@ namespace NoCodeMotion.Models
     public class ProjectData
     {
         public ObservableCollection<AxisItem> Axes { get; set; } = new();
+
+        /// <summary>轴控制器列表：每块运动控制卡/控制器实例，供轴页面选择归属。</summary>
+        public ObservableCollection<AxisControllerItem> Controllers { get; set; } = new();
         public ObservableCollection<CylinderItem> Cylinders { get; set; } = new();
         public ObservableCollection<CommItem> Comms { get; set; } = new();
         public ObservableCollection<TrayItem> Trays { get; set; } = new();

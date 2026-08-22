@@ -1,0 +1,67 @@
+<UserControl x:Class="NoCodeMotion.Views.AxisControllerPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:NoCodeMotion.Views"
+             mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
+
+    <local:EditorPage>
+        <local:EditorPage.Detail>
+            <WrapPanel Orientation="Horizontal" Margin="14" ItemWidth="372"
+                       Background="{StaticResource CanvasBrush}">
+
+                <!-- ============ 基本信息 ============ -->
+                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource AppleSectionHeader}" Text="基本信息"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="品牌"/>
+                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.Vendor}" SelectedValuePath="Content">
+                                <ComboBoxItem Content="雷赛"/>
+                                <ComboBoxItem Content="固高"/>
+                                <ComboBoxItem Content="虚拟"/>
+                                <ComboBoxItem Content="自定义"/>
+                            </ComboBox>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="卡型号"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.CardType}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="卡号"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.CardNo}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="轴数量"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.AxisCount}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="连接方式"/>
+                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.Connection}" SelectedValuePath="Content">
+                                <ComboBoxItem Content="PCI"/>
+                                <ComboBoxItem Content="网口"/>
+                                <ComboBoxItem Content="COM"/>
+                                <ComboBoxItem Content="EtherCAT"/>
+                            </ComboBox>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="备注"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Description}"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+        </local:EditorPage.Detail>
+    </local:EditorPage>
+</UserControl>

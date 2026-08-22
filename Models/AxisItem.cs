@@ -43,6 +43,10 @@ namespace NoCodeMotion.Models
         public bool Enabled { get => _enabled; set => SetField(ref _enabled, value); }
         public string Unit { get => _unit; set => SetField(ref _unit, value); }
 
+        // 归属的轴控制器（在「轴控制器」页面配置），为空表示未指定
+        private string _controller = string.Empty;
+        public string Controller { get => _controller; set => SetField(ref _controller, value); }
+
         public double PulsePerUnit { get => _pulsePerUnit; set => SetField(ref _pulsePerUnit, value); }
         public double Speed { get => _speed; set => SetField(ref _speed, value); }
         public double Accel { get => _accel; set => SetField(ref _accel, value); }
