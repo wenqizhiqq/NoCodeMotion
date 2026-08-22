@@ -17,7 +17,13 @@
         <!-- 顶部导航栏 -->
         <Border Grid.Row="0" Style="{StaticResource NavBarStyle}">
             <StackPanel Orientation="Horizontal" x:Name="NavPanel">
-                <Button Tag="AxisController" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="ProjectManager" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource ProjectManagerIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconProjectManagerBrush}"/>
+                        <TextBlock Text="项目管理" VerticalAlignment="Center"/>
+                    </StackPanel>
+            </Button>
+            <Button Tag="AxisController" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource ControllerIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconControllerBrush}"/>
                         <TextBlock Text="轴控制器" VerticalAlignment="Center"/>

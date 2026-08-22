@@ -12,6 +12,7 @@ namespace NoCodeMotion
     {
         private readonly Dictionary<string, System.Func<UserControl>> _pages = new()
         {
+            ["ProjectManager"] = () => new ProjectManagerPage(),
             ["AxisController"] = () => new AxisControllerPage(),
             ["Axis"] = () => new AxisPage(),
             ["Io"] = () => new IoPage(),
@@ -37,6 +38,7 @@ namespace NoCodeMotion
         {
             InitializeComponent();
             Instance = this;
+            ProjectManager.DataReloaded += OnProjectDataReloaded;
             // 默认打开「流程」页面
             NavigateTo("Flow");
         }
@@ -56,6 +58,15 @@ namespace NoCodeMotion
 
         private Button? FindNavButton(string key)
             => NavPanel.Children.OfType<Button>().FirstOrDefault(b => b.Tag as string == key);
+
+        /// <summary>工程数据被「打开/新建」原地替换后，清空页面缓存并重建当前页，
+        /// 使各页面 ViewModel 以最新工程数据重新构造（修复选中项/计数残留）。</summary>
+        private void OnProjectDataReloaded()
+        {
+            var key = _selectedNav?.Tag as string;
+            _cache.Clear();
+            if (key != null) NavigateTo(key);
+        }
 
         private void Navigate(string key, Button? btn)
         {

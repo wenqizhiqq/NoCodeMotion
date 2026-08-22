@@ -13,6 +13,12 @@ namespace NoCodeMotion.Services
     {
         public static ProjectData Data { get; private set; } = new();
 
+        /// <summary>原地载入工程时临时屏蔽自动保存，避免替换集合时触发大量写盘。</summary>
+        private static bool _suppressSave;
+
+        /// <summary>设置是否屏蔽 ScheduleSave（原地载入工程期间应为 true）。</summary>
+        public static void SuppressSave(bool suppress) => _suppressSave = suppress;
+
         private static readonly string FilePath =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                          "NoCodeMotion", "project.json");
@@ -60,6 +66,7 @@ namespace NoCodeMotion.Services
         /// <summary>安排一次延迟保存（防抖 400ms），避免每次改动都立即写盘。</summary>
         public static void ScheduleSave()
         {
+            if (_suppressSave) return;
             if (_saveTimer == null)
             {
                 _saveTimer = new System.Timers.Timer(400) { AutoReset = false };

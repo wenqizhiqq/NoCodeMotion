@@ -66,5 +66,26 @@ namespace NoCodeMotion.Models
             Points.Clear();
             PointAxes.Clear();
         }
+
+        /// <summary>
+        /// 原地复制：把 src 的全部集合内容复制到当前实例（清空后重新添加），
+        /// 保留集合实例本身，使各页面 ViewModel 持有的集合引用仍然有效。
+        /// 仅复制内容、不替换 ProjectData 实例；载入后由调用方再跑 EnsurePointTables 与名称库同步。
+        /// </summary>
+        public void CopyFrom(ProjectData src)
+        {
+            Axes.Clear(); foreach (var x in src.Axes) Axes.Add(x);
+            Controllers.Clear(); foreach (var x in src.Controllers) Controllers.Add(x);
+            Cylinders.Clear(); foreach (var x in src.Cylinders) Cylinders.Add(x);
+            Comms.Clear(); foreach (var x in src.Comms) Comms.Add(x);
+            Trays.Clear(); foreach (var x in src.Trays) Trays.Add(x);
+            Flows.Clear(); foreach (var x in src.Flows) Flows.Add(x);
+            PointTables.Clear(); foreach (var x in src.PointTables) PointTables.Add(x);
+            Points.Clear(); foreach (var x in src.Points) Points.Add(x);
+            PointAxes.Clear(); foreach (var x in src.PointAxes) PointAxes.Add(x);
+            Inputs.Clear(); foreach (var x in src.Inputs) Inputs.Add(x);
+            Outputs.Clear(); foreach (var x in src.Outputs) Outputs.Add(x);
+            Variables.Clear(); foreach (var x in src.Variables) Variables.Add(x);
+        }
     }
 }
