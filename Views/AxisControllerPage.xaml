@@ -21,10 +21,23 @@
                         <TextBlock Text="添加扩展IO" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
+                <Button Command="{Binding AutoDetectCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="重新连接控制卡并自动登记检测到的硬件">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource ControllerIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="自动识别硬件" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </local:EditorPage.LeftToolbarContent>
         <local:EditorPage.Detail>
-            <WrapPanel Orientation="Horizontal" Margin="14" ItemWidth="372"
+            <StackPanel>
+                <Border Margin="14,10,14,0" Padding="10,8" Background="{StaticResource AccentSoftBrush}" CornerRadius="8">
+                    <DockPanel>
+                        <Path Data="{StaticResource ControllerIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding DetectMessage}" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                    </DockPanel>
+                </Border>
+                <WrapPanel Orientation="Horizontal" Margin="14" ItemWidth="372"
                        Background="{StaticResource CanvasBrush}">
 
                 <!-- ============ 基本信息 ============ -->
@@ -84,6 +97,7 @@
                     </StackPanel>
                 </Border>
             </WrapPanel>
+            </StackPanel>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>

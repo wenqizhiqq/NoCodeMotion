@@ -6,6 +6,7 @@
              xmlns:vm="clr-namespace:NoCodeMotion.ViewModels"
              xmlns:model="clr-namespace:NoCodeMotion.Models"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:svc="clr-namespace:NoCodeMotion.Services"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
@@ -144,6 +145,15 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="卡类" Binding="{Binding CardType}" Width="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTemplateColumn Header="控制器" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox ItemsSource="{x:Static svc:Catalog.ControllerNames}"
+                                              SelectedItem="{Binding Controller, UpdateSourceTrigger=PropertyChanged}"
+                                              Style="{StaticResource CellComboStyle}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="120" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
@@ -200,6 +210,15 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="卡类" Binding="{Binding CardType}" Width="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTemplateColumn Header="控制器" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox ItemsSource="{x:Static svc:Catalog.ControllerNames}"
+                                              SelectedItem="{Binding Controller, UpdateSourceTrigger=PropertyChanged}"
+                                              Style="{StaticResource CellComboStyle}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="60" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="120" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
