@@ -50,7 +50,7 @@
                             <Rectangle Style="{StaticResource AppleHairline}"/>
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="控制器"/>
-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" ItemsSource="{x:Static svc:Catalog.ControllerNames}" SelectedItem="{Binding SelectedItem.Controller, UpdateSourceTrigger=PropertyChanged}" ToolTip="选择该轴所属的轴控制器（在「轴控制器」页面添加）"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" ItemsSource="{x:Static svc:Catalog.ControllerNames}" SelectedItem="{Binding SelectedItem.Controller, UpdateSourceTrigger=PropertyChanged}" ToolTip="选择该轴所属的控制器（在「控制器」页面添加）"/>
                             </DockPanel>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
                             <DockPanel Style="{StaticResource AppleRow}">

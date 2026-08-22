@@ -3,10 +3,11 @@ using System.Runtime.CompilerServices;
 
 namespace NoCodeMotion.Models
 {
-    /// <summary>轴控制器（运动控制卡 / 控制器实例）。轴页面可选择一个控制器作为归属。</summary>
+    /// <summary>控制器（控制卡 / 扩展IO）。轴页面可选择一个控制器作为归属。</summary>
     public class AxisControllerItem : EditorItemBase
     {
         // 基本信息
+        private string _kind = "控制卡";          // 控制卡 / 扩展IO
         private string _vendor = "雷赛";          // 雷赛 / 固高 / 虚拟 / 自定义
         private string _cardType = "DMC";         // 卡型号，如 DMC5410 / EtherCAT 主站
         private int _cardNo;                      // 卡号 / 索引
@@ -20,5 +21,8 @@ namespace NoCodeMotion.Models
         public int AxisCount { get => _axisCount; set => SetField(ref _axisCount, value); }
         public string Connection { get => _connection; set => SetField(ref _connection, value); }
         public string Description { get => _description; set => SetField(ref _description, value); }
+
+        /// <summary>类型：控制卡（运动控制卡）或 扩展IO（IO 扩展模块）。</summary>
+        public string Kind { get => _kind; set => SetField(ref _kind, value); }
     }
 }

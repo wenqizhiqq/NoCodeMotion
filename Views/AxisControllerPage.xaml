@@ -6,7 +6,23 @@
              xmlns:local="clr-namespace:NoCodeMotion.Views"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
-    <local:EditorPage>
+    <local:EditorPage ShowDefaultAddButton="False">
+        <local:EditorPage.LeftToolbarContent>
+            <StackPanel Orientation="Horizontal">
+                <Button Command="{Binding AddCardCommand}" Style="{StaticResource ToolButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="添加控制卡" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding AddExpansionIoCommand}" Style="{StaticResource ToolButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="添加扩展IO" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </local:EditorPage.LeftToolbarContent>
         <local:EditorPage.Detail>
             <WrapPanel Orientation="Horizontal" Margin="14" ItemWidth="372"
                        Background="{StaticResource CanvasBrush}">
@@ -15,6 +31,12 @@
                 <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
                     <StackPanel>
                         <TextBlock Style="{StaticResource AppleSectionHeader}" Text="基本信息"/>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="类型"/>
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding SelectedItem.Kind}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称"/>
                             <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>

@@ -43,7 +43,7 @@ namespace NoCodeMotion.Models
         public bool Enabled { get => _enabled; set => SetField(ref _enabled, value); }
         public string Unit { get => _unit; set => SetField(ref _unit, value); }
 
-        // 归属的轴控制器（在「轴控制器」页面配置），为空表示未指定
+        // 归属的控制器（在「控制器」页面配置），为空表示未指定
         private string _controller = string.Empty;
         public string Controller { get => _controller; set => SetField(ref _controller, value); }
 

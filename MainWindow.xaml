@@ -26,7 +26,7 @@
             <Button Tag="AxisController" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource ControllerIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconControllerBrush}"/>
-                        <TextBlock Text="轴控制器" VerticalAlignment="Center"/>
+                        <TextBlock Text="控制器" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Axis" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
