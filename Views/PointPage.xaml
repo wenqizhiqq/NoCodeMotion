@@ -100,7 +100,7 @@
 
     <Grid Background="{StaticResource CanvasBrush}">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="232"/>
+            <ColumnDefinition Width="200"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -110,7 +110,7 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="12,14,12,10">
                     <TextBlock Text="点位表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="一个点位表就是一个工位。可以新增多个工位，每个工位各自保存自己的 4 个轴和点位数据；点下面的条目即可切换。"
+                    <TextBlock Text="一个点位表即一个工位，各自保存 4 轴与点位数据；点条目切换。"
                                FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                 </StackPanel>
 
@@ -183,17 +183,17 @@
                     </Style>
                 </Grid.Style>
 
-                <StackPanel Grid.Row="0" Margin="16">
+                <StackPanel Grid.Row="0" Margin="12,10,12,0">
 
                     <!-- ===== 当前工位标题与重命名 ===== -->
-                    <StackPanel Margin="0,0,0,14">
+                    <StackPanel Margin="0,0,0,8">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <Path Data="{StaticResource PointIcon}" Width="17" Height="17" Stretch="Uniform"
                                   Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding SelectedItem.Name}" FontSize="20" FontWeight="SemiBold"
                                        Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock Text="当前工位的轴与点位配置：上方为该工位所用的 4 个轴（选轴 + 使能 / 回原 / 寸动 / JOG），下方表格逐行维护该工位的点位数据。切换左侧工位后，这里的内容会随之切换。"
+                        <TextBlock Text="当前工位的 4 个轴与逐行点位数据；切换左侧工位即切换此处内容。"
                                    FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                         <DockPanel LastChildFill="False" Margin="0,10,0,0">
                             <TextBlock DockPanel.Dock="Left" Text="工位名称" VerticalAlignment="Center" Margin="0,0,8,0"
@@ -206,7 +206,7 @@
 
                     <!-- ===== 轴控制 ===== -->
                     <TextBlock Text="轴控制" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,4"/>
-                    <TextBlock Text="为本工位的 4 个槽位各选择一个轴，然后对该轴进行使能、回原、寸动或 JOG 移动。轴的选择只影响当前工位。"
+                    <TextBlock Text="为 4 个槽位各选一个轴，进行使能 / 回原 / 寸动 / JOG。选择仅作用于当前工位。"
                                FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                     <ItemsControl ItemsSource="{Binding AxisStates}" ItemTemplate="{StaticResource AxisCardTemplate}">
@@ -217,16 +217,38 @@
                         </ItemsControl.ItemsPanel>
                     </ItemsControl>
 
-                    <DockPanel LastChildFill="False" Margin="6,10,6,4">
-                        <TextBlock DockPanel.Dock="Left" Text="寸动步长" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                        <TextBox DockPanel.Dock="Left" Text="{Binding InchStep, UpdateSourceTrigger=PropertyChanged}" Width="72" Style="{StaticResource PointCellTextBoxStyle}"/>
-                        <TextBlock DockPanel.Dock="Left" Text="JOG 步长" VerticalAlignment="Center" Margin="18,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                        <TextBox DockPanel.Dock="Left" Text="{Binding JogStep, UpdateSourceTrigger=PropertyChanged}" Width="72" Style="{StaticResource PointCellTextBoxStyle}"/>
+                    <DockPanel LastChildFill="False" Margin="6,8,6,4" VerticalAlignment="Center">
+                        <TextBlock DockPanel.Dock="Left" Text="寸动步长" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5"/>
+                        <Border DockPanel.Dock="Left" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Width="86" Height="30" Margin="0,0,16,0" VerticalAlignment="Center">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBox Text="{Binding InchStep, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" CaretBrush="{StaticResource AccentBrush}" SelectionBrush="{StaticResource AccentSoftBrush}" FocusVisualStyle="{x:Null}"/>
+                        </Border>
+                        <TextBlock DockPanel.Dock="Left" Text="JOG 步长" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5"/>
+                        <Border DockPanel.Dock="Left" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Width="86" Height="30" Margin="0,0,0,0" VerticalAlignment="Center">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBox Text="{Binding JogStep, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" CaretBrush="{StaticResource AccentBrush}" SelectionBrush="{StaticResource AccentSoftBrush}" FocusVisualStyle="{x:Null}"/>
+                        </Border>
                     </DockPanel>
 
                     <!-- ===== 点位列表 ===== -->
-                    <TextBlock Text="点位列表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,4"/>
-                    <TextBlock Text="每行一个点位：第一列为点位名称，其后依次为 4 个轴的目标位置，最后为 4 个轴的目标速度。在上方选择轴后，对应列头会显示轴名。行末「移动」按确认后将 4 轴移到该点位目标位置；「保存」按确认后将当前位置存回该行单元。"
+                    <TextBlock Text="点位列表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,10,0,4"/>
+                    <TextBlock Text="每行一个点位：名称 + 4 轴目标位置 + 4 轴目标速度（列头显示轴名）。行末「移动」移到该点位，「保存」存回当前位置。"
                                FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                     <!-- 工具栏：添加 / 删除点位（作用于当前工位） -->
@@ -256,7 +278,7 @@
                 </StackPanel>
 
                 <!-- 点位表：占满剩余高度，使用自身内部滚动条，列头固定不随页面滚动 -->
-                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True" Margin="16,0,16,16">
+                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True" Margin="12,0,12,12">
                         <DataGrid ItemsSource="{Binding CurrentPoints}"
                                   SelectedItem="{Binding SelectedPoint, Mode=TwoWay}"
                                   RowStyle="{StaticResource PointRowStyle}"
@@ -270,7 +292,7 @@
                                   HeadersVisibility="Column"
                                   BorderThickness="0"
                                   Background="Transparent"
-                                  RowHeight="28"
+                                  RowHeight="26"
                                   FontSize="12">
                             <DataGrid.Columns>
                                 <DataGridTemplateColumn Header="点位名称" Width="130">
@@ -382,7 +404,7 @@
                 </Grid>
 
                 <!-- 编译时序结果面板：点击「编译时序」后显示同周期/分辨率/资源争用冲突 -->
-                <Border Grid.Row="1" Padding="12" Margin="16,0,16,16">
+                <Border Grid.Row="1" Padding="12" Margin="12,0,12,12">
                         <Border.Style>
                             <Style TargetType="Border" BasedOn="{StaticResource CardBorderStyle}">
                                 <Setter Property="Visibility" Value="Collapsed"/>

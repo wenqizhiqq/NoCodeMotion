@@ -179,40 +179,40 @@
     </Style>
 
     <DataTemplate x:Key="AxisCardTemplate">
-        <Border Style="{DynamicResource CardBorderStyle}" Margin="6" Padding="12" Width="236">
+        <Border Style="{DynamicResource CardBorderStyle}" Margin="4" Padding="8" Width="196">
             <StackPanel>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,10">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
                     <Path Data="{StaticResource PointIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                     <TextBlock FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center">
                         <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
                             <Binding Path="AxisName"/><Binding Source=""/></MultiBinding></TextBlock.Text>
                     </TextBlock>
                 </StackPanel>
-                <DockPanel LastChildFill="True" Margin="0,0,0,8">
+                <DockPanel LastChildFill="True" Margin="0,0,0,5">
                     <TextBlock DockPanel.Dock="Left" Text="选择轴" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
                     <ComboBox ItemsSource="{x:Static svc:Catalog.AxisNames}"
                               SelectedItem="{Binding AxisName, Mode=TwoWay}"
                               Style="{DynamicResource CellComboStyle}"/>
                 </DockPanel>
-                <DockPanel LastChildFill="True" Margin="0,0,0,8">
+                <DockPanel LastChildFill="True" Margin="0,0,0,5">
                     <TextBlock DockPanel.Dock="Left" Text="当前位置" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
                     <TextBlock Text="{Binding CurrentPosition, StringFormat={}{0}}" HorizontalAlignment="Right" VerticalAlignment="Center"
                                Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
                 </DockPanel>
-                <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8">
+                <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,5">
                     <Run Text="使能 "/>
                     <Run Text="{Binding Enabled, Converter={StaticResource BoolToZh}}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                     <Run Text="    回原 "/>
                     <Run Text="{Binding Homed, Converter={StaticResource BoolToZh}}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                 </TextBlock>
-                <UniformGrid Columns="2" Margin="0,0,0,8">
+                <UniformGrid Columns="2" Margin="0,0,0,5">
                     <Button Command="{Binding DataContext.EnableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding Index}" Style="{DynamicResource TtPillBlueBtn}" Content="使能"/>
                     <Button Command="{Binding DataContext.HomeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding Index}" Style="{DynamicResource TtPillGrayBtn}" Content="回原"/>
                 </UniformGrid>
                 <TextBlock Text="寸动（每次移动寸动步长）" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4"/>
-                <UniformGrid Columns="2" Margin="0,0,0,8">
+                <UniformGrid Columns="2" Margin="0,0,0,5">
                     <Button Command="{Binding DataContext.InchCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtPillOrangeBtn}" Content="− 减"/>
                     <Button Command="{Binding DataContext.InchCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
