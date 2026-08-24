@@ -1,3 +1,4 @@
+using System.Text;
 using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
@@ -42,34 +43,58 @@ namespace NoCodeMotion.ViewModels
 
         private void AutoDetect()
         {
-            // 先释放旧句柄，再强制重新扫描（插好卡 / 装好驱动后可点此重连）
-            LtdmcCard.Close();
-            var status = HardwareSetup.Reconnect();
-            var count = LtdmcCard.CardCount;
+            var sb = new StringBuilder();
+            int added = 0;
 
-            if (count > 0)
+            // 1) 雷赛（已集成真实对接）：重连并扫描真实卡数量
+            LtdmcCard.Close();
+            var leadStatus = HardwareSetup.Reconnect();
+            int leadCards = LtdmcCard.CardCount;
+            if (leadCards > 0)
             {
-                int added = 0;
-                for (int i = 0; i < count; i++)
+                for (int i = 0; i < leadCards; i++)
                 {
-                    var name = $"控制卡{Items.Count + 1}";
                     Items.Add(new AxisControllerItem
                     {
                         Kind = "控制卡",
                         Vendor = "雷赛",
+                        BusType = "脉冲",
                         CardNo = i,
-                        Name = name
+                        Name = $"控制卡{Items.Count + 1}"
                     });
                     added++;
                 }
-                Counter = Items.Count;
-                if (Items.Count > 0) SelectedItem = Items[Items.Count - 1];
-                DetectMessage = $"自动识别完成：检测到 {count} 张控制卡，已添加 {added} 个控制器。";
+                sb.AppendLine($"雷赛：检测到 {leadCards} 张控制卡，已登记。");
             }
             else
             {
-                DetectMessage = "未检测到控制卡。" + status;
+                sb.AppendLine("雷赛：未检测到控制卡。" + leadStatus);
             }
+
+            // 2) 其它主流厂商：按驱动库（DLL）是否存在识别，驱动在即登记控制器并提示待接入对接
+            foreach (var v in CardVendorRegistry.Vendors)
+            {
+                if (v.Vendor == "雷赛") continue;            // 雷赛已在上面真实扫描
+                if (!CardVendorRegistry.DllPresent(v)) continue;
+                string bus = v.BusTypes.Length > 0 ? CardVendorRegistry.BusTypeName(v.BusTypes[0]) : "其它";
+                Items.Add(new AxisControllerItem
+                {
+                    Kind = "控制卡",
+                    Vendor = v.Vendor,
+                    BusType = bus,
+                    Name = $"{v.Vendor}控制器{Items.Count + 1}",
+                    Description = "驱动已安装，待接入实时对接"
+                });
+                added++;
+                sb.AppendLine($"{v.DisplayName}：驱动已安装（{string.Join(" / ", v.DllNames)}），已登记；实时对接待接入。");
+            }
+
+            Counter = Items.Count;
+            if (Items.Count > 0) SelectedItem = Items[Items.Count - 1];
+
+            DetectMessage = added > 0
+                ? $"自动识别完成：共登记 {added} 个控制器。\n" + sb.ToString().TrimEnd()
+                : "未检测到任何控制卡或驱动。请确认控制卡已插好、驱动已安装，并把对应 DLL 放到程序目录。";
             HardwareLog.Write("[硬件识别] " + DetectMessage);
         }
 

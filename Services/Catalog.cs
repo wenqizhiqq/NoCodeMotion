@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using NoCodeMotion.Models;
+using NoCodeMotion.Services.Hardware;
 
 namespace NoCodeMotion.Services
 {
@@ -19,6 +20,8 @@ namespace NoCodeMotion.Services
         public static ObservableCollection<string> AllNames { get; } = new();
         public static ObservableCollection<string> PointNames { get; } = new();
         public static ObservableCollection<string> ControllerNames { get; } = new();
+        public static ObservableCollection<string> VendorNames { get; } = new();
+        public static ObservableCollection<string> BusTypeNames { get; } = new();
 
         public static void SetAxis(IEnumerable<string> names) => Set(AxisNames, names);
         public static void SetIo(IEnumerable<string> names) => Set(IoNames, names);
@@ -27,6 +30,22 @@ namespace NoCodeMotion.Services
         public static void SetVariable(IEnumerable<string> names) => Set(VariableNames, names);
         public static void SetPoint(IEnumerable<string> names) => Set(PointNames, names);
         public static void SetController(IEnumerable<string> names) => Set(ControllerNames, names);
+        public static void SetVendor(IEnumerable<string> names) => Set(VendorNames, names);
+        public static void SetBusType(IEnumerable<string> names) => Set(BusTypeNames, names);
+
+        /// <summary>从主流运动控制卡厂商登记表刷新「品牌 / 总线类型」下拉（脉冲 + 总线全覆盖）。</summary>
+        public static void RefreshControllerStandards()
+        {
+            SetVendor(CardVendorRegistry.Vendors.Select(v => v.Vendor));
+            var buses = new List<string>();
+            foreach (var v in CardVendorRegistry.Vendors)
+                foreach (var b in v.BusTypes)
+                {
+                    string n = CardVendorRegistry.BusTypeName(b);
+                    if (!buses.Contains(n)) buses.Add(n);
+                }
+            SetBusType(buses);
+        }
 
         private static void Set(ObservableCollection<string> target, IEnumerable<string> names)
         {
@@ -62,6 +81,8 @@ namespace NoCodeMotion.Services
             // 点位名称来自所有点位表（工位）下的全部点位行
             SetPoint(data.PointTables.SelectMany(t => t.Points).Select(p => p.Name));
             SetController(data.Controllers.Select(c => c.Name));
+            // 刷新控制器页「品牌 / 总线类型」下拉（主流脉冲卡 + 总线主站厂商）
+            RefreshControllerStandards();
         }
     }
 }

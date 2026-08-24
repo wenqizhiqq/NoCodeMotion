@@ -20,6 +20,11 @@ namespace NoCodeMotion.Models
         public int CardNo { get => _cardNo; set => SetField(ref _cardNo, value); }
         public int AxisCount { get => _axisCount; set => SetField(ref _axisCount, value); }
         public string Connection { get => _connection; set => SetField(ref _connection, value); }
+
+        /// <summary>总线类型：脉冲 / EtherCAT / CANopen / Modbus / Profinet / 其它。脉冲卡按脉冲输出驱动，总线卡走实时以太网 / 现场总线。</summary>
+        private string _busType = "脉冲";
+        public string BusType { get => _busType; set => SetField(ref _busType, value); }
+
         public string Description { get => _description; set => SetField(ref _description, value); }
 
         /// <summary>类型：控制卡（运动控制卡）或 扩展IO（IO 扩展模块）。</summary>

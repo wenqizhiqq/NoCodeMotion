@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:svc="clr-namespace:NoCodeMotion.Services"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
     <local:EditorPage ShowDefaultAddButton="False">
@@ -57,12 +58,16 @@
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="品牌"/>
-                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.Vendor}" SelectedValuePath="Content">
-                                <ComboBoxItem Content="雷赛"/>
-                                <ComboBoxItem Content="固高"/>
-                                <ComboBoxItem Content="虚拟"/>
-                                <ComboBoxItem Content="自定义"/>
-                            </ComboBox>
+                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" IsEditable="True"
+                                      ItemsSource="{x:Static svc:Catalog.VendorNames}"
+                                      SelectedItem="{Binding SelectedItem.Vendor, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="总线类型"/>
+                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" IsEditable="True"
+                                      ItemsSource="{x:Static svc:Catalog.BusTypeNames}"
+                                      SelectedItem="{Binding SelectedItem.BusType, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
