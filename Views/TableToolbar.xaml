@@ -5,10 +5,10 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
-             d:DesignHeight="48" d:DesignWidth="700">
+             d:DesignHeight="48" d:DesignWidth="900">
     <Border Style="{StaticResource ToolbarStyle}" Margin="0,0,-235,0">
         <StackPanel Orientation="Horizontal">
-           
+
             <Button Style="{StaticResource TtAddBtn}" Command="{Binding AddCommand}">
                 <StackPanel Orientation="Horizontal">
                     <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
@@ -63,14 +63,47 @@
                     <TextBlock Text="Excel编辑" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
-            <TextBlock Style="{StaticResource TtCountText}">
-                <TextBlock.Inlines>
-                    <Run Text="共 "/>
-                    <Run Text="{Binding Count}"/>
-                    <Run Text=" "/>
-                    <Run Text="{Binding CountLabel}"/>
-                </TextBlock.Inlines>
-            </TextBlock>
+
+            <!-- 搜索（仅定位/导航，不筛选隐藏行）：标签 + 输入框 + 命中信息 + 上一条/下一条/清空 -->
+            <Grid Margin="6,0,0,0" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="搜索" VerticalAlignment="Center" Margin="0,0,6,0"
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
+                <TextBox x:Name="SearchBox" Grid.Column="1"
+                         Style="{StaticResource TtSearchBox}"
+                         Tag="{Binding SearchPlaceholder, RelativeSource={RelativeSource AncestorType=local:TableToolbar}}"
+                         Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, RelativeSource={RelativeSource AncestorType=local:TableToolbar}}"
+                         KeyDown="SearchBox_KeyDown"/>
+                <TextBlock x:Name="MatchInfoText" Grid.Column="2"
+                           Style="{StaticResource TtMatchInfo}"
+                           Text="{Binding MatchInfo, RelativeSource={RelativeSource AncestorType=local:TableToolbar}}"/>
+                <Button x:Name="btnPrevSearch" Grid.Column="3"
+                        Style="{StaticResource TtIconBtn}"
+                        Click="BtnPrevSearch_Click"
+                        ToolTip="上一条匹配 (Shift+Enter)">
+                    <Path Data="{StaticResource PrevIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                </Button>
+                <Button x:Name="btnNextSearch" Grid.Column="4"
+                        Style="{StaticResource TtIconBtn}"
+                        Click="BtnNextSearch_Click"
+                        ToolTip="下一条匹配 (Enter)">
+                    <Path Data="{StaticResource NextIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                </Button>
+                <Button x:Name="btnClearSearch" Grid.Column="5"
+                        Style="{StaticResource TtIconBtn}"
+                        Click="BtnClearSearch_Click"
+                        ToolTip="清空搜索">
+                    <Path Data="{StaticResource XCloseIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                </Button>
+            </Grid>
+
         </StackPanel>
     </Border>
 </UserControl>
