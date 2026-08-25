@@ -283,6 +283,38 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
+                                    <!-- 专利：时序标记（相对工艺起点的触发时刻，如 T+5ms / T+0ms / 跟随） -->
+                                    <DataGridTemplateColumn Header="时序标记" Width="96">
+                                        <DataGridTemplateColumn.HeaderStyle>
+                                            <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource FlowHeaderStyle}">
+                                                <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                                <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}"/>
+                                            </Style>
+                                        </DataGridTemplateColumn.HeaderStyle>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding TimingMark, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource FlowCellTextBoxStyle}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- 专利：同步组（需在同一总线周期边界原子触发的多步归并为同一组，空=独立执行） -->
+                                    <DataGridTemplateColumn Header="同步组" Width="96">
+                                        <DataGridTemplateColumn.HeaderStyle>
+                                            <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource FlowHeaderStyle}">
+                                                <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                                <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}"/>
+                                            </Style>
+                                        </DataGridTemplateColumn.HeaderStyle>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding SyncGroup, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource FlowCellTextBoxStyle}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
                                     <DataGridTemplateColumn Header="超时" Width="130">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
