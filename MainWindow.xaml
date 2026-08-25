@@ -65,16 +65,22 @@
                         <TextBlock Text="料盘" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Flow" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Camera" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource FlowIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconFlowBrush}"/>
-                        <TextBlock Text="流程" VerticalAlignment="Center"/>
+                        <Path Data="{StaticResource CameraIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconCameraBrush}"/>
+                        <TextBlock Text="相机" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Variable" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource VariableIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconVariableBrush}"/>
                         <TextBlock Text="变量" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Tag="Flow" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource FlowIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconFlowBrush}"/>
+                        <TextBlock Text="流程" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Tag="Engineer" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">

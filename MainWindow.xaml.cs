@@ -20,8 +20,9 @@ namespace NoCodeMotion
             ["Point"] = () => new PointPage(),
             ["Comm"] = () => new CommPage(),
             ["Tray"] = () => new TrayPage(),
-            ["Flow"] = () => new FlowPage(),
             ["Variable"] = () => new VariablePage(),
+            ["Flow"] = () => new FlowPage(),
+            ["Camera"] = () => new CameraPage(), 
             ["Engineer"] = () => new EngineerPage(),
             ["Operator"] = () => new OperatorPage(),
         };
