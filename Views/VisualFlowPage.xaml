@@ -1,0 +1,304 @@
+<UserControl x:Class="NoCodeMotion.Views.VisualFlowPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:NoCodeMotion.Views"
+             mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1100">
+
+    <UserControl.Resources>
+        <!-- 视觉流程步骤的工具类型 -->
+        <x:Array x:Key="VisualStepTypes" Type="sys:String">
+            <sys:String>图像采集</sys:String>
+            <sys:String>模板匹配</sys:String>
+            <sys:String>缺陷检测</sys:String>
+            <sys:String>测量</sys:String>
+            <sys:String>通讯</sys:String>
+        </x:Array>
+
+        <!-- 类型专属参数组：按 SelectedStep.StepType 显隐 -->
+        <Style x:Key="VisualStepGroupCard" TargetType="Border" BasedOn="{StaticResource AppleGroupCard}">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="图像采集">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="模板匹配">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="缺陷检测">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="测量">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="通讯">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- 视觉流程详情：DataContext 由 FlowPage 注入为 VisualFlowDetailViewModel；
+         VM.Steps / VM.Name 已绑到主选中 FlowItem 的 VisualSteps / Name，所以这里的增删直接落进主流程项。 -->
+    <Grid Background="{StaticResource CanvasBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 状态条：显示主选中视觉流程的名称与步骤数 -->
+        <Border Grid.Row="0" Margin="14,12,14,8" Padding="10,8"
+                Background="{StaticResource AccentSoftBrush}" CornerRadius="8">
+            <DockPanel>
+                <Path Data="{StaticResource VisualFlowIcon}" Width="14" Height="14"
+                      Stretch="Uniform" Fill="{StaticResource AccentBrush}"
+                      Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap">
+                    <TextBlock.Text>
+                        <MultiBinding StringFormat="视觉流程：{0}　·　步骤 {1} 个">
+                            <Binding Path="Name"/>
+                            <Binding Path="Steps.Count"/>
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
+            </DockPanel>
+        </Border>
+
+        <!-- 步骤列表 + 参数面板 -->
+        <Grid Grid.Row="1" Margin="14,4,14,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 左：步骤列表（增删） -->
+            <Grid Grid.Column="0" Margin="0,0,12,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                    <Button Command="{Binding AddStepCommand}"
+                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform"
+                                  Margin="0,0,5,0" VerticalAlignment="Center"
+                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            <TextBlock Text="添加步骤" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding DeleteStepCommand}" Style="{StaticResource ToolButtonStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform"
+                                  Margin="0,0,5,0" VerticalAlignment="Center"
+                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            <TextBlock Text="删除步骤" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
+                    <ListBox ItemsSource="{Binding Steps}"
+                             SelectedItem="{Binding SelectedStep, Mode=TwoWay}"
+                             Style="{StaticResource ProjectListStyle}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <ComboBox Grid.Column="1" MinWidth="96" Margin="8,0,0,0"
+                                              ItemsSource="{StaticResource VisualStepTypes}"
+                                              SelectedItem="{Binding StepType, UpdateSourceTrigger=PropertyChanged}"
+                                              Style="{StaticResource CellComboStyle}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+            </Grid>
+
+            <!-- 右：参数面板（按步骤类型显隐） -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- 通用参数（始终可见） -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="通用参数"/>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="步骤名"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.Name, UpdateSourceTrigger=PropertyChanged}"
+                                         IsEnabled="{Binding HasStep}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="启用"/>
+                                <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center"
+                                          IsChecked="{Binding SelectedStep.Enabled, UpdateSourceTrigger=PropertyChanged}"
+                                          IsEnabled="{Binding HasStep}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="相机编号"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.CameraId, UpdateSourceTrigger=PropertyChanged}"
+                                         IsEnabled="{Binding HasStep}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 图像采集 -->
+                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像采集参数"/>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="曝光 (ms)"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.ExposureMs, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="分辨率"/>
+                                <Grid DockPanel.Dock="Right">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Style="{StaticResource AppleTextField}"
+                                             Text="{Binding SelectedStep.Width, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBlock Grid.Column="1" Text=" × " VerticalAlignment="Center" Margin="4,0"
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBox Grid.Column="2" Style="{StaticResource AppleTextField}"
+                                             Text="{Binding SelectedStep.Height, UpdateSourceTrigger=PropertyChanged}"/>
+                                </Grid>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="保存路径"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.SavePath, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 模板匹配 -->
+                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="模板匹配参数"/>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="模板路径"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.TemplatePath, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="分数阈值"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.ScoreThreshold, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="角度范围 (°)"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.AngleRange, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 缺陷检测 -->
+                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="缺陷检测参数"/>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="算法"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.Algorithm, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="最小面积"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.MinArea, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="最大面积"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.MaxArea, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="阈值"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.Threshold, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 测量 -->
+                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="测量参数"/>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="测量模式"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.MeasureMode, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="标定系数"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.Calibration, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="单位"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.Unit, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 通讯 -->
+                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="通讯参数"/>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="协议"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.Protocol, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="目标"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.Target, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="发送内容"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.Content, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>
