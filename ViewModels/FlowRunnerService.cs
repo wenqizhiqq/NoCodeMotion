@@ -10,7 +10,7 @@ using NoCodeMotion.Services;
 
 namespace NoCodeMotion.ViewModels
 {
-    /// <summary>
+    /// <summary> 
     /// 并发流程运行控制：跨流程共享的停止 / 急停 / 暂停标志与变量表。
     /// 由 OperatorViewModel 在每个运行周期创建并传入 FlowRunnerService。
     /// </summary>
