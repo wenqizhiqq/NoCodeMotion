@@ -22,6 +22,7 @@ using MoonSharp.Interpreter.Debugging;
 using NoCodeMotion.Editing;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using NoCodeMotion.ViewModels;
 
 namespace NoCodeMotion.Views
 {
@@ -67,6 +68,8 @@ namespace NoCodeMotion.Views
             RebuildInsertPanel();
             UpdateCaretStatus();
             SetSessionState(SessionState.Idle);
+            LuaRunMonitor.LineChanged += OnMonitorLine;
+            LuaRunMonitor.RunEnded += OnMonitorEnded;
             AppendLog("就绪。F5 运行，F10 单步，F9 断点。", LogKind.Info);
 
             _syntaxTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -578,6 +581,7 @@ namespace NoCodeMotion.Views
             _session.Log += OnSessionLog;
             _session.Paused += OnSessionPaused;
             _session.Ended += OnSessionEnded;
+            _session.LineStepped += line => LuaRunMonitor.Report(LuaItem, line);
             _session.SetBreakpoints(_bpMargin.Breakpoints);
 
             AppendLog(breakAtEntry ? "▶ 开始调试（停在第一条语句）" : "▶ 开始运行", LogKind.Info);
@@ -648,6 +652,42 @@ namespace NoCodeMotion.Views
             _lineTimeMargin.SetLineTimes(_session.GetLineTimesSnapshot());
             InspectAtCaret(false);
         }));
+
+        // —— Operator 运行期跳行高亮（订阅 LuaRunMonitor，仅高亮当前选中的流程）——
+        private void OnMonitorLine(FlowItem flow, int line)
+        {
+            // 仅高亮当前编辑器展示的流程：引用相等（同一 FlowItem 实例）或名称相同都算命中，
+            // 避免任何重新绑定导致实例引用变化而把整行高亮过滤掉。
+            if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
+            // 用默认（Normal）优先级，与单步调试的高亮路径一致；
+            // Background 优先级在持续运行（后台线程密集回调）时易被饿死，导致运行行不刷新。
+            Dispatcher.BeginInvoke(new Action(() => HighlightLine(line)));
+        }
+
+        private void OnMonitorEnded(FlowItem flow)
+        {
+            if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
+            Dispatcher.BeginInvoke(new Action(ClearCurrentLine));
+        }
+
+        private void HighlightLine(int line)
+        {
+            if (line <= 0 || line > Editor.Document.LineCount) return;
+            if (line == _currentLineRenderer.Line) return; // 同一行无需重复重绘/滚动，降低持续运行时的 UI 抖动
+            _currentLineRenderer.Line = line;
+            _bpMargin.SetCurrentLine(line);
+            Editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
+            Editor.ScrollToLine(line);
+            Editor.TextArea.Caret.Line = line;
+            Editor.TextArea.Caret.Column = 1;
+        }
+
+        private void ClearCurrentLine()
+        {
+            _currentLineRenderer.Line = 0;
+            _bpMargin.SetCurrentLine(0);
+            Editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
+        }
 
         /// <summary>仅刷新运行时变量索引（供补全 / 悬停提示使用），不再绑定到右侧面板。</summary>
         private void RefreshVarIndex(List<VarInfo> locals, List<VarInfo> globals)

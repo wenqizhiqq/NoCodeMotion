@@ -88,6 +88,8 @@ namespace NoCodeMotion.Services
 
         /// <summary>脚本结束。在后台线程触发。</summary>
         public event Action<ExecutionEndedInfo> Ended;
+        /// <summary>每真实源行执行时触发（持续运行模式也逐行回调），供编辑器实时跳行高亮。</summary>
+        public event Action<int> LineStepped;
 
         public SessionState State { get; private set; } = SessionState.Idle;
 
@@ -346,6 +348,9 @@ namespace NoCodeMotion.Services
             bool isBreakpoint = sourceref != null && sourceref.Breakpoint;
             bool userPause = _pauseRequested;
             bool hasError = _pendingError != null;
+            // 广播当前执行行（持续运行模式逐行回调，编辑器据此实时跳行高亮）
+            if (!hasError && sourceref != null && sourceref.FromLine > 0)
+                LineStepped?.Invoke(sourceref.FromLine);
 
             // 处于“继续运行”模式且不是断点 / 暂停请求 / 错误：放行。
             // 注意：返回 StepOver 而非 Run —— MoonSharp 在 Run 模式下会在 ListenDebugger

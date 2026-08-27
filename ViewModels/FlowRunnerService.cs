@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using MoonSharp.Interpreter.Debugging;
 
 namespace NoCodeMotion.ViewModels
 {
@@ -73,6 +74,16 @@ namespace NoCodeMotion.ViewModels
         public void Dispose() { try { ResumeEvent?.Dispose(); } catch { } }
     }
 
+    /// <summary>跨组件广播 Lua 流程的当前执行行，供流程页的 LuaEditorView 实时跳行高亮。
+    /// 运行器用独立 LuaDebugSession 跑，编辑器只订阅本监控，按 FlowItem 匹配后高亮，解耦会话实例。</summary>
+    public static class LuaRunMonitor
+    {
+        public static event Action<FlowItem, int> LineChanged;
+        public static event Action<FlowItem> RunEnded;
+        public static void Report(FlowItem flow, int line) => LineChanged?.Invoke(flow, line);
+        public static void ReportEnded(FlowItem flow) => RunEnded?.Invoke(flow);
+    }
+
     /// <summary>
     /// 并发流程执行服务：把 ProjectStore.Data.Flows 里每个 Flow 的「循环开始 / 循环结束」等逻辑区域
     /// 并发执行（每个 Flow 一条后台 Task）。
@@ -81,28 +92,31 @@ namespace NoCodeMotion.ViewModels
     /// </summary>
     public static class FlowRunnerService
     {
-        public static async Task RunAllAsync(
+        public static Task RunAllAsync(
             FlowRunControl ctrl,
             Action<string> log,
             Action<int, string, string> onStep,
             Action<int, string> onFlowDone,
             CancellationToken ct = default)
         {
-            var flows = ProjectStore.Data?.Flows;
-            if (flows == null) return;
-            var tasks = new List<Task>();
-            int idx = 0;
-            foreach (var flow in flows)
+            var flows = ProjectStore.Data?.Flows?.ToList() ?? new List<FlowItem>();
+            if (flows.Count == 0) return Task.CompletedTask;
+            var done = new CountdownEvent(flows.Count);
+            for (int i = 0; i < flows.Count; i++)
             {
-                int i = idx++;
-                tasks.Add(Task.Run(() =>
+                int idx = i;
+                var flow = flows[i];
+                var th = new Thread(() =>
                 {
-                    try { RunOneFlow(flow, i, ctrl, log, onStep, onFlowDone, ct); }
+                    try { RunOneFlow(flow, idx, ctrl, log, onStep, onFlowDone, ct); }
                     catch (OperationCanceledException) { /* 正常中止 */ }
                     catch (Exception ex) { log?.Invoke($"流程「{flow?.Name}」运行异常：{ex.Message}"); }
-                }, ct));
+                    finally { done.Signal(); }
+                })
+                { IsBackground = true, Name = $"Flow-{idx}" };
+                th.Start();
             }
-            await Task.WhenAll(tasks).ConfigureAwait(false);
+            return Task.Run(() => done.Wait());
         }
 
         private static void RunOneFlow(FlowItem flow, int index, FlowRunControl ctrl,
@@ -113,8 +127,7 @@ namespace NoCodeMotion.ViewModels
             var name = flow.Name ?? "(未命名流程)";
             if (flow.Kind.ToString() == "Lua")
             {
-                log?.Invoke($"流程「{name}」为 Lua 脚本流程，Operator 运行器暂不支持，已跳过。");
-                onFlowDone?.Invoke(index, name);
+                RunOneFlowLua(flow, index, ctrl, log, onStep, onFlowDone);
                 return;
             }
             var steps = flow.Steps?.ToList();
@@ -126,10 +139,61 @@ namespace NoCodeMotion.ViewModels
             }
             var exec = new FlowExecutor(flow, index, steps, ctrl, log, onStep);
             log?.Invoke($"流程「{name}」开始连续运行（{steps.Count} 步，直到停止）。");
-            exec.Run(ct);
+            try { exec.Run(ct); }
+            finally { exec.ClearCurrent(); }
             log?.Invoke(ctrl.EStopRequested
                 ? $"流程「{name}」已急停。"
                 : ctrl.StopRequested ? $"流程「{name}」已停止。" : $"流程「{name}」运行结束。");
+            onFlowDone?.Invoke(index, name);
+        }
+
+        /// <summary>Lua 脚本流程：复用 LuaDebugSession（自带完整硬件 API 环境与逐行调试）连续运行，
+        /// 并把当前执行行广播给 LuaRunMonitor，供流程页编辑器实时跳行高亮。暂停/停止映射到会话的 RequestPause/Resume/Stop。</summary>
+        private static void RunOneFlowLua(FlowItem flow, int index, FlowRunControl ctrl,
+            Action<string> log, Action<int, string, string> onStep, Action<int, string> onFlowDone)
+        {
+            var name = flow.Name ?? "(未命名流程)";
+            while (!ctrl.StopRequested && !ctrl.EStopRequested)
+            {
+                var ended = new ManualResetEventSlim(false);
+                try
+                {
+                    var session = new LuaDebugSession();
+                    session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}");
+                    session.LineStepped += line =>
+                    {
+                        LuaRunMonitor.Report(flow, line);
+                        onStep?.Invoke(index, name, $"Lua 行 {line}");
+                    };
+                    session.Ended += info =>
+                    {
+                        if (info.IsError) log?.Invoke($"[Lua:{name}] 运行错误（行 {info.ErrorLine}）：{info.Message}");
+                        ended.Set();
+                    };
+                    log?.Invoke($"流程「{name}」开始连续运行（Lua，直到停止）。");
+                    session.Start(flow.LuaSource ?? "", false);
+                    var watcher = new Thread(() =>
+                    {
+                        while (!ended.Wait(40))
+                        {
+                            if (ctrl.EStopRequested || ctrl.StopRequested) { session?.Stop(); break; }
+                            if (ctrl.PauseRequested)
+                            {
+                                session?.RequestPause();
+                                while (ctrl.PauseRequested && !ended.Wait(40)) { }
+                                if (!ended.IsSet && !ctrl.PauseRequested) session?.Resume(DebuggerAction.ActionType.Run);
+                            }
+                        }
+                    }) { IsBackground = true, Name = $"LuaWatch-{index}" };
+                    watcher.Start();
+                    ended.Wait();
+                }
+                catch (Exception ex) { log?.Invoke($"流程「{name}」Lua 运行异常：{ex.Message}"); }
+                finally { LuaRunMonitor.ReportEnded(flow); }
+                if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。"); break; }
+                if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。"); break; }
+                Thread.Sleep(1);
+            }
             onFlowDone?.Invoke(index, name);
         }
     }
@@ -145,6 +209,7 @@ namespace NoCodeMotion.ViewModels
         private readonly Action<int, string, string> _onStep;
         private readonly IHardwareBridge _bridge;
         private long _guard;
+        private FlowStep _lastCurrent;
 
         public FlowExecutor(FlowItem flow, int index, List<FlowStep> steps, FlowRunControl ctrl,
             Action<string> log, Action<int, string, string> onStep)
@@ -163,6 +228,16 @@ namespace NoCodeMotion.ViewModels
                 SafeSleep(1, ct); // 每轮让出 1ms：避免后台线程打满 CPU，并给 UI 线程喘息窗口（不卡主线程）
                 ExecBlock(0, _steps.Count, ct);
             }
+        }
+
+        /// <summary>运行结束/中止后清除当前行高亮。</summary>
+        public void ClearCurrent()
+        {
+            UiSet(() =>
+            {
+                if (_lastCurrent != null) _lastCurrent.IsCurrent = false;
+                _lastCurrent = null;
+            });
         }
 
         private void AbortCheck(CancellationToken ct)
@@ -188,6 +263,12 @@ namespace NoCodeMotion.ViewModels
                 var s = _steps[i];
                 var logic = (s.Logic ?? "").Trim();
                 _onStep?.Invoke(_index, _flow.Name ?? "", $"第 {i + 1}/{_steps.Count} 步 · {logic}");
+                UiSet(() =>
+                {
+                    if (_lastCurrent != null && !ReferenceEquals(_lastCurrent, s)) _lastCurrent.IsCurrent = false;
+                    s.IsCurrent = true;
+                    _lastCurrent = s;
+                });
 
                 switch (logic)
                 {
