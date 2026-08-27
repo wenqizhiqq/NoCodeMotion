@@ -46,7 +46,7 @@ namespace NoCodeMotion.ViewModels
         private bool _isPaused;
         private int _runIndex = -1;
         private DateTime _runStart;
-        private string _statusText = "点「启动」开始运行（按全部工位顺序连续执行）。";
+        private string _statusText = "点「启动」开始运行（按全部流程并发执行）。";
 
         public ObservableCollection<PointTable> Tables { get; }
 
@@ -97,12 +97,12 @@ namespace NoCodeMotion.ViewModels
         }
 
         /// <summary>是否允许启动：未运行、未急停、已选工位且工位至少有 1 个点位。</summary>
-        public bool CanRun => !IsRunning && !EStopped && HasAnyRunnableTable();
+        public bool CanRun => !IsRunning && !EStopped && (ProjectStore.Data.Flows.Count > 0 || HasAnyRunnableTable());
 
         private bool HasAnyRunnableTable() => Tables != null && Tables.Any(t => t.Points != null && t.Points.Count > 0);
 
         /// <summary>启动/继续按钮可用：未运行未急停且已选工位，或已暂停（点“继续”恢复）。</summary>
-        public bool CanStart => (!IsRunning || IsPaused) && !EStopped && HasAnyRunnableTable();
+        public bool CanStart => (!IsRunning || IsPaused) && !EStopped && (ProjectStore.Data.Flows.Count > 0 || HasAnyRunnableTable());
 
         /// <summary>停止按钮可用：仅在运行时。</summary>
         public bool CanStop => IsRunning;
@@ -231,6 +231,7 @@ namespace NoCodeMotion.ViewModels
         private volatile bool _pauseRequested;
         private readonly ManualResetEventSlim _resumeEvent = new(true);
         private Stopwatch _runSw = new();
+        private FlowRunControl? _flowCtrl;
 
         public OperatorViewModel()
         {
@@ -297,7 +298,7 @@ namespace NoCodeMotion.ViewModels
                 return;
             }
 
-            // 自动模式：后台线程顺序运行（真实驱动机台）
+            // 自动模式
             _stopRequested = false;
             _eStopRequested = false;
             _pauseRequested = false;
@@ -307,12 +308,61 @@ namespace NoCodeMotion.ViewModels
             _runStart = DateTime.Now;
             _runSw.Restart();
             _runIndex = 0;
+            // 优先并发运行全部流程；没有流程时回退到工位顺序运行（兼容旧工程）
+            if (ProjectStore.Data.Flows.Count > 0)
+            {
+                StartFlows();
+                return;
+            }
             // 自动模式：依次运行全部有点位的工作站（按 Tables 列表顺序）
             int runnable = Tables.Count(t => t.Points != null && t.Points.Count > 0);
             AddLog(LogLevel.Info, $"启动运行（自动）：全部 {runnable} 个工位，按顺序连续运行。");
             StatusText = runnable > 0 ? "运行中：按全部工位顺序执行…" : "运行中：无工位可执行。";
             _runThread = new Thread(RunLoop) { IsBackground = true, Name = "OpRun" };
             _runThread.Start();
+        }
+
+        /// <summary>启动 = 并发跑 ProjectStore.Data.Flows 里每个 Flow 的「循环开始/循环结束」等逻辑区域（次数取 SetValue）。
+        /// 通过 FlowRunnerService 为每条流程起一条后台 Task，真实驱动机台；支持暂停 / 停止 / 急停。</summary>
+        private void StartFlows()
+        {
+            var flows = ProjectStore.Data.Flows;
+            if (flows == null || flows.Count == 0) { StatusText = "没有可执行的流程。"; return; }
+            _stopRequested = false;
+            _eStopRequested = false;
+            _pauseRequested = false;
+            _resumeEvent.Set();
+            IsRunning = true;
+            IsPaused = false;
+            _runStart = DateTime.Now;
+            _runSw.Restart();
+
+            var ctrl = new FlowRunControl();
+            ctrl.InitVars();
+            _flowCtrl = ctrl;
+
+            AddLog(LogLevel.Info, $"启动运行（自动）：并发执行 {flows.Count} 个流程。");
+            StatusText = $"运行中：并发执行 {flows.Count} 个流程…";
+
+            _ = FlowRunnerService.RunAllAsync(
+                ctrl,
+                log: msg => Ui(() => AddLog(LogLevel.Info, msg)),
+                onStep: (idx, name, cur) => Ui(() => { StatusText = $"运行中：流程「{name}」{cur}"; }),
+                onFlowDone: (idx, name) => Ui(() => AdvanceProduction()),
+                ct: CancellationToken.None
+            ).ContinueWith(_ => Ui(() =>
+            {
+                IsRunning = false;
+                IsPaused = false;
+                _flowCtrl?.WriteBackVars();
+                if (_eStopRequested)
+                    StatusText = "急停！请复位后重新启动。";
+                else if (_stopRequested)
+                    StatusText = "已停止。";
+                else
+                    StatusText = $"全部流程运行完成：{ProjectStore.Data.Flows.Count} 个流程 / 产量 {TotalCount} 件。";
+                AddLog(LogLevel.Info, "全部流程运行结束。");
+            }), TaskScheduler.Default);
         }
 
         /// <summary>推进一次生产数据采样（手动单步与自动 tick 共用）。</summary>
@@ -331,6 +381,7 @@ namespace NoCodeMotion.ViewModels
             if (!IsRunning && !IsPaused) return;
             _stopRequested = true;
             _resumeEvent.Set();
+            _flowCtrl?.StopRequested = true; _flowCtrl?.ResumeEvent.Set();
             IsRunning = false;
             IsPaused = false;
             StatusText = "已停止。";
@@ -343,6 +394,7 @@ namespace NoCodeMotion.ViewModels
             _eStopRequested = true;
             _stopRequested = true;
             _resumeEvent.Set();
+            _flowCtrl?.EStopRequested = true; _flowCtrl?.StopRequested = true; _flowCtrl?.ResumeEvent.Set();
             // 立即切断所有运动：停轴 + 复位气缸 + 清输出
             var bridge = HardwareBridge.Current;
             try
@@ -380,7 +432,7 @@ namespace NoCodeMotion.ViewModels
             RunElapsedText = "00:00";
             Samples.Clear();
             RebuildChart();
-            StatusText = "已复位，点「启动」运行（按全部工位顺序）。";
+            StatusText = "已复位，点「启动」运行（按全部流程并发）。";
             AddLog(LogLevel.Info, "系统已复位。");
         }
 
@@ -396,6 +448,7 @@ namespace NoCodeMotion.ViewModels
             if (!CanPause) return;
             _pauseRequested = true;
             _resumeEvent.Reset();
+            _flowCtrl.PauseRequested = true; _flowCtrl.ResumeEvent.Reset();
             IsPaused = true;
             StatusText = "已暂停。";
             AddLog(LogLevel.Warn, "运行已暂停。");
@@ -406,6 +459,7 @@ namespace NoCodeMotion.ViewModels
             if (!IsPaused) return;
             _pauseRequested = false;
             _resumeEvent.Set();
+            _flowCtrl.PauseRequested = false; _flowCtrl.ResumeEvent.Set();
             IsPaused = false;
             StatusText = "继续运行。";
             AddLog(LogLevel.Info, "继续运行。");
