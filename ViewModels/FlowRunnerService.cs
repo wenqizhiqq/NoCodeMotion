@@ -138,12 +138,9 @@ namespace NoCodeMotion.ViewModels
                 return;
             }
             var exec = new FlowExecutor(flow, index, steps, ctrl, log, onStep);
-            log?.Invoke($"流程「{name}」开始连续运行（{steps.Count} 步，直到停止）。");
-            try { exec.Run(ct); }
-            finally { exec.ClearCurrent(); }
-            log?.Invoke(ctrl.EStopRequested
-                ? $"流程「{name}」已急停。"
-                : ctrl.StopRequested ? $"流程「{name}」已停止。" : $"流程「{name}」运行结束。");
+            log?.Invoke($"流程「{name}」开始运行（{steps.Count} 步）。");
+            exec.Run(ct);
+            log?.Invoke($"流程「{name}」运行结束。");
             onFlowDone?.Invoke(index, name);
         }
 
@@ -218,17 +215,7 @@ namespace NoCodeMotion.ViewModels
             _bridge = HardwareBridge.Current;
         }
 
-        /// <summary>连续运行整个流程：每跑完一轮（ExecBlock 正常返回）即重来，直到 停止/急停/取消。
-        /// 这正是"流程不断循环运行，除非停止才退出循环"的语义；中途按停止/急停时 AbortCheck 会抛异常跳出。</summary>
-        public void Run(CancellationToken ct)
-        {
-            while (!_ctrl.StopRequested && !_ctrl.EStopRequested && !ct.IsCancellationRequested)
-            {
-                _guard = 0; // 每轮重置防死循环计数（外循环本身是用户期望的"不断循环"）
-                SafeSleep(1, ct); // 每轮让出 1ms：避免后台线程打满 CPU，并给 UI 线程喘息窗口（不卡主线程）
-                ExecBlock(0, _steps.Count, ct);
-            }
-        }
+        public void Run(CancellationToken ct) => ExecBlock(0, _steps.Count, ct);
 
         /// <summary>运行结束/中止后清除当前行高亮。</summary>
         public void ClearCurrent()
@@ -280,7 +267,6 @@ namespace NoCodeMotion.ViewModels
                             for (int r = 0; r < cnt; r++)
                             {
                                 AbortCheck(ct);
-                                SafeSleep(1, ct); // 循环体内每轮让出 1ms，防止紧密循环卡死 UI
                                 ExecBlock(i + 1, bodyEnd, ct);
                             }
                             i = (close > i) ? close + 1 : _steps.Count;
@@ -583,8 +569,7 @@ namespace NoCodeMotion.ViewModels
         private static void UiSet(Action a)
         {
             var app = Application.Current;
-            // 异步封送：后台流程线程不阻塞等待 UI 线程，避免紧密循环反过来卡住主线程
-            if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess()) app.Dispatcher.BeginInvoke(a);
+            if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess()) app.Dispatcher.Invoke(a);
             else a();
         }
     }
