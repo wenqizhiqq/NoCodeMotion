@@ -19,9 +19,7 @@ namespace NoCodeMotion.Services
         /// <summary>设置是否屏蔽 ScheduleSave（原地载入工程期间应为 true）。</summary>
         public static void SuppressSave(bool suppress) => _suppressSave = suppress;
 
-        private static readonly string FilePath =
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                         "NoCodeMotion", "project.json");
+        private static readonly string FilePath =  "project.json";
 
         private static System.Timers.Timer? _saveTimer;
 

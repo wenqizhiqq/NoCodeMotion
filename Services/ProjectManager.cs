@@ -14,9 +14,7 @@ namespace NoCodeMotion.Services
     /// </summary>
     public static class ProjectManager
     {
-        public static string RootDir =>
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                         "NoCodeMotion", "Projects");
+        public static string RootDir = "Projects";
 
         /// <summary>当前已打开/保存的工程名（未指定为 null）。</summary>
         public static string? CurrentName { get; private set; }
@@ -63,9 +61,7 @@ namespace NoCodeMotion.Services
         public static bool Exists(string name) => File.Exists(FileFor(name));
 
         /// <summary>记录「最后打开的工程」名称的文件路径（位于 %LocalAppData%\NoCodeMotion\）。</summary>
-        private static string LastProjectPath =>
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                         "NoCodeMotion", "lastproject.txt");
+        private static string LastProjectPath =>( "lastproject.txt");
 
         /// <summary>记录最后打开的工程名，供下次启动自动打开并读取其全部参数。</summary>
         public static void SaveLastProject(string? name)
