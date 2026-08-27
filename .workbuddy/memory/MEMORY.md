@@ -1,9 +1,10 @@
 # 项目长期记忆
 
-## 源码状态：全部 .cs 为明文（已逐字节核实）
-- **本仓库所有 .cs 文件均为明文 UTF-8，可直接 Read/Edit/Python 改写**。命令 `grep -rIl $'\x88\x7d\x1c' --include=*.cs .` 结果为 **0**（103 个 .cs 无一带该标记）；被旧记忆列为「加密」的样本文件（`ViewModels/FlowViewModel.cs`、`Models/FlowItem.cs`、`Services/HardwareBridge.cs`、`Services/HardwareResolver.cs`、`Views/LuaEditorView.xaml.cs`）首字节均为 `75 73 69`/`23 6e 75`（"usin"/"#nu"），即明文。
-- ⚠️ 旧记忆曾两度写反（先称「全明文」，后又称「118 个 .cs 按文件加密」）——**一律以本地逐字节扫描为准：当前为全明文、无加密屏障**。不要因旧记忆对 .cs 走「补丁文本 / 解密」流程，也不要因此对任何 .cs 文件做逆向/破解。
-- 注意：含 BOM(utf-8-sig)/GBK/CRLF 的文件，`Read`/`Edit` 可能报 "binary file" 而失败，此时用 Python 读写（读 utf-8/gbk，写 utf-8，`newline="\n"`）。
+## 源码状态：明文与加密混存（首字节 0x88 = 加密）
+- **仓库 .cs 并非全部明文，而是混存**：部分文件首字节为 `0x88`（加密）。已抽样确认加密的含 `Models/*`、`Editing/*`（如 `Models/FlowItem.cs`、`Editing/LineHighlightRenderer.cs` 首字节均为 `0x88`）；`Read`/`Edit`/Python 读到的是乱码/二进制，且沙箱的 Git Bash 在 `dotnet build` 读取这些密文时会把字节注入 shell 导致命令失败（PowerShell 不受影响）。
+- **明文可直接改**的已确认：`ViewModels/*`（`FlowViewModel`/`FlowRunnerService`/`ListEditorViewModel`/`OperatorViewModel` 等，首字节 `#nu` 或 `usin`）、`Services/LuaDebugSession.cs`、`Views/LuaEditorView.xaml.cs`、`Views/FlowPage.xaml.cs`。
+- ⚠️ 早期记忆两度写反（"全明文" / "118 个按文件加密"），本会话又一度误判为"全明文"——**真正判定法看首字节**：`0x88`=加密（不能直接改），否则=明文。之前 grep 的 3 字节标记 `88 7d 1c` 在本仓库返回 0，并非实际加密签名，不可用。
+- 加密文件处理：**走补丁文本 / 请用户在 VS 解密后再改**，绝不做逆向/破解。明文文件若 `Read`/`Edit` 报 "binary file"（多为 GBK/BOM/CRLF），改用 Python 读写（读 utf-8/gbk，写 utf-8，`newline="\n"`）。
 
 ## 操作员「启动」= 并发跑全部流程循环（非工位序列）
 - 用户最终选择（澄清）：点「启动」= 并发跑 `ProjectStore.Data.Flows` 里每个 Flow 的「循环开始/循环结束」区域，次数取 `SetValue`；不需要选工位。

@@ -656,19 +656,24 @@ namespace NoCodeMotion.Views
         // —— Operator 运行期跳行高亮（订阅 LuaRunMonitor，仅高亮当前选中的流程）——
         private void OnMonitorLine(FlowItem flow, int line)
         {
-            if (flow != LuaItem) return;
-            Dispatcher.BeginInvoke(new Action(() => HighlightLine(line)), DispatcherPriority.Background);
+            // 仅高亮当前编辑器展示的流程：引用相等（同一 FlowItem 实例）或名称相同都算命中，
+            // 避免任何重新绑定导致实例引用变化而把整行高亮过滤掉。
+            if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
+            // 用默认（Normal）优先级，与单步调试的高亮路径一致；
+            // Background 优先级在持续运行（后台线程密集回调）时易被饿死，导致运行行不刷新。
+            Dispatcher.BeginInvoke(new Action(() => HighlightLine(line)));
         }
 
         private void OnMonitorEnded(FlowItem flow)
         {
-            if (flow != LuaItem) return;
-            Dispatcher.BeginInvoke(new Action(ClearCurrentLine), DispatcherPriority.Background);
+            if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
+            Dispatcher.BeginInvoke(new Action(ClearCurrentLine));
         }
 
         private void HighlightLine(int line)
         {
             if (line <= 0 || line > Editor.Document.LineCount) return;
+            if (line == _currentLineRenderer.Line) return; // 同一行无需重复重绘/滚动，降低持续运行时的 UI 抖动
             _currentLineRenderer.Line = line;
             _bpMargin.SetCurrentLine(line);
             Editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
