@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,7 +46,7 @@ namespace NoCodeMotion.ViewModels
         private bool _isPaused;
         private int _runIndex = -1;
         private DateTime _runStart;
-        private string _statusText = "请选择工位，点「启动」开始生产。";
+        private string _statusText = "点「启动」开始运行（按全部工位顺序连续执行）。";
 
         public ObservableCollection<PointTable> Tables { get; }
 
@@ -96,10 +97,12 @@ namespace NoCodeMotion.ViewModels
         }
 
         /// <summary>是否允许启动：未运行、未急停、已选工位且工位至少有 1 个点位。</summary>
-        public bool CanRun => !IsRunning && !EStopped && SelectedTable != null && (SelectedTable.Points.Count > 0);
+        public bool CanRun => !IsRunning && !EStopped && HasAnyRunnableTable();
+
+        private bool HasAnyRunnableTable() => Tables != null && Tables.Any(t => t.Points != null && t.Points.Count > 0);
 
         /// <summary>启动/继续按钮可用：未运行未急停且已选工位，或已暂停（点“继续”恢复）。</summary>
-        public bool CanStart => (!IsRunning || IsPaused) && !EStopped && SelectedTable != null && (SelectedTable.Points.Count > 0);
+        public bool CanStart => (!IsRunning || IsPaused) && !EStopped && HasAnyRunnableTable();
 
         /// <summary>停止按钮可用：仅在运行时。</summary>
         public bool CanStop => IsRunning;
@@ -304,8 +307,10 @@ namespace NoCodeMotion.ViewModels
             _runStart = DateTime.Now;
             _runSw.Restart();
             _runIndex = 0;
-            AddLog(LogLevel.Info, $"启动运行（自动）：工位「{SelectedTable!.Name}」。");
-            StatusText = $"运行中：「{SelectedTable.Name}」";
+            // 自动模式：依次运行全部有点位的工作站（按 Tables 列表顺序）
+            int runnable = Tables.Count(t => t.Points != null && t.Points.Count > 0);
+            AddLog(LogLevel.Info, $"启动运行（自动）：全部 {runnable} 个工位，按顺序连续运行。");
+            StatusText = runnable > 0 ? "运行中：按全部工位顺序执行…" : "运行中：无工位可执行。";
             _runThread = new Thread(RunLoop) { IsBackground = true, Name = "OpRun" };
             _runThread.Start();
         }
@@ -375,7 +380,7 @@ namespace NoCodeMotion.ViewModels
             RunElapsedText = "00:00";
             Samples.Clear();
             RebuildChart();
-            StatusText = "已复位，可重新选择工位并启动。";
+            StatusText = "已复位，点「启动」运行（按全部工位顺序）。";
             AddLog(LogLevel.Info, "系统已复位。");
         }
 
@@ -406,30 +411,48 @@ namespace NoCodeMotion.ViewModels
             AddLog(LogLevel.Info, "继续运行。");
         }
 
-        /// <summary>后台执行循环：依次把 4 个轴走到每个点位目标，真实驱动机台；点间响应暂停/停止/急停。</summary>
+        /// <summary>后台执行循环：依次把所有工位的 4 轴走到每个点位目标，真实驱动机台；点间响应暂停/停止/急停。</summary>
         private void RunLoop()
         {
-            var table = SelectedTable;
-            if (table == null) { Ui(() => IsRunning = false); return; }
             _runSw.Restart();
-            int n = table.Points.Count;
-            for (int i = 0; i < n; i++)
+            int totalTables = 0;
+            int totalPoints = 0;
+            // 依次运行每一个工位（按 Tables 列出的顺序；空工位自动跳过）
+            foreach (var table in Tables)
             {
                 if (_eStopRequested || _stopRequested) break;
-                if (_pauseRequested) { _resumeEvent.Wait(); if (_eStopRequested || _stopRequested) break; }
-                int idx = i;
+                if (table == null || table.Points == null || table.Points.Count == 0) continue;
+                totalTables++;
+                // 切到当前工位并重建时序监控行
                 Ui(() =>
                 {
-                    _runIndex = idx;
-                    StepTo(idx);
-                    RecordTiming(idx, table.Points[idx]);
-                    AdvanceProduction();
-                    var el = _runSw.Elapsed;
-                    RunElapsedText = $"{(int)el.TotalMinutes:D2}:{el.Seconds:D2}";
+                    SelectedTable = table;
+                    _runIndex = 0;
+                    BuildTimingRows();
+                    StatusText = $"运行中：工位「{table.Name}」共 {table.Points.Count} 个点位…";
                 });
-                ExecutePoint(idx);
+                int n = table.Points.Count;
+                for (int i = 0; i < n; i++)
+                {
+                    if (_eStopRequested || _stopRequested) break;
+                    if (_pauseRequested) { _resumeEvent.Wait(); if (_eStopRequested || _stopRequested) break; }
+                    int idx = i;
+                    Ui(() =>
+                    {
+                        _runIndex = idx;
+                        StepTo(idx);
+                        RecordTiming(idx, table.Points[idx]);
+                        AdvanceProduction();
+                        var el = _runSw.Elapsed;
+                        RunElapsedText = $"{(int)el.TotalMinutes:D2}:{el.Seconds:D2}";
+                    });
+                    ExecutePointForTable(table, idx);
+                    if (_eStopRequested || _stopRequested) break;
+                }
                 if (_eStopRequested || _stopRequested) break;
+                totalPoints += n;
             }
+            int finalCount = totalPoints;
             Ui(() =>
             {
                 IsRunning = false;
@@ -438,8 +461,10 @@ namespace NoCodeMotion.ViewModels
                     StatusText = "急停！所有运动已切断，请复位后重新启动。";
                 else if (_stopRequested)
                     StatusText = "已停止。";
+                else if (totalTables == 0)
+                    StatusText = "运行完成：没有可执行的工位。";
                 else
-                    StatusText = $"运行完成：「{table.Name}」共 {n} 个点位，产量 {TotalCount} 件。";
+                    StatusText = $"全部工位运行完成：{totalTables} 个工位 / {finalCount} 个点位 / 产量 {TotalCount} 件。";
             });
         }
 
@@ -447,6 +472,30 @@ namespace NoCodeMotion.ViewModels
         private void ExecutePoint(int idx)
         {
             var table = SelectedTable;
+            if (table == null || idx < 0 || idx >= table.Points.Count) return;
+            var p = table.Points[idx];
+            var bridge = HardwareBridge.Current;
+            for (int i = 0; i < PointTable.SlotCount; i++)
+            {
+                var axisName = table.AxisNames.Count > i ? table.AxisNames[i] : string.Empty;
+                if (string.IsNullOrWhiteSpace(axisName)) continue;
+                var axis = HardwareResolver.ResolveAxis(axisName);
+                if (axis == null) { Ui(() => AddLog(LogLevel.Warn, $"找不到轴：{axisName}")); continue; }
+                var slot = p.Positions.Count > i ? p.Positions[i] : null;
+                if (slot == null) continue;
+                try
+                {
+                    if (slot.Speed > 0) bridge.SetAxisSpeed(axis, slot.Speed);
+                    bridge.MoveAxisAbs(axis, slot.Position);
+                    bridge.WaitAxisDone(axis);
+                }
+                catch (Exception ex) { Ui(() => AddLog(LogLevel.Error, $"轴 {axisName} 运动异常：{ex.Message}")); }
+            }
+        }
+
+        /// <summary>把单个点位（4 轴槽）的真实目标位置+速度下发到机台（显式传入工位；后台线程直接调用）。</summary>
+        private void ExecutePointForTable(PointTable table, int idx)
+        {
             if (table == null || idx < 0 || idx >= table.Points.Count) return;
             var p = table.Points[idx];
             var bridge = HardwareBridge.Current;
