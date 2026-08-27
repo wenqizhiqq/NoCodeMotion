@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using NoCodeMotion.Views;
 using MoonSharp.Interpreter.Debugging;
 
 namespace NoCodeMotion.ViewModels
@@ -144,12 +145,55 @@ namespace NoCodeMotion.ViewModels
             onFlowDone?.Invoke(index, name);
         }
 
-        /// <summary>Lua 脚本流程：复用 LuaDebugSession（自带完整硬件 API 环境与逐行调试）连续运行，
-        /// 并把当前执行行广播给 LuaRunMonitor，供流程页编辑器实时跳行高亮。暂停/停止映射到会话的 RequestPause/Resume/Stop。</summary>
+        /// <summary>Lua 脚本流程：优先复用 Lua 编辑器页面自身的运行（RunFlow，用户要求“lua 直接走编辑器页面运行”，
+        /// 运行行/断点/单步与页面完全一致）；编辑器未就绪或被占用时退化为独立 LuaDebugSession 连续运行，
+        /// 并把当前执行行广播给 LuaRunMonitor 供编辑器实时跳行高亮。暂停/停止映射到会话的 RequestPause/Resume/Stop。</summary>
         private static void RunOneFlowLua(FlowItem flow, int index, FlowRunControl ctrl,
             Action<string> log, Action<int, string, string> onStep, Action<int, string> onFlowDone)
         {
             var name = flow.Name ?? "(未命名流程)";
+            var editor = LuaEditorView.Active;
+            if (editor != null)
+            {
+                while (!ctrl.StopRequested && !ctrl.EStopRequested)
+                {
+                    LuaDebugSession session = null;
+                    try
+                    {
+                        editor.Dispatcher.Invoke(() =>
+                        {
+                            session = editor.RunFlow(flow, false);
+                            if (session != null)
+                            {
+                                session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}");
+                                session.LineStepped += line => onStep?.Invoke(index, name, $"Lua 行 {line}");
+                            }
+                        });
+                    }
+                    catch (Exception ex) { log?.Invoke($"流程「{name}」Lua 启动异常：{ex.Message}"); Thread.Sleep(50); continue; }
+                    if (session == null) { Thread.Sleep(50); continue; } // 编辑器正忙（用户手动调试），稍后重试
+                    log?.Invoke($"流程「{name}」开始连续运行（复用 Lua 编辑器页面运行，直到停止）。");
+                    while (session.IsBusy && !ctrl.EStopRequested && !ctrl.StopRequested)
+                    {
+                        Thread.Sleep(40);
+                        if (ctrl.EStopRequested || ctrl.StopRequested) { session.Stop(); break; }
+                        if (ctrl.PauseRequested)
+                        {
+                            session.RequestPause();
+                            while (ctrl.PauseRequested && session.IsBusy) Thread.Sleep(40);
+                            if (session.IsBusy && !ctrl.PauseRequested) session.Resume(DebuggerAction.ActionType.Run);
+                        }
+                    }
+                    LuaRunMonitor.ReportEnded(flow);
+                    if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。"); break; }
+                    if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。"); break; }
+                    Thread.Sleep(1);
+                }
+                onFlowDone?.Invoke(index, name);
+                return;
+            }
+
+            // 退化路径：Lua 编辑器页面未加载，用独立会话连续运行并广播当前行。
             while (!ctrl.StopRequested && !ctrl.EStopRequested)
             {
                 var ended = new ManualResetEventSlim(false);

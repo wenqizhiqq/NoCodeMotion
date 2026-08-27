@@ -57,6 +57,8 @@ namespace NoCodeMotion.Views
         private CompletionWindow _completionWindow;
         private InsightWindow _insightWindow;
         private bool _settingText;
+        // 当前会话是否由 Operator 运行器驱动（而非用户手动 F5/F10）。用于区分广播来源，避免抢占手动调试。
+        private bool _operatorDriven;
 
         public LuaEditorView()
         {
@@ -84,8 +86,20 @@ namespace NoCodeMotion.Views
                     _lineTimeMargin.SetLineTimes(_session.GetLineTimesSnapshot());
             };
 
-            Unloaded += (s, e) => _session?.Stop();
-            Loaded += (s, e) => Editor.Focus();
+            Loaded += (s, e) =>
+            {
+                Active = this;
+                Editor?.Focus();
+            };
+            Unloaded += (s, e) =>
+            {
+                _session?.Stop();
+                // 关键：卸载时退订静态监控，避免已释放实例仍被广播回调（会触碰已销毁的 Editor 抛异常，
+                // 进而把异常抛回 LuaDebugSession.GetAction 的脚本线程，破坏单步/连续运行）。
+                LuaRunMonitor.LineChanged -= OnMonitorLine;
+                LuaRunMonitor.RunEnded -= OnMonitorEnded;
+                if (ReferenceEquals(Active, this)) Active = null;
+            };
         }
 
         #region 依赖属性：绑定的 Lua 流程项
@@ -99,6 +113,9 @@ namespace NoCodeMotion.Views
             get => (FlowItem)GetValue(LuaItemProperty);
             set => SetValue(LuaItemProperty, value);
         }
+
+        /// <summary>当前已加载的 Lua 编辑器实例（供 Operator 运行器直接驱动其运行）。卸载时置空。</summary>
+        public static LuaEditorView Active { get; private set; }
 
         private void OnLuaItemChanged()
         {
@@ -570,24 +587,39 @@ namespace NoCodeMotion.Views
 
         #region 调试会话
 
-        private void StartSession(bool breakAtEntry)
+        private void StartSession(bool breakAtEntry, bool operatorDriven = false)
         {
             if (_session != null && _session.IsBusy) return;
 
             ClearRuntimeMarkers();
             _log.Clear();
+            _operatorDriven = operatorDriven;
 
             _session = new LuaDebugSession();
             _session.Log += OnSessionLog;
             _session.Paused += OnSessionPaused;
             _session.Ended += OnSessionEnded;
-            _session.LineStepped += line => LuaRunMonitor.Report(LuaItem, line);
+            // 编辑器自身的会话：直接在 UI 线程高亮当前行，不走 LuaRunMonitor 公共广播通道，
+            // 以免与 Operator 的独立会话广播混淆、互相抢占当前行。
+            _session.LineStepped += line => Dispatcher.BeginInvoke(new Action(() => HighlightLine(line)));
             _session.SetBreakpoints(_bpMargin.Breakpoints);
 
             AppendLog(breakAtEntry ? "▶ 开始调试（停在第一条语句）" : "▶ 开始运行", LogKind.Info);
             SetSessionState(SessionState.Running);
             _lineTimeTimer.Start();
             _session.Start(Editor.Text, breakAtEntry);
+        }
+
+        /// <summary>供 Operator 运行器直接驱动：在本编辑器页面运行指定 Lua 流程（载入其脚本、清除断点、启动会话）。
+        /// 返回本次运行的调试会话；若本页面当前已有会话在忙（例如用户正在手动单步）则返回 null，调用方应自行退化。</summary>
+        public LuaDebugSession RunFlow(FlowItem flow, bool breakAtEntry = false)
+        {
+            if (_session != null && _session.IsBusy) return null;
+            LuaItem = flow;            // 自动把 flow.LuaSource 载入编辑器
+            _bpMargin.ClearAll();      // 连续运行不卡在断点上
+            UpdateBreakpointCount();
+            StartSession(breakAtEntry, operatorDriven: true);
+            return _session;
         }
 
         private void OnSessionLog(string text, LogKind kind) =>
@@ -656,22 +688,25 @@ namespace NoCodeMotion.Views
         // —— Operator 运行期跳行高亮（订阅 LuaRunMonitor，仅高亮当前选中的流程）——
         private void OnMonitorLine(FlowItem flow, int line)
         {
-            // 仅高亮当前编辑器展示的流程：引用相等（同一 FlowItem 实例）或名称相同都算命中，
-            // 避免任何重新绑定导致实例引用变化而把整行高亮过滤掉。
             if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
-            // 用默认（Normal）优先级，与单步调试的高亮路径一致；
-            // Background 优先级在持续运行（后台线程密集回调）时易被饿死，导致运行行不刷新。
+            if (!IsLoaded || Editor == null || Editor.Document == null) return;
+            // 若本编辑器正在手动调试（自己的会话在忙且非 Operator 驱动），不让 Operator 的独立会话
+            // 抢占当前行与滚动位置，否则会覆盖用户正在单步查看的行。
+            if (_session != null && _session.IsBusy && !_operatorDriven) return;
             Dispatcher.BeginInvoke(new Action(() => HighlightLine(line)));
         }
 
         private void OnMonitorEnded(FlowItem flow)
         {
             if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
+            if (!IsLoaded || Editor == null || Editor.Document == null) return;
+            if (_session != null && _session.IsBusy && !_operatorDriven) return;
             Dispatcher.BeginInvoke(new Action(ClearCurrentLine));
         }
 
         private void HighlightLine(int line)
         {
+            if (!IsLoaded || Editor == null || Editor.Document == null) return;
             if (line <= 0 || line > Editor.Document.LineCount) return;
             if (line == _currentLineRenderer.Line) return; // 同一行无需重复重绘/滚动，降低持续运行时的 UI 抖动
             _currentLineRenderer.Line = line;
@@ -684,6 +719,7 @@ namespace NoCodeMotion.Views
 
         private void ClearCurrentLine()
         {
+            if (!IsLoaded || Editor == null || Editor.Document == null) return;
             _currentLineRenderer.Line = 0;
             _bpMargin.SetCurrentLine(0);
             Editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
