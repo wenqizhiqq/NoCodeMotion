@@ -25,6 +25,15 @@
     <PackageReference Include="NModbus" Version="3.0.83" />
     <PackageReference Include="NModbus.Serial" Version="3.0.83" />
     <PackageReference Include="System.IO.Ports" Version="10.0.11" />
+    <!-- OpenCV：复用 CvMatch 已验证的 OpenCvSharp4 4.13 + 原生运行时（从 CvMatch 目录复制，保证与原生 DLL 版本匹配） -->
+    <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 复制 CvMatch 目录下的 OpenCV 原生运行时到 NoCodeMotion 输出目录（OpenCvSharp4 不自带原生 DLL，由运行时包提供；此处直接复用 CvMatch 已验证版本） -->
+    <None Include="..\CvMatch\OpenCvSharpExtern.dll" Link="OpenCvSharpExtern.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\CvMatch\opencv_world480.dll" Link="opencv_world480.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\CvMatch\opencv_videoio_ffmpeg4130_64.dll" Link="opencv_videoio_ffmpeg4130_64.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
