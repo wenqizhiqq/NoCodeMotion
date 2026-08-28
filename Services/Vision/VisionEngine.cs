@@ -58,6 +58,9 @@ namespace NoCodeMotion.Services.Vision
                         RunAcquire(s, ref cur, ref curW, ref curH, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress);
                         featurePts.Clear();
                         break;
+                    case "图像预处理":
+                        RunPreprocess(s, cur, curW, curH, ref cur, ref curW, ref curH, featurePts, report, progress);
+                        break;
                     case "模板匹配":
                         RunMatch(s, cur, curW, curH, usedSynthetic, tplX, tplY, tplW, tplH, ref cur, ref curW, ref curH, featurePts, report, progress);
                         break;
@@ -251,6 +254,144 @@ namespace NoCodeMotion.Services.Vision
                 Summary = $"{a.Tag}->{b.Tag} 距离 {len:F2} {s.Unit}（{px:F1}px x 标定 {cal}）"
             });
             progress?.Report($"测量：{len:F2} {s.Unit}");
+        }
+
+        // ============ 图像预处理 ============
+        // 在 cur（BGRA）上做 16 种预处理操作：灰度/二值/平滑/形态学/Sobel/直方图均衡/ROI/算术。
+        // 大部分基于灰度 float[]，再 WriteGray 写回 BGRA；ROI 改变 curW/curH；算术需读第二张图。
+        private static void RunPreprocess(VisualFlowStep s, byte[]? cur, int curW, int curH,
+            ref byte[]? outCur, ref int outW, ref int outH,
+            List<(double X, double Y, string Tag)> featurePts, VisionReport report, IProgress<string>? progress)
+        {
+            if (cur == null) { AddFail(report, s, "请先执行图像采集"); return; }
+
+            string op = (s.PreOp ?? "").Trim();
+            if (op.Length == 0 || op == "无")
+            {
+                report.Results.Add(new VisionStepResult { StepName = s.Name, Type = "图像预处理", Ok = true, Summary = "无操作" });
+                outCur = cur; outW = curW; outH = curH;
+                return;
+            }
+
+            // 通用参数
+            int k1 = Math.Max(1, (int)Math.Round(s.PreParam2)); // 核大小（默认 3）
+            if ((k1 & 1) == 0) k1++; // 强制奇数
+            double thr = Clamp(s.PreParam1, 0, 255);
+
+            try
+            {
+                switch (op)
+                {
+                    case "灰度化":
+                        {
+                            float[] g = ToGray(cur, curW * curH);
+                            WriteGray(cur, curW, curH, g);
+                            break;
+                        }
+                    case "二值化":
+                        {
+                            float[] g = ToGray(cur, curW * curH);
+                            for (int i = 0; i < g.Length; i++) g[i] = g[i] >= thr ? 255f : 0f;
+                            WriteGray(cur, curW, curH, g);
+                            break;
+                        }
+                    case "高斯平滑":
+                        {
+                            float[] g = ToGray(cur, curW * curH);
+                            float[] dst = GaussianBlur(g, curW, curH, k1);
+                            WriteGray(cur, curW, curH, dst);
+                            break;
+                        }
+                    case "中值滤波":
+                        {
+                            float[] g = ToGray(cur, curW * curH);
+                            float[] dst = MedianFilter(g, curW, curH, k1);
+                            WriteGray(cur, curW, curH, dst);
+                            break;
+                        }
+                    case "腐蚀":
+                        {
+                            float[] g = ToGray(cur, curW * curH);
+                            float[] dst = Erode(g, curW, curH, k1);
+                            WriteGray(cur, curW, curH, dst);
+                            break;
+                        }
+                    case "膨胀":
+                        {
+                            float[] g = ToGray(cur, curW * curH);
+                            float[] dst = Dilate(g, curW, curH, k1);
+                            WriteGray(cur, curW, curH, dst);
+                            break;
+                        }
+                    case "开运算":
+                        {
+                            float[] g = ToGray(cur, curW * curH);
+                            float[] dst = Dilate(Erode(g, curW, curH, k1), curW, curH, k1);
+                            WriteGray(cur, curW, curH, dst);
+                            break;
+                        }
+                    case "闭运算":
+                        {
+                            float[] g = ToGray(cur, curW * curH);
+                            float[] dst = Erode(Dilate(g, curW, curH, k1), curW, curH, k1);
+                            WriteGray(cur, curW, curH, dst);
+                            break;
+                        }
+                    case "Sobel边缘":
+                        {
+                            float[] g = ToGray(cur, curW * curH);
+                            float[] mag = Sobel(g, curW, curH);
+                            WriteGray(cur, curW, curH, mag);
+                            break;
+                        }
+                    case "直方图均衡":
+                        {
+                            float[] g = ToGray(cur, curW * curH);
+                            HistEqual(g);
+                            WriteGray(cur, curW, curH, g);
+                            break;
+                        }
+                    case "ROI裁剪":
+                        {
+                            if (!TryParseRoi(s.PreRoi, curW, curH, out int rx, out int ry, out int rw, out int rh))
+                            { AddFail(report, s, "ROI 格式错误（应为 x,y,w,h）"); return; }
+                            byte[] crop = RoiCrop(cur, curW, curH, rx, ry, rw, rh);
+                            outCur = crop; outW = rw; outH = rh;
+                            featurePts.Clear(); // ROI 后原坐标失效
+                            report.Results.Add(new VisionStepResult { StepName = s.Name, Type = "图像预处理", Ok = true, Summary = $"ROI 裁剪 {rw}x{rh} @ ({rx},{ry})" });
+                            progress?.Report($"ROI 裁剪：{rw}x{rh}");
+                            return;
+                        }
+                    case "图像加":
+                    case "图像减":
+                    case "图像与":
+                    case "图像或":
+                        {
+                            byte[]? b2 = null; int bw2 = 0, bh2 = 0;
+                            string p2 = (s.PreImage2Path ?? "").Trim();
+                            if (!File.Exists(p2) || !LoadImageFile(p2, out b2, out bw2, out bh2) || b2 == null)
+                            { AddFail(report, s, "第二张图加载失败（检查路径与尺寸一致）"); return; }
+                            if (bw2 != curW || bh2 != curH)
+                            { AddFail(report, s, $"第二张图尺寸 {bw2}x{bh2} 与当前 {curW}x{curH} 不一致"); return; }
+                            if (op == "图像加")      Arith(cur, b2, curW * curH * 4, (a, b) => Clamp(a + b, 0, 255));
+                            else if (op == "图像减") Arith(cur, b2, curW * curH * 4, (a, b) => Clamp(a - b, 0, 255));
+                            else if (op == "图像与") Arith(cur, b2, curW * curH * 4, (a, b) => (double)((int)a & (int)b));
+                            else                     Arith(cur, b2, curW * curH * 4, (a, b) => (double)((int)a | (int)b));
+                            break;
+                        }
+                    default:
+                        AddFail(report, s, $"未知预处理操作：{op}");
+                        return;
+                }
+
+                report.Results.Add(new VisionStepResult { StepName = s.Name, Type = "图像预处理", Ok = true, Summary = $"已执行 {op}" });
+                progress?.Report($"预处理：{op}");
+                outCur = cur; outW = curW; outH = curH;
+            }
+            catch (Exception ex)
+            {
+                AddFail(report, s, $"{op} 失败：{ex.Message}");
+            }
         }
 
         // ============ 通讯（经 HardwareBridge 真实发送） ============
@@ -507,6 +648,220 @@ namespace NoCodeMotion.Services.Vision
             double v = 0;
             for (int i = 0; i < arr.Length; i++) { double d = arr[i] - mean; v += d * d; }
             return (mean, (float)Math.Sqrt(v / arr.Length));
+        }
+
+        // -------------------- 图像预处理原语（纯灰度 float[]） --------------------
+
+        /// <summary>WriteGray：把灰度浮点缓冲写回 BGRA（B=G=R=val, A=255）。原地修改 cur。</summary>
+        private static void WriteGray(byte[] cur, int w, int h, float[] g)
+        {
+            int n = w * h;
+            for (int i = 0; i < n; i++)
+            {
+                byte v = (byte)Clamp(g[i], 0, 255);
+                int k = i * 4;
+                cur[k] = v; cur[k + 1] = v; cur[k + 2] = v; cur[k + 3] = 255;
+            }
+        }
+
+        /// <summary>GrayThreshold：按灰度阈值二值化。</summary>
+        private static void GrayThreshold(float[] g, double thr)
+        {
+            for (int i = 0; i < g.Length; i++) g[i] = g[i] >= thr ? 255f : 0f;
+        }
+
+        /// <summary>GaussianBlur：k x k 可分离高斯（k 强制奇数）。边界用 clamp。</summary>
+        private static float[] GaussianBlur(float[] src, int w, int h, int k)
+        {
+            if (k <= 1) return (float[])src.Clone();
+            double sigma = Math.Max(0.5, k / 3.0);
+            int half = k / 2;
+            double[] k1d = new double[k];
+            double sum = 0;
+            for (int i = 0; i < k; i++)
+            {
+                double x = i - half;
+                k1d[i] = Math.Exp(-x * x / (2 * sigma * sigma));
+                sum += k1d[i];
+            }
+            for (int i = 0; i < k; i++) k1d[i] /= sum;
+
+            float[] tmp = new float[w * h];
+            float[] dst = new float[w * h];
+            // 水平
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    double s = 0;
+                    for (int i = 0; i < k; i++)
+                    {
+                        int xi = Math.Min(w - 1, Math.Max(0, x + i - half));
+                        s += src[y * w + xi] * k1d[i];
+                    }
+                    tmp[y * w + x] = (float)s;
+                }
+            // 垂直
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    double s = 0;
+                    for (int i = 0; i < k; i++)
+                    {
+                        int yi = Math.Min(h - 1, Math.Max(0, y + i - half));
+                        s += tmp[yi * w + x] * k1d[i];
+                    }
+                    dst[y * w + x] = (float)s;
+                }
+            return dst;
+        }
+
+        /// <summary>MedianFilter：k x k 中值（k 强制奇数，k=3 性能可控）。</summary>
+        private static float[] MedianFilter(float[] src, int w, int h, int k)
+        {
+            int half = k / 2;
+            float[] dst = new float[w * h];
+            var win = new float[k * k];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int n = 0;
+                    for (int j = -half; j <= half; j++)
+                        for (int i = -half; i <= half; i++)
+                        {
+                            int xi = Math.Min(w - 1, Math.Max(0, x + i));
+                            int yi = Math.Min(h - 1, Math.Max(0, y + j));
+                            win[n++] = src[yi * w + xi];
+                        }
+                    Array.Sort(win, 0, n);
+                    dst[y * w + x] = win[n / 2];
+                }
+            return dst;
+        }
+
+        /// <summary>Erode：k x k 灰度腐蚀（输出邻域最小值）。</summary>
+        private static float[] Erode(float[] src, int w, int h, int k)
+        {
+            int half = k / 2;
+            float[] dst = new float[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float m = float.MaxValue;
+                    for (int j = -half; j <= half; j++)
+                        for (int i = -half; i <= half; i++)
+                        {
+                            int xi = Math.Min(w - 1, Math.Max(0, x + i));
+                            int yi = Math.Min(h - 1, Math.Max(0, y + j));
+                            float v = src[yi * w + xi];
+                            if (v < m) m = v;
+                        }
+                    dst[y * w + x] = m;
+                }
+            return dst;
+        }
+
+        /// <summary>Dilate：k x k 灰度膨胀（输出邻域最大值）。</summary>
+        private static float[] Dilate(float[] src, int w, int h, int k)
+        {
+            int half = k / 2;
+            float[] dst = new float[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float m = float.MinValue;
+                    for (int j = -half; j <= half; j++)
+                        for (int i = -half; i <= half; i++)
+                        {
+                            int xi = Math.Min(w - 1, Math.Max(0, x + i));
+                            int yi = Math.Min(h - 1, Math.Max(0, y + j));
+                            float v = src[yi * w + xi];
+                            if (v > m) m = v;
+                        }
+                    dst[y * w + x] = m;
+                }
+            return dst;
+        }
+
+        /// <summary>Sobel：3x3 梯度幅值，归一化到 0..255。</summary>
+        private static float[] Sobel(float[] src, int w, int h)
+        {
+            float[] dst = new float[w * h];
+            float max = 0;
+            for (int y = 1; y < h - 1; y++)
+                for (int x = 1; x < w - 1; x++)
+                {
+                    float gx = -src[(y - 1) * w + (x - 1)] - 2 * src[y * w + (x - 1)] - src[(y + 1) * w + (x - 1)]
+                               + src[(y - 1) * w + (x + 1)] + 2 * src[y * w + (x + 1)] + src[(y + 1) * w + (x + 1)];
+                    float gy = -src[(y - 1) * w + (x - 1)] - 2 * src[(y - 1) * w + x] - src[(y - 1) * w + (x + 1)]
+                               + src[(y + 1) * w + (x - 1)] + 2 * src[(y + 1) * w + x] + src[(y + 1) * w + (x + 1)];
+                    float m = Math.Abs(gx) + Math.Abs(gy);
+                    dst[y * w + x] = m;
+                    if (m > max) max = m;
+                }
+            if (max > 0)
+                for (int i = 0; i < dst.Length; i++) dst[i] = dst[i] * 255f / max;
+            return dst;
+        }
+
+        /// <summary>HistEqual：直方图均衡（256 桶，0..255）。</summary>
+        private static void HistEqual(float[] g)
+        {
+            int n = g.Length;
+            int[] hist = new int[256];
+            for (int i = 0; i < n; i++)
+            {
+                int v = (int)Clamp(g[i], 0, 255);
+                hist[v]++;
+            }
+            int[] cdf = new int[256];
+            cdf[0] = hist[0];
+            for (int i = 1; i < 256; i++) cdf[i] = cdf[i - 1] + hist[i];
+            int cdfMin = 0;
+            for (int i = 0; i < 256; i++) if (cdf[i] != 0) { cdfMin = cdf[i]; break; }
+            int denom = n - cdfMin;
+            if (denom <= 0) return;
+            for (int i = 0; i < n; i++)
+            {
+                int v = (int)Clamp(g[i], 0, 255);
+                g[i] = (float)Math.Round((cdf[v] - cdfMin) * 255.0 / denom);
+            }
+        }
+
+        /// <summary>TryParseRoi：解析 "x,y,w,h"；返回是否成功并 clamp 到图像范围。</summary>
+        private static bool TryParseRoi(string s, int iw, int ih, out int x, out int y, out int w, out int h)
+        {
+            x = y = w = h = 0;
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            var parts = s.Split(new[] { ',', ' ', '，' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 4) return false;
+            if (!int.TryParse(parts[0], out x) || !int.TryParse(parts[1], out y)
+                || !int.TryParse(parts[2], out w) || !int.TryParse(parts[3], out h)) return false;
+            if (w <= 0 || h <= 0) return false;
+            x = Math.Max(0, Math.Min(iw - 1, x));
+            y = Math.Max(0, Math.Min(ih - 1, y));
+            w = Math.Max(1, Math.Min(iw - x, w));
+            h = Math.Max(1, Math.Min(ih - y, h));
+            return true;
+        }
+
+        /// <summary>RoiCrop：按 ROI 裁剪；返回新 BGRA 缓冲。</summary>
+        private static byte[] RoiCrop(byte[] src, int sw, int sh, int x, int y, int w, int h)
+        {
+            byte[] dst = new byte[w * h * 4];
+            for (int j = 0; j < h; j++)
+                for (int i = 0; i < w; i++)
+                {
+                    int si = ((y + j) * sw + (x + i)) * 4;
+                    int di = (j * w + i) * 4;
+                    dst[di] = src[si]; dst[di + 1] = src[si + 1]; dst[di + 2] = src[si + 2]; dst[di + 3] = 255;
+                }
+            return dst;
+        }
+
+        /// <summary>Arith：对两个同尺寸 BGRA 缓冲逐字节按 func 合并，写回 a。</summary>
+        private static void Arith(byte[] a, byte[] b, int n, Func<double, double, double> func)
+        {
+            for (int i = 0; i < n; i++) a[i] = (byte)Clamp(func(a[i], b[i]), 0, 255);
         }
 
         private sealed class Comp { public int X, Y, W, H; public double Area; }

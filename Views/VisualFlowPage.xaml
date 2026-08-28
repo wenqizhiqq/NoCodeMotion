@@ -11,10 +11,31 @@
         <!-- 视觉流程步骤的工具类型 -->
         <x:Array x:Key="VisualStepTypes" Type="sys:String">
             <sys:String>图像采集</sys:String>
+            <sys:String>图像预处理</sys:String>
             <sys:String>模板匹配</sys:String>
             <sys:String>缺陷检测</sys:String>
             <sys:String>测量</sys:String>
             <sys:String>通讯</sys:String>
+        </x:Array>
+
+        <!-- 图像预处理操作名（ComboBox 数据源） -->
+        <x:Array x:Key="PreOps" Type="sys:String">
+            <sys:String>无</sys:String>
+            <sys:String>灰度化</sys:String>
+            <sys:String>二值化</sys:String>
+            <sys:String>高斯平滑</sys:String>
+            <sys:String>中值滤波</sys:String>
+            <sys:String>腐蚀</sys:String>
+            <sys:String>膨胀</sys:String>
+            <sys:String>开运算</sys:String>
+            <sys:String>闭运算</sys:String>
+            <sys:String>Sobel边缘</sys:String>
+            <sys:String>直方图均衡</sys:String>
+            <sys:String>ROI裁剪</sys:String>
+            <sys:String>图像加</sys:String>
+            <sys:String>图像减</sys:String>
+            <sys:String>图像与</sys:String>
+            <sys:String>图像或</sys:String>
         </x:Array>
 
         <!-- 类型专属参数组：按 SelectedStep.StepType 显隐 -->
@@ -22,6 +43,9 @@
             <Setter Property="Visibility" Value="Collapsed"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="图像采集">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="图像预处理">
                     <Setter Property="Visibility" Value="Visible"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="模板匹配">
@@ -203,6 +227,46 @@
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="保存路径"/>
                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.SavePath, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 图像预处理 -->
+                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像预处理参数"/>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"
+                                       Text="参数 1 / 2 用法依操作不同：二值化=阈值（0~255）；平滑/形态学=核大小（奇数，默认 3）；Sobel=忽略参数；ROI裁剪、图像加减与或使用下方专用字段。"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="操作"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          ItemsSource="{StaticResource PreOps}"
+                                          SelectedItem="{Binding SelectedStep.PreOp, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="参数 1"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.PreParam1, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="参数 2"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.PreParam2, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="ROI (x,y,w,h)"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.PreRoi, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="第二张图"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.PreImage2Path, UpdateSourceTrigger=PropertyChanged}"/>
                             </DockPanel>
                         </StackPanel>
                     </Border>

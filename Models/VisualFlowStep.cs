@@ -8,8 +8,7 @@ namespace NoCodeMotion.Models
 {
     /// <summary>
     /// 视觉流程步骤。StepType 决定右侧参数面板显示哪一组字段。
-    /// 工具类型：模板匹配 / 图像采集 / 缺陷检测 / 测量 / 通讯。
-    /// （SDK 未接入，参数仅做 UI 承载；接入时按 StepType 路由到对应算法。）
+    /// 工具类型：模板匹配 / 图像采集 / 图像预处理 / 缺陷检测 / 测量 / 通讯。
     /// </summary>
     public class VisualFlowStep : INotifyPropertyChanged
     {
@@ -47,6 +46,13 @@ namespace NoCodeMotion.Models
         private string _target = "";
         private string _content = "";
 
+        // 图像预处理：操作名 + 两个通用参数 + ROI + 第二张图路径（算术）
+        private string _preOp = "无";
+        private double _preParam1 = 128.0;
+        private double _preParam2 = 3.0;
+        private string _preRoi = "";
+        private string _preImage2Path = "";
+
         public string Name { get => _name; set => Set(ref _name, value); }
         public string StepType { get => _stepType; set => Set(ref _stepType, value); }
         public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
@@ -73,6 +79,13 @@ namespace NoCodeMotion.Models
         public string Protocol { get => _protocol; set => Set(ref _protocol, value); }
         public string Target { get => _target; set => Set(ref _target, value); }
         public string Content { get => _content; set => Set(ref _content, value); }
+
+        // 图像预处理
+        public string PreOp { get => _preOp; set => Set(ref _preOp, value); }
+        public double PreParam1 { get => _preParam1; set => Set(ref _preParam1, value); }
+        public double PreParam2 { get => _preParam2; set => Set(ref _preParam2, value); }
+        public string PreRoi { get => _preRoi; set => Set(ref _preRoi, value); }
+        public string PreImage2Path { get => _preImage2Path; set => Set(ref _preImage2Path, value); }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
