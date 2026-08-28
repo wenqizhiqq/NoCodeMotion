@@ -432,46 +432,16 @@
                                         <!-- ============ Lua 脚本流程编辑器（直接复用 LuaStudio 完整编辑器代码） ============ -->
                     <local:LuaEditorView LuaItem="{Binding SelectedItem}" Visibility="{Binding IsKindLua, Converter={StaticResource BoolToVis}}"/>
 
-                    <!-- ============ 视觉流程编辑器（Kind=Vision 占位：相机 / 视觉算子 / 模板匹配 图节点编辑后续接入） ============ -->
-                    <Border Visibility="{Binding IsKindVision, Converter={StaticResource BoolToVis}}"
-                            Background="Transparent">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-
-                            <!-- 视觉流程工具栏（占位 / 后续接入图节点工具栏 TableToolbar 类似） -->
-                            <Border Grid.Row="0" Margin="0,0,0,8" Padding="10,6"
-                                    Background="{StaticResource SurfaceBrush}"
-                                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                    CornerRadius="6">
-                                <StackPanel Orientation="Horizontal">
-                                    <Path Data="{StaticResource VisionIconGeometry}" Width="14" Height="14" Stretch="Uniform"
-                                          Fill="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <TextBlock Text="视觉节点工具栏（占位）" Foreground="{StaticResource TextSecondaryBrush}"
-                                               VerticalAlignment="Center" FontSize="12"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- 视觉流程画布占位：先提示用户「编辑区待接入」，不让该类流程选中时空白卡顿 -->
-                            <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
-                                <Grid>
-                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource VisionIconGeometry}" Width="40" Height="40" Stretch="Uniform"
-                                              Fill="{StaticResource AccentSoftBrush}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
-                                        <TextBlock Text="视觉流程编辑区" HorizontalAlignment="Center"
-                                                   FontSize="16" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="编辑区后续接入：相机器视觉、模板匹配、特征定位等图形节点编辑"
-                                                   HorizontalAlignment="Center" Margin="0,6,0,0"
-                                                   FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </Grid>
-                    </Border>
+                    <!-- ============ 视觉流程编辑器（延迟实例化：仅当选中视觉流程才创建 VisualFlowPage，
+                         避免其加载异常拖垮整页，导致表格/Lua 页也一起白屏）。
+                         宿主用 ContentControl（不用 Border）：Border.Child 是 Decorator 的 CLR 属性、不是 DependencyProperty，
+                         无法在 XAML 上设 Binding（会立即报 XamlParseException：不能在"Border"类型的"Child"属性上设置"Binding"）。
+                         ContentControl.Content 才是 DP，可绑定。
+                         关键：ContentControl【禁止 x:Name】——它位于 EditorPage.Detail（ContentControl）内容内，
+                         任何命名元素都会同时注册到「EditorPage 作用域」与「ContentControl 内容作用域」两个 NameScope → MC3093。
+                         改用 FlowPage 自身的 VisionContent 依赖属性 + RelativeSource 绑定承载视觉页，彻底避开 NameScope 冲突。 ============ -->
+                    <ContentControl Visibility="{Binding IsKindVision, Converter={StaticResource BoolToVis}}"
+                                    Content="{Binding VisionContent, RelativeSource={RelativeSource AncestorType=local:FlowPage}}"/>
 
                 </Grid>
             </Grid>

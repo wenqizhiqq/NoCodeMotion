@@ -1,22 +1,26 @@
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
-// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+// === NoCodeMotion 视觉流程详情 VM | 作者：温启志 | 微信：18719361399 | 保留所有权利，请勿删除 ===
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using NoCodeMotion.Models;
+using NoCodeMotion.Services.Vision;
 
 namespace NoCodeMotion.Views
 {
     /// <summary>
     /// 视觉流程详情 VM（DependencyObject，以便作为资源并对其 DP 绑定）。
-    /// 由 FlowPage 在 Resources 里通过 BindingProxy 把 Steps/Name 绑到主选中项的 VisualSteps/Name；
-    /// 因此该 VM 操作的 Steps 就是主 FlowItem.VisualSteps（同一引用），步骤的增删直接落进主流程项。
+    /// Steps / Name 由 VisualFlowPage 的代码隐藏通过 RelativeSource 绑到主选中 FlowItem 的
+    /// VisualSteps / Name；因此本 VM 操作的 Steps 就是主 FlowItem.VisualSteps（同一引用），
+    /// 步骤的增删直接落进主流程项。RunCommand 负责把流程真正跑起来并把结果回显。
     /// </summary>
     public class VisualFlowDetailViewModel : DependencyObject
     {
-        // ---- 依赖属性（与 FlowPage 资源里的绑定对应） ----
+        // ---- 依赖属性（与 FlowPage 的绑定对应） ----
         public static readonly DependencyProperty StepsProperty =
             DependencyProperty.Register(nameof(Steps), typeof(ObservableCollection<VisualFlowStep>),
                 typeof(VisualFlowDetailViewModel));
@@ -56,12 +60,61 @@ namespace NoCodeMotion.Views
             private set => SetValue(HasStepProperty, value);
         }
 
-        private static void OnSelectedStepChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-            => ((VisualFlowDetailViewModel)d).HasStep = e.NewValue != null;
+        // ---- 运行结果相关 ----
+        public static readonly DependencyProperty ResultImageProperty =
+            DependencyProperty.Register(nameof(ResultImage), typeof(ImageSource), typeof(VisualFlowDetailViewModel));
 
-        // ---- 命令（操作 Steps，即主项的 VisualSteps） ----
+        public ImageSource? ResultImage
+        {
+            get => (ImageSource?)GetValue(ResultImageProperty);
+            set => SetValue(ResultImageProperty, value);
+        }
+
+        public static readonly DependencyProperty HasResultProperty =
+            DependencyProperty.Register(nameof(HasResult), typeof(bool), typeof(VisualFlowDetailViewModel));
+
+        public bool HasResult
+        {
+            get => (bool)GetValue(HasResultProperty);
+            private set => SetValue(HasResultProperty, value);
+        }
+
+        public static readonly DependencyProperty IsRunningProperty =
+            DependencyProperty.Register(nameof(IsRunning), typeof(bool), typeof(VisualFlowDetailViewModel));
+
+        public bool IsRunning
+        {
+            get => (bool)GetValue(IsRunningProperty);
+            private set => SetValue(IsRunningProperty, value);
+        }
+
+        public static readonly DependencyProperty CanRunProperty =
+            DependencyProperty.Register(nameof(CanRun), typeof(bool), typeof(VisualFlowDetailViewModel), new PropertyMetadata(true));
+
+        public bool CanRun
+        {
+            get => (bool)GetValue(CanRunProperty);
+            private set => SetValue(CanRunProperty, value);
+        }
+
+        public static readonly DependencyProperty RunStatusProperty =
+            DependencyProperty.Register(nameof(RunStatus), typeof(string), typeof(VisualFlowDetailViewModel));
+
+        public string RunStatus
+        {
+            get => (string?)GetValue(RunStatusProperty) ?? "";
+            private set => SetValue(RunStatusProperty, value ?? "");
+        }
+
+        /// <summary>每步执行结果（绑定到结果列表）。同一实例，增删由集合自身通知。</summary>
+        public ObservableCollection<VisionStepResult> Results { get; } = new();
+
+        // ---- 命令 ----
         public ICommand AddStepCommand { get; }
         public ICommand DeleteStepCommand { get; }
+        public ICommand RunCommand { get; }
+
+        private readonly Progress<string> _progress;
 
         public VisualFlowDetailViewModel()
         {
@@ -69,14 +122,11 @@ namespace NoCodeMotion.Views
             {
                 var s = Steps;
                 if (s == null) return;
-                s.Add(new VisualFlowStep
-                {
-                    Name = $"步骤{s.Count + 1}",
-                    StepType = "图像采集"
-                });
+                var step = new VisualFlowStep { Name = $"步骤{s.Count + 1}", StepType = "图像采集" };
+                s.Add(step);
+                SelectedStep = step;
             });
 
-            // CanExecute 留为恒真以避开 RelayCommand 无 RaiseCanExecuteChanged 的限制；执行内自检
             DeleteStepCommand = new SimpleRelayCommand(_ =>
             {
                 var s = Steps;
@@ -84,6 +134,53 @@ namespace NoCodeMotion.Views
                 s.Remove(SelectedStep);
                 SelectedStep = null;
             });
+
+            RunCommand = new SimpleRelayCommand(_ => _ = RunAsync());
+            _progress = new Progress<string>(msg => RunStatus = msg);
+        }
+
+        private static void OnSelectedStepChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+            => ((VisualFlowDetailViewModel)d).HasStep = e.NewValue != null;
+
+        private async Task RunAsync()
+        {
+            var steps = Steps;
+            if (steps == null || steps.Count == 0)
+            {
+                RunStatus = "请先选中视觉流程并添加步骤";
+                return;
+            }
+            var enabled = new ObservableCollection<VisualFlowStep>(steps);
+            if (enabled.Count == 0) { RunStatus = "没有可执行的步骤"; return; }
+
+            IsRunning = true;
+            CanRun = false;
+            RunStatus = "视觉流程运行中…";
+            Results.Clear();
+
+            var report = await Task.Run(() => VisionEngine.Run(enabled, _progress));
+
+            // 回到 UI 线程组装结果（WriteableBitmap 必须在 UI 线程创建）
+            Results.Clear();
+            foreach (var r in report.Results) Results.Add(r);
+
+            if (report.HasImage && report.Bgra != null && report.Bgra.Length == report.Width * report.Height * 4)
+            {
+                var wb = new WriteableBitmap(report.Width, report.Height, 96, 96, PixelFormats.Bgra32, null);
+                wb.WritePixels(new Int32Rect(0, 0, report.Width, report.Height), report.Bgra, report.Width * 4, 0);
+                ResultImage = wb;
+                HasResult = true;
+            }
+            else
+            {
+                HasResult = false;
+            }
+
+            int ok = 0;
+            foreach (var r in Results) if (r.Ok) ok++;
+            IsRunning = false;
+            CanRun = true;
+            RunStatus = $"完成：共 {Results.Count} 步，{ok} 步成功";
         }
 
         private sealed class SimpleRelayCommand : ICommand
@@ -96,5 +193,4 @@ namespace NoCodeMotion.Views
         }
     }
 }
-// ◇作者保留所有权利　请勿删除※​⁣​
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​
+// === NoCodeMotion 视觉流程详情 VM | 作者：温启志 | 微信：18719361399 | 保留所有权利，请勿删除 ===

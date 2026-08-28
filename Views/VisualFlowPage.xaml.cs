@@ -1,22 +1,34 @@
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
-// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+// === NoCodeMotion 视觉流程页 | 作者：温启志 | 微信：18719361399 | 保留所有权利，请勿删除 ===
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 
 namespace NoCodeMotion.Views
 {
     /// <summary>
-    /// 视觉流程详情页。DataContext 由 FlowPage 注入为 VisualFlowDetailViewModel（资源），
-    /// 该 VM 的 Steps/Name 已通过 BindingProxy 绑到主选中 FlowItem 的 VisualSteps/Name，
-    /// 所以本页的步骤增删直接作用于主流程项；不再自带独立 VM 与左侧列表。
+    /// 视觉流程详情页。自身持有 VisualFlowDetailViewModel 作为 DataContext；
+    /// 在 Loaded 时通过 RelativeSource 找到父级 FlowPage，把 VM 的 Steps / Name
+    /// 绑到选中流程项的 VisualSteps / Name，使步骤增删与运行结果直接落进主流程项。
     /// </summary>
     public partial class VisualFlowPage : UserControl
     {
+        private readonly VisualFlowDetailViewModel _vm = new VisualFlowDetailViewModel();
+
         public VisualFlowPage()
         {
             InitializeComponent();
+            DataContext = _vm;
+            Loaded += OnLoaded;
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            var ancestor = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(FlowPage), 1);
+            BindingOperations.SetBinding(_vm, VisualFlowDetailViewModel.StepsProperty,
+                new Binding("SelectedItem.VisualSteps") { RelativeSource = ancestor, Mode = BindingMode.OneWay });
+            BindingOperations.SetBinding(_vm, VisualFlowDetailViewModel.NameProperty,
+                new Binding("SelectedItem.Name") { RelativeSource = ancestor, Mode = BindingMode.OneWay });
         }
     }
 }
-// ◇作者保留所有权利　请勿删除※​⁣​
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​
+// === NoCodeMotion 视觉流程页 | 作者：温启志 | 微信：18719361399 | 保留所有权利，请勿删除 ===

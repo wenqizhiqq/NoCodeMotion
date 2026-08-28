@@ -48,11 +48,20 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 状态条：显示主选中视觉流程的名称与步骤数 -->
+        <!-- 状态条：显示主选中视觉流程的名称与步骤数 + 运行按钮 -->
         <Border Grid.Row="0" Margin="14,12,14,8" Padding="10,8"
                 Background="{StaticResource AccentSoftBrush}" CornerRadius="8">
-            <DockPanel>
-                <Path Data="{StaticResource VisualFlowIcon}" Width="14" Height="14"
+            <DockPanel LastChildFill="True">
+                <Button DockPanel.Dock="Right" Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
+                        Style="{StaticResource ToolButtonStyle}" Margin="8,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource PlayIcon}" Width="14" Height="14" Stretch="Uniform"
+                              Margin="0,0,5,0" VerticalAlignment="Center"
+                              Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="运行视觉流程" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Path Data="{StaticResource VisionIconGeometry}" Width="14" Height="14"
                       Stretch="Uniform" Fill="{StaticResource AccentBrush}"
                       Margin="0,0,6,0" VerticalAlignment="Center"/>
                 <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap">
@@ -125,8 +134,14 @@
                 </Border>
             </Grid>
 
-            <!-- 右：参数面板（按步骤类型显隐） -->
-            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <!-- 右：参数面板（按步骤类型显隐）+ 运行结果 -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="260"/>
+                </Grid.RowDefinitions>
+
+                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                 <StackPanel>
                     <!-- 通用参数（始终可见） -->
                     <Border Style="{StaticResource AppleGroupCard}">
@@ -298,7 +313,70 @@
                         </StackPanel>
                     </Border>
                 </StackPanel>
-            </ScrollViewer>
+                </ScrollViewer>
+
+                <!-- 运行结果：预览图 + 每步结果 -->
+                <Border Grid.Row="1" Margin="0,12,0,0" Style="{StaticResource AppleGroupCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Style="{StaticResource AppleSectionHeader}" Text="运行结果"/>
+                        <Grid Grid.Row="1" Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="240"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Margin="0,0,12,0" CornerRadius="8" Background="#1D1D1F">
+                                <Grid>
+                                    <Image Source="{Binding ResultImage}" Stretch="Uniform" Margin="6"/>
+                                    <TextBlock Text="运行后在此显示结果图" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="#71717A" FontSize="12">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasResult}" Value="False">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </Border>
+                            <ListBox Grid.Column="1" ItemsSource="{Binding Results}" Style="{StaticResource ProjectListStyle}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="2">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Type}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="{Binding StepName}" Margin="6,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                <TextBlock Margin="6,0,0,0" FontWeight="Bold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="✗"/>
+                                                            <Setter Property="Foreground" Value="#DC2626"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Ok}" Value="True">
+                                                                    <Setter Property="Text" Value="✓"/>
+                                                                    <Setter Property="Foreground" Value="#16A34A"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Summary}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

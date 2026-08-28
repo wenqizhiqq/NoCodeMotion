@@ -22,6 +22,9 @@ namespace NoCodeMotion.Models
     {
         public ObservableCollection<FlowStep> Steps { get; set; } = new();
 
+        /// <summary>视觉流程步骤集合（图像采集 / 模板匹配 / 缺陷检测 / 测量 / 通讯）。</summary>
+        public ObservableCollection<VisualFlowStep> VisualSteps { get; set; } = new();
+
         private FlowKind _kind = FlowKind.Table;
         /// <summary>流程类型：表格 / 脚本。</summary>
         public FlowKind Kind
