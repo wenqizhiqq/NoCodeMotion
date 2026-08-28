@@ -107,14 +107,17 @@ namespace NoCodeMotion.ViewModels
         public bool CanPause => IsRunning && !IsPaused;
         public bool CanStop => IsRunning || IsPaused || _currentStep >= 0;
 
-        // ---------- 新建流程的两个具体添加命令 ----------
+        // ---------- 新建流程的三个具体添加命令 ----------
         private FlowKind _nextAddKind = FlowKind.Table;
 
         public ICommand AddTableFlowCommand { get; }
         public ICommand AddScriptFlowCommand { get; }
+        /// <summary>添加视觉流程（Kind=Vision）：相机器视觉 / 模板匹配 等图形节点编辑流（编辑区暂为占位）。</summary>
+        public ICommand AddVisionFlowCommand { get; }
 
         public bool IsKindTable => SelectedItem?.Kind == FlowKind.Table;
         public bool IsKindLua => SelectedItem?.Kind == FlowKind.Lua;
+        public bool IsKindVision => SelectedItem?.Kind == FlowKind.Vision;
 
         public ICommand RunCommand { get; }
         public ICommand StepCommand { get; }
@@ -142,6 +145,7 @@ namespace NoCodeMotion.ViewModels
 
             AddTableFlowCommand = new RelayCommand(_ => AddNewOfKind(FlowKind.Table));
             AddScriptFlowCommand = new RelayCommand(_ => AddNewOfKind(FlowKind.Lua));
+            AddVisionFlowCommand = new RelayCommand(_ => AddNewOfKind(FlowKind.Vision));
 
             _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
             _runTimer.Tick += (_, _) => StepOnce();
@@ -169,6 +173,7 @@ namespace NoCodeMotion.ViewModels
             {
                 OnPropertyChanged(nameof(IsKindTable));
                 OnPropertyChanged(nameof(IsKindLua));
+                OnPropertyChanged(nameof(IsKindVision));
                 Stop();
             }
         }
@@ -626,7 +631,14 @@ namespace NoCodeMotion.ViewModels
         {
             var kind = _nextAddKind;
             int idx = Items.Count(i => i.Kind == kind) + 1;
-            string prefix = kind == FlowKind.Table ? "表格流程" : "脚本流程";
+            // 流程新建命名：表格流程 N / 脚本流程 N / 视觉流程 N，与三类 Kind 一一对应。
+            string prefix = kind switch
+            {
+                FlowKind.Table => "表格流程",
+                FlowKind.Lua => "脚本流程",
+                FlowKind.Vision => "视觉流程",
+                _ => "流程"
+            };
             return new FlowItem
             {
                 Name = $"{prefix}{idx}",
@@ -643,6 +655,7 @@ namespace NoCodeMotion.ViewModels
                 Stop();
                 OnPropertyChanged(nameof(IsKindTable));
                 OnPropertyChanged(nameof(IsKindLua));
+                OnPropertyChanged(nameof(IsKindVision));
             }
         }
 

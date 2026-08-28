@@ -6,13 +6,15 @@ using NoCodeMotion.Models;
 
 namespace NoCodeMotion.Models
 {
-    /// <summary>流程类型：表格流程（逐行步骤）或 Lua 脚本流程。</summary>
+    /// <summary>流程类型：表格流程（逐行步骤）、Lua 脚本流程、视觉流程（图形节点 / 视觉算子）。</summary>
     public enum FlowKind
     {
         /// <summary>表格流程：左侧列表逐行步骤执行。</summary>
         Table = 0,
         /// <summary>Lua 脚本流程：执行 Lua 源码。</summary>
-        Lua = 1
+        Lua = 1,
+        /// <summary>视觉流程：相机 / 视觉算子 / 模板匹配 等节点（图形式编辑，先保留 Kind 入口，编辑区占位）。</summary>
+        Vision = 2
     }
 
     /// <summary>流程项目：左侧列表中的一项，自身包含若干步骤（FlowStep）。</summary>

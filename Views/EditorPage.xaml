@@ -30,6 +30,10 @@
                                     <Setter Property="Visibility" Value="Visible"/>
                                     <Setter Property="Data" Value="{StaticResource ScriptIconGeometry}"/>
                                 </DataTrigger>
+                                <DataTrigger Binding="{Binding Kind}" Value="{x:Static models:FlowKind.Vision}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Setter Property="Data" Value="{StaticResource VisionIconGeometry}"/>
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Path.Style>
