@@ -1,7 +1,9 @@
 // === NoCodeMotion 视觉流程详情 VM | 作者：温启志 | 微信：18719361399 | 保留所有权利，请勿删除 ===
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -18,8 +20,10 @@ namespace NoCodeMotion.Views
     /// VisualSteps / Name；因此本 VM 操作的 Steps 就是主 FlowItem.VisualSteps（同一引用），
     /// 步骤的增删直接落进主流程项。RunCommand 负责把流程真正跑起来并把结果回显。
     /// </summary>
-    public class VisualFlowDetailViewModel : DependencyObject
+    public class VisualFlowDetailViewModel : DependencyObject, INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
         // ---- 依赖属性（与 FlowPage 的绑定对应） ----
         public static readonly DependencyProperty StepsProperty =
             DependencyProperty.Register(nameof(Steps), typeof(ObservableCollection<VisualFlowStep>),
@@ -59,6 +63,14 @@ namespace NoCodeMotion.Views
             get => (bool)GetValue(HasStepProperty);
             private set => SetValue(HasStepProperty, value);
         }
+
+        // ---- 当前选中步骤的工具类型显隐标志（用于右侧参数卡按类型切换） ----
+        public bool IsImageAcquisition => SelectedStep?.StepType == "图像采集";
+        public bool IsPreprocess => SelectedStep?.StepType == "图像预处理";
+        public bool IsTemplateMatch => SelectedStep?.StepType == "模板匹配";
+        public bool IsDefect => SelectedStep?.StepType == "缺陷检测";
+        public bool IsMeasure => SelectedStep?.StepType == "测量";
+        public bool IsComm => SelectedStep?.StepType == "通讯";
 
         // ---- 运行结果相关 ----
         public static readonly DependencyProperty ResultImageProperty =
@@ -113,6 +125,7 @@ namespace NoCodeMotion.Views
         public ICommand AddStepCommand { get; }
         public ICommand DeleteStepCommand { get; }
         public ICommand RunCommand { get; }
+        public ICommand RunStepCommand { get; }
 
         private readonly Progress<string> _progress;
 
@@ -136,11 +149,36 @@ namespace NoCodeMotion.Views
             });
 
             RunCommand = new SimpleRelayCommand(_ => _ = RunAsync());
+            RunStepCommand = new SimpleRelayCommand(p => _ = RunStepAsync(p as VisualFlowStep));
             _progress = new Progress<string>(msg => RunStatus = msg);
         }
 
         private static void OnSelectedStepChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-            => ((VisualFlowDetailViewModel)d).HasStep = e.NewValue != null;
+        {
+            var vm = (VisualFlowDetailViewModel)d;
+            // 解旧步骤、订新步骤的 INPC，便于 StepType 变化时刷新右侧参数卡显隐
+            if (e.OldValue is INotifyPropertyChanged oldInpc) oldInpc.PropertyChanged -= vm.OnSelectedStepTypeChanged;
+            if (e.NewValue is INotifyPropertyChanged newInpc) newInpc.PropertyChanged += vm.OnSelectedStepTypeChanged;
+            vm.HasStep = e.NewValue != null;
+            vm.RaiseTypeFlags();
+        }
+
+        private void OnSelectedStepTypeChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(VisualFlowStep.StepType)) RaiseTypeFlags();
+        }
+
+        private void RaiseTypeFlags()
+        {
+            OnPropertyChanged(nameof(IsImageAcquisition));
+            OnPropertyChanged(nameof(IsPreprocess));
+            OnPropertyChanged(nameof(IsTemplateMatch));
+            OnPropertyChanged(nameof(IsDefect));
+            OnPropertyChanged(nameof(IsMeasure));
+            OnPropertyChanged(nameof(IsComm));
+        }
+
+        private void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         private async Task RunAsync()
         {
@@ -181,6 +219,52 @@ namespace NoCodeMotion.Views
             IsRunning = false;
             CanRun = true;
             RunStatus = $"完成：共 {Results.Count} 步，{ok} 步成功";
+        }
+
+        /// <summary>从首个启用步骤运行到 target（含），用于单步/分段验证，并回填该段每步的耗时与结果。</summary>
+        private async Task RunStepAsync(VisualFlowStep? target)
+        {
+            var steps = Steps;
+            if (steps == null || steps.Count == 0 || target == null)
+            {
+                RunStatus = "请先选中视觉流程并添加步骤";
+                return;
+            }
+            int idx = steps.IndexOf(target);
+            if (idx < 0) return;
+
+            // 先清空所有步骤的上次结果，避免未执行步骤显示旧数据
+            foreach (var s in steps) { s.DurationMs = 0; s.LastOk = false; s.LastResult = ""; }
+
+            var runList = new ObservableCollection<VisualFlowStep>(steps.Take(idx + 1));
+
+            IsRunning = true;
+            CanRun = false;
+            RunStatus = $"运行到「{target.Name}」…";
+            Results.Clear();
+
+            var report = await Task.Run(() => VisionEngine.Run(runList, _progress));
+
+            Results.Clear();
+            foreach (var r in report.Results) Results.Add(r);
+
+            if (report.HasImage && report.Bgra != null && report.Bgra.Length == report.Width * report.Height * 4)
+            {
+                var wb = new WriteableBitmap(report.Width, report.Height, 96, 96, PixelFormats.Bgra32, null);
+                wb.WritePixels(new Int32Rect(0, 0, report.Width, report.Height), report.Bgra, report.Width * 4, 0);
+                ResultImage = wb;
+                HasResult = true;
+            }
+            else
+            {
+                HasResult = false;
+            }
+
+            int ok = 0;
+            foreach (var r in Results) if (r.Ok) ok++;
+            IsRunning = false;
+            CanRun = true;
+            RunStatus = $"运行到「{target.Name}」完成：{Results.Count} 步，{ok} 步成功";
         }
 
         private sealed class SimpleRelayCommand : ICommand

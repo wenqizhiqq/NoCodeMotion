@@ -53,6 +53,11 @@ namespace NoCodeMotion.Models
         private string _preRoi = "";
         private string _preImage2Path = "";
 
+        // 运行结果（每次运行后由 VisionEngine 回写）
+        private double _durationMs = 0;
+        private bool _lastOk = false;
+        private string _lastResult = "";   // 空=尚未运行
+
         public string Name { get => _name; set => Set(ref _name, value); }
         public string StepType { get => _stepType; set => Set(ref _stepType, value); }
         public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
@@ -87,13 +92,26 @@ namespace NoCodeMotion.Models
         public string PreRoi { get => _preRoi; set => Set(ref _preRoi, value); }
         public string PreImage2Path { get => _preImage2Path; set => Set(ref _preImage2Path, value); }
 
+        // 运行结果
+        public double DurationMs { get => _durationMs; set { if (Set(ref _durationMs, value)) OnChanged(nameof(DurationText)); } }
+        public bool LastOk { get => _lastOk; set { if (Set(ref _lastOk, value)) OnChanged(nameof(ResultText)); } }
+        public string LastResult { get => _lastResult; set { if (Set(ref _lastResult, value)) { OnChanged(nameof(ResultText)); OnChanged(nameof(DurationText)); } } }
+
+        /// <summary>耗时显示文本：未运行显示 –，否则“x.x ms”。</summary>
+        public string DurationText => string.IsNullOrEmpty(_lastResult) ? "–" : $"{_durationMs:F1} ms";
+
+        /// <summary>结果标记：未运行 –，成功 ✓，失败 ✗。</summary>
+        public string ResultText => string.IsNullOrEmpty(_lastResult) ? "–" : (_lastOk ? "✓" : "✗");
+
         public event PropertyChangedEventHandler? PropertyChanged;
-        private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
+        private bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
         {
-            if (Equals(field, value)) return;
+            if (Equals(field, value)) return false;
             field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+            return true;
         }
+        private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }
 // ◇作者保留所有权利　请勿删除※​⁣​

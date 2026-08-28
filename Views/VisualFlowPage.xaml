@@ -38,30 +38,9 @@
             <sys:String>图像或</sys:String>
         </x:Array>
 
-        <!-- 类型专属参数组：按 SelectedStep.StepType 显隐 -->
-        <Style x:Key="VisualStepGroupCard" TargetType="Border" BasedOn="{StaticResource AppleGroupCard}">
-            <Setter Property="Visibility" Value="Collapsed"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="图像采集">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="图像预处理">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="模板匹配">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="缺陷检测">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="测量">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding SelectedStep.StepType}" Value="通讯">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
+        <!-- 旧 VisualStepGroupCard 样式（含 SelectedStep.StepType DataTrigger）已废弃——
+             右侧参数卡现直接绑 Visibility 到 VM 的 IsImageAcquisition/IsPreprocess/... 等显式标志，
+             链式 Path 绑定的 DataTrigger 在某些情况下不刷新（用户报切换工具右侧不变），改用显式标志更可靠。 -->
     </UserControl.Resources>
 
     <!-- 视觉流程详情：DataContext 由 FlowPage 注入为 VisualFlowDetailViewModel；
@@ -106,9 +85,10 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 左：步骤列表（增删） -->
+            <!-- 左：步骤列表（增删 + 每步运行/耗时/结果） -->
             <Grid Grid.Column="0" Margin="0,0,12,0">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
@@ -133,24 +113,72 @@
                     </Button>
                 </StackPanel>
 
-                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
+                <!-- 列头：步骤 / 类型 / 运行 / 耗时 / 结果（左右留 6 与 ListBox 内边距对齐） -->
+                <Grid Grid.Row="1" Margin="6,0,6,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="88"/>
+                        <ColumnDefinition Width="52"/>
+                        <ColumnDefinition Width="64"/>
+                        <ColumnDefinition Width="28"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="步骤" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Grid.Column="1" Text="类型" FontSize="11" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Grid.Column="2" Text="运行" FontSize="11" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Grid.Column="3" Text="耗时" FontSize="11" Margin="0,0,4,0" TextAlignment="Right" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Grid.Column="4" Text="结果" FontSize="11" TextAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                </Grid>
+
+                <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}">
                     <ListBox ItemsSource="{Binding Steps}"
                              SelectedItem="{Binding SelectedStep, Mode=TwoWay}"
                              Style="{StaticResource ProjectListStyle}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                                <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="88"/>
+                                        <ColumnDefinition Width="52"/>
+                                        <ColumnDefinition Width="64"/>
+                                        <ColumnDefinition Width="28"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="{Binding Name}"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               Margin="0,0,6,0"
                                                Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <ComboBox Grid.Column="1" MinWidth="96" Margin="8,0,0,0"
+                                    <ComboBox Grid.Column="1" MinWidth="84" Margin="0,0,4,0"
                                               ItemsSource="{StaticResource VisualStepTypes}"
                                               SelectedItem="{Binding StepType, UpdateSourceTrigger=PropertyChanged}"
                                               Style="{StaticResource CellComboStyle}"/>
+                                    <Button Grid.Column="2" Content="运行" MinWidth="44" Margin="0,0,4,0"
+                                            Padding="6,2"
+                                            Command="{Binding DataContext.RunStepCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                            CommandParameter="{Binding}"
+                                            IsEnabled="{Binding DataContext.CanRun, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                            Style="{StaticResource ToolButtonStyle}"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding DurationText}" VerticalAlignment="Center"
+                                               Margin="0,0,4,0" TextAlignment="Right"
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Grid.Column="4" Text="{Binding ResultText}" VerticalAlignment="Center"
+                                               TextAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding LastOk}" Value="True">
+                                                        <Setter Property="Foreground" Value="#16A34A"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding LastOk}" Value="False">
+                                                        <Setter Property="Foreground" Value="#DC2626"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding LastResult}" Value="">
+                                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -196,7 +224,8 @@
                     </Border>
 
                     <!-- 图像采集 -->
-                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                            Visibility="{Binding IsImageAcquisition, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像采集参数"/>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
@@ -232,7 +261,8 @@
                     </Border>
 
                     <!-- 图像预处理 -->
-                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                            Visibility="{Binding IsPreprocess, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像预处理参数"/>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
@@ -272,7 +302,8 @@
                     </Border>
 
                     <!-- 模板匹配 -->
-                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                            Visibility="{Binding IsTemplateMatch, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="模板匹配参数"/>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
@@ -297,7 +328,8 @@
                     </Border>
 
                     <!-- 缺陷检测 -->
-                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                            Visibility="{Binding IsDefect, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="缺陷检测参数"/>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
@@ -328,7 +360,8 @@
                     </Border>
 
                     <!-- 测量 -->
-                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                            Visibility="{Binding IsMeasure, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="测量参数"/>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
@@ -353,7 +386,8 @@
                     </Border>
 
                     <!-- 通讯 -->
-                    <Border Style="{StaticResource VisualStepGroupCard}" Margin="0,12,0,0">
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                            Visibility="{Binding IsComm, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="通讯参数"/>
                             <Rectangle Style="{StaticResource AppleHairline}"/>

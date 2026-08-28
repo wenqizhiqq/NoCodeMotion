@@ -1,6 +1,7 @@
 // === NoCodeMotion 视觉流程引擎（OpenCV 实现） | 作者：温启志 | 微信：18719361399 | 保留所有权利，请勿删除 ===
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using Cv = OpenCvSharp;
@@ -48,42 +49,74 @@ namespace NoCodeMotion.Services.Vision
             int tplX = 0, tplY = 0, tplW = 0, tplH = 0; // 合成测试图里的“目标”矩形（用于无模板文件时自动取模板）
             var featurePts = new List<(double X, double Y, string Tag)>();
 
+            // 运行前清空每步上次结果（steps 与主流程 Steps 是同批引用，直接回写对象）
+            foreach (var s in steps)
+            {
+                if (s == null) continue;
+                s.DurationMs = 0;
+                s.LastOk = false;
+                s.LastResult = "";
+            }
+
             try
             {
                 foreach (var s in steps)
                 {
-                    if (s == null || !s.Enabled) continue;
-                    switch ((s.StepType ?? "").Trim())
+                    if (s == null) continue;
+                    if (!s.Enabled)
                     {
-                        case "图像采集":
-                            {
-                                var next = RunAcquire(s, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress);
-                                cur?.Dispose();
-                                cur = next;
-                                featurePts.Clear();
+                        // 未运行：保持重置后的空结果，列表显示中性“–”
+                        progress?.Report($"跳过（已禁用）：{s.Name}");
+                        continue;
+                    }
+                    var sw = Stopwatch.StartNew();
+                    int before = report.Results.Count;
+                    try
+                    {
+                        switch ((s.StepType ?? "").Trim())
+                        {
+                            case "图像采集":
+                                {
+                                    var next = RunAcquire(s, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress);
+                                    cur?.Dispose();
+                                    cur = next;
+                                    featurePts.Clear();
+                                    break;
+                                }
+                            case "图像预处理":
+                                if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
+                                cur = RunPreprocess(s, cur, featurePts, report, progress);
                                 break;
-                            }
-                        case "图像预处理":
-                            if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
-                            cur = RunPreprocess(s, cur, featurePts, report, progress);
-                            break;
-                        case "模板匹配":
-                            if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
-                            cur = RunMatch(s, cur, usedSynthetic, tplX, tplY, tplW, tplH, featurePts, report, progress);
-                            break;
-                        case "缺陷检测":
-                            if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
-                            cur = RunDefect(s, cur, featurePts, report, progress);
-                            break;
-                        case "测量":
-                            cur = RunMeasure(s, cur, featurePts, report, progress);
-                            break;
-                        case "通讯":
-                            RunComm(s, report, progress);
-                            break;
-                        default:
-                            report.Results.Add(new VisionStepResult { StepName = s.Name, Type = s.StepType, Ok = false, Summary = "未知步骤类型，已跳过" });
-                            break;
+                            case "模板匹配":
+                                if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
+                                cur = RunMatch(s, cur, usedSynthetic, tplX, tplY, tplW, tplH, featurePts, report, progress);
+                                break;
+                            case "缺陷检测":
+                                if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
+                                cur = RunDefect(s, cur, featurePts, report, progress);
+                                break;
+                            case "测量":
+                                cur = RunMeasure(s, cur, featurePts, report, progress);
+                                break;
+                            case "通讯":
+                                RunComm(s, report, progress);
+                                break;
+                            default:
+                                report.Results.Add(new VisionStepResult { StepName = s.Name, Type = s.StepType, Ok = false, Summary = "未知步骤类型，已跳过" });
+                                break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddFail(report, s, $"执行异常：{ex.Message}");
+                    }
+                    sw.Stop();
+                    s.DurationMs = sw.Elapsed.TotalMilliseconds;
+                    if (report.Results.Count > before)
+                    {
+                        var r = report.Results[report.Results.Count - 1];
+                        s.LastOk = r.Ok;
+                        s.LastResult = r.Summary;
                     }
                 }
             }
