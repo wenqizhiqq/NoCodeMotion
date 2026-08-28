@@ -1,0 +1,94 @@
+<Window x:Class="NoCodeMotion.Views.OperatorManualDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        Width="600" Height="680" WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+    <!-- 透明窗口 + 圆角 14 白卡 + 柔和阴影 = Apple 风格操作员使用说明书 -->
+    <Border CornerRadius="14" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Margin="16" Effect="{StaticResource SoftShadow}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 标题栏 -->
+            <Border Grid.Row="0" Padding="20,16,16,14" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">
+                <DockPanel LastChildFill="False" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                        <Path Data="{StaticResource InfoIcon}" Width="20" Height="20" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="操作员使用说明书" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource TtGrayBtn}" Width="32" Height="32" Padding="0" Click="CloseButton_Click" IsCancel="True" ToolTip="关闭"/>
+                </DockPanel>
+            </Border>
+
+            <!-- 说明书正文（可滚动） -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="22,16,22,8">
+                <StackPanel>
+                    <!-- 概览 -->
+                    <TextBlock Text="一、页面概览" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,14">
+                        本页用于实际生产运行与实时监控。左侧为生产数据、控制按钮与趋势图；右侧为时序偏差监控与异常日志。所有数据随运行实时更新。
+                    </TextBlock>
+
+                    <!-- 顶部工具栏 -->
+                    <TextBlock Text="二、顶部工具栏" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 标题：操作员控制台。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,14">• 当前用户：下拉切换操作工，产量与操作将归属到所选用户。</TextBlock>
+
+                    <!-- 生产数据 -->
+                    <TextBlock Text="三、生产数据（KPI）" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 累计产量：已完成的工件总数。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 良率：合格品占比，目标 ≥ 98%。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 节拍：单件平均耗时（秒）。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,14">• 运行时长：自本次启动累计的运行时间。</TextBlock>
+
+                    <!-- 控制按钮 -->
+                    <TextBlock Text="四、控制按钮" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 启动：自动模式按顺序连续运行；手动模式每按一次前进一个点位。运行中可暂停，暂停后按钮变为「继续」。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 暂停：运动到位后挂起，点「继续」恢复。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 停止：结束本次运行（循环退出）。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 手动 / 自动：切换运行模式。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 急停：立即切断所有运动输出，须先「复位」解除。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,14">• 复位：清空产量与图表，并解除急停锁定。</TextBlock>
+
+                    <!-- 生产趋势图 -->
+                    <TextBlock Text="五、生产趋势图" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,14">
+                        实时绘制良率(%)与节拍(s)曲线，便于观察生产稳定性。绿色为良率，橙色为节拍。
+                    </TextBlock>
+
+                    <!-- 时序偏差监控 -->
+                    <TextBlock Text="六、时序偏差监控" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,14">
+                        将实际触发时刻与预期时序标记比对：偏差 ≤ ±2ms 为正常（绿），≤ ±5ms 为偏差（黄），超出报警（红）并写入异常日志；未配置标记时显示「未配置」。
+                    </TextBlock>
+
+                    <!-- 异常日志 -->
+                    <TextBlock Text="七、异常日志" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,14">
+                        记录运行中的警告与异常，含时间、等级与信息，便于问题追溯。
+                    </TextBlock>
+
+                    <!-- 常见提示 -->
+                    <TextBlock Text="八、常见提示" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 启动前请确认点位 / 轴已回零（Home）。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 急停后务必先点「复位」才能再次启动。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 长时间运行时界面每 150ms 刷新一次，避免卡顿。</TextBlock>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="21" Margin="0,0,0,4">• 需要更详细的流程编辑说明，请查看「流程」页面与 Lua 编辑器帮助。</TextBlock>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- 底部按钮 -->
+            <Border Grid.Row="2" Padding="0,12,16,14" BorderThickness="0,1,0,0" BorderBrush="{StaticResource LineBrush}">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="关闭" Style="{StaticResource TtBaseBtn}" Width="96" Click="CloseButton_Click" IsDefault="True"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

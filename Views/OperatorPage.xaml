@@ -199,7 +199,7 @@
                     <Border Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,12,0,0">
                         <StackPanel>
                             <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5" Margin="0,0,0,8"/>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <WrapPanel VerticalAlignment="Center">
                                 <Button Command="{Binding RunCommand}" Style="{StaticResource TtBaseBtn}" Content="{Binding RunButtonText}" ToolTip="启动运行（自动模式连续运行 / 手动模式单步）；运行中暂停后变「继续」。" IsEnabled="{Binding CanStart}"/>
                                 <Button Command="{Binding PauseCommand}" Style="{StaticResource TtGrayBtn}" Content="暂停" ToolTip="暂停运行（运动到位后挂起，点「继续」恢复）。" Margin="8,0,0,0" IsEnabled="{Binding CanPause}"/>
                                 <Button Command="{Binding StopCommand}" Style="{StaticResource TtGrayBtn}" Content="停止" ToolTip="停止运行。" Margin="8,0,0,0" IsEnabled="{Binding CanStop}"/>
@@ -207,7 +207,8 @@
                                 <Button Command="{Binding AutoCommand}" Style="{StaticResource ModeAutoBtnStyle}" Content="自动" ToolTip="自动模式：连续顺序运行。" Margin="8,0,0,0"/>
                                 <Button Command="{Binding EStopCommand}" Style="{StaticResource TtDeleteBtn}" Content="急停" ToolTip="紧急切断所有运动。" Margin="8,0,0,0" IsEnabled="{Binding CanEStop}"/>
                                 <Button Command="{Binding ResetCommand}" Style="{StaticResource TtWarnBtn}" Content="复位" ToolTip="复位产量/图表并解除急停。" Margin="8,0,0,0"/>
-                            </StackPanel>
+                                <Button Content="说明书" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0" Click="ManualButton_Click" ToolTip="查看操作员页面使用说明"/>
+                            </WrapPanel>
                         </StackPanel>
                     </Border>
 

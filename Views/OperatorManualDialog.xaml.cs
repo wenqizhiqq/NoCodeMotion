@@ -1,29 +1,26 @@
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
-using NoCodeMotion.Models;
-using NoCodeMotion.Services;
-using NoCodeMotion.ViewModels;
+using System.Windows;
 
-namespace NoCodeMotion.ViewModels
+namespace NoCodeMotion.Views
 {
-    public class TrayViewModel : ListEditorViewModel<TrayItem>, IEnsureDefaultSelection
+    /// <summary>
+    /// Apple 风格操作员使用说明书弹窗：透明窗口 + 圆角白卡 + 滚动正文。
+    /// </summary>
+    public partial class OperatorManualDialog : Window
     {
-        public TrayViewModel()
+        public OperatorManualDialog()
         {
-            Items = ProjectStore.Data.Trays;
-            Counter = Items.Count;
-            AttachAutoSave();
+            InitializeComponent();
+            Owner = Application.Current?.MainWindow;
         }
 
-        protected override TrayItem CreateNewItem() => new TrayItem { Name = $"料盘{Counter + 1}" };
-    
-        public void EnsureDefaultSelection()
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            if (SelectedItem == null && Items.Count > 0)
-                SelectedItem = Items[0];
+            Close();
         }
-}
+    }
 }
 // ◇作者保留所有权利　请勿删除※​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​

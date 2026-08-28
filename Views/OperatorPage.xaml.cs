@@ -1,6 +1,7 @@
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
-// ◆温​启​志​编​写​，​微​信​：​1​8​7​1​9​3​6​1​3​9​9　※保​留​所​有​权​利​请​勿​删​除◇​⁣​
+// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+using System.Windows;
 using System.Windows.Controls;
 using NoCodeMotion.ViewModels;
 
@@ -13,7 +14,12 @@ namespace NoCodeMotion.Views
             InitializeComponent();
             DataContext = new OperatorViewModel();
         }
+
+        private void ManualButton_Click(object sender, RoutedEventArgs e)
+        {
+            new OperatorManualDialog().ShowDialog();
+        }
     }
 }
-// ◇作​者​保​留​所​有​权​利　请​勿​删​除※​⁣​
+// ◇作者保留所有权利　请勿删除※​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​
