@@ -95,6 +95,12 @@
                         <TextBlock Text="操作员" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
+                <Button Tag="Manual" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="查看使用说明书">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource InfoIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource AccentBrush}"/>
+                        <TextBlock Text="说明书" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Border>
 

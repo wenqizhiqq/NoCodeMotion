@@ -28,6 +28,7 @@ namespace NoCodeMotion
             ["Camera"] = () => new CameraPage(), 
             ["Engineer"] = () => new EngineerPage(),
             ["Operator"] = () => new OperatorPage(),
+            ["Manual"] = () => new OperatorManualPage(),
         };
 
         /// <summary>当前主窗口实例，供页面内（如工程工作台卡片）发起跨页导航。</summary>

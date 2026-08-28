@@ -207,7 +207,6 @@
                                 <Button Command="{Binding AutoCommand}" Style="{StaticResource ModeAutoBtnStyle}" Content="自动" ToolTip="自动模式：连续顺序运行。" Margin="8,0,0,0"/>
                                 <Button Command="{Binding EStopCommand}" Style="{StaticResource TtDeleteBtn}" Content="急停" ToolTip="紧急切断所有运动。" Margin="8,0,0,0" IsEnabled="{Binding CanEStop}"/>
                                 <Button Command="{Binding ResetCommand}" Style="{StaticResource TtWarnBtn}" Content="复位" ToolTip="复位产量/图表并解除急停。" Margin="8,0,0,0"/>
-                                <Button Content="说明书" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0" Click="ManualButton_Click" ToolTip="查看操作员页面使用说明"/>
                             </WrapPanel>
                         </StackPanel>
                     </Border>
