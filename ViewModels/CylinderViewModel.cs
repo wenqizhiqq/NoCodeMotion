@@ -1,3 +1,6 @@
+﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+// ◆温​启​志​编​写​，​微​信​：​1​8​7​1​9​3​6​1​3​9​9　※保​留​所​有​权​利​请​勿​删​除◇​⁣​
+// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 using NoCodeMotion.ViewModels;
@@ -6,11 +9,11 @@ namespace NoCodeMotion.ViewModels
 {
     public class CylinderViewModel : ListEditorViewModel<CylinderItem>, IEnsureDefaultSelection
     {
-        // ҩ��ѡ��Ŀ�ѡ���ѡһ��
-        public string[] TypeOptions { get; } = { "������", "˫����" };
+        // 药丸选择的可选项（多选一）
+        public string[] TypeOptions { get; } = { "单作用", "双作用" };
         public string[] SensorTypeOptions { get; } = { "NPN", "PNP" };
-        public string[] InitialStateOptions { get; } = { "���", "����" };
-        public string[] ActionOptions { get; } = { "���", "����" };
+        public string[] InitialStateOptions { get; } = { "伸出", "缩回" };
+        public string[] ActionOptions { get; } = { "伸出", "缩回" };
 
         public CylinderViewModel()
         {
@@ -20,7 +23,7 @@ namespace NoCodeMotion.ViewModels
             AttachAutoSave();
         }
 
-        protected override CylinderItem CreateNewItem() => new CylinderItem { Name = $"����{Counter + 1}" };
+        protected override CylinderItem CreateNewItem() => new CylinderItem { Name = $"气缸{Counter + 1}" };
 
         public void EnsureDefaultSelection()
         {
@@ -28,3 +31,5 @@ namespace NoCodeMotion.ViewModels
         }
     }
 }
+// ◇作​者​保​留​所​有​权​利　请​勿​删​除※​⁣​
+// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​

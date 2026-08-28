@@ -1,4 +1,4 @@
-<UserControl x:Class="NoCodeMotion.Views.TableToolbar"
+﻿<UserControl x:Class="NoCodeMotion.Views.TableToolbar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:NoCodeMotion.Views"

@@ -1,3 +1,6 @@
+﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+// ◆温​启​志​编​写​，​微​信​：​1​8​7​1​9​3​6​1​3​9​9　※保​留​所​有​权​利​请​勿​删​除◇​⁣​
+// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -15,12 +18,12 @@ using NoCodeMotion.Services;
 namespace NoCodeMotion.ViewModels
 {
     /// <summary>
-    /// ͨ�ñ������ ViewModel������IO / ���IO / ���� / ���̲��� �ȶ�����������
-    /// ά��һ�� ObservableCollection&lt;T&gt;���ṩ ����/ɾ��/����/����/����/ճ��/�س�/����/Excel���༭��
-    /// ��ͨ�� JSON ����ջ֧�ֻس� / �������κ���ɾ�Ķ����Զ����档
-    /// ����������������ͨ�� MakeNew / Clone ���ơ�
-    /// SetItems �ɰ�����л�����һ�ݼ��ϣ����л�ѡ������ʱ�л��䲽�輯�ϣ���
-    /// �ᰲȫ�������ɼ��϶��ġ������¶��Ĳ�����ա�
+    /// 通用表格面板 ViewModel（输入IO / 输出IO / 变量 / 流程步骤 等都在用它）：
+    /// 维护一份 ObservableCollection&lt;T&gt;，提供 添加/删除/上移/下移/复制/粘贴/回撤/重做/Excel批编辑，
+    /// 并通过 JSON 快照栈支持回撤 / 重做。任何增删改都会自动保存。
+    /// 具体行类型由子类通过 MakeNew / Clone 定制。
+    /// SetItems 可把面板切换到另一份集合（如切换选中流程时切换其步骤集合），
+    /// 会安全地清理旧集合订阅、建立新订阅并打快照。
     /// </summary>
     public abstract class TablePanelViewModel<T> : ViewModelBase where T : INotifyPropertyChanged, new()
     {
@@ -49,7 +52,7 @@ namespace NoCodeMotion.ViewModels
         public ICommand UndoCommand { get; }
         public ICommand RedoCommand { get; }
 
-        /// <summary>Excel ���༭��������ǰ�е� .xlsx �� �� Excel/WPS �� �رպ��Զ��ض����滻 Items��</summary>
+        /// <summary>Excel 批编辑：导出当前行到 .xlsx → 打开 Excel/WPS → 关闭后自动回读并替换 Items。</summary>
         public virtual ICommand ExcelEditCommand => new RelayCommand(_ => OpenExcelForBatchEdit());
 
         private readonly Stack<List<T>> _undo = new();
@@ -73,8 +76,8 @@ namespace NoCodeMotion.ViewModels
         }
 
         /// <summary>
-        /// �����󶨵���һ�ݼ��ϣ����л���ĳ������ʱ���л�Ϊ�䲽�輯�ϣ���
-        /// �������ɼ��ϼ����и���Ķ��ġ������¶��ġ�����գ���֪ͨ UI��
+        /// 把面板绑定到另一份集合（如切换到某个流程时，切换为其步骤集合）。
+        /// 会清理旧集合及其中各项的订阅、建立新订阅、打快照，并通知 UI。
         /// </summary>
         public void SetItems(ObservableCollection<T>? items)
         {
@@ -207,9 +210,9 @@ namespace NoCodeMotion.ViewModels
             SelectedItem = Items.Count > 0 ? Items[0] : default(T);
         }
 
-        // ==================== Excel �����༭ ====================
+        // ==================== Excel 批量编辑 ====================
 
-        /// <summary>�ѵ�ǰ Items ������ .xlsx����ϵͳĬ�ϳ���Excel/WPS���򿪣��رպ��Զ��ض��滻 Items��</summary>
+        /// <summary>把当前 Items 导出到 .xlsx，用系统默认程序（Excel/WPS）打开；关闭后自动回读替换 Items。</summary>
         protected void OpenExcelForBatchEdit()
         {
             string path;
@@ -219,7 +222,7 @@ namespace NoCodeMotion.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show("���� Excel ʧ�ܣ�" + ex.Message, "��ʾ",
+                MessageBox.Show("导出 Excel 失败：" + ex.Message, "提示",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -235,15 +238,15 @@ namespace NoCodeMotion.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show("�� Excel ʧ�ܣ�" + ex.Message +
-                    "\n��ȷ���Ѱ�װ Excel �� WPS �ȿɴ��� .xlsx �ĳ���", "��ʾ",
+                MessageBox.Show("打开 Excel 失败：" + ex.Message +
+                    "\n请确认已安装 Excel 或 WPS 等可处理 .xlsx 的程序。", "提示",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (p == null)
             {
-                MessageBox.Show("�޷����� Excel���޹������򣩡�", "��ʾ",
+                MessageBox.Show("无法启动 Excel（无关联程序）。", "提示",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -258,17 +261,17 @@ namespace NoCodeMotion.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    dispatcher.Invoke(() => MessageBox.Show("��ȡ Excel ʧ�ܣ�" + ex.Message, "��ʾ",
+                    dispatcher.Invoke(() => MessageBox.Show("读取 Excel 失败：" + ex.Message, "提示",
                         MessageBoxButton.OK, MessageBoxImage.Warning));
                 }
                 finally
                 {
-                    try { File.Delete(path); } catch { /* ���� */ }
+                    try { File.Delete(path); } catch { /* 忽略 */ }
                 }
             };
         }
 
-        /// <summary>�� Excel �ض��Ľ���滻 Items��������δ�������������������� undo����</summary>
+        /// <summary>用 Excel 回读的结果替换 Items。若内容未变则跳过（避免无意义 undo）。</summary>
         protected void ReplaceItemsFromExcel(IList<T> imported)
         {
             var oldJson = JsonSerializer.Serialize(Items.ToList());
@@ -279,7 +282,7 @@ namespace NoCodeMotion.ViewModels
             OnAfterExcelReplace(imported);
         }
 
-        /// <summary>�����滻 Items��һ�� undo ������</summary>
+        /// <summary>批量替换 Items（一次 undo 步）。</summary>
         private void ReplaceItemsInternal(IEnumerable<T> newItems)
         {
             _applyingUndoRedo = true;
@@ -293,7 +296,9 @@ namespace NoCodeMotion.ViewModels
             ProjectStore.ScheduleSave();
         }
 
-        /// <summary>Excel �ض��滻��ɺ������һ�����Ȼ��ᣨ����ͬ��Ŀ¼�ȣ���</summary>
+        /// <summary>Excel 回读替换完成后给子类一个补救机会（重新同步目录等）。</summary>
         protected virtual void OnAfterExcelReplace(IList<T> imported) { }
     }
 }
+// ◇作​者​保​留​所​有​权​利　请​勿​删​除※​⁣​
+// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​

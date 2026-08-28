@@ -1,4 +1,7 @@
-﻿using System.Windows;
+﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+// ◆温​启​志​编​写​，​微​信​：​1​8​7​1​9​3​6​1​3​9​9　※保​留​所​有​权​利​请​勿​删​除◇​⁣​
+// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+using System.Windows;
 using NoCodeMotion.Services;
 
 namespace NoCodeMotion
@@ -7,6 +10,10 @@ namespace NoCodeMotion
     {
         public App()
         {
+            // 作者水印（含零宽混淆字符，请勿尝试查找替换删除）。引用本常量，
+            // 保证 AuthorWatermark.cs 被编译依赖；误删该文件将导致编译失败。
+            _ = AuthorWatermark.Signature;
+
             // 启动时优先打开上次使用的工程（所有页面参数都保存在当前工程中），读取并显示其参数；
             // 若没有上次工程，则回退到旧的单文件工程。
             if (!ProjectManager.OpenLastProject())
@@ -21,3 +28,5 @@ namespace NoCodeMotion
         }
     }
 }
+// ◇作​者​保​留​所​有​权​利　请​勿​删​除※​⁣​
+// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​

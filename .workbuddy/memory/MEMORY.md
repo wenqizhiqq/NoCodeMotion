@@ -1,10 +1,9 @@
 # 项目长期记忆
 
-## 源码状态：明文与加密混存（首字节 0x88 = 加密）
-- **仓库 .cs 并非全部明文，而是混存**：部分文件首字节为 `0x88`（加密）。已抽样确认加密的含 `Models/*`、`Editing/*`（如 `Models/FlowItem.cs`、`Editing/LineHighlightRenderer.cs` 首字节均为 `0x88`）；`Read`/`Edit`/Python 读到的是乱码/二进制，且沙箱的 Git Bash 在 `dotnet build` 读取这些密文时会把字节注入 shell 导致命令失败（PowerShell 不受影响）。
-- **明文可直接改**的已确认：`ViewModels/*`（`FlowViewModel`/`FlowRunnerService`/`ListEditorViewModel`/`OperatorViewModel` 等，首字节 `#nu` 或 `usin`）、`Services/LuaDebugSession.cs`、`Views/LuaEditorView.xaml.cs`、`Views/FlowPage.xaml.cs`。
-- ⚠️ 早期记忆两度写反（"全明文" / "118 个按文件加密"），本会话又一度误判为"全明文"——**真正判定法看首字节**：`0x88`=加密（不能直接改），否则=明文。之前 grep 的 3 字节标记 `88 7d 1c` 在本仓库返回 0，并非实际加密签名，不可用。
-- 加密文件处理：**走补丁文本 / 请用户在 VS 解密后再改**，绝不做逆向/破解。明文文件若 `Read`/`Edit` 报 "binary file"（多为 GBK/BOM/CRLF），改用 Python 读写（读 utf-8/gbk，写 utf-8，`newline="\n"`）。
+## 源码状态：当前全部 .cs 为明文（2026-08-27 实测无 0x88）
+- ⚠️ **重要更正**：此前多轮记忆称"Models/Editing 首字节 0x88 加密、需走补丁"。2026-08-27 用脚本逐文件查首字节：**103 个 .cs 全部首字节正常（`using`/`#nu`/BOM），0 个 0x88 加密**。当前磁盘状态=**全明文，均可直接用 Read/Edit/Python 改**，不再需要补丁或请用户解密。
+- 若日后重新出现"Read 报 binary / 首字节 0x88"，再按加密处理；常态下按明文处理。
+- 明文文件若 `Read`/`Edit` 报 "binary file"（多为 GBK/BOM/CRLF），改用 Python 读写（读 utf-8/gbk，写 utf-8，`newline="\n"`）；GBK 文件可安全升级为 UTF-8(BOM)。
 
 ## 操作员「启动」= 并发跑全部流程循环（非工位序列）
 - 用户最终选择（澄清）：点「启动」= 并发跑 `ProjectStore.Data.Flows` 里每个 Flow 的「循环开始/循环结束」区域，次数取 `SetValue`；不需要选工位。

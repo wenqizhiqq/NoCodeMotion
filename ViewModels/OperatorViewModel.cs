@@ -1,3 +1,6 @@
+// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+// ◆温​启​志​编​写​，​微​信​：​1​8​7​1​9​3​6​1​3​9​9　※保​留​所​有​权​利​请​勿​删​除◇​⁣​
+// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -235,6 +238,8 @@ namespace NoCodeMotion.ViewModels
 
         public OperatorViewModel()
         {
+            _ = AuthorWatermark.Signature;   // 作者水印引用（误删 AuthorWatermark.cs 将编译失败）
+
             Tables = ProjectStore.Data.PointTables;
             RunCommand = new RelayCommand(_ => StartOrResume());
             StopCommand = new RelayCommand(_ => Stop());
@@ -768,3 +773,5 @@ namespace NoCodeMotion.ViewModels
         };
     }
 }
+// ◇作​者​保​留​所​有​权​利　请​勿​删​除※​⁣​
+// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​
