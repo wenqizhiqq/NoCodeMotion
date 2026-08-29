@@ -192,7 +192,8 @@ namespace NoCodeMotion.ViewModels
         private void OpenCreateDialog(FlowKind kind)
         {
             var templates = GetTemplates(kind);
-            var dlg = new Views.FlowCreateDialog(kind, templates, t => GetTemplateSteps(kind, t))
+            var dlg = new Views.FlowCreateDialog(kind, templates,
+                t => GetTemplateSteps(kind, t).Select(d => d.Name))
             {
                 Owner = System.Windows.Application.Current?.MainWindow
             };
@@ -220,52 +221,159 @@ namespace NoCodeMotion.ViewModels
             _ => new()
         };
 
+        /// <summary>模板预设的一步（运控步骤会带可执行参数；视觉步骤只用 Name 当 StepType）。</summary>
+        private sealed class StepDef
+        {
+            public string Name = "";
+            public string Function = "轴";     // 轴 / IO / 气缸 / modbus
+            public string Property = "";       // 轴名 / IO点 / 气缸名
+            public string Operation = "";      // HomeAxis / MoveAxisAbs / WriteOutput / CylinderMove ...
+            public string SetValue = "";
+            public string Timeout = "3000";
+            public StepDef(string name, string function, string property, string operation, string setValue, string timeout = "3000")
+            {
+                Name = name; Function = function; Property = property;
+                Operation = operation; SetValue = setValue; Timeout = timeout;
+            }
+        }
+
         /// <summary>
         /// 每个模板对应的预设步骤序列——选中不同模板，生成到流程里的步骤内容随之变化。
+        /// 运控（Table）步骤带完整可执行参数（Function/Property/Operation/SetValue/Timeout），
+        /// 直接就是能跑的示例步骤；视觉步骤用 Name 作为 StepType。
         /// </summary>
-        private static List<string> GetTemplateSteps(FlowKind kind, string template) => kind switch
+        private static List<StepDef> GetTemplateSteps(FlowKind kind, string template) => kind switch
         {
             FlowKind.Table => template switch
             {
-                "点胶机" => new() { "回原点", "移动到点胶位", "开胶阀", "延时", "关胶阀", "回安全位" },
-                "XYZ"    => new() { "回原点", "X轴移动", "Y轴移动", "Z轴移动", "等待到位" },
-                "探针台" => new() { "回原点", "探针下降", "接触检测", "读取数据", "探针抬起" },
-                "平移机" => new() { "回原点", "平移到取料位", "吸取", "平移到放料位", "释放" },
+                "点胶机" => new()
+                {
+                    new StepDef("回原点", "轴", "X", "HomeAxis", "", "10000"),
+                    new StepDef("X移动到点胶位", "轴", "X", "MoveAxisAbs", "100"),
+                    new StepDef("Z轴下降", "轴", "Z", "MoveAxisAbs", "50"),
+                    new StepDef("开胶阀", "IO", "Y0", "WriteOutput", "1"),
+                    new StepDef("延时出胶", "IO", "", "Wait", "500"),
+                    new StepDef("关胶阀", "IO", "Y0", "WriteOutput", "0"),
+                    new StepDef("Z轴抬起", "轴", "Z", "MoveAxisAbs", "0"),
+                },
+                "XYZ" => new()
+                {
+                    new StepDef("回原点", "轴", "X", "HomeAxis", "", "10000"),
+                    new StepDef("X轴移动", "轴", "X", "MoveAxisAbs", "100"),
+                    new StepDef("Y轴移动", "轴", "Y", "MoveAxisAbs", "100"),
+                    new StepDef("Z轴移动", "轴", "Z", "MoveAxisAbs", "50"),
+                    new StepDef("等待到位", "轴", "X", "WaitAxisStop", ""),
+                },
+                "探针台" => new()
+                {
+                    new StepDef("回原点", "轴", "Z", "HomeAxis", "", "10000"),
+                    new StepDef("探针下降", "轴", "Z", "MoveAxisAbs", "30"),
+                    new StepDef("接触检测", "IO", "X0", "ReadInput", ""),
+                    new StepDef("读取数据", "modbus", "", "CommSend", "read"),
+                    new StepDef("探针抬起", "轴", "Z", "MoveAxisAbs", "0"),
+                },
+                "平移机" => new()
+                {
+                    new StepDef("回原点", "轴", "X", "HomeAxis", "", "10000"),
+                    new StepDef("平移到取料位", "轴", "X", "MoveAxisAbs", "0"),
+                    new StepDef("吸取", "气缸", "吸盘", "CylinderMove", ""),
+                    new StepDef("平移到放料位", "轴", "X", "MoveAxisAbs", "200"),
+                    new StepDef("释放", "气缸", "吸盘", "CylinderReset", ""),
+                },
                 _ => new()
             },
             FlowKind.Lua => template switch
             {
-                "通讯"     => new() { "初始化通讯", "发送数据", "接收数据", "关闭通讯" },
-                "分拣"     => new() { "读取信号", "判断分类", "执行分拣", "计数" },
-                "MES"      => new() { "连接MES", "上传数据", "接收指令", "返回结果" },
-                "文件处理" => new() { "读取文件", "解析数据", "写入结果", "保存日志" },
+                "通讯" => new()
+                {
+                    new StepDef("初始化通讯", "modbus", "", "CommSend", "init"),
+                    new StepDef("发送数据", "modbus", "", "CommSend", "send"),
+                    new StepDef("接收数据", "modbus", "", "CommSend", "recv"),
+                    new StepDef("关闭通讯", "modbus", "", "CommSend", "close"),
+                },
+                "分拣" => new()
+                {
+                    new StepDef("读取信号", "IO", "X0", "ReadInput", ""),
+                    new StepDef("判断分类", "就", "", "Comment", "按信号分类"),
+                    new StepDef("执行分拣", "气缸", "分拣缸", "CylinderMove", ""),
+                    new StepDef("计数", "就", "", "Comment", "累计产量"),
+                },
+                "MES" => new()
+                {
+                    new StepDef("连接MES", "modbus", "", "CommSend", "connect"),
+                    new StepDef("上传数据", "modbus", "", "CommSend", "upload"),
+                    new StepDef("接收指令", "modbus", "", "CommSend", "recv"),
+                    new StepDef("返回结果", "modbus", "", "CommSend", "ack"),
+                },
+                "文件处理" => new()
+                {
+                    new StepDef("读取文件", "就", "", "Comment", "读源文件"),
+                    new StepDef("解析数据", "就", "", "Comment", "按格式解析"),
+                    new StepDef("写入结果", "就", "", "Comment", "写目标文件"),
+                    new StepDef("保存日志", "就", "", "Comment", "记录处理日志"),
+                },
                 _ => new()
             },
             FlowKind.Vision => template switch
             {
-                "缺陷检测" => new() { "图像采集", "图像预处理", "缺陷检测", "通讯" },
-                "测量"     => new() { "图像采集", "图像预处理", "模板匹配", "测量", "通讯" },
-                "对位"     => new() { "图像采集", "图像预处理", "模板匹配", "对位", "通讯" },
-                "标定"     => new() { "图像采集", "标定", "通讯" },
+                "缺陷检测" => new()
+                {
+                    new StepDef("图像采集", "", "", "", ""),
+                    new StepDef("图像预处理", "", "", "", ""),
+                    new StepDef("缺陷检测", "", "", "", ""),
+                    new StepDef("通讯", "", "", "", ""),
+                },
+                "测量" => new()
+                {
+                    new StepDef("图像采集", "", "", "", ""),
+                    new StepDef("图像预处理", "", "", "", ""),
+                    new StepDef("模板匹配", "", "", "", ""),
+                    new StepDef("测量", "", "", "", ""),
+                    new StepDef("通讯", "", "", "", ""),
+                },
+                "对位" => new()
+                {
+                    new StepDef("图像采集", "", "", "", ""),
+                    new StepDef("图像预处理", "", "", "", ""),
+                    new StepDef("模板匹配", "", "", "", ""),
+                    new StepDef("对位", "", "", "", ""),
+                    new StepDef("通讯", "", "", "", ""),
+                },
+                "标定" => new()
+                {
+                    new StepDef("图像采集", "", "", "", ""),
+                    new StepDef("标定", "", "", "", ""),
+                    new StepDef("通讯", "", "", "", ""),
+                },
                 _ => new()
             },
             _ => new()
         };
 
-        /// <summary>把模板预设的步骤序列加到新流程（Visual 走 VisualSteps，其他走 Steps）。</summary>
+        /// <summary>把模板预设的步骤序列加到新流程（视觉走 VisualSteps，运控/脚本走 Steps 并填参数）。</summary>
         private static void AddTemplateSteps(FlowItem item, FlowKind kind, string template)
         {
             if (item == null) return;
-            var steps = GetTemplateSteps(kind, template);
+            var defs = GetTemplateSteps(kind, template);
             if (kind == FlowKind.Vision)
             {
-                foreach (var s in steps)
-                    item.VisualSteps.Add(new VisualFlowStep { Name = s, StepType = s, Enabled = true });
+                // 视觉步骤以 Name 作为 StepType，右侧参数卡据此切换
+                foreach (var d in defs)
+                    item.VisualSteps.Add(new VisualFlowStep { Name = d.Name, StepType = d.Name, Enabled = true });
             }
             else
             {
-                foreach (var s in steps)
-                    item.Steps.Add(new FlowStep { Name = s });
+                // 运控/脚本步骤：带上模板预设的可执行参数，落盘后即可直接运行
+                foreach (var d in defs)
+                    item.Steps.Add(new FlowStep
+                    {
+                        Name = d.Name,
+                        Function = d.Function,
+                        Property = d.Property,
+                        Operation = d.Operation,
+                        SetValue = d.SetValue,
+                        Timeout = d.Timeout
+                    });
             }
         }
 
@@ -715,10 +823,11 @@ namespace NoCodeMotion.ViewModels
         {
             var kind = _nextAddKind;
             int idx = Items.Count(i => i.Kind == kind) + 1;
-            // 流程新建命名：表格流程 N / 脚本流程 N / 视觉流程 N，与三类 Kind 一一对应。
+            // 流程新建命名：运控流程 N / 脚本流程 N / 视觉流程 N，与三类 Kind 一一对应。
+            // 注：FlowKind.Table 对外显示名已由"表格"改为"运控"（运动控制）
             string prefix = kind switch
             {
-                FlowKind.Table => "表格流程",
+                FlowKind.Table => "运控流程",
                 FlowKind.Lua => "脚本流程",
                 FlowKind.Vision => "视觉流程",
                 _ => "流程"

@@ -34,7 +34,7 @@ namespace NoCodeMotion.Views
 
             Title = kind switch
             {
-                FlowKind.Table => "新建表格流程",
+                FlowKind.Table => "新建运控流程",   // 表格流程已更名为"运控"（运动控制）
                 FlowKind.Lua => "新建脚本流程",
                 FlowKind.Vision => "新建视觉流程",
                 _ => "新建流程"
