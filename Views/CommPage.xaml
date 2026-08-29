@@ -225,7 +225,7 @@
                                         <TextBlock Text="自动扫描端口" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
-                                <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding ClearLogCommand}">
+                                <Button Style="{StaticResource TtDeleteBtn}" Command="{Binding ClearLogCommand}">
                                     <StackPanel Orientation="Horizontal">
                                         <Path Data="{StaticResource EraserIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                         <TextBlock Text="清空日志" VerticalAlignment="Center"/>

@@ -179,7 +179,7 @@
                 <Border Grid.Row="0" Background="{StaticResource AccentSoftBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="10,7">
                     <DockPanel>
                         <TextBlock Style="{StaticResource LuaPanelHeaderText}" Text="输出"/>
-                        <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Style="{StaticResource TtGrayBtn}" Padding="6,1" Click="BtnClearOutput_Click" ToolTip="清空输出">
+                        <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Style="{StaticResource TtPillRedBtn}" Padding="6,1" Click="BtnClearOutput_Click" ToolTip="清空输出">
                             <TextBlock Text="清空" FontSize="11"/>
                         </Button>
                     </DockPanel>
@@ -261,7 +261,7 @@
                             <TextBlock Text="断点" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnClearBreakpoints" Style="{StaticResource LuaDbgButton}" Background="#8E8E93" Click="BtnClearBreakpoints_Click" ToolTip="清除全部断点" Margin="6,0,0,0">
+                    <Button x:Name="BtnClearBreakpoints" Style="{StaticResource LuaDbgButton}" Background="{StaticResource DangerBrush}" Click="BtnClearBreakpoints_Click" ToolTip="清除全部断点" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource LuaClearBpIcon}" Width="13" Height="13" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="清除断点" VerticalAlignment="Center"/>

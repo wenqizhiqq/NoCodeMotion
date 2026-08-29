@@ -99,7 +99,7 @@
                             <TextBlock Text="添加步骤" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button Command="{Binding DeleteStepCommand}" Style="{StaticResource ToolButtonStyle}">
+                    <Button Command="{Binding DeleteStepCommand}" Style="{StaticResource TtDeleteBtn}">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform"
                                   Margin="0,0,5,0" VerticalAlignment="Center"
@@ -373,7 +373,7 @@
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="模板区域"/>
                                     <Button DockPanel.Dock="Right" Content="清除" Padding="8,2" Margin="8,0,0,0"
-                                            Style="{StaticResource ToolButtonStyle}"
+                                            Style="{StaticResource TtPillRedBtn}"
                                             ToolTip="清除已框选的模板区域"
                                             Command="{Binding ClearTemplateRoiCommand}"/>
                                     <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis"

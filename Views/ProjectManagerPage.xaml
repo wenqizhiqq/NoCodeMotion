@@ -34,7 +34,7 @@
                         <TextBlock Text="保存" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Command="{Binding DeleteCommand}" Style="{StaticResource ToolButtonStyle}">
+                <Button Command="{Binding DeleteCommand}" Style="{StaticResource TtDeleteBtn}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                         <TextBlock Text="删除" VerticalAlignment="Center"/>

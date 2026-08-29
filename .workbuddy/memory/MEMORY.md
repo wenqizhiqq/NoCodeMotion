@@ -29,3 +29,19 @@
 - 复用 `Views/NumericSliderRow.xaml` UserControl（Label/Value/Minimum/Maximum/TickFrequency/Unit 依赖属性），`Value` 用 `FrameworkPropertyMetadataOptions.BindsTwoWayByDefault` 让 XAML 双向绑定省写 `Mode=TwoWay`。Slider + TextBox 都 `ElementName=Root` 绑 Value，**天然联动**。TextBox 用 `UpdateSourceTrigger=PropertyChanged + Delay=300` 避免输入"0."、"-"等中间态转换失败。
 - **Grid `*` 列必须加 `MaxWidth` 封顶**——否则 `*` 会无界扩张把后面 `Auto` 列（TextBox + Unit）推出视口边缘，看似控件"消失"实则是渲染在屏幕外。`DockPanel LastChildFill` 也有类似陷阱。复杂行布局务必显式约束每一列最大/最小宽度。
 - TextBox 用现有 `AppleTextField` 样式时务必 `BasedOn` 后覆盖 `MinWidth=0` 和 `HorizontalAlignment=Stretch`，否则 AppleTextField 的 `MinWidth=120` 会撑爆紧凑布局。
+
+## 全局 UI 约定：所有删除/清空按钮统一红色（2026-08-29 用户明确要求"软件所有的删除清空按钮都需要红色"）
+- 红色按钮样式在 `Resources/AppStyles.xaml`，共两个：
+  - **`TtDeleteBtn`** — `BasedOn=TtBaseBtn`，饱和红 `DangerBrush`，hover `#D63A3A`。用于**工具栏大按钮**（图标+文字的删除/清空）
+  - **`TtPillRedBtn`** — `BasedOn=TtPillBase`，浅红底 `#FFE3E3` + 深红字 `#C92A2A`。用于**小药丸/紧凑按钮**（表格行内删除、面板内小清除）
+- 非破坏性颜色对照：蓝 `TtPillBlueBtn`（+加/使能/移动）、橙 `TtPillOrangeBtn`（-减/反向，非破坏性）、绿 `TtPillGreenBtn`（保存）、灰 `TtPillGrayBtn`（回原/次要）
+- **已统一为红色的 11 个按钮**（新增按钮时务必遵守此约定）：
+  - `EditorPage.xaml` 删除（默认工具栏，所有 EditorPage 宿主页共享）
+  - `TableToolbar.xaml` 删除（所有表格页共享）
+  - `ProjectManagerPage.xaml` 删除工程
+  - `FlowPage.xaml` 清空全部流程
+  - `PointPage.xaml` 删除工位 / 删除点位
+  - `VisualFlowPage.xaml` 删除步骤 / 清除（模板框选）
+  - `LuaEditorView.xaml` 清空（输出面板）/ 清除断点（`LuaDbgButton` + `Background={StaticResource DangerBrush}`）
+  - `CommPage.xaml` 清空日志
+- 经验：**破坏性操作用颜色编码**（红=删除破坏、橙=反向非破坏、蓝=正向主操作、绿=成功保存、灰=次要），比纯文字更防误操作。全局统一改这类按钮色时，**先 `Grep` 扫 `(Text|Content)="(删除|清空|清除|移除...)"` 或 `Command="...(Delete|Clear|Remove)..."` 列全清单**再逐个改，避免漏改。

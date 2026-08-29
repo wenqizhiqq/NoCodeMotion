@@ -170,8 +170,8 @@
                         <TextBlock Text="添加视觉" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <!-- 清空全部流程（弹窗二次确认，避免误删） -->
-                <Button Command="{Binding DeleteAllCommand}" Style="{StaticResource ToolButtonStyle}" Margin="8,0,0,0"
+                <!-- 清空全部流程（弹窗二次确认，避免误删）。破坏性操作统一红色 -->
+                <Button Command="{Binding DeleteAllCommand}" Style="{StaticResource TtDeleteBtn}" Margin="8,0,0,0"
                         ToolTip="删除全部流程（弹窗确认）">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>

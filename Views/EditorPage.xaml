@@ -65,7 +65,8 @@
                         <TextBlock Text="添加" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Command="{Binding DeleteCommand}" Style="{StaticResource ToolButtonStyle}">
+                <!-- 删除：破坏性操作，统一红色（全局约定：所有删除/清空按钮红色） -->
+                <Button Command="{Binding DeleteCommand}" Style="{StaticResource TtDeleteBtn}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                         <TextBlock Text="删除" VerticalAlignment="Center"/>
