@@ -70,38 +70,13 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 状态条：显示主选中视觉流程的名称与步骤数 + 运行按钮 -->
-        <Border Grid.Row="0" Margin="14,12,14,8" Padding="10,8"
-                Background="{StaticResource AccentSoftBrush}" CornerRadius="8">
-            <DockPanel LastChildFill="True">
-                <Button DockPanel.Dock="Right" Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
-                        Style="{StaticResource ToolButtonStyle}" Margin="8,0,0,0">
-                    <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource PlayIcon}" Width="14" Height="14" Stretch="Uniform"
-                              Margin="0,0,5,0" VerticalAlignment="Center"
-                              Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                        <TextBlock Text="运行视觉流程" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-                <Path Data="{StaticResource VisionIconGeometry}" Width="14" Height="14"
-                      Stretch="Uniform" Fill="{StaticResource AccentBrush}"
-                      Margin="0,0,6,0" VerticalAlignment="Center"/>
-                <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap">
-                    <TextBlock.Text>
-                        <MultiBinding StringFormat="视觉流程：{0}　·　步骤 {1} 个">
-                            <Binding Path="Name"/>
-                            <Binding Path="Steps.Count"/>
-                        </MultiBinding>
-                    </TextBlock.Text>
-                </TextBlock>
-            </DockPanel>
-        </Border>
+        <!-- 状态条已删（用户要求删掉整行），"运行视觉流程"按钮已挪到下方"删除步骤"按钮右侧 -->
 
         <!-- 步骤列表 + 参数面板 -->
         <Grid Grid.Row="1" Margin="14,4,14,14">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320"/>
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="335"/>
+                <ColumnDefinition/>
             </Grid.ColumnDefinitions>
 
             <!-- 左：步骤列表（增删 + 每步运行/耗时/结果） -->
@@ -130,22 +105,27 @@
                             <TextBlock Text="删除步骤" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <Button Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
+                            Style="{StaticResource ToolButtonStyle}" Margin="8,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource PlayIcon}" Width="15" Height="15" Stretch="Uniform"
+                                  Margin="0,0,5,0" VerticalAlignment="Center"
+                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            <TextBlock Text="运行全部" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
-                <!-- 列头：步骤 / 类型 / 运行 / 耗时 / 结果（左右留 6 与 ListBox 内边距对齐） -->
+                <!-- 列头：类型 / 耗时 / 结果（全列固定 px，类型只读显示，类型选择移到了右侧参数区） -->
                 <Grid Grid.Row="1" Margin="6,0,6,4">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="88"/>
-                        <ColumnDefinition Width="52"/>
-                        <ColumnDefinition Width="64"/>
-                        <ColumnDefinition Width="28"/>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="40"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="步骤" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                    <TextBlock Grid.Column="1" Text="类型" FontSize="11" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}"/>
-                    <TextBlock Grid.Column="2" Text="运行" FontSize="11" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}"/>
-                    <TextBlock Grid.Column="3" Text="耗时" FontSize="11" Margin="0,0,4,0" TextAlignment="Right" Foreground="{StaticResource TextSecondaryBrush}"/>
-                    <TextBlock Grid.Column="4" Text="结果" FontSize="11" TextAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Grid.Column="0" Text="类型" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Grid.Column="1" Text="耗时" FontSize="11" Margin="0,0,4,0" TextAlignment="Right" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Grid.Column="2" Text="结果" FontSize="11" TextAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
                 </Grid>
 
                 <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}">
@@ -156,30 +136,18 @@
                             <DataTemplate>
                                 <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="88"/>
-                                        <ColumnDefinition Width="52"/>
-                                        <ColumnDefinition Width="64"/>
-                                        <ColumnDefinition Width="28"/>
+                                        <ColumnDefinition Width="140"/>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="40"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                    <TextBlock Grid.Column="0" Text="{Binding StepType}"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                Margin="0,0,6,0"
                                                Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <ComboBox Grid.Column="1" MinWidth="84" Margin="0,0,4,0"
-                                              ItemsSource="{StaticResource VisualStepTypes}"
-                                              SelectedItem="{Binding StepType, UpdateSourceTrigger=PropertyChanged}"
-                                              Style="{StaticResource CellComboStyle}"/>
-                                    <Button Grid.Column="2" Content="运行" MinWidth="44" Margin="0,0,4,0"
-                                            Padding="6,2"
-                                            Command="{Binding DataContext.RunStepCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                            CommandParameter="{Binding}"
-                                            IsEnabled="{Binding DataContext.CanRun, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                            Style="{StaticResource ToolButtonStyle}"/>
-                                    <TextBlock Grid.Column="3" Text="{Binding DurationText}" VerticalAlignment="Center"
+                                    <TextBlock Grid.Column="1" Text="{Binding DurationText}" VerticalAlignment="Center"
                                                Margin="0,0,4,0" TextAlignment="Right"
                                                Foreground="{StaticResource TextSecondaryBrush}"/>
-                                    <TextBlock Grid.Column="4" Text="{Binding ResultText}" VerticalAlignment="Center"
+                                    <TextBlock Grid.Column="2" Text="{Binding ResultText}" VerticalAlignment="Center"
                                                TextAlignment="Center">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
@@ -220,293 +188,270 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock Grid.Row="0" Style="{StaticResource AppleSectionHeader}" Text="运行结果"/>
-                        <Grid Grid.Row="1" Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="240"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Margin="0,0,12,0" CornerRadius="8" Background="#1D1D1F">
-                                <Grid>
-                                    <Image Source="{Binding ResultImage}" Stretch="Uniform" Margin="6"/>
-                                    <TextBlock Text="运行后在此显示结果图" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Foreground="#71717A" FontSize="12">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding HasResult}" Value="False">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                </Grid>
-                            </Border>
-                            <ListBox Grid.Column="1" ItemsSource="{Binding Results}" Style="{StaticResource ProjectListStyle}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Margin="2">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="{Binding Type}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                <TextBlock Text="{Binding StepName}" Margin="6,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                                <TextBlock Margin="6,0,0,0" FontWeight="Bold">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="✗"/>
-                                                            <Setter Property="Foreground" Value="#DC2626"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Ok}" Value="True">
-                                                                    <Setter Property="Text" Value="✓"/>
-                                                                    <Setter Property="Foreground" Value="#16A34A"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding Summary}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </Grid>
+                        <!-- 图像占满整个 740px Border（用户不要"每步结果"ListBox，删掉） -->
+                        <Border Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" Background="#1D1D1F">
+                            <Grid>
+                                <Image Source="{Binding ResultImage}" Stretch="Uniform" Margin="6"/>
+                                <TextBlock Text="运行后在此显示结果图" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="#71717A" FontSize="12">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasResult}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Border>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel>
-                    <!-- 通用参数（始终可见） -->
-                    <Border Style="{StaticResource AppleGroupCard}">
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="通用参数"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="步骤名"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                    <StackPanel>
+                        <!-- 通用参数（始终可见） -->
+                        <Border Style="{StaticResource AppleGroupCard}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="通用参数"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="步骤名"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.Name, UpdateSourceTrigger=PropertyChanged}"
                                          IsEnabled="{Binding HasStep}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="启用"/>
-                                <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <!-- 步骤类型选择：移到右侧参数区（左侧 ListBox 已删掉"类型"列） -->
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="步骤类型"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          ItemsSource="{StaticResource VisualStepTypes}"
+                                          SelectedItem="{Binding SelectedStep.StepType, UpdateSourceTrigger=PropertyChanged}"
+                                          IsEnabled="{Binding HasStep}"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="启用"/>
+                                    <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center"
                                           IsChecked="{Binding SelectedStep.Enabled, UpdateSourceTrigger=PropertyChanged}"
                                           IsEnabled="{Binding HasStep}"/>
-                            </DockPanel>
-                        </StackPanel>
-                    </Border>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
 
-                    <!-- 图像采集 -->
-                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                        <!-- 图像采集 -->
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
                             Visibility="{Binding IsImageAcquisition, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像采集参数"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="来源"/>
-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像采集参数"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="来源"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                           ItemsSource="{StaticResource SourceTypes}"
                                           SelectedItem="{Binding SelectedStep.SourceType, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsCameraSource, Converter={StaticResource BoolToVis}}"/>
-                            <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsCameraSource, Converter={StaticResource BoolToVis}}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="相机编号"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsCameraSource, Converter={StaticResource BoolToVis}}"/>
+                                <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsCameraSource, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="相机编号"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.CameraId, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsFolderSource, Converter={StaticResource BoolToVis}}"/>
-                            <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsFolderSource, Converter={StaticResource BoolToVis}}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="文件夹"/>
-                                <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsFolderSource, Converter={StaticResource BoolToVis}}"/>
+                                <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsFolderSource, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="文件夹"/>
+                                    <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
                                         Style="{StaticResource ToolButtonStyle}"
                                         ToolTip="选择图像文件夹"
                                         Command="{Binding BrowsePathCommand}" CommandParameter="FolderPath"/>
-                                <TextBox Style="{StaticResource AppleTextField}"
+                                    <TextBox Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.FolderPath, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsFileSource, Converter={StaticResource BoolToVis}}"/>
-                            <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsFileSource, Converter={StaticResource BoolToVis}}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="文件路径"/>
-                                <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsFileSource, Converter={StaticResource BoolToVis}}"/>
+                                <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsFileSource, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="文件路径"/>
+                                    <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
                                         Style="{StaticResource ToolButtonStyle}"
                                         ToolTip="选择图像文件"
                                         Command="{Binding BrowsePathCommand}" CommandParameter="SavePath"/>
-                                <TextBox Style="{StaticResource AppleTextField}"
+                                    <TextBox Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.SavePath, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="曝光" Unit="ms"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="曝光" Unit="ms"
                                                     Minimum="0" Maximum="1000" TickFrequency="1"
                                                     Value="{Binding SelectedStep.ExposureMs}"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="宽度" Unit="px"
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="宽度" Unit="px"
                                                     Minimum="64" Maximum="4096" TickFrequency="1"
                                                     Value="{Binding SelectedStep.Width}"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="高度" Unit="px"
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="高度" Unit="px"
                                                     Minimum="64" Maximum="4096" TickFrequency="1"
                                                     Value="{Binding SelectedStep.Height}"/>
-                        </StackPanel>
-                    </Border>
+                            </StackPanel>
+                        </Border>
 
-                    <!-- 图像预处理 -->
-                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                        <!-- 图像预处理 -->
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
                             Visibility="{Binding IsPreprocess, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像预处理参数"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像预处理参数"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"
                                        Text="参数 1 / 2 用法依操作不同：二值化=阈值（0~255）；平滑/形态学=核大小（奇数，默认 3）；Sobel=忽略参数；ROI裁剪、图像加减与或使用下方专用字段。"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="操作"/>
-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="操作"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                           ItemsSource="{StaticResource PreOps}"
                                           SelectedItem="{Binding SelectedStep.PreOp, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="参数 1"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="参数 1"
                                                     Minimum="0" Maximum="255" TickFrequency="1"
                                                     Value="{Binding SelectedStep.PreParam1}"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="参数 2" Unit="px"
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="参数 2" Unit="px"
                                                     Minimum="1" Maximum="31" TickFrequency="2"
                                                     Value="{Binding SelectedStep.PreParam2}"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="ROI (x,y,w,h)"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="ROI (x,y,w,h)"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.PreRoi, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="第二张图"/>
-                                <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="第二张图"/>
+                                    <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
                                         Style="{StaticResource ToolButtonStyle}"
                                         ToolTip="选择第二张图像（图像加减与或）"
                                         Command="{Binding BrowsePathCommand}" CommandParameter="PreImage2Path"/>
-                                <TextBox Style="{StaticResource AppleTextField}"
+                                    <TextBox Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.PreImage2Path, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                        </StackPanel>
-                    </Border>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
 
-                    <!-- 模板匹配 -->
-                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                        <!-- 模板匹配 -->
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
                             Visibility="{Binding IsTemplateMatch, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="模板匹配参数"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="匹配方式"/>
-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="模板匹配参数"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="匹配方式"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                           ItemsSource="{StaticResource MatchModes}"
                                           SelectedItem="{Binding SelectedStep.MatchMode, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="模板路径"/>
-                                <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="模板路径"/>
+                                    <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
                                         Style="{StaticResource ToolButtonStyle}"
                                         ToolTip="选择模板图像"
                                         Command="{Binding BrowsePathCommand}" CommandParameter="TemplatePath"/>
-                                <TextBox Style="{StaticResource AppleTextField}"
+                                    <TextBox Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.TemplatePath, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="分数阈值"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="分数阈值"
                                                     Minimum="0" Maximum="1" TickFrequency="0.01"
                                                     Value="{Binding SelectedStep.ScoreThreshold}"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="角度范围" Unit="°"
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="角度范围" Unit="°"
                                                     Minimum="0" Maximum="360" TickFrequency="5"
                                                     Value="{Binding SelectedStep.AngleRange}"/>
-                        </StackPanel>
-                    </Border>
+                            </StackPanel>
+                        </Border>
 
-                    <!-- 缺陷检测 -->
-                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                        <!-- 缺陷检测 -->
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
                             Visibility="{Binding IsDefect, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="缺陷检测参数"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="检测方式"/>
-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="缺陷检测参数"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="检测方式"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                           ItemsSource="{StaticResource DetectModes}"
                                           SelectedItem="{Binding SelectedStep.DetectMode, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="算法"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="算法"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.Algorithm, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="最小面积" Unit="px²"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="最小面积" Unit="px²"
                                                     Minimum="0" Maximum="100000" TickFrequency="10"
                                                     Value="{Binding SelectedStep.MinArea}"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="最大面积" Unit="px²"
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="最大面积" Unit="px²"
                                                     Minimum="0" Maximum="1000000" TickFrequency="100"
                                                     Value="{Binding SelectedStep.MaxArea}"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="阈值"
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="阈值"
                                                     Minimum="0" Maximum="255" TickFrequency="1"
                                                     Value="{Binding SelectedStep.Threshold}"/>
-                        </StackPanel>
-                    </Border>
+                            </StackPanel>
+                        </Border>
 
-                    <!-- 测量 -->
-                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                        <!-- 测量 -->
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
                             Visibility="{Binding IsMeasure, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="测量参数"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="测量模式"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="测量参数"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="测量模式"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.MeasureMode, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <local:NumericSliderRow Label="标定系数"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="标定系数"
                                                     Minimum="0" Maximum="100" TickFrequency="0.01"
                                                     Value="{Binding SelectedStep.Calibration}"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="单位"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="单位"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.Unit, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                        </StackPanel>
-                    </Border>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
 
-                    <!-- 通讯 -->
-                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                        <!-- 通讯 -->
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
                             Visibility="{Binding IsComm, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="通讯参数"/>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="协议"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="通讯参数"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="协议"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.Protocol, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="目标"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="目标"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.Target, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="发送内容"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="发送内容"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.Content, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </ScrollViewer>
             </DockPanel>
         </Grid>
