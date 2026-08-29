@@ -273,17 +273,34 @@ namespace NoCodeMotion.Services.Vision
             VisionReport report, IProgress<string>? progress, Cv.Mat? display = null)
         {
             Cv.Mat? tpl = null;
-            string tpath = (s.TemplatePath ?? "").Trim();
-            if (File.Exists(tpath))
+            string tsrc = "";
+            // ① 优先用"画框确定的模板区域"（用户在结果图上拖拽的 ROI，原图像素坐标）
+            if (s.TemplateRoiW > 0 && s.TemplateRoiH > 0)
             {
-                tpl = ImReadBgra(tpath);
+                int rx = (int)Clamp(s.TemplateRoiX, 0, Math.Max(0, cur.Width - 1));
+                int ry = (int)Clamp(s.TemplateRoiY, 0, Math.Max(0, cur.Height - 1));
+                int rw = (int)Clamp(s.TemplateRoiW, 1, Math.Max(1, cur.Width - rx));
+                int rh = (int)Clamp(s.TemplateRoiH, 1, Math.Max(1, cur.Height - ry));
+                tpl = new Cv.Mat(cur, new Cv.Rect(rx, ry, rw, rh)).Clone();
+                tsrc = $"框选区 ({rx},{ry}) {rw}×{rh}";
             }
-            else if (usedSynthetic && tplW > 0)
+            // ② 其次用模板文件
+            if (tpl == null)
+            {
+                string tpath = (s.TemplatePath ?? "").Trim();
+                if (File.Exists(tpath))
+                {
+                    tpl = ImReadBgra(tpath);
+                    tsrc = "模板文件";
+                }
+            }
+            // ③ 最后：合成测试图时自动从图中取已知目标矩形
+            if (tpl == null && usedSynthetic && tplW > 0)
             {
                 tpl = new Cv.Mat(cur, new Cv.Rect(tplX, tplY, tplW, tplH)).Clone();
+                tsrc = "测试图自动取模板";
             }
-
-            if (tpl == null) { AddFail(report, s, "请设置有效模板路径（或先采集测试图）"); return cur; }
+            if (tpl == null) { AddFail(report, s, "请先框选模板区域（或设置有效模板路径）"); return cur; }
 
             string mode = (s.MatchMode ?? "灰度匹配").Trim();
             using var sGray = new Cv.Mat();
@@ -341,8 +358,8 @@ namespace NoCodeMotion.Services.Vision
                 Type = "模板匹配",
                 Ok = pass,
                 Summary = pass
-                    ? $"[{mode}] 匹配成功 分数 {best:F3} @ ({bx},{by}) 角度 {bangle:F0}°"
-                    : $"[{mode}] 未达阈值（{s.ScoreThreshold:F2}）分数 {best:F3} @ ({bx},{by})"
+                    ? $"[{mode}] 匹配成功 分数 {best:F3} @ ({bx},{by}) 角度 {bangle:F0}°　模板={tsrc}"
+                    : $"[{mode}] 未达阈值（{s.ScoreThreshold:F2}）分数 {best:F3} @ ({bx},{by})　模板={tsrc}"
             });
             progress?.Report($"模板匹配：分数 {best:F3}");
             return cur;

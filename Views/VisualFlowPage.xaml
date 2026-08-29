@@ -188,12 +188,20 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock Grid.Row="0" Style="{StaticResource AppleSectionHeader}" Text="运行结果"/>
-                        <!-- 图像占满整个 740px Border（用户不要"每步结果"ListBox，删掉） -->
+                        <!-- 图像占满整个 740px Border；支持鼠标拖拽画框确定模板区域 -->
                         <Border Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" Background="#1D1D1F">
-                            <Grid>
-                                <Image Source="{Binding ResultImage}" Stretch="Uniform" Margin="6"/>
+                            <Grid x:Name="ImageHost" Background="Transparent" Cursor="Cross"
+                                  MouseDown="ImageHost_MouseDown" MouseMove="ImageHost_MouseMove"
+                                  MouseUp="ImageHost_MouseUp">
+                                <Image x:Name="ResultImageView" Source="{Binding ResultImage}" Stretch="Uniform"/>
+                                <!-- 框选覆盖层：拖拽时实时显示选区矩形 -->
+                                <Canvas x:Name="RoiCanvas" IsHitTestVisible="False">
+                                    <Rectangle x:Name="RoiRect" Visibility="Collapsed"
+                                               Stroke="{StaticResource AccentBrush}" StrokeThickness="2"
+                                               Fill="#1A007AFF"/>
+                                </Canvas>
                                 <TextBlock Text="运行后在此显示结果图" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="#71717A" FontSize="12">
+                                           Foreground="#71717A" FontSize="12" IsHitTestVisible="False">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -359,6 +367,18 @@
                                          Text="{Binding SelectedStep.TemplatePath, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <!-- 模板区域回显 + 清除框选（在右侧图上拖拽鼠标确定） -->
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="模板区域"/>
+                                    <Button DockPanel.Dock="Right" Content="清除" Padding="8,2" Margin="8,0,0,0"
+                                            Style="{StaticResource ToolButtonStyle}"
+                                            ToolTip="清除已框选的模板区域"
+                                            Command="{Binding ClearTemplateRoiCommand}"/>
+                                    <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
+                                               Text="{Binding SelectedStep.TemplateRoiText}"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <local:NumericSliderRow Label="分数阈值"
                                                     Minimum="0" Maximum="1" TickFrequency="0.01"
                                                     Value="{Binding SelectedStep.ScoreThreshold}"/>
@@ -366,6 +386,18 @@
                                 <local:NumericSliderRow Label="角度范围" Unit="°"
                                                     Minimum="0" Maximum="360" TickFrequency="5"
                                                     Value="{Binding SelectedStep.AngleRange}"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <!-- 开启匹配：用当前图 + 框选模板跑匹配，结果画到右侧图像 -->
+                                <Button Command="{Binding RunMatchCommand}" IsEnabled="{Binding CanRun}"
+                                        Style="{StaticResource ToolButtonStyle}" Margin="0,8,0,2"
+                                        HorizontalAlignment="Left">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource PlayIcon}" Width="14" Height="14" Stretch="Uniform"
+                                              Margin="0,0,5,0" VerticalAlignment="Center"
+                                              Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="开启匹配" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </Border>
 

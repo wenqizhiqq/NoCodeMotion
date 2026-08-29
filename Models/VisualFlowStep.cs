@@ -32,6 +32,11 @@ namespace NoCodeMotion.Models
         private double _scoreThreshold = 0.8;
         private double _angleRange = 360.0;
         private string _matchMode = "灰度匹配";   // 灰度匹配 / 轮廓匹配
+        // 模板框选：用户在结果图上拖拽画框确定模板区域（原图像素坐标）。W/H<=0 表示尚未框选
+        private int _templateRoiX = 0;
+        private int _templateRoiY = 0;
+        private int _templateRoiW = 0;
+        private int _templateRoiH = 0;
 
         // 缺陷检测
         private string _algorithm = "NCC";
@@ -78,6 +83,15 @@ namespace NoCodeMotion.Models
         public double ScoreThreshold { get => _scoreThreshold; set => Set(ref _scoreThreshold, value); }
         public double AngleRange { get => _angleRange; set => Set(ref _angleRange, value); }
         public string MatchMode { get => _matchMode; set => Set(ref _matchMode, value); }
+        public int TemplateRoiX { get => _templateRoiX; set => Set(ref _templateRoiX, value); }
+        public int TemplateRoiY { get => _templateRoiY; set => Set(ref _templateRoiY, value); }
+        public int TemplateRoiW { get => _templateRoiW; set => Set(ref _templateRoiW, value); }
+        public int TemplateRoiH { get => _templateRoiH; set => Set(ref _templateRoiH, value); }
+
+        /// <summary>模板框描述文本："未框选" 或 "x,y  WxH"，用于参数区回显。</summary>
+        public string TemplateRoiText => _templateRoiW > 0 && _templateRoiH > 0
+            ? $"({_templateRoiX},{_templateRoiY})  {_templateRoiW}×{_templateRoiH}"
+            : "未框选（在右侧图上拖拽画框）";
 
         public string Algorithm { get => _algorithm; set => Set(ref _algorithm, value); }
         public double MinArea { get => _minArea; set => Set(ref _minArea, value); }

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -118,10 +119,11 @@ namespace NoCodeMotion.Views
         public static readonly DependencyProperty RunStatusProperty =
             DependencyProperty.Register(nameof(RunStatus), typeof(string), typeof(VisualFlowDetailViewModel));
 
+        /// <summary>运行状态/提示文本。setter 为 public，便于页面 code-behind（如框选模板）回写提示。</summary>
         public string RunStatus
         {
             get => (string?)GetValue(RunStatusProperty) ?? "";
-            private set => SetValue(RunStatusProperty, value ?? "");
+            set => SetValue(RunStatusProperty, value ?? "");
         }
 
         /// <summary>每步执行结果（绑定到结果列表）。同一实例，增删由集合自身通知。</summary>
@@ -132,8 +134,101 @@ namespace NoCodeMotion.Views
         public ICommand DeleteStepCommand { get; }
         public ICommand RunCommand { get; }
         public ICommand RunStepCommand { get; }
+        /// <summary>把本地图片文件载入右侧预览（不跑引擎），用于「浏览后直接看图」。</summary>
+        public void LoadPreviewImage(string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.UriSource = new Uri(path, UriKind.Absolute);
+                bmp.CacheOption = BitmapCacheOption.OnLoad;   // 立即加载并释放文件句柄，避免占用
+                bmp.EndInit();
+                bmp.Freeze();
+                ResultImage = bmp;
+                HasResult = true;
+                RunStatus = $"已载入图像：{Path.GetFileName(path)}（{bmp.PixelWidth}×{bmp.PixelHeight}）";
+            }
+            catch (Exception ex)
+            {
+                RunStatus = $"载入图像失败：{ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 「开启匹配」：取流程里「图像采集」步骤的图片作为源图，用当前步骤的框选区域（或模板文件）
+        /// 执行模板匹配，把匹配结果框画到右侧图像上。
+        /// </summary>
+        private async Task RunMatchAsync()
+        {
+            var step = SelectedStep;
+            if (step == null) { RunStatus = "请先选中一个模板匹配步骤"; return; }
+
+            var acquire = Steps?.FirstOrDefault(x => x.StepType == "图像采集" && x.Enabled);
+            string srcPath = acquire?.SavePath ?? "";
+            if (!File.Exists(srcPath))
+            {
+                RunStatus = "请先在「图像采集」步骤点浏览选择一张图片（作为源图）";
+                return;
+            }
+            if (step.TemplateRoiW <= 0 || step.TemplateRoiH <= 0)
+            {
+                if (!File.Exists(step.TemplatePath))
+                {
+                    RunStatus = "请先在右侧图像上拖拽画框确定模板区域";
+                    return;
+                }
+            }
+
+            IsRunning = true;
+            CanRun = false;
+            RunStatus = "匹配中…";
+            Results.Clear();
+
+            // 构造两步流程：采集（源图文件）→ 匹配（当前步骤参数，含框选 ROI）
+            var acq = new VisualFlowStep
+            {
+                Name = "采集", StepType = "图像采集", Enabled = true,
+                SourceType = "文件", SavePath = srcPath
+            };
+            var mt = new VisualFlowStep
+            {
+                Name = step.Name, StepType = "模板匹配", Enabled = true,
+                TemplateRoiX = step.TemplateRoiX, TemplateRoiY = step.TemplateRoiY,
+                TemplateRoiW = step.TemplateRoiW, TemplateRoiH = step.TemplateRoiH,
+                TemplatePath = step.TemplatePath, MatchMode = step.MatchMode,
+                ScoreThreshold = step.ScoreThreshold, AngleRange = step.AngleRange
+            };
+
+            var report = await Task.Run(() =>
+                VisionEngine.Run(new ObservableCollection<VisualFlowStep> { acq, mt }, _progress));
+
+            // 回到 UI 线程组装结果
+            Results.Clear();
+            foreach (var r in report.Results) Results.Add(r);
+
+            if (report.HasImage && report.Bgra != null && report.Bgra.Length == report.Width * report.Height * 4)
+            {
+                var wb = new WriteableBitmap(report.Width, report.Height, 96, 96, PixelFormats.Bgra32, null);
+                wb.WritePixels(new Int32Rect(0, 0, report.Width, report.Height), report.Bgra, report.Width * 4, 0);
+                ResultImage = wb;
+                HasResult = true;
+            }
+
+            int ok = 0;
+            foreach (var r in Results) if (r.Ok) ok++;
+            IsRunning = false;
+            CanRun = true;
+            RunStatus = $"匹配完成：{Results.Count} 步，{ok} 步成功";
+        }
+
         /// <summary>路径浏览命令：参数为要写入的属性名（SavePath/FolderPath/TemplatePath/PreImage2Path）。</summary>
         public ICommand BrowsePathCommand { get; }
+        /// <summary>「开启匹配」：用当前图 + 框选模板执行匹配，把结果框画到右侧图像上。</summary>
+        public ICommand RunMatchCommand { get; }
+        /// <summary>清除已框选的模板区域。</summary>
+        public ICommand ClearTemplateRoiCommand { get; }
 
         private readonly Progress<string> _progress;
 
@@ -159,6 +254,16 @@ namespace NoCodeMotion.Views
             RunCommand = new SimpleRelayCommand(_ => _ = RunAsync());
             RunStepCommand = new SimpleRelayCommand(p => _ = RunStepAsync(p as VisualFlowStep));
             BrowsePathCommand = new SimpleRelayCommand(p => BrowsePath(p as string));
+            RunMatchCommand = new SimpleRelayCommand(_ => _ = RunMatchAsync());
+            ClearTemplateRoiCommand = new SimpleRelayCommand(_ =>
+            {
+                if (SelectedStep == null) return;
+                SelectedStep.TemplateRoiW = 0;
+                SelectedStep.TemplateRoiH = 0;
+                SelectedStep.TemplateRoiX = 0;
+                SelectedStep.TemplateRoiY = 0;
+                RunStatus = "已清除模板框选";
+            });
             _progress = new Progress<string>(msg => RunStatus = msg);
         }
 
@@ -191,7 +296,11 @@ namespace NoCodeMotion.Views
 
                 switch (kind)
                 {
-                    case nameof(VisualFlowStep.SavePath): step.SavePath = ofd.FileName; break;
+                    case nameof(VisualFlowStep.SavePath):
+                        step.SavePath = ofd.FileName;
+                        // 图像采集选完图立即载入右侧预览（用户要求：浏览后直接看图）
+                        LoadPreviewImage(ofd.FileName);
+                        break;
                     case nameof(VisualFlowStep.TemplatePath): step.TemplatePath = ofd.FileName; break;
                     case nameof(VisualFlowStep.PreImage2Path): step.PreImage2Path = ofd.FileName; break;
                 }
