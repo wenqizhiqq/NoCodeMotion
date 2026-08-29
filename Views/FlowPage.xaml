@@ -254,8 +254,11 @@
                                     <DataGridTemplateColumn Header="名称" Width="150">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
+                                                <!-- IsEditable=True：既能下拉选 Catalog 里已配置的对象名（轴/IO/气缸/通讯），
+                                                     也能直接输入任意名称（模板预设值不在 Catalog 时仍可正常显示） -->
                                                 <ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToNamesConverter}}"
-                                                          SelectedItem="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                          Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                          IsEditable="True"
                                                           Style="{StaticResource CellComboStyle}"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
@@ -264,8 +267,11 @@
                                     <DataGridTemplateColumn Header="属性" Width="130">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
+                                                <!-- 属性随功能自动填充（轴→速度/位置/…、IO→输出状态/…）；
+                                                     IsEditable=True 让模板预设值不在列表时也能显示 -->
                                                 <ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToPropertiesConverter}}"
-                                                          SelectedItem="{Binding Property, UpdateSourceTrigger=PropertyChanged}"
+                                                          Text="{Binding Property, UpdateSourceTrigger=PropertyChanged}"
+                                                          IsEditable="True"
                                                           Style="{StaticResource CellComboStyle}"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>

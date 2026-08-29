@@ -192,8 +192,12 @@ namespace NoCodeMotion.ViewModels
         private void OpenCreateDialog(FlowKind kind)
         {
             var templates = GetTemplates(kind);
+            // 按同类 Kind 编号：弹窗默认名带序号，避开与已有流程重名
+            int idx = Items.Count(i => i.Kind == kind) + 1;
+            string defaultName = $"新流程{idx}";
             var dlg = new Views.FlowCreateDialog(kind, templates,
-                t => GetTemplateSteps(kind, t).Select(d => d.Name))
+                t => GetTemplateSteps(kind, t).Select(d => d.Label),   // 预览显示步骤描述（Label），不是对象名
+                defaultName)
             {
                 Owner = System.Windows.Application.Current?.MainWindow
             };
@@ -215,25 +219,29 @@ namespace NoCodeMotion.ViewModels
         /// <summary>每个流程类型可选用的模板名（弹窗里单选）。</summary>
         private static List<string> GetTemplates(FlowKind kind) => kind switch
         {
-            FlowKind.Table => new() { "点胶机", "XYZ", "探针台", "平移机" },
-            FlowKind.Lua   => new() { "通讯", "分拣", "MES", "文件处理" },
-            FlowKind.Vision => new() { "缺陷检测", "测量", "对位", "标定" },
-            _ => new()
+            // 第一个固定"空项目"——只建空流程，不加任何默认步骤
+            FlowKind.Table => new() { "空项目", "点胶机", "XYZ", "探针台", "平移机" },
+            FlowKind.Lua   => new() { "空项目", "通讯", "分拣", "MES", "文件处理" },
+            FlowKind.Vision => new() { "空项目", "缺陷检测", "测量", "对位", "标定" },
+            _ => new() { "空项目" }
         };
 
         /// <summary>模板预设的一步（运控步骤会带可执行参数；视觉步骤只用 Name 当 StepType）。</summary>
         private sealed class StepDef
         {
-            public string Name = "";
+            public string Name = "";           // 对象名：轴名 / IO点 / 气缸名 / 通讯名（表格「名称」列）
+            public string Label = "";          // 步骤描述：仅用于弹窗预览（Human readable）
             public string Function = "轴";     // 轴 / IO / 气缸 / modbus
-            public string Property = "";       // 轴名 / IO点 / 气缸名
+            public string Property = "";       // 属性：位置 / 输出状态 / 电磁阀 / 寄存器值（随 Function 枚举）
             public string Operation = "";      // HomeAxis / MoveAxisAbs / WriteOutput / CylinderMove ...
             public string SetValue = "";
             public string Timeout = "3000";
-            public StepDef(string name, string function, string property, string operation, string setValue, string timeout = "3000")
+            public StepDef(string name, string function, string property, string operation,
+                string setValue, string timeout = "3000", string label = "")
             {
                 Name = name; Function = function; Property = property;
                 Operation = operation; SetValue = setValue; Timeout = timeout;
+                Label = string.IsNullOrEmpty(label) ? $"{function}·{name}·{operation}" : label;
             }
         }
 
@@ -242,43 +250,46 @@ namespace NoCodeMotion.ViewModels
         /// 运控（Table）步骤带完整可执行参数（Function/Property/Operation/SetValue/Timeout），
         /// 直接就是能跑的示例步骤；视觉步骤用 Name 作为 StepType。
         /// </summary>
-        private static List<StepDef> GetTemplateSteps(FlowKind kind, string template) => kind switch
+        private static List<StepDef> GetTemplateSteps(FlowKind kind, string template)
         {
+            if (template == "空项目") return new List<StepDef>();   // 不生成任何步骤
+            return kind switch
+            {
             FlowKind.Table => template switch
             {
                 "点胶机" => new()
                 {
-                    new StepDef("回原点", "轴", "X", "HomeAxis", "", "10000"),
-                    new StepDef("X移动到点胶位", "轴", "X", "MoveAxisAbs", "100"),
-                    new StepDef("Z轴下降", "轴", "Z", "MoveAxisAbs", "50"),
-                    new StepDef("开胶阀", "IO", "Y0", "WriteOutput", "1"),
-                    new StepDef("延时出胶", "IO", "", "Wait", "500"),
-                    new StepDef("关胶阀", "IO", "Y0", "WriteOutput", "0"),
-                    new StepDef("Z轴抬起", "轴", "Z", "MoveAxisAbs", "0"),
+                    new StepDef("X", "轴", "已回零", "HomeAxis", "", "10000"),
+                    new StepDef("X", "轴", "位置", "MoveAxisAbs", "100"),
+                    new StepDef("Z", "轴", "位置", "MoveAxisAbs", "50"),
+                    new StepDef("Y0", "IO", "输出状态", "WriteOutput", "1"),
+                    new StepDef("Y0", "IO", "脉冲状态", "Wait", "500"),
+                    new StepDef("Y0", "IO", "输出状态", "WriteOutput", "0"),
+                    new StepDef("Z", "轴", "位置", "MoveAxisAbs", "0"),
                 },
                 "XYZ" => new()
                 {
-                    new StepDef("回原点", "轴", "X", "HomeAxis", "", "10000"),
-                    new StepDef("X轴移动", "轴", "X", "MoveAxisAbs", "100"),
-                    new StepDef("Y轴移动", "轴", "Y", "MoveAxisAbs", "100"),
-                    new StepDef("Z轴移动", "轴", "Z", "MoveAxisAbs", "50"),
-                    new StepDef("等待到位", "轴", "X", "WaitAxisStop", ""),
+                    new StepDef("X", "轴", "已回零", "HomeAxis", "", "10000"),
+                    new StepDef("X", "轴", "位置", "MoveAxisAbs", "100"),
+                    new StepDef("Y", "轴", "位置", "MoveAxisAbs", "100"),
+                    new StepDef("Z", "轴", "位置", "MoveAxisAbs", "50"),
+                    new StepDef("X", "轴", "已回零", "WaitAxisStop", ""),
                 },
                 "探针台" => new()
                 {
-                    new StepDef("回原点", "轴", "Z", "HomeAxis", "", "10000"),
-                    new StepDef("探针下降", "轴", "Z", "MoveAxisAbs", "30"),
-                    new StepDef("接触检测", "IO", "X0", "ReadInput", ""),
-                    new StepDef("读取数据", "modbus", "", "CommSend", "read"),
-                    new StepDef("探针抬起", "轴", "Z", "MoveAxisAbs", "0"),
+                    new StepDef("Z", "轴", "已回零", "HomeAxis", "", "10000"),
+                    new StepDef("Z", "轴", "位置", "MoveAxisAbs", "30"),
+                    new StepDef("X0", "IO", "输入状态", "ReadInput", ""),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "read"),
+                    new StepDef("Z", "轴", "位置", "MoveAxisAbs", "0"),
                 },
                 "平移机" => new()
                 {
-                    new StepDef("回原点", "轴", "X", "HomeAxis", "", "10000"),
-                    new StepDef("平移到取料位", "轴", "X", "MoveAxisAbs", "0"),
-                    new StepDef("吸取", "气缸", "吸盘", "CylinderMove", ""),
-                    new StepDef("平移到放料位", "轴", "X", "MoveAxisAbs", "200"),
-                    new StepDef("释放", "气缸", "吸盘", "CylinderReset", ""),
+                    new StepDef("X", "轴", "已回零", "HomeAxis", "", "10000"),
+                    new StepDef("X", "轴", "位置", "MoveAxisAbs", "0"),
+                    new StepDef("吸盘", "气缸", "电磁阀", "CylinderMove", ""),
+                    new StepDef("X", "轴", "位置", "MoveAxisAbs", "200"),
+                    new StepDef("吸盘", "气缸", "电磁阀", "CylinderReset", ""),
                 },
                 _ => new()
             },
@@ -286,31 +297,31 @@ namespace NoCodeMotion.ViewModels
             {
                 "通讯" => new()
                 {
-                    new StepDef("初始化通讯", "modbus", "", "CommSend", "init"),
-                    new StepDef("发送数据", "modbus", "", "CommSend", "send"),
-                    new StepDef("接收数据", "modbus", "", "CommSend", "recv"),
-                    new StepDef("关闭通讯", "modbus", "", "CommSend", "close"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "init"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "send"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "recv"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "close"),
                 },
                 "分拣" => new()
                 {
-                    new StepDef("读取信号", "IO", "X0", "ReadInput", ""),
-                    new StepDef("判断分类", "就", "", "Comment", "按信号分类"),
-                    new StepDef("执行分拣", "气缸", "分拣缸", "CylinderMove", ""),
-                    new StepDef("计数", "就", "", "Comment", "累计产量"),
+                    new StepDef("X0", "IO", "输入状态", "ReadInput", ""),
+                    new StepDef("Y1", "IO", "输出状态", "WriteOutput", "1"),
+                    new StepDef("分拣缸", "气缸", "电磁阀", "CylinderMove", ""),
+                    new StepDef("Y2", "IO", "输出状态", "WriteOutput", "1"),
                 },
                 "MES" => new()
                 {
-                    new StepDef("连接MES", "modbus", "", "CommSend", "connect"),
-                    new StepDef("上传数据", "modbus", "", "CommSend", "upload"),
-                    new StepDef("接收指令", "modbus", "", "CommSend", "recv"),
-                    new StepDef("返回结果", "modbus", "", "CommSend", "ack"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "connect"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "upload"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "recv"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "ack"),
                 },
                 "文件处理" => new()
                 {
-                    new StepDef("读取文件", "就", "", "Comment", "读源文件"),
-                    new StepDef("解析数据", "就", "", "Comment", "按格式解析"),
-                    new StepDef("写入结果", "就", "", "Comment", "写目标文件"),
-                    new StepDef("保存日志", "就", "", "Comment", "记录处理日志"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "read"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "parse"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "write"),
+                    new StepDef("通讯1", "modbus", "寄存器值", "CommSend", "log"),
                 },
                 _ => new()
             },
@@ -349,6 +360,7 @@ namespace NoCodeMotion.ViewModels
             },
             _ => new()
         };
+    }
 
         /// <summary>把模板预设的步骤序列加到新流程（视觉走 VisualSteps，运控/脚本走 Steps 并填参数）。</summary>
         private static void AddTemplateSteps(FlowItem item, FlowKind kind, string template)

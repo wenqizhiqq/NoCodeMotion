@@ -27,7 +27,8 @@ namespace NoCodeMotion.Views
         private readonly Func<string, IEnumerable<string>>? _stepsProvider;
 
         public FlowCreateDialog(FlowKind kind, IEnumerable<string> templates,
-            Func<string, IEnumerable<string>>? stepsProvider = null)
+            Func<string, IEnumerable<string>>? stepsProvider = null,
+            string defaultName = "新流程")
         {
             InitializeComponent();
             _stepsProvider = stepsProvider;
@@ -41,8 +42,8 @@ namespace NoCodeMotion.Views
             };
             HeaderText.Text = Title;
 
-            // 默认名称（聚焦并全选）
-            NameBox.Text = "新流程";
+            // 默认名称（带同类 kind 内的序号，由调用方算好后传入）
+            NameBox.Text = defaultName;
             NameBox.SelectAll();
             NameBox.Focus();
 
