@@ -145,15 +145,15 @@
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
-    <!-- 流程页：EditorPage 宿主，顶部工具栏注入「添加表格 / 添加脚本」两个具体按钮并隐藏默认「添加」 -->
+    <!-- 流程页：EditorPage 宿主，顶部工具栏注入「添加运控 / 添加脚本」两个具体按钮并隐藏默认「添加」 -->
     <local:EditorPage ShowDefaultAddButton="False">
         <local:EditorPage.LeftToolbarContent>
             <StackPanel Orientation="Horizontal">
-                <!-- 添加表格流程（Kind=Table） -->
+                <!-- 添加运控流程（Kind=Table） -->
                 <Button Command="{Binding AddTableFlowCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                        <TextBlock Text="添加表格" VerticalAlignment="Center"/>
+                        <TextBlock Text="添加运控" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <!-- 添加 Lua 脚本流程（Kind=Lua，自动填默认脚本模板） -->

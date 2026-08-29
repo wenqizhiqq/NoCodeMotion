@@ -44,7 +44,7 @@ namespace NoCodeMotion.ViewModels
     /// 右侧表格管理当前流程内的“步骤”（FlowStep）。步骤的增删/移动/复制/粘贴/回撤/重做
     /// 全部由 StepPanel（TablePanelViewModel&lt;FlowStep&gt;）统一提供，并使用通用 TableToolbar。
     /// 另含流程执行仿真控制（运行 / 单步 / 跳到指定行 / 暂停 / 停止），纯运行态，无真实运动硬件。
-    /// 顶部提供两个具体添加命令：添加表格流程（Kind=Table）/ 添加脚本流程（Kind=Lua）。
+    /// 顶部提供两个具体添加命令：添加运控流程（Kind=Table）/ 添加脚本流程（Kind=Lua）。
     /// Lua 脚本的编辑、调试与智能提示由 <see cref="Views.LuaEditorView"/> 承载（直接复用 LuaStudio 代码）。
     /// </summary>
     public class FlowViewModel : ListEditorViewModel<FlowItem>, IEnsureDefaultSelection
@@ -143,9 +143,9 @@ namespace NoCodeMotion.ViewModels
             PauseCommand = new RelayCommand(_ => Pause());
             StopCommand = new RelayCommand(_ => Stop());
 
-            AddTableFlowCommand = new RelayCommand(_ => AddNewOfKind(FlowKind.Table));
-            AddScriptFlowCommand = new RelayCommand(_ => AddNewOfKind(FlowKind.Lua));
-            AddVisionFlowCommand = new RelayCommand(_ => AddNewOfKind(FlowKind.Vision));
+            AddTableFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Table));
+            AddScriptFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Lua));
+            AddVisionFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Vision));
 
             _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
             _runTimer.Tick += (_, _) => StepOnce();
@@ -183,6 +183,90 @@ namespace NoCodeMotion.ViewModels
             _nextAddKind = kind;
             try { Add(); }
             finally { _nextAddKind = FlowKind.Table; }
+        }
+
+        /// <summary>
+        /// 弹窗式新建流程：输入名称 + 勾选默认步骤 → 创建 FlowItem 并填充步骤。
+        /// 三个「添加运控/脚本/视觉」按钮共用。
+        /// </summary>
+        private void OpenCreateDialog(FlowKind kind)
+        {
+            var templates = GetTemplates(kind);
+            var dlg = new Views.FlowCreateDialog(kind, templates, t => GetTemplateSteps(kind, t))
+            {
+                Owner = System.Windows.Application.Current?.MainWindow
+            };
+            if (dlg.ShowDialog() != true) return;
+
+            _nextAddKind = kind;
+            try
+            {
+                Add();   // 创建 FlowItem（CreateNewItem 用 _nextAddKind 决定 Kind）
+                if (SelectedItem != null)
+                {
+                    SelectedItem.Name = dlg.FlowName;
+                    AddTemplateSteps(SelectedItem, kind, dlg.SelectedTemplate);
+                }
+            }
+            finally { _nextAddKind = FlowKind.Table; }
+        }
+
+        /// <summary>每个流程类型可选用的模板名（弹窗里单选）。</summary>
+        private static List<string> GetTemplates(FlowKind kind) => kind switch
+        {
+            FlowKind.Table => new() { "点胶机", "XYZ", "探针台", "平移机" },
+            FlowKind.Lua   => new() { "通讯", "分拣", "MES", "文件处理" },
+            FlowKind.Vision => new() { "缺陷检测", "测量", "对位", "标定" },
+            _ => new()
+        };
+
+        /// <summary>
+        /// 每个模板对应的预设步骤序列——选中不同模板，生成到流程里的步骤内容随之变化。
+        /// </summary>
+        private static List<string> GetTemplateSteps(FlowKind kind, string template) => kind switch
+        {
+            FlowKind.Table => template switch
+            {
+                "点胶机" => new() { "回原点", "移动到点胶位", "开胶阀", "延时", "关胶阀", "回安全位" },
+                "XYZ"    => new() { "回原点", "X轴移动", "Y轴移动", "Z轴移动", "等待到位" },
+                "探针台" => new() { "回原点", "探针下降", "接触检测", "读取数据", "探针抬起" },
+                "平移机" => new() { "回原点", "平移到取料位", "吸取", "平移到放料位", "释放" },
+                _ => new()
+            },
+            FlowKind.Lua => template switch
+            {
+                "通讯"     => new() { "初始化通讯", "发送数据", "接收数据", "关闭通讯" },
+                "分拣"     => new() { "读取信号", "判断分类", "执行分拣", "计数" },
+                "MES"      => new() { "连接MES", "上传数据", "接收指令", "返回结果" },
+                "文件处理" => new() { "读取文件", "解析数据", "写入结果", "保存日志" },
+                _ => new()
+            },
+            FlowKind.Vision => template switch
+            {
+                "缺陷检测" => new() { "图像采集", "图像预处理", "缺陷检测", "通讯" },
+                "测量"     => new() { "图像采集", "图像预处理", "模板匹配", "测量", "通讯" },
+                "对位"     => new() { "图像采集", "图像预处理", "模板匹配", "对位", "通讯" },
+                "标定"     => new() { "图像采集", "标定", "通讯" },
+                _ => new()
+            },
+            _ => new()
+        };
+
+        /// <summary>把模板预设的步骤序列加到新流程（Visual 走 VisualSteps，其他走 Steps）。</summary>
+        private static void AddTemplateSteps(FlowItem item, FlowKind kind, string template)
+        {
+            if (item == null) return;
+            var steps = GetTemplateSteps(kind, template);
+            if (kind == FlowKind.Vision)
+            {
+                foreach (var s in steps)
+                    item.VisualSteps.Add(new VisualFlowStep { Name = s, StepType = s, Enabled = true });
+            }
+            else
+            {
+                foreach (var s in steps)
+                    item.Steps.Add(new FlowStep { Name = s });
+            }
         }
 
         private void RaiseRunState()

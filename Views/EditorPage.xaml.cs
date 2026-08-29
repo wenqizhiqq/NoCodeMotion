@@ -11,7 +11,7 @@ namespace NoCodeMotion.Views
     /// 通用编辑页框架：顶部“添加/删除/重命名”工具栏 + 左侧项目列表 + 右侧详情区。
     /// 每个业务页（轴/IO/气缸…）只需把具体表单放进 Detail 属性即可复用整套布局与增删逻辑。
     /// 通过 LeftToolbarContent + ShowDefaultAddButton 允许宿主页（如流程页）注入
-    /// 多个具体添加按钮并隐藏默认“添加”（如“添加表格 / 添加脚本”）。
+    /// 多个具体添加按钮并隐藏默认“添加”（如“添加运控 / 添加脚本”）。
     /// 重命名通过弹窗（RenameDialog）完成，列表项名称仅作只读展示。
     /// </summary>
     [ContentProperty(nameof(Detail))]
@@ -37,7 +37,7 @@ namespace NoCodeMotion.Views
             set => SetValue(ShowDefaultAddButtonProperty, value);
         }
 
-        /// <summary>注入到顶部工具栏“添加”按钮左侧的自定义内容（如“添加表格 / 添加脚本”）。</summary>
+        /// <summary>注入到顶部工具栏“添加”按钮左侧的自定义内容（如“添加运控 / 添加脚本”）。</summary>
         public static readonly DependencyProperty LeftToolbarContentProperty =
             DependencyProperty.Register(nameof(LeftToolbarContent), typeof(UIElement), typeof(EditorPage),
                 new PropertyMetadata(null));

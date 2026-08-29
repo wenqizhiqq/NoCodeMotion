@@ -53,7 +53,7 @@
         <!-- 顶部工具栏：添加 / 删除 / 重命名 -->
         <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}">
             <StackPanel Orientation="Horizontal">
-                <!-- 注入的额外左侧按钮（流程页用：添加表格 / 添加脚本） -->
+                <!-- 注入的额外左侧按钮（流程页用：添加运控 / 添加脚本） -->
                 <ContentPresenter Content="{Binding LeftToolbarContent, RelativeSource={RelativeSource AncestorType=local:EditorPage}}"/>
 
                 <!-- 默认「添加」按钮：宿主页设置 ShowDefaultAddButton=false 时隐藏 -->

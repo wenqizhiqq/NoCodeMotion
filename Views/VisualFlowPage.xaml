@@ -15,6 +15,8 @@
             <sys:String>模板匹配</sys:String>
             <sys:String>缺陷检测</sys:String>
             <sys:String>测量</sys:String>
+            <sys:String>对位</sys:String>
+            <sys:String>标定</sys:String>
             <sys:String>通讯</sys:String>
         </x:Array>
 
