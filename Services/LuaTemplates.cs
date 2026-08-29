@@ -21,9 +21,11 @@ namespace NoCodeMotion.Services
     /// </summary>
     public static class LuaTemplates
     {
-        /// <summary>按模板名取预设 Lua 源码；未知模板或「空项目」回落到 FlowItem.DefaultLuaTemplate。</summary>
+        /// <summary>按模板名取预设 Lua 源码。
+        /// 「空项目」返回空字符串（不给任何示例脚本）；未知模板回落到 FlowItem.DefaultLuaTemplate。</summary>
         public static string Get(string template) => template switch
         {
+            "空项目" => "",
             "通讯" => Comm,
             "分拣" => Sort,
             "MES" => Mes,

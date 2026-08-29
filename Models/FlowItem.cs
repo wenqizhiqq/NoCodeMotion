@@ -33,7 +33,9 @@ namespace NoCodeMotion.Models
             set => SetField(ref _kind, value);
         }
 
-        private string _luaSource = DefaultLuaTemplate;
+        private string _luaSource = string.Empty;   // 默认空字符串——新流程首次读取就是空，
+                                                        // 避免 LuaEditorView 还没收到 INPC 时显示字段初始值（DefaultLuaTemplate 40 行示例）
+                                                        // OldLuaSource = DefaultLuaTemplate 常量仍保留在 LuaStudio 作"重置模板"用
         /// <summary>Lua 脚本流程的源码（仅 Kind==Lua 时使用）。</summary>
         public string LuaSource
         {

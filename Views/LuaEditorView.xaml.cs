@@ -120,9 +120,29 @@ namespace NoCodeMotion.Views
         /// <summary>当前已加载的 Lua 编辑器实例（供 Operator 运行器直接驱动其运行）。卸载时置空。</summary>
         public static LuaEditorView Active { get; private set; }
 
+        /// <summary>
+        /// 当前订阅了 PropertyChanged 的 LuaItem（切换时先退订旧的，避免内存泄漏与旧项回调串台）。
+        /// 目的：外部代码（如新建流程写入模板脚本）改 FlowItem.LuaSource 后，编辑器能自动刷新，
+        /// 而不用等 LuaItem 引用本身发生变化。
+        /// </summary>
+        private FlowItem _subscribedItem;
+
         private void OnLuaItemChanged()
         {
             _session?.Stop();
+
+            // 退订上一个流程项，订阅新的
+            if (_subscribedItem != null)
+            {
+                _subscribedItem.PropertyChanged -= OnLuaItemPropertyChanged;
+                _subscribedItem = null;
+            }
+            var item = LuaItem;
+            if (item != null)
+            {
+                item.PropertyChanged += OnLuaItemPropertyChanged;
+                _subscribedItem = item;
+            }
             ClearRuntimeMarkers();
             _lineTimeTimer.Stop();
             _lineTimeMargin.Clear();
@@ -862,6 +882,28 @@ namespace NoCodeMotion.Views
                 InsertFunctionLine(fn.Template, item.Name);
 
             e.Handled = true;
+        }
+
+        /// <summary>
+        /// LuaItem 的属性变化回调：外部代码改了 FlowItem.LuaSource（如新建流程套用模板脚本）时，
+        /// 自动把新源码载入编辑器。
+        /// 只在「源码与编辑器当前内容不一致」时才重载——用户在编辑器里打字也会回写 LuaSource，
+        /// 若不做比对会造成光标跳动甚至内容被覆盖。
+        /// </summary>
+        private void OnLuaItemPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(FlowItem.LuaSource)) return;
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new System.Action(() => OnLuaItemPropertyChanged(sender, e)));
+                return;
+            }
+            var src = LuaItem?.LuaSource ?? "";
+            if (src == Editor.Text) return;        // 用户自己打字回写的，不重载
+            _settingText = true;
+            try { Editor.Text = src; }
+            finally { _settingText = false; }
+            CheckSyntaxNow();
         }
 
         /// <summary>把函数模板（{0}=名称）格式化成一行 Lua，插入到编辑器光标处并写回 LuaItem.LuaSource。</summary>
