@@ -195,9 +195,10 @@ namespace NoCodeMotion.ViewModels
         private void OpenCreateDialog(FlowKind kind)
         {
             var templates = GetTemplates(kind);
-            // 按同类 Kind 编号：弹窗默认名带序号，避开与已有流程重名
+            // 按同类 Kind 编号：弹窗默认名带序号，避开与已有流程重名。
+            // 默认名使用「运控流程/脚本流程/视觉流程 + 序号」，三类 Kinder 互不重复，不再统一叫"新流程"。
             int idx = Items.Count(i => i.Kind == kind) + 1;
-            string defaultName = $"新流程{idx}";
+            string defaultName = $"{GetKindPrefix(kind)}{idx}";
             var dlg = new Views.FlowCreateDialog(kind, templates,
                 t => GetTemplateSteps(kind, t).Select(d => d.Label),   // 预览显示步骤描述（Label），不是对象名
                 defaultName)
@@ -884,19 +885,21 @@ namespace NoCodeMotion.ViewModels
             int idx = Items.Count(i => i.Kind == kind) + 1;
             // 流程新建命名：运控流程 N / 脚本流程 N / 视觉流程 N，与三类 Kind 一一对应。
             // 注：FlowKind.Table 对外显示名已由"表格"改为"运控"（运动控制）
-            string prefix = kind switch
-            {
-                FlowKind.Table => "运控流程",
-                FlowKind.Lua => "脚本流程",
-                FlowKind.Vision => "视觉流程",
-                _ => "流程"
-            };
             return new FlowItem
             {
-                Name = $"{prefix}{idx}",
+                Name = $"{GetKindPrefix(kind)}{idx}",
                 Kind = kind,
             };
         }
+
+        /// <summary>按 Kind 取中文前缀：运控流程 / 脚本流程 / 视觉流程，保证三类默认名互不重复。</summary>
+        private static string GetKindPrefix(FlowKind kind) => kind switch
+        {
+            FlowKind.Table => "运控流程",
+            FlowKind.Lua => "脚本流程",
+            FlowKind.Vision => "视觉流程",
+            _ => "流程"
+        };
 
         protected override void OnPropertyChanged(string? propertyName)
         {

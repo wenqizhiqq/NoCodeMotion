@@ -1,6 +1,0 @@
-
-FullName                                                            LastWriteTime     
---------                                                            -------------     
-D:\wqz\code\NoCodeMotion\bin\Debug\net10.0-windows\NoCodeMotion.dll 2026/8/27 19:24:50
-
-

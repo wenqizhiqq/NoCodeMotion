@@ -149,24 +149,24 @@
     <local:EditorPage ShowDefaultAddButton="False">
         <local:EditorPage.LeftToolbarContent>
             <StackPanel Orientation="Horizontal">
-                <!-- 添加运控流程（Kind=Table） -->
+                <!-- 添加运控流程（Kind=Table）：表格图标 + 蓝色 -->
                 <Button Command="{Binding AddTableFlowCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource TableIconGeometry}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="#2563EB"/>
                         <TextBlock Text="添加运控" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <!-- 添加 Lua 脚本流程（Kind=Lua，自动填默认脚本模板） -->
+                <!-- 添加 Lua 脚本流程（Kind=Lua，自动填默认脚本模板）：脚本图标 + 橙色 -->
                 <Button Command="{Binding AddScriptFlowCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource ScriptIconGeometry}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="#F59E0B"/>
                         <TextBlock Text="添加脚本" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <!-- 添加视觉流程（Kind=Vision）：相机 / 视觉算子 / 模板匹配 等图形节点（编辑区占位） -->
+                <!-- 添加视觉流程（Kind=Vision）：相机/眼睛图标 + 绿色 -->
                 <Button Command="{Binding AddVisionFlowCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <Path Data="{StaticResource VisionIconGeometry}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="#10B981"/>
                         <TextBlock Text="添加视觉" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
