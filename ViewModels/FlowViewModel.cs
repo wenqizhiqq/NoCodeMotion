@@ -211,6 +211,9 @@ namespace NoCodeMotion.ViewModels
                 {
                     SelectedItem.Name = dlg.FlowName;
                     AddTemplateSteps(SelectedItem, kind, dlg.SelectedTemplate);
+                    // 脚本流程：Lua 源码随所选模板变化（通讯/分拣/MES/文件处理 各有示例脚本）
+                    if (kind == FlowKind.Lua)
+                        SelectedItem.LuaSource = Services.LuaTemplates.Get(dlg.SelectedTemplate);
                 }
             }
             finally { _nextAddKind = FlowKind.Table; }
