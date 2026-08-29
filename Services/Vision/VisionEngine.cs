@@ -45,6 +45,7 @@ namespace NoCodeMotion.Services.Vision
         {
             var report = new VisionReport();
             Cv.Mat? cur = null;
+            Cv.Mat? display = null;   // 注释画布：累积各步的框/线/十字，与数据图 cur 分离，避免标注被后续算子当作像素内容（否则匹配绿框灰度≈126 会触发误检）
             bool usedSynthetic = false;
             int tplX = 0, tplY = 0, tplW = 0, tplH = 0; // 合成测试图里的“目标”矩形（用于无模板文件时自动取模板）
             var featurePts = new List<(double X, double Y, string Tag)>();
@@ -80,23 +81,27 @@ namespace NoCodeMotion.Services.Vision
                                     var next = RunAcquire(s, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress);
                                     cur?.Dispose();
                                     cur = next;
+                                    display?.Dispose();
+                                    display = cur.Clone();   // 采集后建立与 cur 同步的注释画布
                                     featurePts.Clear();
                                     break;
                                 }
                             case "图像预处理":
                                 if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
                                 cur = RunPreprocess(s, cur, featurePts, report, progress);
+                                display?.Dispose();
+                                display = cur.Clone();   // 数据图更换后，注释画布也同步换底（保留已画的标注）
                                 break;
                             case "模板匹配":
                                 if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
-                                cur = RunMatch(s, cur, usedSynthetic, tplX, tplY, tplW, tplH, featurePts, report, progress);
+                                cur = RunMatch(s, cur, usedSynthetic, tplX, tplY, tplW, tplH, featurePts, report, progress, display);
                                 break;
                             case "缺陷检测":
                                 if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
-                                cur = RunDefect(s, cur, featurePts, report, progress);
+                                cur = RunDefect(s, cur, featurePts, report, progress, display);
                                 break;
                             case "测量":
-                                cur = RunMeasure(s, cur, featurePts, report, progress);
+                                cur = RunMeasure(s, cur, featurePts, report, progress, display);
                                 break;
                             case "通讯":
                                 RunComm(s, report, progress);
@@ -131,13 +136,15 @@ namespace NoCodeMotion.Services.Vision
                 });
             }
 
-            if (cur != null)
+            var img = display ?? cur;
+            if (img != null)
             {
                 report.HasImage = true;
-                report.Width = cur.Width;
-                report.Height = cur.Height;
-                report.Bgra = MatToBgra(cur);
+                report.Width = img.Width;
+                report.Height = img.Height;
+                report.Bgra = MatToBgra(img);
             }
+            display?.Dispose();
             cur?.Dispose();
             return report;
         }
@@ -147,6 +154,81 @@ namespace NoCodeMotion.Services.Vision
             ref int tplX, ref int tplY, ref int tplW, ref int tplH,
             VisionReport report, IProgress<string>? progress)
         {
+            string src = (s.SourceType ?? "文件").Trim();
+            if (src == "相机")
+            {
+                if (int.TryParse((s.CameraId ?? "0").Trim(), out int camIdx))
+                {
+                    try
+                    {
+                        using var cap = new Cv.VideoCapture(camIdx);
+                        // 注意：OpenCvSharp4 的 VideoCapture.IsOpened 是静态方法，不能经实例调用。
+                        // 这里直接尝试 Read，失败或空帧由 catch / 后续回退处理。
+                        var frame = new Cv.Mat();
+                        if (cap.Read(frame) && !frame.Empty())
+                        {
+                            usedSynthetic = false;
+                            report.Results.Add(new VisionStepResult
+                            {
+                                StepName = s.Name,
+                                Type = "图像采集",
+                                Ok = true,
+                                Summary = $"相机 {camIdx} 采集 {frame.Width}x{frame.Height}"
+                            });
+                            progress?.Report($"图像采集：相机 {camIdx}");
+                            return EnsureBgra(frame);
+                        }
+                        frame.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        report.Results.Add(new VisionStepResult
+                        {
+                            StepName = s.Name, Type = "图像采集", Ok = false,
+                            Summary = $"相机 {camIdx} 采集失败：{ex.Message}（回退测试图）"
+                        });
+                    }
+                }
+                else
+                {
+                    report.Results.Add(new VisionStepResult
+                    {
+                        StepName = s.Name, Type = "图像采集", Ok = false,
+                        Summary = $"相机编号无效：{s.CameraId}（回退测试图）"
+                    });
+                }
+                return SyntheticFallback(s, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress, "相机不可用");
+            }
+
+            if (src == "文件夹")
+            {
+                string folder = (s.FolderPath ?? "").Trim();
+                if (Directory.Exists(folder))
+                {
+                    foreach (var ext in new[] { "*.jpg", "*.jpeg", "*.png", "*.bmp", "*.tif", "*.tiff" })
+                    {
+                        var files = Directory.GetFiles(folder, ext, SearchOption.TopDirectoryOnly);
+                        if (files.Length > 0)
+                        {
+                            var m = ImReadBgra(files[0]);
+                            if (m != null)
+                            {
+                                usedSynthetic = false;
+                                report.Results.Add(new VisionStepResult
+                                {
+                                    StepName = s.Name, Type = "图像采集", Ok = true,
+                                    Summary = $"文件夹首图 {Path.GetFileName(files[0])} {m.Width}x{m.Height}"
+                                });
+                                progress?.Report("图像采集：文件夹首图");
+                                return m;
+                            }
+                        }
+                    }
+                }
+                return SyntheticFallback(s, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress, "文件夹无可用图像");
+            }
+
+            // 文件（默认）
             string path = (s.SavePath ?? "").Trim();
             if (File.Exists(path))
             {
@@ -165,18 +247,21 @@ namespace NoCodeMotion.Services.Vision
                     return m;
                 }
             }
+            return SyntheticFallback(s, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress, "未提供有效图像路径");
+        }
 
-            // 无有效文件 -> 生成测试图（含一个明矩形目标，供模板匹配/测量演示）
+        // 无可用来源时生成测试图（含明矩形目标，供模板匹配/测量演示），并回写 usedSynthetic / 目标矩形
+        private static Cv.Mat SyntheticFallback(VisualFlowStep s, ref bool usedSynthetic,
+            ref int tplX, ref int tplY, ref int tplW, ref int tplH, VisionReport report, IProgress<string>? progress, string note)
+        {
             int w = (int)Clamp(s.Width, 64, 4096);
             int h = (int)Clamp(s.Height, 64, 4096);
             var bytes = MakeSynthetic(w, h, out tplX, out tplY, out tplW, out tplH);
             usedSynthetic = true;
             report.Results.Add(new VisionStepResult
             {
-                StepName = s.Name,
-                Type = "图像采集",
-                Ok = true,
-                Summary = $"已生成测试图 {w}x{h}（未提供有效图像路径，自动用测试图演示）"
+                StepName = s.Name, Type = "图像采集", Ok = true,
+                Summary = $"已生成测试图 {w}x{h}（{note}）"
             });
             progress?.Report("图像采集：生成测试图");
             return BgraToMat(bytes, w, h);
@@ -185,7 +270,7 @@ namespace NoCodeMotion.Services.Vision
         // ============ 模板匹配（OpenCV matchTemplate + 角度扫描） ============
         private static Cv.Mat RunMatch(VisualFlowStep s, Cv.Mat cur, bool usedSynthetic,
             int tplX, int tplY, int tplW, int tplH, List<(double X, double Y, string Tag)> featurePts,
-            VisionReport report, IProgress<string>? progress)
+            VisionReport report, IProgress<string>? progress, Cv.Mat? display = null)
         {
             Cv.Mat? tpl = null;
             string tpath = (s.TemplatePath ?? "").Trim();
@@ -200,10 +285,19 @@ namespace NoCodeMotion.Services.Vision
 
             if (tpl == null) { AddFail(report, s, "请设置有效模板路径（或先采集测试图）"); return cur; }
 
+            string mode = (s.MatchMode ?? "灰度匹配").Trim();
             using var sGray = new Cv.Mat();
-            Cv.Cv2.CvtColor(cur, sGray, Cv.ColorConversionCodes.BGRA2GRAY);
             using var tGray = new Cv.Mat();
-            Cv.Cv2.CvtColor(tpl, tGray, Cv.ColorConversionCodes.BGRA2GRAY);
+            if (mode == "轮廓匹配")
+            {
+                using var g1 = new Cv.Mat(); Cv.Cv2.CvtColor(cur, g1, Cv.ColorConversionCodes.BGRA2GRAY); Cv.Cv2.Canny(g1, sGray, 50, 150);
+                using var g2 = new Cv.Mat(); Cv.Cv2.CvtColor(tpl, g2, Cv.ColorConversionCodes.BGRA2GRAY); Cv.Cv2.Canny(g2, tGray, 50, 150);
+            }
+            else
+            {
+                Cv.Cv2.CvtColor(cur, sGray, Cv.ColorConversionCodes.BGRA2GRAY);
+                Cv.Cv2.CvtColor(tpl, tGray, Cv.ColorConversionCodes.BGRA2GRAY);
+            }
 
             double angleRange = Clamp(s.AngleRange, 0, 360);
             var angles = BuildAngles(angleRange);
@@ -234,8 +328,9 @@ namespace NoCodeMotion.Services.Vision
             int tw = tpl.Width, th = tpl.Height;
             bool pass = best >= Clamp(s.ScoreThreshold, 0, 1);
 
-            Cv.Cv2.Rectangle(cur, new Cv.Rect(bx, by, tw, th), Rgb(0, 200, 80), 2);
-            Cv.Cv2.DrawMarker(cur, new Cv.Point(bx + tw / 2, by + th / 2), Rgb(0, 200, 80), Cv.MarkerTypes.Cross, 12, 2);
+            var dst = display ?? cur;
+            Cv.Cv2.Rectangle(dst, new Cv.Rect(bx, by, tw, th), Rgb(0, 200, 80), 2);
+            Cv.Cv2.DrawMarker(dst, new Cv.Point(bx + tw / 2, by + th / 2), Rgb(0, 200, 80), Cv.MarkerTypes.Cross, 12, 2);
             featurePts.Add((bx + tw / 2.0, by + th / 2.0, "匹配"));
 
             tpl.Dispose();
@@ -246,8 +341,8 @@ namespace NoCodeMotion.Services.Vision
                 Type = "模板匹配",
                 Ok = pass,
                 Summary = pass
-                    ? $"匹配成功 分数 {best:F3} @ ({bx},{by}) 角度 {bangle:F0}°"
-                    : $"未达阈值（{s.ScoreThreshold:F2}）分数 {best:F3} @ ({bx},{by})"
+                    ? $"[{mode}] 匹配成功 分数 {best:F3} @ ({bx},{by}) 角度 {bangle:F0}°"
+                    : $"[{mode}] 未达阈值（{s.ScoreThreshold:F2}）分数 {best:F3} @ ({bx},{by})"
             });
             progress?.Report($"模板匹配：分数 {best:F3}");
             return cur;
@@ -255,16 +350,24 @@ namespace NoCodeMotion.Services.Vision
 
         // ============ 缺陷检测（OpenCV 阈值 + 轮廓连通域） ============
         private static Cv.Mat RunDefect(VisualFlowStep s, Cv.Mat cur,
-            List<(double X, double Y, string Tag)> featurePts, VisionReport report, IProgress<string>? progress)
+            List<(double X, double Y, string Tag)> featurePts, VisionReport report, IProgress<string>? progress, Cv.Mat? display = null)
         {
             double thr = Clamp(s.Threshold, 0, 255);
             using var g = new Cv.Mat();
             Cv.Cv2.CvtColor(cur, g, Cv.ColorConversionCodes.BGRA2GRAY);
             using var bin = new Cv.Mat();
-            // 判定亮/暗缺陷：Algorithm 含“亮/bright”视为亮斑，否则默认暗斑
-            bool bright = (s.Algorithm ?? "").IndexOf("亮", StringComparison.Ordinal) >= 0
-                       || (s.Algorithm ?? "").IndexOf("bright", StringComparison.OrdinalIgnoreCase) >= 0;
-            Cv.Cv2.Threshold(g, bin, thr, 255, bright ? Cv.ThresholdTypes.Binary : Cv.ThresholdTypes.BinaryInv);
+            string dmode = (s.DetectMode ?? "阈值面积").Trim();
+            if (dmode == "边缘轮廓")
+            {
+                Cv.Cv2.Canny(g, bin, thr, Math.Min(255.0, thr + 60.0));
+            }
+            else
+            {
+                // 判定亮/暗缺陷：Algorithm 含“亮/bright”视为亮斑，否则默认暗斑
+                bool bright = (s.Algorithm ?? "").IndexOf("亮", StringComparison.Ordinal) >= 0
+                           || (s.Algorithm ?? "").IndexOf("bright", StringComparison.OrdinalIgnoreCase) >= 0;
+                Cv.Cv2.Threshold(g, bin, thr, 255, bright ? Cv.ThresholdTypes.Binary : Cv.ThresholdTypes.BinaryInv);
+            }
 
             Cv.Cv2.FindContours(bin, out Cv.Point[][] contours, out Cv.HierarchyIndex[] hier,
                 Cv.RetrievalModes.External, Cv.ContourApproximationModes.ApproxSimple);
@@ -280,7 +383,8 @@ namespace NoCodeMotion.Services.Vision
                 if (area < minA || area > maxA) continue;
                 idx++;
                 var r = Cv.Cv2.BoundingRect(c);
-                Cv.Cv2.Rectangle(cur, r, Rgb(220, 40, 40), 2);
+                var dst = display ?? cur;
+                Cv.Cv2.Rectangle(dst, r, Rgb(220, 40, 40), 2);
                 var m = Cv.Cv2.Moments(c);
                 double cx = m.M00 != 0 ? m.M10 / m.M00 : r.X + r.Width / 2.0;
                 double cy = m.M00 != 0 ? m.M01 / m.M00 : r.Y + r.Height / 2.0;
@@ -293,7 +397,7 @@ namespace NoCodeMotion.Services.Vision
                 StepName = s.Name,
                 Type = "缺陷检测",
                 Ok = true,
-                Summary = $"检出 {idx} 处缺陷（面积阈值 {minA:0}~{maxA:0}）"
+                Summary = $"[{dmode}] 检出 {idx} 处缺陷（面积阈值 {minA:0}~{maxA:0}）"
             });
             progress?.Report($"缺陷检测：{idx} 处");
             return cur;
@@ -301,7 +405,7 @@ namespace NoCodeMotion.Services.Vision
 
         // ============ 测量（两特征点像素距离 x 标定系数） ============
         private static Cv.Mat? RunMeasure(VisualFlowStep s, Cv.Mat? cur,
-            List<(double X, double Y, string Tag)> featurePts, VisionReport report, IProgress<string>? progress)
+            List<(double X, double Y, string Tag)> featurePts, VisionReport report, IProgress<string>? progress, Cv.Mat? display = null)
         {
             if (cur == null) { AddFail(report, s, "请先执行图像采集"); return cur; }
 
@@ -318,9 +422,10 @@ namespace NoCodeMotion.Services.Vision
             double cal = Clamp(s.Calibration, 1e-6, 1e9);
             double len = px * cal;
 
-            Cv.Cv2.Line(cur, new Cv.Point((int)a.X, (int)a.Y), new Cv.Point((int)b.X, (int)b.Y), Rgb(40, 120, 240), 2);
-            Cv.Cv2.DrawMarker(cur, new Cv.Point((int)a.X, (int)a.Y), Rgb(40, 120, 240), Cv.MarkerTypes.Cross, 10, 2);
-            Cv.Cv2.DrawMarker(cur, new Cv.Point((int)b.X, (int)b.Y), Rgb(40, 120, 240), Cv.MarkerTypes.Cross, 10, 2);
+            var dst = display ?? cur;
+            Cv.Cv2.Line(dst, new Cv.Point((int)a.X, (int)a.Y), new Cv.Point((int)b.X, (int)b.Y), Rgb(40, 120, 240), 2);
+            Cv.Cv2.DrawMarker(dst, new Cv.Point((int)a.X, (int)a.Y), Rgb(40, 120, 240), Cv.MarkerTypes.Cross, 10, 2);
+            Cv.Cv2.DrawMarker(dst, new Cv.Point((int)b.X, (int)b.Y), Rgb(40, 120, 240), Cv.MarkerTypes.Cross, 10, 2);
 
             report.Results.Add(new VisionStepResult
             {
@@ -598,7 +703,12 @@ namespace NoCodeMotion.Services.Vision
             return true;
         }
 
-        /// <summary>生成测试图：渐变背景 + 暗圆（缺陷候选） + 亮矩形（目标，记录其位置供自动取模板）。返回 BGRA 字节。</summary>
+        /// <summary>
+        /// 生成测试图：平缓渐变背景 + 暗圆（暗斑缺陷） + 亮矩形（模板匹配目标，记录其位置供自动取模板）
+        /// + 小亮斑（供「亮」缺陷模式演示）。返回 BGRA 字节。
+        /// 注意：背景渐变幅度必须保持在 ±15，使背景灰度落在约 135~165，不会跨越默认阈值 128。
+        /// 实测若用 ±60，背景暗区（占比 24%）会被缺陷检测整片误判，默认一跑就报「检出 51 处缺陷」。
+        /// </summary>
         private static byte[] MakeSynthetic(int w, int h, out int tplX, out int tplY, out int tplW, out int tplH)
         {
             byte[] buf = new byte[w * h * 4];
@@ -606,15 +716,28 @@ namespace NoCodeMotion.Services.Vision
             int tx = w * 3 / 5, ty = h * 2 / 5, tw = Math.Max(24, w / 6), th = Math.Max(24, h / 6);
             tplX = tx; tplY = ty; tplW = tw; tplH = th;
             int cx = w / 3, cy = h * 2 / 3, rad = Math.Max(10, Math.Min(w, h) / 12);
+            // 小亮斑：供「亮」缺陷模式演示（半径取暗斑一半）
+            int sx = w * 4 / 5, sy = h * 3 / 4, srad = Math.Max(6, rad / 2);
+
+            // sin 只依赖 x、cos 只依赖 y：提到循环外预计算，避免逐像素重复三角函数调用
+            var sinX = new double[w];
+            for (int x = 0; x < w; x++) sinX[x] = Math.Sin(x * 0.02);
+            var cosY = new double[h];
+            for (int y = 0; y < h; y++) cosY[y] = Math.Cos(y * 0.02);
+
             for (int y = 0; y < h; y++)
             {
+                double dy = y - cy, dy2 = (y - sy) * (y - sy);
+                bool inRowTpl = y >= ty && y < ty + th;
                 for (int x = 0; x < w; x++)
                 {
                     int i = (y * w + x) * 4;
-                    double g = 150 + 60 * Math.Sin(x * 0.02) * Math.Cos(y * 0.02);
-                    double d = Math.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-                    if (d < rad) g -= 90;
-                    if (x >= tx && x < tx + tw && y >= ty && y < ty + th) g += 70;
+                    double g = 150 + 15 * sinX[x] * cosY[y];
+                    double dx = x - cx;
+                    if (dx * dx + dy * dy < (double)rad * rad) g -= 90;              // 暗斑（默认阈值下的示范缺陷）
+                    if (inRowTpl && x >= tx && x < tx + tw) g += 70;                 // 亮矩形（模板匹配目标）
+                    double dx2 = x - sx;
+                    if (dx2 * dx2 + dy2 < (double)srad * srad) g += 90;              // 亮斑（供「亮」模式演示）
                     g = Math.Max(0, Math.Min(255, g + (rnd.NextDouble() - 0.5) * 12));
                     byte v = (byte)g;
                     buf[i] = v; buf[i + 1] = v; buf[i + 2] = v; buf[i + 3] = 255;

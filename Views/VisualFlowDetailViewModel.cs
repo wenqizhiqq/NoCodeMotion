@@ -72,6 +72,11 @@ namespace NoCodeMotion.Views
         public bool IsMeasure => SelectedStep?.StepType == "测量";
         public bool IsComm => SelectedStep?.StepType == "通讯";
 
+        // ---- 图像采集来源类型显隐标志（相机 / 文件夹 / 文件） ----
+        public bool IsCameraSource => SelectedStep?.SourceType == "相机";
+        public bool IsFolderSource => SelectedStep?.SourceType == "文件夹";
+        public bool IsFileSource => SelectedStep?.SourceType == "文件";
+
         // ---- 运行结果相关 ----
         public static readonly DependencyProperty ResultImageProperty =
             DependencyProperty.Register(nameof(ResultImage), typeof(ImageSource), typeof(VisualFlowDetailViewModel));
@@ -161,11 +166,13 @@ namespace NoCodeMotion.Views
             if (e.NewValue is INotifyPropertyChanged newInpc) newInpc.PropertyChanged += vm.OnSelectedStepTypeChanged;
             vm.HasStep = e.NewValue != null;
             vm.RaiseTypeFlags();
+            vm.RaiseSourceFlags();
         }
 
         private void OnSelectedStepTypeChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(VisualFlowStep.StepType)) RaiseTypeFlags();
+            else if (e.PropertyName == nameof(VisualFlowStep.SourceType)) RaiseSourceFlags();
         }
 
         private void RaiseTypeFlags()
@@ -176,6 +183,13 @@ namespace NoCodeMotion.Views
             OnPropertyChanged(nameof(IsDefect));
             OnPropertyChanged(nameof(IsMeasure));
             OnPropertyChanged(nameof(IsComm));
+        }
+
+        private void RaiseSourceFlags()
+        {
+            OnPropertyChanged(nameof(IsCameraSource));
+            OnPropertyChanged(nameof(IsFolderSource));
+            OnPropertyChanged(nameof(IsFileSource));
         }
 
         private void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

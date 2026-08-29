@@ -18,6 +18,25 @@
             <sys:String>通讯</sys:String>
         </x:Array>
 
+        <!-- 图像采集来源 -->
+        <x:Array x:Key="SourceTypes" Type="sys:String">
+            <sys:String>相机</sys:String>
+            <sys:String>文件夹</sys:String>
+            <sys:String>文件</sys:String>
+        </x:Array>
+
+        <!-- 模板匹配方式 -->
+        <x:Array x:Key="MatchModes" Type="sys:String">
+            <sys:String>灰度匹配</sys:String>
+            <sys:String>轮廓匹配</sys:String>
+        </x:Array>
+
+        <!-- 缺陷检测方式 -->
+        <x:Array x:Key="DetectModes" Type="sys:String">
+            <sys:String>阈值面积</sys:String>
+            <sys:String>边缘轮廓</sys:String>
+        </x:Array>
+
         <!-- 图像预处理操作名（ComboBox 数据源） -->
         <x:Array x:Key="PreOps" Type="sys:String">
             <sys:String>无</sys:String>
@@ -213,13 +232,6 @@
                                           IsChecked="{Binding SelectedStep.Enabled, UpdateSourceTrigger=PropertyChanged}"
                                           IsEnabled="{Binding HasStep}"/>
                             </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="相机编号"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
-                                         Text="{Binding SelectedStep.CameraId, UpdateSourceTrigger=PropertyChanged}"
-                                         IsEnabled="{Binding HasStep}"/>
-                            </DockPanel>
                         </StackPanel>
                     </Border>
 
@@ -228,6 +240,31 @@
                             Visibility="{Binding IsImageAcquisition, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像采集参数"/>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="来源"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          ItemsSource="{StaticResource SourceTypes}"
+                                          SelectedItem="{Binding SelectedStep.SourceType, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsCameraSource, Converter={StaticResource BoolToVis}}"/>
+                            <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsCameraSource, Converter={StaticResource BoolToVis}}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="相机编号"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.CameraId, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsFolderSource, Converter={StaticResource BoolToVis}}"/>
+                            <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsFolderSource, Converter={StaticResource BoolToVis}}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="文件夹"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.FolderPath, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsFileSource, Converter={StaticResource BoolToVis}}"/>
+                            <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsFileSource, Converter={StaticResource BoolToVis}}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="文件路径"/>
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.SavePath, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="曝光 (ms)"/>
@@ -250,12 +287,6 @@
                                     <TextBox Grid.Column="2" Style="{StaticResource AppleTextField}"
                                              Text="{Binding SelectedStep.Height, UpdateSourceTrigger=PropertyChanged}"/>
                                 </Grid>
-                            </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="保存路径"/>
-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
-                                         Text="{Binding SelectedStep.SavePath, UpdateSourceTrigger=PropertyChanged}"/>
                             </DockPanel>
                         </StackPanel>
                     </Border>
@@ -308,6 +339,13 @@
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="模板匹配参数"/>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
                             <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="匹配方式"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          ItemsSource="{StaticResource MatchModes}"
+                                          SelectedItem="{Binding SelectedStep.MatchMode, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="模板路径"/>
                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.TemplatePath, UpdateSourceTrigger=PropertyChanged}"/>
@@ -332,6 +370,13 @@
                             Visibility="{Binding IsDefect, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="缺陷检测参数"/>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="检测方式"/>
+                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          ItemsSource="{StaticResource DetectModes}"
+                                          SelectedItem="{Binding SelectedStep.DetectMode, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
                             <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="算法"/>

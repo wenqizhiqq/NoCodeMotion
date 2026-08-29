@@ -21,20 +21,24 @@ namespace NoCodeMotion.Models
         private string _savePath = "";
 
         // 图像采集
+        private string _sourceType = "文件";   // 相机 / 文件夹 / 文件
         private double _exposureMs = 10.0;
         private int _width = 1920;
         private int _height = 1080;
+        private string _folderPath = "";
 
         // 模板匹配
         private string _templatePath = "";
         private double _scoreThreshold = 0.8;
         private double _angleRange = 360.0;
+        private string _matchMode = "灰度匹配";   // 灰度匹配 / 轮廓匹配
 
         // 缺陷检测
         private string _algorithm = "NCC";
         private double _minArea = 100.0;
         private double _maxArea = 100000.0;
         private double _threshold = 128.0;
+        private string _detectMode = "阈值面积";   // 阈值面积 / 边缘轮廓
 
         // 测量
         private string _measureMode = "距离";
@@ -67,15 +71,19 @@ namespace NoCodeMotion.Models
         public double ExposureMs { get => _exposureMs; set => Set(ref _exposureMs, value); }
         public int Width { get => _width; set => Set(ref _width, value); }
         public int Height { get => _height; set => Set(ref _height, value); }
+        public string SourceType { get => _sourceType; set => Set(ref _sourceType, value); }
+        public string FolderPath { get => _folderPath; set => Set(ref _folderPath, value); }
 
         public string TemplatePath { get => _templatePath; set => Set(ref _templatePath, value); }
         public double ScoreThreshold { get => _scoreThreshold; set => Set(ref _scoreThreshold, value); }
         public double AngleRange { get => _angleRange; set => Set(ref _angleRange, value); }
+        public string MatchMode { get => _matchMode; set => Set(ref _matchMode, value); }
 
         public string Algorithm { get => _algorithm; set => Set(ref _algorithm, value); }
         public double MinArea { get => _minArea; set => Set(ref _minArea, value); }
         public double MaxArea { get => _maxArea; set => Set(ref _maxArea, value); }
         public double Threshold { get => _threshold; set => Set(ref _threshold, value); }
+        public string DetectMode { get => _detectMode; set => Set(ref _detectMode, value); }
 
         public string MeasureMode { get => _measureMode; set => Set(ref _measureMode, value); }
         public double Calibration { get => _calibration; set => Set(ref _calibration, value); }
