@@ -114,6 +114,8 @@ namespace NoCodeMotion.ViewModels
         public ICommand AddScriptFlowCommand { get; }
         /// <summary>添加视觉流程（Kind=Vision）：相机器视觉 / 模板匹配 等图形节点编辑流（编辑区暂为占位）。</summary>
         public ICommand AddVisionFlowCommand { get; }
+        /// <summary>「清空」：删除全部流程，弹窗 ConfirmDialog 二次确认（避免误删）。</summary>
+        public ICommand DeleteAllCommand { get; }
 
         public bool IsKindTable => SelectedItem?.Kind == FlowKind.Table;
         public bool IsKindLua => SelectedItem?.Kind == FlowKind.Lua;
@@ -146,6 +148,7 @@ namespace NoCodeMotion.ViewModels
             AddTableFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Table));
             AddScriptFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Lua));
             AddVisionFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Vision));
+            DeleteAllCommand = new RelayCommand(_ => DeleteAll(), _ => Items != null && Items.Count > 0);
 
             _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
             _runTimer.Tick += (_, _) => StepOnce();
@@ -217,6 +220,47 @@ namespace NoCodeMotion.ViewModels
                 }
             }
             finally { _nextAddKind = FlowKind.Table; }
+        }
+
+        /// <summary>
+        /// 覆盖基类删除：删后自动选中「下一个流程」（越界则退到上一个），避免删完变成空选中、
+        /// 还得手动再点一个方便继续删。空集合则保持 null。
+        /// </summary>
+        protected override void Delete()
+        {
+            if (SelectedItem is null) return;
+            int idx = Items.IndexOf(SelectedItem);
+            Items.Remove(SelectedItem);   // 触发 OnItemsChanged → 取消订阅 + 保存
+            if (Items.Count == 0)
+            {
+                SelectedItem = null;
+            }
+            else if (idx < Items.Count)
+            {
+                SelectedItem = Items[idx];   // 删的不是最后一个 → 选原 index 的下一个
+            }
+            else
+            {
+                SelectedItem = Items[Items.Count - 1];   // 删的是最后一个 → 退到新的最后一个
+            }
+        }
+
+        /// <summary>
+        /// 「清空」：先弹窗二次确认（防误删），确认后逐个移除（每删一项触发 OnItemsChanged 取消订阅 + 保存），
+        /// 最后 SelectedItem = null。
+        /// </summary>
+        private void DeleteAll()
+        {
+            if (Items.Count == 0) return;
+            int n = Items.Count;
+            var dlg = new Views.ConfirmDialog(
+                "删除全部流程",
+                $"确定删除全部 {n} 个流程？此操作不可撤销。",
+                "全部删除");
+            if (dlg.ShowDialog() != true) return;
+            // 快照列表逐个 Remove（直接 Items.Clear() 会绕过单项 OnItemsChanged 的取消订阅逻辑）
+            foreach (var item in Items.ToList()) Items.Remove(item);
+            SelectedItem = null;
         }
 
         /// <summary>每个流程类型可选用的模板名（弹窗里单选）。</summary>
