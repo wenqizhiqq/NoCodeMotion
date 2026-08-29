@@ -74,6 +74,10 @@ namespace NoCodeMotion.Views
                 var sel = fvm.SelectedItem;
                 _vm.Steps = sel?.VisualSteps;
                 _vm.Name = sel?.Name;
+                // 关键：进入视觉流程时若还没选中任何步骤，自动选第一个；
+                // 否则 SelectedStep==null 永远不变 → IsImageAcquisition 等标志全是 false → 所有参数卡都隐藏
+                if (_vm.Steps != null && _vm.Steps.Count > 0 && _vm.SelectedStep == null)
+                    _vm.SelectedStep = _vm.Steps[0];
             }
         }
     }

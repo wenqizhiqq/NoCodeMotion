@@ -1,0 +1,53 @@
+<UserControl x:Class="NoCodeMotion.Views.NumericSliderRow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" d:DesignHeight="34" d:DesignWidth="430"
+             x:Name="Root">
+
+    <UserControl.Resources>
+        <!-- 紧凑滑块：贴合 Apple 风格的淡蓝主色，不改动全局 Slider 样式 -->
+        <Style x:Key="MiniSlider" TargetType="Slider">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="MinWidth" Value="70"/>
+            <Setter Property="IsSnapToTickEnabled" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+        </Style>
+        <!-- 紧凑数值框：基于 AppleTextField，但覆盖 MinWidth=120 和 HorizontalAlignment=Right，
+             否则 TextBox 撑成 120px 把后列「单位」推出视口、看不见数值也看不见单位 -->
+        <Style x:Key="NumSliderBox" TargetType="TextBox" BasedOn="{StaticResource AppleTextField}">
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="0,3">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" MinWidth="80"/>
+            <!-- 关键：Slider 列加 MaxWidth，否则 * 会把 TextBox+Unit 推出右侧视口 -->
+            <ColumnDefinition Width="*" MaxWidth="320"/>
+            <ColumnDefinition Width="64"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Column="0" Text="{Binding Label, ElementName=Root}"
+                   Style="{StaticResource AppleLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+        <Slider Grid.Column="1" Style="{StaticResource MiniSlider}"
+                Minimum="{Binding Minimum, ElementName=Root}"
+                Maximum="{Binding Maximum, ElementName=Root}"
+                TickFrequency="{Binding TickFrequency, ElementName=Root}"
+                Value="{Binding Value, ElementName=Root, Mode=TwoWay}"/>
+
+        <!-- Delay=300：停止输入 300ms 才回写，避免输入 "0."、"-" 等中间态触发转换失败 -->
+        <TextBox Grid.Column="2" Style="{StaticResource NumSliderBox}" Margin="8,0,0,0"
+                 TextAlignment="Right" VerticalAlignment="Center" FontSize="13"
+                 Text="{Binding Value, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=300}"/>
+
+        <TextBlock Grid.Column="3" Text="{Binding Unit, ElementName=Root}" FontSize="11"
+                   Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+    </Grid>
+</UserControl>

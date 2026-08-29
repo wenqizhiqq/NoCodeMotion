@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services.Vision;
 
@@ -131,6 +132,8 @@ namespace NoCodeMotion.Views
         public ICommand DeleteStepCommand { get; }
         public ICommand RunCommand { get; }
         public ICommand RunStepCommand { get; }
+        /// <summary>路径浏览命令：参数为要写入的属性名（SavePath/FolderPath/TemplatePath/PreImage2Path）。</summary>
+        public ICommand BrowsePathCommand { get; }
 
         private readonly Progress<string> _progress;
 
@@ -155,7 +158,49 @@ namespace NoCodeMotion.Views
 
             RunCommand = new SimpleRelayCommand(_ => _ = RunAsync());
             RunStepCommand = new SimpleRelayCommand(p => _ = RunStepAsync(p as VisualFlowStep));
+            BrowsePathCommand = new SimpleRelayCommand(p => BrowsePath(p as string));
             _progress = new Progress<string>(msg => RunStatus = msg);
+        }
+
+        /// <summary>
+        /// 打开文件/文件夹选择对话框，把选中路径写回当前选中步骤的对应属性。
+        /// 参数 kind：SavePath / FolderPath / TemplatePath / PreImage2Path。
+        /// </summary>
+        private void BrowsePath(string? kind)
+        {
+            var step = SelectedStep;
+            if (step == null || string.IsNullOrEmpty(kind)) return;
+
+            try
+            {
+                if (kind == nameof(VisualFlowStep.FolderPath))
+                {
+                    var fdlg = new OpenFolderDialog { Title = "选择图像文件夹" };
+                    if (fdlg.ShowDialog() == true) step.FolderPath = fdlg.FolderName;
+                    return;
+                }
+
+                var ofd = new OpenFileDialog
+                {
+                    Title = kind == nameof(VisualFlowStep.TemplatePath) ? "选择模板图像" : "选择图像文件",
+                    Filter = "图像文件|*.png;*.jpg;*.jpeg;*.bmp;*.tif;*.tiff|所有文件|*.*",
+                    CheckFileExists = true,
+                    Multiselect = false
+                };
+                if (ofd.ShowDialog() != true) return;
+
+                switch (kind)
+                {
+                    case nameof(VisualFlowStep.SavePath): step.SavePath = ofd.FileName; break;
+                    case nameof(VisualFlowStep.TemplatePath): step.TemplatePath = ofd.FileName; break;
+                    case nameof(VisualFlowStep.PreImage2Path): step.PreImage2Path = ofd.FileName; break;
+                }
+            }
+            catch (Exception ex)
+            {
+                // 对话框若被环境（如安全软件）阻断，给出明确提示，避免"点了没反应"
+                RunStatus = $"路径选择失败：{ex.Message}";
+            }
         }
 
         private static void OnSelectedStepChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
