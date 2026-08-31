@@ -29,19 +29,18 @@
                     <TextBlock Style="{StaticResource PageHeaderTitle}" Text="气缸配置"/>
                 </StackPanel>
 
-                <!-- ============ 手动动作栏（跨两列）：伸出 / 缩回，依赖 HasSelection ============ -->
+                <!-- ============ 手动动作栏（跨两列）：伸出 / 缩回 / 复位，依赖 HasSelection ============ -->
                 <Border Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource AppleGroupCard}" Margin="12,8,12,0">
-                    <DockPanel LastChildFill="True">
-                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleSectionHeader}" Text="手动动作" VerticalAlignment="Center"/>
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="伸出" Style="{StaticResource TtBaseBtn}" MinWidth="100"
-                                    Command="{Binding ExtendCommand}"/>
-                            <Button Content="缩回" Style="{StaticResource TtGrayBtn}" MinWidth="100" Margin="8,0,0,0"
-                                    Command="{Binding RetractCommand}"/>
-                            <Button Content="复位" Style="{StaticResource TtPillOrangeBtn}" MinWidth="80" Margin="8,0,0,0"
-                                    Command="{Binding ResetCommand}" ToolTip="复位到「初始状态」"/>
-                        </StackPanel>
-                    </DockPanel>
+                    <StackPanel Margin="14,10,14,10" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="手动动作" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <Button Content="伸出" Style="{StaticResource TtBaseBtn}" MinWidth="100" Height="32"
+                                Command="{Binding ExtendCommand}"/>
+                        <Button Content="缩回" Style="{StaticResource TtGrayBtn}" MinWidth="100" Height="32" Margin="8,0,0,0"
+                                Command="{Binding RetractCommand}"/>
+                        <Button Content="复位" Style="{StaticResource TtPillOrangeBtn}" MinWidth="80" Height="32" Margin="8,0,0,0"
+                                Command="{Binding ResetCommand}" ToolTip="复位到「初始状态」"/>
+                    </StackPanel>
                 </Border>
 
                 <!-- ============ 左列：基本信息 + 动作参数 ============ -->
