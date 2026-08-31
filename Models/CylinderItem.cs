@@ -16,6 +16,8 @@ namespace NoCodeMotion.Models
         private string _initialState = "缩回";         // 初始状态：伸出 / 缩回
         private string _remark = string.Empty;         // 备注说明
 
+        private string _currentState = "缩回";         // 运行时状态：伸出 / 缩回（列表按钮着色用）
+
         // ===================== IO 点位 =====================
         private string _outPoint = string.Empty;       // 输出点（关联 IO 名称）
         private string _sensorExtend = string.Empty;   // 伸出到位感应（关联 IO 名称）
@@ -49,6 +51,10 @@ namespace NoCodeMotion.Models
         public string Action { get => _action; set => SetField(ref _action, value); }
         public string InitialState { get => _initialState; set => SetField(ref _initialState, value); }
         public string Remark { get => _remark; set => SetField(ref _remark, value); }
+
+        /// <summary>运行时状态（伸出 / 缩回）。列表内联按钮据此着色：当前状态实色高亮、另一状态淡化。
+        /// 由 CylinderViewModel 的动作命令（伸出/缩回/复位）更新。</summary>
+        public string CurrentState { get => _currentState; set => SetField(ref _currentState, value); }
 
         // ===================== IO 点位 =====================
         public string OutPoint { get => _outPoint; set => SetField(ref _outPoint, value); }

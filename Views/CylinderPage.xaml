@@ -17,7 +17,7 @@
         手动动作按钮已从右侧详情移至左侧列表 —— 通过 EditorPage.LeftListItemTemplate 注入。
     -->
     <UserControl.Resources>
-        <!-- 气缸页专用的列表项模板：名称 + 伸出/缩回 内联按钮 -->
+        <!-- 气缸页专用的列表项模板：名称 + 伸出/缩回 内联按钮（带状态着色） -->
         <DataTemplate x:Key="CylinderListItemTemplate">
             <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
@@ -28,20 +28,60 @@
                            TextTrimming="CharacterEllipsis" Foreground="{StaticResource TextPrimaryBrush}"
                            FontSize="13" Margin="12,0,6,0"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <!-- 伸出：CurrentState==伸出 时实心蓝（当前状态），否则浅灰（可点击切换） -->
                     <Button Content="伸出" FontSize="11" Height="22" MinWidth="36"
-                            Padding="6,0" Margin="2,0"
-                            Background="{StaticResource AccentBrush}" Foreground="White"
-                            BorderThickness="0" Cursor="Hand"
+                            Padding="6,0" Margin="2,0" BorderThickness="0" Cursor="Hand"
                             Command="{Binding DataContext.ExtendCommand,
                                               RelativeSource={RelativeSource AncestorType=ListBox}}"
-                            ToolTip="伸出当前气缸"/>
+                            ToolTip="伸出当前气缸">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                        CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#E5E7EB"/>
+                                <Setter Property="Foreground" Value="#6B7280"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="伸出">
+                                        <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <!-- 缩回：CurrentState==缩回 时实心灰蓝（当前状态），否则浅灰 -->
                     <Button Content="缩回" FontSize="11" Height="22" MinWidth="36"
-                            Padding="6,0" Margin="2,0"
-                            Background="{StaticResource TextSecondaryBrush}" Foreground="White"
-                            BorderThickness="0" Cursor="Hand"
+                            Padding="6,0" Margin="2,0" BorderThickness="0" Cursor="Hand"
                             Command="{Binding DataContext.RetractCommand,
                                               RelativeSource={RelativeSource AncestorType=ListBox}}"
-                            ToolTip="缩回当前气缸"/>
+                            ToolTip="缩回当前气缸">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                        CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#E5E7EB"/>
+                                <Setter Property="Foreground" Value="#6B7280"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="缩回">
+                                        <Setter Property="Background" Value="#475569"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </StackPanel>
             </Grid>
         </DataTemplate>

@@ -44,12 +44,22 @@ namespace NoCodeMotion.ViewModels
         public ICommand RetractCommand => new RelayCommand(_ => Move(0), _ => SelectedItem != null);
 
         /// <summary>复位到 InitialState（一般用于复位流程的入口）。</summary>
-        public ICommand ResetCommand => new RelayCommand(_ => HardwareBridge.Current.CylinderReset(SelectedItem!), _ => SelectedItem != null);
+        public ICommand ResetCommand => new RelayCommand(_ => Reset(), _ => SelectedItem != null);
 
         private void Move(int state)
         {
             if (SelectedItem is null) return;
             HardwareBridge.Current.CylinderMove(SelectedItem, state);
+            // 同步运行时状态，列表内联按钮据此着色（state: 1=伸出 / 0=缩回）
+            SelectedItem.CurrentState = state == 1 ? "伸出" : "缩回";
+        }
+
+        private void Reset()
+        {
+            if (SelectedItem is null) return;
+            HardwareBridge.Current.CylinderReset(SelectedItem);
+            // 复位回到配置里的初始状态
+            SelectedItem.CurrentState = SelectedItem.InitialState;
         }
     }
 }
