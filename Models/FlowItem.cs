@@ -26,6 +26,23 @@ namespace NoCodeMotion.Models
         Reset = 1
     }
 
+    /// <summary>流程运行状态（FlowRunnerService 内部维护，写入 FlowItem.Status 供列表项右侧芯片显示）。</summary>
+    public enum FlowStatus
+    {
+        /// <summary>未运行（默认 / 正常结束）。</summary>
+        Idle = 0,
+        /// <summary>正在执行步骤。</summary>
+        Running = 1,
+        /// <summary>用户触发「暂停」，等待恢复。</summary>
+        Paused = 2,
+        /// <summary>断点暂停（Lua 流程停在用户设置的断点处）。</summary>
+        Breakpoint = 3,
+        /// <summary>运行过程中发生异常。</summary>
+        Exception = 4,
+        /// <summary>用户触发「停止 / 急停」而终止。</summary>
+        Stopped = 5
+    }
+
     /// <summary>流程项目：左侧列表中的一项，自身包含若干步骤（FlowStep）。</summary>
     public class FlowItem : EditorItemBase
     {
@@ -58,6 +75,15 @@ namespace NoCodeMotion.Models
         {
             get => _role;
             set => SetField(ref _role, value);
+        }
+
+        private FlowStatus _status = FlowStatus.Idle;
+        /// <summary>流程运行状态：FlowRunnerService 在 RunAllAsync 中维护，
+        /// 列表项右侧的「运 / 暂 / 断 / 异 / 停」芯片通过它切换。</summary>
+        public FlowStatus Status
+        {
+            get => _status;
+            set => SetField(ref _status, value);
         }
 
         public const string DefaultLuaTemplate =

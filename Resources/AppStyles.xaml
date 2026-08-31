@@ -111,6 +111,7 @@
     <views:AxisHeaderMultiConverter x:Key="AxisHeaderMulti"/>
     <views:BoolToZhConverter x:Key="BoolToZh"/>
     <views:StringFormatConverter x:Key="StringFormat"/>
+    <views:FlowStatusLabelConverter x:Key="FlowStatusLabel"/>
     <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
     <Style x:Key="PointCellStyle" TargetType="DataGridCell">

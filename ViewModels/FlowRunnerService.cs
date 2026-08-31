@@ -140,14 +140,47 @@ namespace NoCodeMotion.ViewModels
             if (steps == null || steps.Count == 0)
             {
                 log?.Invoke($"流程「{name}」没有步骤，已跳过。");
+                SetStatus(flow, FlowStatus.Idle);
                 onFlowDone?.Invoke(index, name);
                 return;
             }
+            SetStatus(flow, FlowStatus.Running);
             var exec = new FlowExecutor(flow, index, steps, ctrl, log, onStep);
             log?.Invoke($"流程「{name}」开始运行（{steps.Count} 步）。");
-            exec.Run(ct);
-            log?.Invoke($"流程「{name}」运行结束。");
-            onFlowDone?.Invoke(index, name);
+            try
+            {
+                exec.Run(ct);
+                SetStatus(flow, FlowStatus.Idle);
+                log?.Invoke($"流程「{name}」运行结束。");
+            }
+            catch (OperationCanceledException)
+            {
+                SetStatus(flow, FlowStatus.Stopped);
+                log?.Invoke($"流程「{name}」已停止。");
+            }
+            catch (Exception ex)
+            {
+                SetStatus(flow, FlowStatus.Exception);
+                log?.Invoke($"流程「{name}」运行异常：{ex.Message}");
+            }
+            finally
+            {
+                exec.ClearCurrent();
+                onFlowDone?.Invoke(index, name);
+            }
+        }
+
+        /// <summary>把 FlowItem.Status 通过 UI 线程写回（FlowRunnerService 在后台线程跑，必须跨线程）。
+/// 复制自 FlowExecutor.UiSet 的最小实现（UiSet 是 FlowExecutor 的 private static，
+/// 跨类访问需要 inline 一份）。</summary>
+        private static void SetStatus(FlowItem flow, FlowStatus st)
+        {
+            if (flow == null) return;
+            var app = System.Windows.Application.Current;
+            if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess())
+                app.Dispatcher.Invoke(() => flow.Status = st);
+            else
+                flow.Status = st;
         }
 
         /// <summary>Lua 脚本流程：优先复用 Lua 编辑器页面自身的运行（RunFlow，用户要求“lua 直接走编辑器页面运行”，
@@ -157,6 +190,9 @@ namespace NoCodeMotion.ViewModels
             Action<string> log, Action<int, string, string> onStep, Action<int, string> onFlowDone)
         {
             var name = flow.Name ?? "(未命名流程)";
+            SetStatus(flow, FlowStatus.Running);
+            try
+            {
             var editor = LuaEditorView.Active;
             if (editor != null)
             {
@@ -184,9 +220,14 @@ namespace NoCodeMotion.ViewModels
                         if (ctrl.EStopRequested || ctrl.StopRequested) { session.Stop(); break; }
                         if (ctrl.PauseRequested)
                         {
+                            SetStatus(flow, FlowStatus.Paused);
                             session.RequestPause();
                             while (ctrl.PauseRequested && session.IsBusy) Thread.Sleep(40);
-                            if (session.IsBusy && !ctrl.PauseRequested) session.Resume(DebuggerAction.ActionType.Run);
+                            if (session.IsBusy && !ctrl.PauseRequested)
+                            {
+                                session.Resume(DebuggerAction.ActionType.Run);
+                                SetStatus(flow, FlowStatus.Running);
+                            }
                         }
                     }
                     LuaRunMonitor.ReportEnded(flow);
@@ -225,9 +266,14 @@ namespace NoCodeMotion.ViewModels
                             if (ctrl.EStopRequested || ctrl.StopRequested) { session?.Stop(); break; }
                             if (ctrl.PauseRequested)
                             {
+                                SetStatus(flow, FlowStatus.Paused);
                                 session?.RequestPause();
                                 while (ctrl.PauseRequested && !ended.Wait(40)) { }
-                                if (!ended.IsSet && !ctrl.PauseRequested) session?.Resume(DebuggerAction.ActionType.Run);
+                                if (!ended.IsSet && !ctrl.PauseRequested)
+                                {
+                                    session?.Resume(DebuggerAction.ActionType.Run);
+                                    SetStatus(flow, FlowStatus.Running);
+                                }
                             }
                         }
                     }) { IsBackground = true, Name = $"LuaWatch-{index}" };
@@ -241,6 +287,15 @@ namespace NoCodeMotion.ViewModels
                 Thread.Sleep(1);
             }
             onFlowDone?.Invoke(index, name);
+            }
+            finally
+            {
+                // 收尾状态：被停止 → Stopped，否则正常完成 → Idle
+                if (ctrl.EStopRequested || ctrl.StopRequested)
+                    SetStatus(flow, FlowStatus.Stopped);
+                else
+                    SetStatus(flow, FlowStatus.Idle);
+            }
         }
     }
 
@@ -256,6 +311,7 @@ namespace NoCodeMotion.ViewModels
         private readonly IHardwareBridge _bridge;
         private long _guard;
         private FlowStep _lastCurrent;
+        private bool _pauseActive;     // 当前流程是否处于暂停状态（控制列表右侧"暂"芯片切换）
 
         public FlowExecutor(FlowItem flow, int index, List<FlowStep> steps, FlowRunControl ctrl,
             Action<string> log, Action<int, string, string> onStep)
@@ -282,7 +338,18 @@ namespace NoCodeMotion.ViewModels
             if (ct.IsCancellationRequested) throw new OperationCanceledException();
             if (_ctrl.PauseRequested)
             {
+                if (!_pauseActive)
+                {
+                    _pauseActive = true;
+                    // FlowExecutor 在自身线程内调自己的 UiSet（FlowExecutor.UiSet，跨类不可见）
+                    UiSet(() => _flow.Status = FlowStatus.Paused);
+                }
                 _ctrl.ResumeEvent?.Wait(ct);
+                if (_pauseActive)
+                {
+                    _pauseActive = false;
+                    UiSet(() => _flow.Status = FlowStatus.Running);
+                }
                 if (_ctrl.EStopRequested || _ctrl.StopRequested) throw new OperationCanceledException();
             }
             if (++_guard > 20_000_000)
