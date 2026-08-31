@@ -1,17 +1,17 @@
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
-// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+// ◆◇※▣▤▥▦▧✝⚝☢☣➤◈❖◆◇※▣▤▥▦✧⚝☢☣➤◈❖◆◇※⁣
+// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇⁣
+// ◆◇※▣▤▥▦✧⚝☢☣➤◈❖◆◇※⁣
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using NoCodeMotion.Models;
 
 namespace NoCodeMotion.Services
 {
     /// <summary>
-    /// 多工程管理：在 %LocalAppData%\NoCodeMotion\Projects 下以「工程名.json」文件管理多个工程，
-    /// 提供 列出 / 新建 / 打开(读取) / 保存 / 删除 / 重命名 / 改备注。
+    /// 多工程管理：在 exe 输出目录下 Projects/ 子目录里以「工程名.xlsx」单文件管理多个工程。
+    /// 实际读写委托给 <see cref="XlsxProjectStore"/>（ClosedXML 反射式通用读写，分页保存）。
+    /// 不再使用 JSON 文件——用户可直接用 Excel 打开工程文件查看/编辑。
     /// 打开/新建采用「原地载入」：只替换 ProjectStore.Data 各集合的内容，不替换 Data 实例，
     /// 因此各页面 ViewModel 持有的集合引用始终有效，无需重建即可看到新工程数据。
     /// </summary>
@@ -25,46 +25,41 @@ namespace NoCodeMotion.Services
         /// <summary>工程数据被原地替换后触发，供主窗口清空页面缓存并重建当前页。</summary>
         public static event System.Action? DataReloaded;
 
+        static ProjectManager()
+        {
+            // 让 XlsxProjectStore 使用 ProjectManager 自己的 RootDir（默认是 exe 同目录下的 Projects/）。
+            XlsxProjectStore.ConfigureRoot(RootDir);
+        }
+
         /// <summary>列出全部工程条目（含创建/修改时间、备注）。</summary>
         public static List<ProjectEntry> ListProjectEntries()
         {
             var list = new List<ProjectEntry>();
             try
             {
+                XlsxProjectStore.ConfigureRoot(RootDir);
                 if (!Directory.Exists(RootDir)) return list;
-                foreach (var file in Directory.EnumerateFiles(RootDir, "*.json")
-                             .OrderBy(f => Path.GetFileNameWithoutExtension(f)))
+                foreach (var name in Directory.EnumerateFiles(RootDir, "*.xlsx")
+                                               .Select(p => Path.GetFileNameWithoutExtension(p))
+                                               .OrderBy(n => n))
                 {
-                    var name = Path.GetFileNameWithoutExtension(file) ?? "";
-                    DateTime? created = null, updated = null;
-                    string? remark = "";
-                    try
-                    {
-                        var data = JsonSerializer.Deserialize<ProjectData>(File.ReadAllText(file));
-                        if (data != null)
-                        {
-                            created = data.CreatedAt;
-                            updated = data.UpdatedAt;
-                            remark = data.Remark;
-                        }
-                    }
-                    catch { }
-                    if (created == null) { try { created = File.GetCreationTime(file); } catch { } }
-                    if (updated == null) { try { updated = File.GetLastWriteTime(file); } catch { } }
+                    var (created, updated, remark) = XlsxProjectStore.LoadMeta(name);
+                    if (created == null) { try { created = File.GetCreationTime(FileFor(name)); } catch { } }
+                    if (updated == null) { try { updated = File.GetLastWriteTime(FileFor(name)); } catch { } }
                     updated = updated ?? created;
-                    list.Add(new ProjectEntry { Name = name, CreatedAt = created, UpdatedAt = updated, Remark = remark });
+                    list.Add(new ProjectEntry { Name = name, CreatedAt = created, UpdatedAt = updated, Remark = remark ?? "" });
                 }
             }
             catch { }
             return list;
         }
 
-        private static string FileFor(string name) => Path.Combine(RootDir, name + ".json");
+        private static string FileFor(string name) => Path.Combine(RootDir, name + ".xlsx");
 
         public static bool Exists(string name) => File.Exists(FileFor(name));
 
-        /// <summary>记录「最后打开的工程」名称的文件路径（位于 %LocalAppData%\NoCodeMotion\）。</summary>
-        private static string LastProjectPath =>( "lastproject.txt");
+        /// <summary>记录「最后打开的工程」名称的文件路径（位于 exe 输出目录）。</summary>
+        private static string LastProjectPath => "lastproject.txt";
 
         /// <summary>记录最后打开的工程名，供下次启动自动打开并读取其全部参数。</summary>
         public static void SaveLastProject(string? name)
@@ -123,7 +118,7 @@ namespace NoCodeMotion.Services
             LoadInto(fresh);
         }
 
-        /// <summary>打开(读取)工程：从 name.json 载入为当前数据（原地，不替换 Data 实例）。</summary>
+        /// <summary>打开(读取)工程：从 name.xlsx 载入为当前数据（原地，不替换 Data 实例）。</summary>
         public static void OpenProject(string name)
         {
             var path = FileFor(name);
@@ -132,8 +127,9 @@ namespace NoCodeMotion.Services
             {
                 try
                 {
-                    var json = File.ReadAllText(path);
-                    data = JsonSerializer.Deserialize<ProjectData>(json) ?? new ProjectData();
+                    data = new ProjectData();
+                    XlsxProjectStore.ConfigureRoot(RootDir);
+                    XlsxProjectStore.OpenProject(data, name);
                 }
                 catch
                 {
@@ -159,14 +155,16 @@ namespace NoCodeMotion.Services
             WriteFile(name, ProjectStore.Data);
         }
 
-        /// <summary>修改指定工程的备注（改写其 JSON 文件，并更新修改时间）。</summary>
+        /// <summary>修改指定工程的备注（改写其 xlsx 文件，并更新修改时间）。</summary>
         public static void SetRemark(string name, string? remark)
         {
             var path = FileFor(name);
             if (!File.Exists(path)) return;
             try
             {
-                var data = JsonSerializer.Deserialize<ProjectData>(File.ReadAllText(path)) ?? new ProjectData();
+                XlsxProjectStore.ConfigureRoot(RootDir);
+                var data = new ProjectData();
+                XlsxProjectStore.OpenProject(data, name);
                 data.Remark = remark ?? "";
                 WriteFile(name, data);
             }
@@ -180,20 +178,24 @@ namespace NoCodeMotion.Services
             if (!File.Exists(path)) return "";
             try
             {
-                var data = JsonSerializer.Deserialize<ProjectData>(File.ReadAllText(path));
-                return data?.RequirementsText ?? "";
+                XlsxProjectStore.ConfigureRoot(RootDir);
+                var data = new ProjectData();
+                XlsxProjectStore.OpenProject(data, name);
+                return data.RequirementsText ?? "";
             }
             catch { return ""; }
         }
 
-        /// <summary>写入指定工程的需求文本（改写其 JSON 文件，并更新修改时间）。</summary>
+        /// <summary>写入指定工程的需求文本（改写其 xlsx 文件，并更新修改时间）。</summary>
         public static void SetRequirementsText(string name, string? requirements)
         {
             var path = FileFor(name);
             if (!File.Exists(path)) return;
             try
             {
-                var data = JsonSerializer.Deserialize<ProjectData>(File.ReadAllText(path)) ?? new ProjectData();
+                XlsxProjectStore.ConfigureRoot(RootDir);
+                var data = new ProjectData();
+                XlsxProjectStore.OpenProject(data, name);
                 data.RequirementsText = requirements ?? "";
                 WriteFile(name, data);
             }
@@ -225,8 +227,9 @@ namespace NoCodeMotion.Services
             {
                 Directory.CreateDirectory(RootDir);
                 data.UpdatedAt = DateTime.Now;
-                var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(FileFor(name), json);
+                // 写出 xlsx（分页 sheet + 「项目管理」信息表），用户可直接用 Excel 打开查看/编辑
+                XlsxProjectStore.ConfigureRoot(RootDir);
+                XlsxProjectStore.SaveProject(data, name);
             }
             catch { }
         }
@@ -249,5 +252,5 @@ namespace NoCodeMotion.Services
         }
     }
 }
-// ◇作者保留所有权利　请勿删除※​⁣​
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​
+// ◇作者保留所有权利　请勿删除※⁣
+// ◆◇※▣▤▥▦✧⚝☢☣➤◈❖◆◇※⁣

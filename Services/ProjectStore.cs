@@ -1,16 +1,17 @@
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
-// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+// ◆◇※▣▤▥▦✧⚝☢☣➤◈❖◆◇※⁣
+// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇⁣
+// ◆◇※▣▤✧⚝☢☣➤◈❖◆◇※⁣
 using System.IO;
-using System.Text.Json;
+using System.Linq;
 using System.Timers;
 using NoCodeMotion.Models;
 
 namespace NoCodeMotion.Services
 {
     /// <summary>
-    /// 工程配置存取：从 JSON 文件自动载入、自动保存（防抖）。
-    /// 文件位置：%LocalAppData%\NoCodeMotion\project.json
+    /// 工程配置存取：从 xlsx 文件自动载入、自动保存（防抖）。
+    /// 工程文件存储由 <see cref="ProjectManager"/> 管理（每个工程 = <c>Projects\工程名.xlsx</c>）；
+    /// 本类负责「未命名工程的兜底」与「数据变更后防抖自动保存」两个职责。
     /// </summary>
     public static class ProjectStore
     {
@@ -22,7 +23,8 @@ namespace NoCodeMotion.Services
         /// <summary>设置是否屏蔽 ScheduleSave（原地载入工程期间应为 true）。</summary>
         public static void SuppressSave(bool suppress) => _suppressSave = suppress;
 
-        private static readonly string FilePath =  "project.json";
+        /// <summary>未指定 CurrentName 时的兜底工程名。</summary>
+        public const string DefaultProjectName = "_DefaultProject";
 
         private static System.Timers.Timer? _saveTimer;
 
@@ -30,13 +32,14 @@ namespace NoCodeMotion.Services
         {
             try
             {
-                if (File.Exists(FilePath))
-                {
-                    var json = File.ReadAllText(FilePath);
-                    var data = JsonSerializer.Deserialize<ProjectData>(json);
-                    if (data != null)
-                        Data = data;
-                }
+                XlsxProjectStore.ConfigureRoot(ProjectManager.RootDir);
+                // 一次性迁移：把旧版 .json 工程转成 .xlsx（保留原数据，避免用户工程丢失）
+                MigrateJsonToXlsx();
+
+                var data = new ProjectData();
+                XlsxProjectStore.OpenProject(data, DefaultProjectName);
+                // 即便兜底工程不存在，OpenProject 也是 no-op，data 仍是空 ProjectData（OK）。
+                Data = data;
             }
             catch
             {
@@ -46,6 +49,55 @@ namespace NoCodeMotion.Services
             // 迁移旧的单一点位表 → 多工位结构，并补齐 4 个轴槽；然后重建全局名称库
             Data.EnsurePointTables();
             Catalog.SyncAllFromData(Data);
+        }
+
+        /// <summary>
+        /// 一次性迁移：把 Projects/*.json 工程文件转成 .xlsx。
+        /// 严格按「先 xlsx 落地成功，再删 .json」的顺序，避免任何迁移异常导致数据丢失。
+        /// 迁移过的工程名记到 lastproject.txt 后保留不动；同名 .xlsx 已存在则跳过迁移（保留新格式）。
+        /// </summary>
+        private static void MigrateJsonToXlsx()
+        {
+            var root = ProjectManager.RootDir;
+            if (!Directory.Exists(root)) return;
+            var jsonFiles = Directory.EnumerateFiles(root, "*.json").ToList();
+            if (jsonFiles.Count == 0) return;
+
+            foreach (var jf in jsonFiles)
+            {
+                var name = Path.GetFileNameWithoutExtension(jf) ?? "";
+                if (string.IsNullOrEmpty(name)) continue;
+
+                // 跳过迁移标记文件 lastproject.txt 之类（其实不是 .json，仅作防御）
+                if (name.StartsWith(".")) continue;
+
+                // 已存在同名 .xlsx 就不覆盖，让新格式优先
+                var xlsxPath = Path.Combine(root, name + ".xlsx");
+                if (File.Exists(xlsxPath)) continue;
+
+                ProjectData? data = null;
+                try
+                {
+                    var text = File.ReadAllText(jf);
+                    data = ProjectJsonAnnotator.Deserialize(text);
+                }
+                catch { /* 读不动就保留 .json 原样 */ }
+
+                if (data == null) continue;
+
+                try
+                {
+                    XlsxProjectStore.SaveProject(data, name);
+                }
+                catch
+                {
+                    // xlsx 写失败：保留 .json 原样不删
+                    continue;
+                }
+
+                // xlsx 落地成功后再删 .json；如果删除失败也不影响功能（下次启动会跳过同名迁移）
+                try { File.Delete(jf); } catch { }
+            }
         }
 
         public static void Save()
@@ -59,11 +111,10 @@ namespace NoCodeMotion.Services
                     return;
                 }
 
-                var dir = Path.GetDirectoryName(FilePath);
-                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-
-                var json = JsonSerializer.Serialize(Data, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(FilePath, json);
+                // 无当前工程时写入兜底工程文件，避免数据丢失
+                XlsxProjectStore.ConfigureRoot(ProjectManager.RootDir);
+                Data.UpdatedAt = System.DateTime.Now;
+                XlsxProjectStore.SaveProject(Data, DefaultProjectName);
             }
             catch
             {
@@ -85,5 +136,5 @@ namespace NoCodeMotion.Services
         }
     }
 }
-// ◇作者保留所有权利　请勿删除※​⁣​
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​
+// ◇作者保留所有权利　请勿删除※⁣
+// ◆◇※⁣

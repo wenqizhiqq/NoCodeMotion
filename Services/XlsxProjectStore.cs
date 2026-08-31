@@ -33,8 +33,17 @@ namespace NoCodeMotion.Services
         /// <summary>
         /// 固定工程目录：程序输出 bin\projects\（从 exe 所在目录上溯到名为 bin 的文件夹，再拼接 projects）。
         /// 工程全部以 xlsx 单文件存储，不使用 JSON。
+        /// 可通过 <see cref="ConfigureRoot"/> 覆盖（ProjectManager/ProjectStore 会指向自己的 RootDir）。
         /// </summary>
-        public static string ProjectsRoot => ResolveProjectsRoot();
+        public static string ProjectsRoot => _overrideRoot ?? ResolveProjectsRoot();
+        private static string? _overrideRoot;
+
+        /// <summary>由调用方覆盖工程目录（典型用法：ProjectManager.RootDir）。</summary>
+        public static void ConfigureRoot(string rootDir)
+        {
+            if (string.IsNullOrWhiteSpace(rootDir)) { _overrideRoot = null; return; }
+            _overrideRoot = rootDir;
+        }
 
         private static string ResolveProjectsRoot()
         {
@@ -162,6 +171,36 @@ namespace NoCodeMotion.Services
             return Directory.EnumerateFiles(ProjectsRoot, "*.xlsx")
                             .Select(p => Path.GetFileNameWithoutExtension(p))
                             .OrderBy(x => x);
+        }
+
+        /// <summary>
+        /// 只读取「项目管理」信息表中的元数据（CreatedAt/UpdatedAt/Remark），不全量反序列化。
+        /// 给 ListProjectEntries 用：列工程清单时不需要加载整个 ProjectData。
+        /// 文件不存在或读不到则三项都返回 null/空。
+        /// </summary>
+        public static (DateTime? CreatedAt, DateTime? UpdatedAt, string? Remark) LoadMeta(string projectName)
+        {
+            var path = FilePathFor(projectName);
+            if (!File.Exists(path)) return (null, null, null);
+            try
+            {
+                using var wb = new XLWorkbook(path);
+                var ws = wb.Worksheets.FirstOrDefault(s => s.Name == "项目管理");
+                if (ws == null) return (null, null, null);
+                DateTime? created = null, updated = null;
+                string? remark = null;
+                foreach (var row in ws.RowsUsed())
+                {
+                    var name = row.Cell(1).GetString();
+                    var val = row.Cell(2).GetString();
+                    if (string.IsNullOrEmpty(name)) continue;
+                    if (name == "CreatedAt") { if (DateTime.TryParse(val, out var d)) created = d; }
+                    else if (name == "UpdatedAt") { if (DateTime.TryParse(val, out var d)) updated = d; }
+                    else if (name == "Remark") { remark = val; }
+                }
+                return (created, updated, remark);
+            }
+            catch { return (null, null, null); }
         }
 
         public static void Delete(string projectName)
@@ -403,6 +442,23 @@ namespace NoCodeMotion.Services
                         foreach (var parent in parents)
                         {
                             var childColl = cp.GetValue(parent);
+
+                            // 数组类型（如 PointTable.AxisNames = string[4]）没有 Clear/Add，
+                            // 走专门路径：按行数重新分配数组并按位填充。
+                            if (cp.PropertyType.IsArray)
+                            {
+                                if (!IsScalar(childItemType!)) continue;
+                                var arr = Array.CreateInstance(childItemType!, g.Count());
+                                var col = dt.Columns.Cast<DataColumn>().Last().ColumnName;
+                                int idx = 0;
+                                foreach (var row in g)
+                                {
+                                    arr.SetValue(ConvertTo(childItemType!, row[col]?.ToString()), idx++);
+                                }
+                                cp.SetValue(parent, arr);
+                                continue;
+                            }
+
                             var clear = cp.PropertyType.GetMethod("Clear");
                             var add = cp.PropertyType.GetMethod("Add");
                             if (childColl == null || add == null) continue;
@@ -558,6 +614,9 @@ namespace NoCodeMotion.Services
 
         private static object? ConvertTo(Type t, string? s)
         {
+            // 字符串：空串保持空串（不要返回 null —— 否则 AxisNames 等集合里的空槽
+            // 会变成 null，UI 绑定时会触发「值不能为 null」异常）
+            if (t == typeof(string)) return s ?? "";
             if (string.IsNullOrEmpty(s)) return null;
             var u = Nullable.GetUnderlyingType(t);
             if (u != null) t = u;
