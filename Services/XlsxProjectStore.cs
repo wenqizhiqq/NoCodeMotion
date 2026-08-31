@@ -25,10 +25,11 @@ namespace NoCodeMotion.Services
     /// 调用方（ProjectStore）只需调用 <see cref="SaveProject"/> / <see cref="OpenProject"/> 即可，
     /// 无需关心具体字段。中文 sheet 名通过 <see cref="SheetNameOverrides"/> / <see cref="ChildSheetNameOverrides"/> 对齐菜单。
     ///
-    /// 菜单页 -> sheet 映射（与顶部菜单一致）：
-    ///   项目管理 / 控制器 / 轴 / IO / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 变量 / 流程 / 工程师 / 操作员
-    /// 其中 IO 由 Inputs+Outputs 合并（带「类型」列）；点位表/料盘/流程 含嵌套子表（父项名称 列关联）。
-    /// </summary>
+        /// 菜单页 -> sheet 映射（与顶部菜单一致）：
+        ///   项目管理 / 控制器 / 轴 / IO / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 变量 / 流程 / 工程师 / 操作员
+        /// 其中 IO 由 Inputs+Outputs 合并（带「类型」列）；点位表/料盘/流程 含嵌套子表（父项名称 列关联）。
+        /// 「项目管理」页末尾另有一段说明（属性=主题 / 值=说明），供人和 AI 直接阅读/修改 xlsx，不参与数据回填。
+        /// </summary>
     public static class XlsxProjectStore
     {
         /// <summary>
@@ -270,6 +271,9 @@ namespace NoCodeMotion.Services
 
             // IO 合并表
             dict["IO"] = BuildIoSheet(root);
+
+            // 文档说明：合并进「项目管理」页末尾（属性=主题 / 值=说明），供人和 AI 阅读/修改；不参与数据回填
+            AppendDocRows(meta);
 
             if (meta.Rows.Count > 0) dict["项目管理"] = meta;
             return dict;
@@ -598,6 +602,55 @@ namespace NoCodeMotion.Services
             if (tables.TryGetValue("点位表", out var ptDt)) RestorePointTableSheet(root, ptDt);
             if (tables.TryGetValue("料盘", out var trDt)) RestoreTraySheet(root, trDt);
             if (tables.TryGetValue("流程", out var flDt)) RestoreFlowSheet(root, flDt);
+        }
+
+        /// <summary>
+        /// 把 xlsx 结构 / 编辑说明追加到「项目管理」信息表末尾（用其已有列：属性=主题、值=说明）。
+        /// 这些说明行不参与数据回填：
+        ///   - ImportFromDataTables 对「项目管理」只回填 属性 与根对象标量属性同名的行，说明行的中文标题不会命中任何属性名，故被安全忽略；
+        ///   - LoadMeta 仅读取 CreatedAt/UpdatedAt/Remark 三行，同样忽略说明行。
+        /// 重新保存工程时 ExportToDataTables 会重建 meta 并重新追加，故手动删除说明内容也无妨（会被重建）。
+        /// </summary>
+        private static void AppendDocRows(DataTable meta)
+        {
+            void Add(string topic, string desc)
+            {
+                var r = meta.NewRow();
+                r["属性"] = topic;
+                r["值"] = desc;
+                meta.Rows.Add(r);
+            }
+
+            meta.Rows.Add(meta.NewRow()); // 空行分隔：上方是标量元数据，下方是说明
+            Add("===== 说明（仅供人和 AI 阅读，不参与数据回填） =====", "");
+            Add("== 文件结构总览 ==", "本 xlsx 是工程的唯一存储（不再使用 JSON）。每个菜单页写入一个 worksheet；本说明已合并在「项目管理」页末尾。");
+            Add("sheet 顺序", "与顶部菜单一致：项目管理→控制器→轴→IO→气缸→点位表→通讯→料盘→相机→变量→流程（工程师/操作员无数据则不生成 sheet）。");
+            Add("合并页", "点位表 / 料盘 / 流程 为有子集合的父表，已合并为「一页含父行+子行+空行分隔」格式（不再分页）。");
+            Add("说明位置", "本段说明位于「项目管理」页（属性=主题 / 值=说明），导入时自动忽略：只回填与根对象属性同名的行，说明行的中文标题不会命中，故被跳过；请勿担心误改数据，保存工程会自动重建。");
+
+            Add("== 行类型约定（类型 列） ==", "合并页用「类型」列区分父行/子行，用「父项名称」列把子行挂回父行。");
+            Add("点位表.类型", "工位 = 点位表父行（名称=工位名）；点位 = 子行（父项名称 指向工位）；轴名 = 该工位的轴槽名称行（父项名称 指向工位）。");
+            Add("料盘.类型", "料盘 = 父行；格子 = 子行（父项名称 指向料盘）。");
+            Add("流程.类型", "流程 = 父行；步骤 = 普通步骤子行；视步 = 视觉步骤子行（父项名称 均指向流程名）。");
+            Add("IO.类型", "输入 / 输出 —— 由该列区分，输入来自 Inputs 集合，输出来自 Outputs 集合。");
+            Add("项目管理", "两列：属性 / 值，上方存标量元数据（工程名称、CreatedAt、UpdatedAt、Remark、RequirementsText 等），下方为本说明段。");
+
+            Add("== 编辑提示 ==", "改完 cell 用软件「保存工程」重新生成即可；直接改 xlsx 后由软件打开也会被读取回填（按列名匹配）。");
+            Add("勿改定位列", "不要改动「类型」「父项名称」的取值，否则导入会错位或丢失父子关联。");
+            Add("保留空行", "父块之间用全空行分隔，保留即可（导入会跳过全空行）。");
+            Add("布尔写法", "已占用 / 使能 / 上次成功 等布尔字段写「是/否」或 True/False 均可识别。");
+            Add("列名即字段", "列名即字段显示名（中文），新增/删除行请保持列对齐，不要增删列。");
+
+            Add("== 枚举取值参考 ==", "写入枚举列时，以下 ASCII 值或中文均可被识别。");
+            Add("流程.类型标记 (Kind)", "Table=表格 / Lua=脚本 / Vision=视觉。");
+            Add("流程.角色 (Role)", "Main=主流程 / Reset=复位流程。");
+            Add("流程.状态 (Status)", "Idle=空闲 / Running=运行中 / Done=完成 / Error=错误。");
+            Add("IO.类型", "输入 / 输出（仅展示用，不参与枚举解析）。");
+
+            Add("== 合并页列说明 ==", "列数固定，勿增删。");
+            Add("点位表（17列）", "类型/名称/父项名称/时序/同步组/轴1位置/轴1速度/轴2位置/轴2速度/轴3位置/轴3速度/轴4位置/轴4速度/轴1名/轴2名/轴3名/轴4名。");
+            Add("料盘（12列）", "类型/名称/父项名称/行数/列数/起点X/起点Y/间距X/间距Y/行号/列号/已占用。");
+            Add("流程（51列）", "类型/名称/父项名称/类型标记/角色/Lua源码/状态 + 步骤列(逻辑/功能/属性/操作/设值/超时/时长ms/实际值) + 视步列(视步类型/使能/相机ID/保存路径/曝光ms/宽度/高度/源类型/文件夹路径/模板路径/分数阈值/角度范围/匹配模式/模板框X/模板框Y/模板框W/模板框H/算法/最小面积/最大面积/阈值/检测模式/测量模式/标定/单位/协议/目标/内容/预处理操作/预处理参数1/预处理参数2/预处理ROI/第二图路径/运行时长ms/上次成功/上次结果)。");
         }
 
         // ----- 点位表 -----
