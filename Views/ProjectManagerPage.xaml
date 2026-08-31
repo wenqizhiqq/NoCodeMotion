@@ -133,8 +133,8 @@
                                      BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
                                      Background="{StaticResource SurfaceBrush}"
                                      Foreground="{StaticResource TextPrimaryBrush}"
-                                     Text="{Binding RequirementsText, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="每行一条需求。写清楚动作、IO、气缸、视觉、点位等。"/>
+                                     Text="{Binding RequirementsText, UpdateSourceTrigger=LostFocus}"
+                                     ToolTip="每行一条需求。写清楚动作、IO、气缸、视觉、点位等。点击【保存需求】或失焦后生效。"/>
                         </StackPanel>
                     </Border>
 
