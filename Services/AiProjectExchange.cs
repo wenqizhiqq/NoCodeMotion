@@ -96,6 +96,9 @@ namespace NoCodeMotion.Services
             sb.AppendLine("7. 脚本流程不要留 \"脚本\" 字段为空，至少 5 行完整可读的 Lua 源码（含 Log.Info/Variable.Get/Variable.Set/if/return）。");
             sb.AppendLine("8. 视觉流程的步骤里要包含 至少 1 个 \"功能\": \"相机\"（拍照）+ 1 个 \"功能\": \"视觉\"（匹配/检测）。");
             sb.AppendLine("9. 运控流程每个步骤都要写齐 4 个字段（功能/对象/动作/值），不要留空。");
+            sb.AppendLine("10. 步骤的「功能」只能用这几种：轴 / 输入 / 输出 / 气缸 / 延时 / 变量 / 点位 / 通讯。");
+            sb.AppendLine("    不要写 \"流程\"（本软件步骤层不支持调用子流程，写了也执行不了）。");
+            sb.AppendLine("11. 同一个 JSON 里键名要保持一致：要么全用中文键名（名称/类型/步骤/值），要么全用英文（name/type/steps/value），不要混用。");
             sb.AppendLine();
             sb.AppendLine("【输出格式】严格按下面这个结构输出：");
             sb.AppendLine(SchemaText);
@@ -238,6 +241,19 @@ namespace NoCodeMotion.Services
             {
                 return "JSON 解析失败：" + ex.Message + "（请复制 AI 返回的完整 JSON，不要只复制一部分）";
             }
+
+            // ===== 先清空所有集合：粘贴生成是「完全替换」语义（弹窗已确认） =====
+            data.Controllers.Clear();
+            data.Axes.Clear();
+            data.Inputs.Clear();
+            data.Outputs.Clear();
+            data.Cylinders.Clear();
+            data.Cameras.Clear();
+            data.Comms.Clear();
+            data.Trays.Clear();
+            data.PointTables.Clear();
+            data.Flows.Clear();
+            data.Variables.Clear();
 
             using (doc)
             {
@@ -395,7 +411,14 @@ namespace NoCodeMotion.Services
                       ?? "192.168.1.100";
                 if (ip.Equals("GigE", StringComparison.OrdinalIgnoreCase)) ip = "192.168.1.100";
 
-                var port = IntDef(e, 8000, "端口", "port", "编号", "编号", "slotNo");
+                // 端口：优先用显式「端口」；否则用「编号」推导（8000+编号），避免编号 1 变成 Port=1。
+                // 注意不能把「编号」直接当 Port——编号 0/1 是相机序号，不是网络端口。
+                var explicitPort = Str(e, "端口", "port");
+                var slotNo = IntDef(e, 0, "编号", "slotNo", "index");
+                var port = explicitPort != null
+                    ? IntDef(e, 8000, "端口", "port")
+                    : 8000 + slotNo;
+
                 var width = IntDef(e, 1920, "宽度", "width", "分辨率宽");
                 var height = IntDef(e, 1080, "高度", "height", "分辨率高");
                 var exposure = DblDef(e, 10.0, "曝光ms", "曝光", "exposureMs", "exposure");
@@ -412,7 +435,7 @@ namespace NoCodeMotion.Services
                     Name = name,
                     Vendor = vendor,
                     IpAddress = ip,
-                    Port = port == 0 ? 8000 : port,
+                    Port = port,
                     Width = width == 0 ? 1920 : width,
                     Height = height == 0 ? 1080 : height,
                     ExposureMs = exposure,
@@ -476,10 +499,12 @@ namespace NoCodeMotion.Services
                     string n1 = t.AxisNames.Count > 1 ? t.AxisNames[1] : "";
                     string n2 = t.AxisNames.Count > 2 ? t.AxisNames[2] : "";
                     string n3 = t.AxisNames.Count > 3 ? t.AxisNames[3] : "";
+                    // 坐标键名兜底：AI 可能用轴名（"X搬运轴"）、单字母（"X"）、或语义名（"旋转"/"角度"）。
+                    // 第 4 槽常见写法「旋转」「旋转轴」「R」，都要覆盖，否则旋转坐标会丢。
                     item.Positions[0] = new PointAxis { Position = DblDef(p, 0, n0, "x", "X"), Speed = 100 };
                     item.Positions[1] = new PointAxis { Position = DblDef(p, 0, n1, "y", "Y"), Speed = 100 };
                     item.Positions[2] = new PointAxis { Position = DblDef(p, 0, n2, "z", "Z"), Speed = 100 };
-                    item.Positions[3] = new PointAxis { Position = DblDef(p, 0, n3, "r", "R"), Speed = 100 };
+                    item.Positions[3] = new PointAxis { Position = DblDef(p, 0, n3, "r", "R", "旋转", "旋转轴", "角度"), Speed = 100 };
                     t.Points.Add(item);
                 }
 
@@ -502,15 +527,16 @@ namespace NoCodeMotion.Services
                        ? FlowRole.Reset
                        : FlowRole.Main;
 
-                var kindStr = Str(e, "类型", "kind") ?? "";
+                // 「类型」别名必须含 type：AI 常中英混用（第一条写「类型」，后几条写 type）
+                var kindStr = Str(e, "类型", "kind", "type") ?? "";
                 var fk = NormFlowKind(kindStr);
 
                 var f = new FlowItem { Name = name, Kind = fk, Role = fr };
 
                 // 脚本 / 视觉流程都走 Lua 源码；运控流程走表格步骤。
                 // 容差：若流程声明是 Lua/Vision 但没给「脚本」字段，退回去读「步骤」。
-                var lua = fk == FlowKind.Table ? null
-                        : (Str(e, "脚本", "源码", "luaSource", "source") ?? "");
+                // 运控流程也兼容「脚本」字段（AI 偶尔给运控流程塞脚本，此时按 Lua 存，别丢内容）。
+                var lua = Str(e, "脚本", "源码", "luaSource", "script", "source") ?? "";
 
                 if (fk != FlowKind.Table && !string.IsNullOrWhiteSpace(lua))
                 {
@@ -523,18 +549,25 @@ namespace NoCodeMotion.Services
                         var func = Str(s, "功能", "function") ?? "轴";
                         var target = Str(s, "对象", "name", "target", "名称") ?? "";
                         var op = Str(s, "动作", "operation") ?? "移动";
-                        var val = Str(s, "值", "setValue", "参数") ?? "";
+                        // 「值」别名必须含 value：AI 常中英混用（主流程写「值」，复位流程写 value）
+                        var val = Str(s, "值", "value", "setValue", "参数") ?? "";
 
-                        f.Steps.Add(new FlowStep
+                        var step = new FlowStep
                         {
+                            // 名称列必须用「对象」（轴名/IO名/气缸名/点位名/变量名）——空就回退到值。
+                            Name = !string.IsNullOrWhiteSpace(target) ? target
+                                 : (!string.IsNullOrWhiteSpace(val) ? val : ""),
                             Logic = Str(s, "条件", "logic") ?? "就",
                             Function = NormFunction(func),
                             Property = NormProperty(func, op),
                             Operation = NormOperation(func, op),
-                            SetValue = string.IsNullOrEmpty(val) ? target : val,
+                            // 回零/置位/复位 等动作的「值」本来就空，此时保留 val 空，不要塞 target 占位
+                            // （避免截图里"X回退轴"出现在设置值列）
+                            SetValue = val,
                             Timeout = Str(s, "超时", "timeout") ?? "空",
                             DurationMs = Int(s, "时长", "延时", "durationMs")
-                        });
+                        };
+                        f.Steps.Add(step);
                     }
                 }
 
@@ -593,6 +626,9 @@ namespace NoCodeMotion.Services
             if (func.Contains("点位")) return "点位";
             if (func.Contains("变量")) return "变量";
             if (func.Contains("通讯") || func.Contains("通信") || func.Contains("modbus")) return "modbus";
+            // 「流程/调用子流程」本软件步骤层不支持（ExecuteHardwareStep 只认 轴/IO/气缸/modbus/点位），
+            // 归一到「系统」（只记日志），避免这类步骤被误判成「轴」而真的去动轴。
+            if (func.Contains("流程") || func.Contains("调用")) return "系统";
             return "轴";
         }
 

@@ -167,6 +167,19 @@ namespace NoCodeMotion.ViewModels
                 return;
             }
 
+            // 弹窗确认：粘贴生成会清空当前工程所有配置
+            var confirm = new ConfirmDialog(
+                "粘贴生成确认",
+                "粘贴 AI 返回的 JSON 会【完全清空】工程「" + target + "」当前的\n" +
+                "控制器 / 轴 / 输入 / 输出 / 气缸 / 通讯 / 相机 / 工位 / 流程 / 变量\n\n" +
+                "然后写入新内容。是否继续？",
+                "粘贴生成");
+            if (confirm.ShowDialog() != true)
+            {
+                StatusMessage = "已取消粘贴生成。";
+                return;
+            }
+
             var result = AiProjectExchange.ApplyGenerated(ProjectStore.Data, text);
             if (result.StartsWith("未识别") || result.StartsWith("JSON 解析失败") || result.StartsWith("内容不是"))
             {
