@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using ClosedXML.Excel;
+using NoCodeMotion.Models;
 
 namespace NoCodeMotion.Services
 {
@@ -69,6 +70,7 @@ namespace NoCodeMotion.Services
             ["Inputs"] = "输入",
             ["Outputs"] = "输出",
             ["Variables"] = "变量",
+            ["Cameras"] = "相机",
             ["Io"] = "IO",
         };
 
@@ -88,8 +90,8 @@ namespace NoCodeMotion.Services
             "料盘", "相机", "变量", "流程", "工程师", "操作员",
         };
 
-        /// <summary>导出/导入时跳过的属性（Io 为 Inputs+Outputs 的计算合并属性，避免重复存储）。</summary>
-        private static readonly HashSet<string> ExcludedProperties = new() { "Io" };
+        /// <summary>导出/导入时跳过的属性：Io 为 Inputs+Outputs 的计算合并属性，避免重复存储；Points/PointAxes 是旧版单工位字段，EnsurePointTables 后已清空，不再落盘。</summary>
+        private static readonly HashSet<string> ExcludedProperties = new() { "Io", "Points", "PointAxes" };
 
         /// <summary>合并进「IO」表的属性（Inputs / Outputs）。</summary>
         private static readonly HashSet<string> MergedIoProperties = new() { "Inputs", "Outputs" };
@@ -123,10 +125,22 @@ namespace NoCodeMotion.Services
             var path = FilePathFor(projectName);
             EnsureProjectsFolder();
             using var wb = new XLWorkbook();
-            foreach (var kv in sheets)
+            // 按主界面顶部菜单顺序排页：父页排在 MenuSheetNames 对应位置，嵌套子页(父.子)紧随父页之后，未知页置末尾。
+            var orderedKeys = sheets.Keys
+                .OrderBy(k =>
+                {
+                    var dot = k.IndexOf('.');
+                    var parent = dot >= 0 ? k.Substring(0, dot) : k;
+                    int rank = Array.IndexOf(MenuSheetNames, parent);
+                    if (rank < 0) rank = MenuSheetNames.Length; // 不在菜单里的页置末尾
+                    int childFlag = dot >= 0 ? 1 : 0;           // 子页紧随父页之后
+                    return (rank, childFlag, k);
+                })
+                .ToArray();
+            foreach (var key in orderedKeys)
             {
-                var dt = kv.Value;
-                var ws = wb.Worksheets.Add(SafeSheetName(kv.Key));
+                var dt = sheets[key];
+                var ws = wb.Worksheets.Add(SafeSheetName(key));
                 for (int c = 0; c < dt.Columns.Count; c++)
                     ws.Cell(1, c + 1).Value = dt.Columns[c].ColumnName;
                 for (int r = 0; r < dt.Rows.Count; r++)
@@ -251,9 +265,8 @@ namespace NoCodeMotion.Services
                 }
             }
 
-            // 嵌套子表（点位表.点位 / 点位表.轴名 / 料盘.格子 / 流程.步骤 ...）
-            foreach (var kv in CollectNestedSheets(root))
-                dict[kv.Key] = kv.Value;
+            // 合并的嵌套子表（点位表/料盘/流程 → 各自一页，含父行 + 子行 + 轴名行 + 空行分隔）
+            AddMergedBlockSheets(root, dict);
 
             // IO 合并表
             dict["IO"] = BuildIoSheet(root);
@@ -313,8 +326,8 @@ namespace NoCodeMotion.Services
             if (tables.TryGetValue("IO", out var ioDt))
                 SplitIoToRoot(root, ioDt);
 
-            // 3) 嵌套子表还原
-            RestoreNestedCollections(root, tables);
+            // 3) 合并嵌套块还原（点位表/料盘/流程 → 按 类型 列拆回父/子集合）
+            RestoreMergedBlockSheets(root, tables);
 
             // 4) 标量（项目管理信息表）
             if (tables.TryGetValue("项目管理", out var meta))
@@ -562,6 +575,583 @@ namespace NoCodeMotion.Services
                 if (tag == "输入") inAdd.Invoke(inColl, new object[] { item });
                 else outAdd.Invoke(outColl, new object[] { item });
             }
+        }
+
+        // ===================== 合并嵌套块（一个父表 = 一页 sheet） =====================
+
+        /// <summary>把点位表/料盘/流程三类有子集合的父表，写成"一页含父行 + 子行 + 轴名行 + 空行"的合并格式（替换旧的 父.子 分页）。</summary>
+        private static void AddMergedBlockSheets(object root, IDictionary<string, DataTable> dict)
+        {
+            var pt = GetCollection(root, "PointTables");
+            if (pt != null) dict["点位表"] = BuildPointTableSheet(pt);
+
+            var tr = GetCollection(root, "Trays");
+            if (tr != null) dict["料盘"] = BuildTraySheet(tr);
+
+            var fl = GetCollection(root, "Flows");
+            if (fl != null) dict["流程"] = BuildFlowSheet(fl);
+        }
+
+        /// <summary>合并 sheet 的回填入口：根据 sheet 名调用对应的分块解析器。</summary>
+        private static void RestoreMergedBlockSheets(object root, IDictionary<string, DataTable> tables)
+        {
+            if (tables.TryGetValue("点位表", out var ptDt)) RestorePointTableSheet(root, ptDt);
+            if (tables.TryGetValue("料盘", out var trDt)) RestoreTraySheet(root, trDt);
+            if (tables.TryGetValue("流程", out var flDt)) RestoreFlowSheet(root, flDt);
+        }
+
+        // ----- 点位表 -----
+
+        private static DataTable BuildPointTableSheet(IEnumerable parentColl)
+        {
+            var dt = new DataTable("点位表");
+            // 列结构：类型 | 名称 | 父项名称 | 时序 | 同步组 | 轴1-4 位置/速度 | 轴1-4 名
+            dt.Columns.Add("类型", typeof(string));
+            dt.Columns.Add("名称", typeof(string));
+            dt.Columns.Add("父项名称", typeof(string));
+            dt.Columns.Add("时序", typeof(string));
+            dt.Columns.Add("同步组", typeof(string));
+            for (int i = 1; i <= 4; i++) { dt.Columns.Add($"轴{i}位置", typeof(string)); dt.Columns.Add($"轴{i}速度", typeof(string)); }
+            for (int i = 1; i <= 4; i++) dt.Columns.Add($"轴{i}名", typeof(string));
+
+            foreach (var ptObj in parentColl)
+            {
+                if (ptObj == null) continue;
+                var ptName = GetName(ptObj);
+                // 父行
+                var parentRow = dt.NewRow();
+                parentRow["类型"] = "工位";
+                parentRow["名称"] = ptName;
+                dt.Rows.Add(parentRow);
+                // 点位行（按 PointTable.Points）
+                var pointsProp = ptObj.GetType().GetProperty("Points");
+                if (pointsProp?.GetValue(ptObj) is IEnumerable points)
+                    foreach (var pObj in points)
+                    {
+                        if (pObj == null) continue;
+                        var r = dt.NewRow();
+                        r["类型"] = "点位";
+                        r["名称"] = GetName(pObj);
+                        r["父项名称"] = ptName;
+                        // 时序/同步组
+                        SetStr(r, "时序", pObj, "TimingMark");
+                        SetStr(r, "同步组", pObj, "SyncGroup");
+                        // 4 轴位置/速度
+                        var posProp = pObj.GetType().GetProperty("Positions");
+                        if (posProp?.GetValue(pObj) is IEnumerable positions)
+                        {
+                            int idx = 0;
+                            foreach (var aObj in positions)
+                            {
+                                if (idx >= 4) break;
+                                if (aObj == null) { idx++; continue; }
+                                var pVal = aObj.GetType().GetProperty("Position")?.GetValue(aObj);
+                                var sVal = aObj.GetType().GetProperty("Speed")?.GetValue(aObj);
+                                r[$"轴{idx + 1}位置"] = pVal?.ToString() ?? "";
+                                r[$"轴{idx + 1}速度"] = sVal?.ToString() ?? "";
+                                idx++;
+                            }
+                        }
+                        dt.Rows.Add(r);
+                    }
+                // 轴名行
+                var axesRow = dt.NewRow();
+                axesRow["类型"] = "轴名";
+                axesRow["名称"] = "轴槽";
+                axesRow["父项名称"] = ptName;
+                var axisProp = ptObj.GetType().GetProperty("AxisNames");
+                if (axisProp?.GetValue(ptObj) is IEnumerable axes)
+                {
+                    int idx = 0;
+                    foreach (var s in axes)
+                    {
+                        if (idx >= 4) break;
+                        axesRow[$"轴{idx + 1}名"] = s?.ToString() ?? "";
+                        idx++;
+                    }
+                }
+                dt.Rows.Add(axesRow);
+                // 空行分隔
+                dt.Rows.Add(dt.NewRow());
+            }
+            return dt;
+        }
+
+        private static void RestorePointTableSheet(object root, DataTable dt)
+        {
+            var pointTablesProp = root.GetType().GetProperty("PointTables");
+            if (pointTablesProp == null) return;
+            if (pointTablesProp.GetValue(root) is not IEnumerable ptColl) return;
+            var ptClear = pointTablesProp.PropertyType.GetMethod("Clear");
+            var ptAdd = pointTablesProp.PropertyType.GetMethod("Add");
+            if (ptClear != null) ptClear.Invoke(ptColl, null);
+            if (ptAdd == null) return;
+
+            // 把现有 PointTable 按名称分组（与导出顺序对齐）
+            var byName = new Dictionary<string, object>();
+            foreach (var p in dt.Rows.Cast<DataRow>().Where(r => r["类型"]?.ToString() == "工位"))
+            {
+                var n = p["名称"]?.ToString() ?? "";
+                if (string.IsNullOrEmpty(n) || byName.ContainsKey(n)) continue;
+                var newPt = new PointTable { Name = n };
+                ptAdd.Invoke(ptColl, new object[] { newPt });
+                byName[n] = newPt;
+            }
+
+            // 把点位和轴名按"父项名称"挂到对应 PointTable
+            foreach (var row in dt.Rows.Cast<DataRow>())
+            {
+                var t = row["类型"]?.ToString();
+                var pname = row["父项名称"]?.ToString() ?? "";
+                if (!byName.TryGetValue(pname, out var ptObj)) continue;
+                if (t == "点位")
+                {
+                    var ptType = ptObj.GetType();
+                    var pointsProp = ptType.GetProperty("Points");
+                    if (pointsProp?.GetValue(ptObj) is IEnumerable ptPoints && pointsProp.PropertyType.GetMethod("Add") is var add && add != null)
+                    {
+                        var newP = new PointItem
+                        {
+                            Name = row["名称"]?.ToString() ?? "",
+                            TimingMark = row["时序"]?.ToString() ?? "",
+                            SyncGroup = row["同步组"]?.ToString() ?? "",
+                        };
+                        // 4 轴位置/速度
+                        var posProp = newP.GetType().GetProperty("Positions");
+                        if (posProp?.GetValue(newP) is IEnumerable positions)
+                        {
+                            var posClear = posProp.PropertyType.GetMethod("Clear");
+                            var posAdd = posProp.PropertyType.GetMethod("Add");
+                            posClear?.Invoke(positions, null);
+                            for (int i = 1; i <= 4; i++)
+                            {
+                                var pVal = row[$"轴{i}位置"]?.ToString() ?? "";
+                                var sVal = row[$"轴{i}速度"]?.ToString() ?? "";
+                                var pa = new PointAxis
+                                {
+                                    Position = double.TryParse(pVal, out var dp) ? dp : 0,
+                                    Speed = double.TryParse(sVal, out var ds) ? ds : 0,
+                                };
+                                posAdd?.Invoke(positions, new object[] { pa });
+                            }
+                        }
+                        add.Invoke(ptPoints, new object[] { newP });
+                    }
+                }
+                else if (t == "轴名")
+                {
+                    var ptType = ptObj.GetType();
+                    var axesProp = ptType.GetProperty("AxisNames");
+                    if (axesProp?.GetValue(ptObj) is IEnumerable axes)
+                    {
+                        var axClear = axesProp.PropertyType.GetMethod("Clear");
+                        var axAdd = axesProp.PropertyType.GetMethod("Add");
+                        axClear?.Invoke(axes, null);
+                        for (int i = 1; i <= 4; i++)
+                        {
+                            var n = row[$"轴{i}名"]?.ToString() ?? "";
+                            axAdd?.Invoke(axes, new object[] { n });
+                        }
+                        // 补齐 4 槽
+                        ptType.GetMethod("EnsureAxisSlots")?.Invoke(ptObj, null);
+                    }
+                }
+            }
+        }
+
+        // ----- 料盘 -----
+
+        private static DataTable BuildTraySheet(IEnumerable parentColl)
+        {
+            var dt = new DataTable("料盘");
+            dt.Columns.Add("类型", typeof(string));
+            dt.Columns.Add("名称", typeof(string));
+            dt.Columns.Add("父项名称", typeof(string));
+            dt.Columns.Add("行数", typeof(string));
+            dt.Columns.Add("列数", typeof(string));
+            dt.Columns.Add("起点X", typeof(string));
+            dt.Columns.Add("起点Y", typeof(string));
+            dt.Columns.Add("间距X", typeof(string));
+            dt.Columns.Add("间距Y", typeof(string));
+            dt.Columns.Add("行号", typeof(string));
+            dt.Columns.Add("列号", typeof(string));
+            dt.Columns.Add("已占用", typeof(string));
+
+            foreach (var trObj in parentColl)
+            {
+                if (trObj == null) continue;
+                var trName = GetName(trObj);
+                var r1 = dt.NewRow();
+                r1["类型"] = "料盘";
+                r1["名称"] = trName;
+                SetStr(r1, "行数", trObj, "Rows");
+                SetStr(r1, "列数", trObj, "Cols");
+                SetStr(r1, "起点X", trObj, "StartX");
+                SetStr(r1, "起点Y", trObj, "StartY");
+                SetStr(r1, "间距X", trObj, "PitchX");
+                SetStr(r1, "间距Y", trObj, "PitchY");
+                dt.Rows.Add(r1);
+                var cellsProp = trObj.GetType().GetProperty("Cells");
+                if (cellsProp?.GetValue(trObj) is IEnumerable cells)
+                    foreach (var cObj in cells)
+                    {
+                        if (cObj == null) continue;
+                        var r = dt.NewRow();
+                        r["类型"] = "格子";
+                        var row = GetInt(cObj, "Row");
+                        var col = GetInt(cObj, "Col");
+                        r["名称"] = $"{row},{col}";
+                        r["父项名称"] = trName;
+                        SetStr(r, "行号", cObj, "Row");
+                        SetStr(r, "列号", cObj, "Col");
+                        r["已占用"] = GetBool(cObj, "Occupied") ? "是" : "否";
+                        dt.Rows.Add(r);
+                    }
+                dt.Rows.Add(dt.NewRow());
+            }
+            return dt;
+        }
+
+        private static void RestoreTraySheet(object root, DataTable dt)
+        {
+            var traysProp = root.GetType().GetProperty("Trays");
+            if (traysProp == null) return;
+            if (traysProp.GetValue(root) is not IEnumerable trColl) return;
+            var clear = traysProp.PropertyType.GetMethod("Clear");
+            var add = traysProp.PropertyType.GetMethod("Add");
+            if (clear != null) clear.Invoke(trColl, null);
+            if (add == null) return;
+
+            var byName = new Dictionary<string, object>();
+            foreach (var r in dt.Rows.Cast<DataRow>().Where(r => r["类型"]?.ToString() == "料盘"))
+            {
+                var n = r["名称"]?.ToString() ?? "";
+                if (string.IsNullOrEmpty(n) || byName.ContainsKey(n)) continue;
+                var rows = GetInt(r["行数"]?.ToString() ?? "0");
+                var cols = GetInt(r["列数"]?.ToString() ?? "0");
+                var tr = new TrayItem
+                {
+                    Name = n,
+                    Rows = rows > 0 ? rows : 1,
+                    Cols = cols > 0 ? cols : 1,
+                    StartX = GetDouble(r["起点X"]?.ToString()),
+                    StartY = GetDouble(r["起点Y"]?.ToString()),
+                    PitchX = GetDouble(r["间距X"]?.ToString()),
+                    PitchY = GetDouble(r["间距Y"]?.ToString()),
+                };
+                add.Invoke(trColl, new object[] { tr });
+                byName[n] = tr;
+            }
+            // 格子按父项挂回
+            foreach (var r in dt.Rows.Cast<DataRow>().Where(r => r["类型"]?.ToString() == "格子"))
+            {
+                var pname = r["父项名称"]?.ToString() ?? "";
+                if (!byName.TryGetValue(pname, out var trObj)) continue;
+                var trType = trObj.GetType();
+                var cellsProp = trType.GetProperty("Cells");
+                if (cellsProp?.GetValue(trObj) is not IEnumerable cells) continue;
+                var addCell = cellsProp.PropertyType.GetMethod("Add");
+                if (addCell == null) continue;
+                var rr = GetInt(r["行号"]?.ToString());
+                var cc = GetInt(r["列号"]?.ToString());
+                var occ = r["已占用"]?.ToString() == "是" || r["已占用"]?.ToString() == "True";
+                addCell.Invoke(cells, new object[] { new TrayCell { Row = rr, Col = cc, Occupied = occ } });
+            }
+        }
+
+        // ----- 流程 -----
+
+        private static DataTable BuildFlowSheet(IEnumerable parentColl)
+        {
+            // 列结构 = FlowItem 标量 + FlowStep 标量 + VisualFlowStep 标量
+            var dt = new DataTable("流程");
+            dt.Columns.Add("类型", typeof(string));
+            dt.Columns.Add("名称", typeof(string));
+            dt.Columns.Add("父项名称", typeof(string));
+            // FlowItem 标量
+            dt.Columns.Add("类型标记", typeof(string));
+            dt.Columns.Add("角色", typeof(string));
+            dt.Columns.Add("Lua源码", typeof(string));
+            dt.Columns.Add("状态", typeof(string));
+            // FlowStep 标量
+            dt.Columns.Add("逻辑", typeof(string));
+            dt.Columns.Add("功能", typeof(string));
+            dt.Columns.Add("属性", typeof(string));
+            dt.Columns.Add("操作", typeof(string));
+            dt.Columns.Add("设值", typeof(string));
+            dt.Columns.Add("超时", typeof(string));
+            dt.Columns.Add("时长ms", typeof(string));
+            dt.Columns.Add("实际值", typeof(string));
+            // VisualFlowStep 标量
+            dt.Columns.Add("视步类型", typeof(string));
+            dt.Columns.Add("使能", typeof(string));
+            dt.Columns.Add("相机ID", typeof(string));
+            dt.Columns.Add("保存路径", typeof(string));
+            dt.Columns.Add("曝光ms", typeof(string));
+            dt.Columns.Add("宽度", typeof(string));
+            dt.Columns.Add("高度", typeof(string));
+            dt.Columns.Add("源类型", typeof(string));
+            dt.Columns.Add("文件夹路径", typeof(string));
+            dt.Columns.Add("模板路径", typeof(string));
+            dt.Columns.Add("分数阈值", typeof(string));
+            dt.Columns.Add("角度范围", typeof(string));
+            dt.Columns.Add("匹配模式", typeof(string));
+            dt.Columns.Add("模板框X", typeof(string));
+            dt.Columns.Add("模板框Y", typeof(string));
+            dt.Columns.Add("模板框W", typeof(string));
+            dt.Columns.Add("模板框H", typeof(string));
+            dt.Columns.Add("算法", typeof(string));
+            dt.Columns.Add("最小面积", typeof(string));
+            dt.Columns.Add("最大面积", typeof(string));
+            dt.Columns.Add("阈值", typeof(string));
+            dt.Columns.Add("检测模式", typeof(string));
+            dt.Columns.Add("测量模式", typeof(string));
+            dt.Columns.Add("标定", typeof(string));
+            dt.Columns.Add("单位", typeof(string));
+            dt.Columns.Add("协议", typeof(string));
+            dt.Columns.Add("目标", typeof(string));
+            dt.Columns.Add("内容", typeof(string));
+            dt.Columns.Add("预处理操作", typeof(string));
+            dt.Columns.Add("预处理参数1", typeof(string));
+            dt.Columns.Add("预处理参数2", typeof(string));
+            dt.Columns.Add("预处理ROI", typeof(string));
+            dt.Columns.Add("第二图路径", typeof(string));
+            dt.Columns.Add("运行时长ms", typeof(string));
+            dt.Columns.Add("上次成功", typeof(string));
+            dt.Columns.Add("上次结果", typeof(string));
+
+            foreach (var flObj in parentColl)
+            {
+                if (flObj == null) continue;
+                var flName = GetName(flObj);
+                // 父行
+                var r1 = dt.NewRow();
+                r1["类型"] = "流程";
+                r1["名称"] = flName;
+                SetStr(r1, "类型标记", flObj, "Kind");
+                SetStr(r1, "角色", flObj, "Role");
+                SetStr(r1, "Lua源码", flObj, "LuaSource");
+                SetStr(r1, "状态", flObj, "Status");
+                dt.Rows.Add(r1);
+
+                // 步骤
+                var stepsProp = flObj.GetType().GetProperty("Steps");
+                if (stepsProp?.GetValue(flObj) is IEnumerable steps)
+                    foreach (var sObj in steps)
+                    {
+                        if (sObj == null) continue;
+                        var r = dt.NewRow();
+                        r["类型"] = "步骤";
+                        r["名称"] = GetName(sObj);
+                        r["父项名称"] = flName;
+                        SetStr(r, "逻辑", sObj, "Logic");
+                        SetStr(r, "功能", sObj, "Function");
+                        SetStr(r, "属性", sObj, "Property");
+                        SetStr(r, "操作", sObj, "Operation");
+                        SetStr(r, "设值", sObj, "SetValue");
+                        SetStr(r, "超时", sObj, "Timeout");
+                        SetStr(r, "时长ms", sObj, "DurationMs");
+                        SetStr(r, "实际值", sObj, "ActualValue");
+                        dt.Rows.Add(r);
+                    }
+                // 视步
+                var vstepsProp = flObj.GetType().GetProperty("VisualSteps");
+                if (vstepsProp?.GetValue(flObj) is IEnumerable vsteps)
+                    foreach (var vObj in vsteps)
+                    {
+                        if (vObj == null) continue;
+                        var r = dt.NewRow();
+                        r["类型"] = "视步";
+                        r["名称"] = GetName(vObj);
+                        r["父项名称"] = flName;
+                        SetStr(r, "视步类型", vObj, "StepType");
+                        SetStr(r, "使能", vObj, "Enabled");
+                        SetStr(r, "相机ID", vObj, "CameraId");
+                        SetStr(r, "保存路径", vObj, "SavePath");
+                        SetStr(r, "曝光ms", vObj, "ExposureMs");
+                        SetStr(r, "宽度", vObj, "Width");
+                        SetStr(r, "高度", vObj, "Height");
+                        SetStr(r, "源类型", vObj, "SourceType");
+                        SetStr(r, "文件夹路径", vObj, "FolderPath");
+                        SetStr(r, "模板路径", vObj, "TemplatePath");
+                        SetStr(r, "分数阈值", vObj, "ScoreThreshold");
+                        SetStr(r, "角度范围", vObj, "AngleRange");
+                        SetStr(r, "匹配模式", vObj, "MatchMode");
+                        SetStr(r, "模板框X", vObj, "TemplateRoiX");
+                        SetStr(r, "模板框Y", vObj, "TemplateRoiY");
+                        SetStr(r, "模板框W", vObj, "TemplateRoiW");
+                        SetStr(r, "模板框H", vObj, "TemplateRoiH");
+                        SetStr(r, "算法", vObj, "Algorithm");
+                        SetStr(r, "最小面积", vObj, "MinArea");
+                        SetStr(r, "最大面积", vObj, "MaxArea");
+                        SetStr(r, "阈值", vObj, "Threshold");
+                        SetStr(r, "检测模式", vObj, "DetectMode");
+                        SetStr(r, "测量模式", vObj, "MeasureMode");
+                        SetStr(r, "标定", vObj, "Calibration");
+                        SetStr(r, "单位", vObj, "Unit");
+                        SetStr(r, "协议", vObj, "Protocol");
+                        SetStr(r, "目标", vObj, "Target");
+                        SetStr(r, "内容", vObj, "Content");
+                        SetStr(r, "预处理操作", vObj, "PreOp");
+                        SetStr(r, "预处理参数1", vObj, "PreParam1");
+                        SetStr(r, "预处理参数2", vObj, "PreParam2");
+                        SetStr(r, "预处理ROI", vObj, "PreRoi");
+                        SetStr(r, "第二图路径", vObj, "PreImage2Path");
+                        SetStr(r, "运行时长ms", vObj, "DurationMs");
+                        SetStr(r, "上次成功", vObj, "LastOk");
+                        SetStr(r, "上次结果", vObj, "LastResult");
+                        dt.Rows.Add(r);
+                    }
+                dt.Rows.Add(dt.NewRow());
+            }
+            return dt;
+        }
+
+        private static void RestoreFlowSheet(object root, DataTable dt)
+        {
+            var flowsProp = root.GetType().GetProperty("Flows");
+            if (flowsProp == null) return;
+            if (flowsProp.GetValue(root) is not IEnumerable flColl) return;
+            var clear = flowsProp.PropertyType.GetMethod("Clear");
+            var add = flowsProp.PropertyType.GetMethod("Add");
+            if (clear != null) clear.Invoke(flColl, null);
+            if (add == null) return;
+
+            var byName = new Dictionary<string, object>();
+            foreach (var r in dt.Rows.Cast<DataRow>().Where(r => r["类型"]?.ToString() == "流程"))
+            {
+                var n = r["名称"]?.ToString() ?? "";
+                if (string.IsNullOrEmpty(n) || byName.ContainsKey(n)) continue;
+                var fl = new FlowItem { Name = n };
+                TrySet(fl, "Kind", r["类型标记"]?.ToString(), typeof(FlowKind));
+                TrySet(fl, "Role", r["角色"]?.ToString(), typeof(FlowRole));
+                TrySet(fl, "LuaSource", r["Lua源码"]?.ToString());
+                TrySet(fl, "Status", r["状态"]?.ToString(), typeof(FlowStatus));
+                add.Invoke(flColl, new object[] { fl });
+                byName[n] = fl;
+            }
+
+            foreach (var r in dt.Rows.Cast<DataRow>())
+            {
+                var t = r["类型"]?.ToString();
+                var pname = r["父项名称"]?.ToString() ?? "";
+                if (!byName.TryGetValue(pname, out var flObj)) continue;
+                var flType = flObj.GetType();
+                if (t == "步骤")
+                {
+                    var stepsProp = flType.GetProperty("Steps");
+                    if (stepsProp?.GetValue(flObj) is IEnumerable steps && stepsProp.PropertyType.GetMethod("Add") is var a && a != null)
+                    {
+                        var st = new FlowStep
+                        {
+                            Name = r["名称"]?.ToString() ?? "",
+                            Logic = r["逻辑"]?.ToString() ?? "",
+                            Function = r["功能"]?.ToString() ?? "",
+                            Property = r["属性"]?.ToString() ?? "",
+                            Operation = r["操作"]?.ToString() ?? "",
+                            SetValue = r["设值"]?.ToString() ?? "",
+                            Timeout = r["超时"]?.ToString() ?? "",
+                            DurationMs = GetInt(r["时长ms"]?.ToString()),
+                            ActualValue = r["实际值"]?.ToString() ?? "",
+                        };
+                        a.Invoke(steps, new object[] { st });
+                    }
+                }
+                else if (t == "视步")
+                {
+                    var vstepsProp = flType.GetProperty("VisualSteps");
+                    if (vstepsProp?.GetValue(flObj) is IEnumerable vsteps && vstepsProp.PropertyType.GetMethod("Add") is var a && a != null)
+                    {
+                        var v = new VisualFlowStep
+                        {
+                            Name = r["名称"]?.ToString() ?? "",
+                            StepType = r["视步类型"]?.ToString() ?? "",
+                            Enabled = r["使能"]?.ToString() == "True" || r["使能"]?.ToString() == "是" || r["使能"]?.ToString() == "true",
+                            CameraId = r["相机ID"]?.ToString() ?? "",
+                            SavePath = r["保存路径"]?.ToString() ?? "",
+                            ExposureMs = GetDouble(r["曝光ms"]?.ToString()),
+                            Width = GetInt(r["宽度"]?.ToString()),
+                            Height = GetInt(r["高度"]?.ToString()),
+                            SourceType = r["源类型"]?.ToString() ?? "",
+                            FolderPath = r["文件夹路径"]?.ToString() ?? "",
+                            TemplatePath = r["模板路径"]?.ToString() ?? "",
+                            ScoreThreshold = GetDouble(r["分数阈值"]?.ToString()),
+                            AngleRange = GetDouble(r["角度范围"]?.ToString()),
+                            MatchMode = r["匹配模式"]?.ToString() ?? "",
+                            TemplateRoiX = GetInt(r["模板框X"]?.ToString()),
+                            TemplateRoiY = GetInt(r["模板框Y"]?.ToString()),
+                            TemplateRoiW = GetInt(r["模板框W"]?.ToString()),
+                            TemplateRoiH = GetInt(r["模板框H"]?.ToString()),
+                            Algorithm = r["算法"]?.ToString() ?? "",
+                            MinArea = GetDouble(r["最小面积"]?.ToString()),
+                            MaxArea = GetDouble(r["最大面积"]?.ToString()),
+                            Threshold = GetDouble(r["阈值"]?.ToString()),
+                            DetectMode = r["检测模式"]?.ToString() ?? "",
+                            MeasureMode = r["测量模式"]?.ToString() ?? "",
+                            Calibration = GetDouble(r["标定"]?.ToString()),
+                            Unit = r["单位"]?.ToString() ?? "",
+                            Protocol = r["协议"]?.ToString() ?? "",
+                            Target = r["目标"]?.ToString() ?? "",
+                            Content = r["内容"]?.ToString() ?? "",
+                            PreOp = r["预处理操作"]?.ToString() ?? "",
+                            PreParam1 = GetDouble(r["预处理参数1"]?.ToString()),
+                            PreParam2 = GetDouble(r["预处理参数2"]?.ToString()),
+                            PreRoi = r["预处理ROI"]?.ToString() ?? "",
+                            PreImage2Path = r["第二图路径"]?.ToString() ?? "",
+                            DurationMs = GetDouble(r["运行时长ms"]?.ToString()),
+                            LastOk = r["上次成功"]?.ToString() == "True" || r["上次成功"]?.ToString() == "是" || r["上次成功"]?.ToString() == "true",
+                            LastResult = r["上次结果"]?.ToString() ?? "",
+                        };
+                        a.Invoke(vsteps, new object[] { v });
+                    }
+                }
+            }
+        }
+
+        // ----- 反射小工具 -----
+
+        private static IEnumerable? GetCollection(object root, string propName)
+        {
+            var p = root.GetType().GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
+            return p?.GetValue(root) as IEnumerable;
+        }
+
+        private static void SetStr(DataRow row, string col, object src, string propName)
+        {
+            var v = src.GetType().GetProperty(propName)?.GetValue(src);
+            row[col] = v?.ToString() ?? "";
+        }
+
+        private static int GetInt(object? src, string propName)
+        {
+            var v = src?.GetType().GetProperty(propName)?.GetValue(src);
+            return v switch { int i => i, long l => (int)l, double d => (int)d, string s => int.TryParse(s, out var n) ? n : 0, _ => 0 };
+        }
+
+        private static int GetInt(string? s) => int.TryParse(s, out var n) ? n : 0;
+
+        private static double GetDouble(string? s) => double.TryParse(s, out var n) ? n : 0;
+
+        private static bool GetBool(object src, string propName)
+        {
+            var v = src.GetType().GetProperty(propName)?.GetValue(src);
+            return v is bool b && b;
+        }
+
+        private static void TrySet(object target, string propName, string? value, Type? enumType = null)
+        {
+            var p = target.GetType().GetProperty(propName);
+            if (p == null || !p.CanWrite) return;
+            try
+            {
+                if (enumType != null && p.PropertyType == enumType)
+                {
+                    if (Enum.TryParse(enumType, value ?? "", true, out var ev)) p.SetValue(target, ev);
+                    return;
+                }
+                p.SetValue(target, ConvertTo(p.PropertyType, value));
+            }
+            catch { }
         }
 
         // ===================== 内部工具 =====================
