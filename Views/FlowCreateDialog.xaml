@@ -3,12 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        mc:Ignorable="d" d:DesignHeight="560" d:DesignWidth="450"
-        Height="560" Width="450" WindowStartupLocation="CenterOwner"
+        mc:Ignorable="d" d:DesignHeight="620" d:DesignWidth="450"
+        Height="620" Width="450" WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize" ShowInTaskbar="False"
         Background="White">
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -29,26 +31,39 @@
                      BorderBrush="#E2E8F0" BorderThickness="1"/>
         </DockPanel>
 
-        <TextBlock Grid.Row="2" Text="选择模板（单选）" FontSize="13" FontWeight="SemiBold"
+        <TextBlock Grid.Row="2" Text="流程类型（单选）" FontSize="13" FontWeight="SemiBold"
                    Foreground="#334155" Margin="0,0,0,8"/>
 
         <Border Grid.Row="3" Background="#F8FAFC" Padding="10"
                 BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6">
+            <StackPanel>
+                <RadioButton x:Name="MainRadio" Content="主流程" GroupName="RoleGroup" IsChecked="True"
+                             Margin="0,2,0,6" FontSize="13"/>
+                <RadioButton x:Name="ResetRadio" Content="复位流程" GroupName="RoleGroup"
+                             Margin="0,2,0,2" FontSize="13"/>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Grid.Row="4" Text="选择模板（单选）" FontSize="13" FontWeight="SemiBold"
+                   Foreground="#334155" Margin="0,14,0,8"/>
+
+        <Border Grid.Row="5" Background="#F8FAFC" Padding="10"
+                BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6">
             <StackPanel x:Name="TemplatePanel"/>
         </Border>
 
-        <TextBlock Grid.Row="4" Text="将生成的步骤" FontSize="13" FontWeight="SemiBold"
+        <TextBlock Grid.Row="6" Text="将生成的步骤" FontSize="13" FontWeight="SemiBold"
                    Foreground="#334155" Margin="0,14,0,8"/>
 
-        <Border Grid.Row="5" Background="#F1F5F9" Padding="10" CornerRadius="6"
+        <Border Grid.Row="7" Background="#F1F5F9" Padding="10" CornerRadius="6"
                 BorderBrush="#E2E8F0" BorderThickness="1">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="140">
                 <TextBlock x:Name="PreviewText" TextWrapping="Wrap" FontSize="12"
                            Foreground="#475569" LineHeight="18"/>
             </ScrollViewer>
         </Border>
 
-        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="取消" Padding="14,6" Margin="0,0,8,0"
                     Click="Cancel_Click" IsCancel="True"
                     Background="#F1F5F9" Foreground="#334155" BorderThickness="0"/>

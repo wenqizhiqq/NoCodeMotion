@@ -1,0 +1,62 @@
+Moved aside: obj
+CMD: C:\Program Files\dotnet\dotnet.exe build -c Debug --disable-build-servers -p:UseSharedCompilation=false -p:OutputPath=_out\
+  正在确定要还原的项目…
+  已还原 D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj (用时 309 毫秒)。
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(85,51): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "LineChanged" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(86,46): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "RunEnded" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(260,16): warning CS8618: 在退出构造函数时，不可为 null 的 字段 "_lastCurrent" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 字段 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(275,32): warning CS8625: 无法将 null 字面量转换为非 null 的引用类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(165,47): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(512,30): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(513,53): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(514,38): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(456,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(467,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\Services\Vision\VisionEngine.cs(110,101): warning CS8601: 可能的 null 引用赋值。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(42,24): warning CS0414: 字段“OperatorViewModel._timingClockMs”已被赋值，但从未使用过它的值 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(85,51): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "LineChanged" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(86,46): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "RunEnded" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(260,16): warning CS8618: 在退出构造函数时，不可为 null 的 字段 "_lastCurrent" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 字段 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(275,32): warning CS8625: 无法将 null 字面量转换为非 null 的引用类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(165,47): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(512,30): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(513,53): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(514,38): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\Services\Vision\VisionEngine.cs(110,101): warning CS8601: 可能的 null 引用赋值。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(456,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(467,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(42,24): warning CS0414: 字段“OperatorViewModel._timingClockMs”已被赋值，但从未使用过它的值 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+  NoCodeMotion -> D:\wqz\code\NoCodeMotion\_out\NoCodeMotion.dll
+
+已成功生成。
+
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(85,51): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "LineChanged" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(86,46): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "RunEnded" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(260,16): warning CS8618: 在退出构造函数时，不可为 null 的 字段 "_lastCurrent" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 字段 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(275,32): warning CS8625: 无法将 null 字面量转换为非 null 的引用类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(165,47): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(512,30): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(513,53): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(514,38): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(456,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(467,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\Services\Vision\VisionEngine.cs(110,101): warning CS8601: 可能的 null 引用赋值。 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(42,24): warning CS0414: 字段“OperatorViewModel._timingClockMs”已被赋值，但从未使用过它的值 [D:\wqz\code\NoCodeMotion\NoCodeMotion_bd0nqshy_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(85,51): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "LineChanged" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(86,46): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "RunEnded" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(260,16): warning CS8618: 在退出构造函数时，不可为 null 的 字段 "_lastCurrent" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 字段 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(275,32): warning CS8625: 无法将 null 字面量转换为非 null 的引用类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(165,47): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(512,30): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(513,53): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(514,38): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\Services\Vision\VisionEngine.cs(110,101): warning CS8601: 可能的 null 引用赋值。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(456,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(467,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(42,24): warning CS0414: 字段“OperatorViewModel._timingClockMs”已被赋值，但从未使用过它的值 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+    24 个警告
+    0 个错误
+
+已用时间 00:04:15.84
+
+EXIT CODE: 0

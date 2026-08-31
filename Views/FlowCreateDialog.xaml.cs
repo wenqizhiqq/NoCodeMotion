@@ -22,6 +22,7 @@ namespace NoCodeMotion.Views
     {
         public string FlowName { get; private set; } = "";
         public string SelectedTemplate { get; private set; } = "";
+        public FlowRole SelectedRole { get; private set; } = FlowRole.Main;
 
         private readonly List<RadioButton> _templateButtons = new();
         private readonly Func<string, IEnumerable<string>>? _stepsProvider;
@@ -92,6 +93,7 @@ namespace NoCodeMotion.Views
             }
             var cur = _templateButtons.FirstOrDefault(r => r.IsChecked == true);
             SelectedTemplate = cur?.Content as string ?? "";
+            SelectedRole = ResetRadio.IsChecked == true ? FlowRole.Reset : FlowRole.Main;
             DialogResult = true;
         }
 

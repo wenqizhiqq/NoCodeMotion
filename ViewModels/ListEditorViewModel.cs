@@ -43,7 +43,10 @@ namespace NoCodeMotion.ViewModels
         public ICommand DeleteCommand => new RelayCommand(_ => Delete(), _ => CanDelete);
         public ICommand RenameCommand => new RelayCommand(_ => Rename(), _ => SelectedItem != null);
 
-        private void Rename()
+        /// <summary>顶部「重命名」按钮文案。子类（如流程页）可重写为「修改」等。</summary>
+        public virtual string RenameButtonText => "重命名";
+
+        protected virtual void Rename()
         {
             if (SelectedItem is null) return;
             var dlg = new RenameDialog("重命名", SelectedItem.Name);

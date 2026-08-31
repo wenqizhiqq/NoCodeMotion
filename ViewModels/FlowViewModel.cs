@@ -121,6 +121,9 @@ namespace NoCodeMotion.ViewModels
         public bool IsKindLua => SelectedItem?.Kind == FlowKind.Lua;
         public bool IsKindVision => SelectedItem?.Kind == FlowKind.Vision;
 
+        /// <summary>流程页顶部按钮文案用「修改」（而非基类默认的「重命名」），点击弹出可同时改名称与主流程/复位流程的对话框。</summary>
+        public override string RenameButtonText => "修改";
+
         public ICommand RunCommand { get; }
         public ICommand StepCommand { get; }
         public ICommand JumpCommand { get; }
@@ -214,6 +217,7 @@ namespace NoCodeMotion.ViewModels
                 if (SelectedItem != null)
                 {
                     SelectedItem.Name = dlg.FlowName;
+                    SelectedItem.Role = dlg.SelectedRole;
                     AddTemplateSteps(SelectedItem, kind, dlg.SelectedTemplate);
                     // 脚本流程：Lua 源码随所选模板变化（通讯/分拣/MES/文件处理 各有示例脚本）
                     if (kind == FlowKind.Lua)
@@ -221,6 +225,22 @@ namespace NoCodeMotion.ViewModels
                 }
             }
             finally { _nextAddKind = FlowKind.Table; }
+        }
+
+        /// <summary>
+        /// 覆盖基类「重命名」：流程页用「修改」对话框，可同时编辑名称与主流程/复位流程角色。
+        /// </summary>
+        protected override void Rename()
+        {
+            if (SelectedItem is null) return;
+            var dlg = new Views.FlowModifyDialog("修改流程", SelectedItem.Name, SelectedItem.Role)
+            {
+                Owner = System.Windows.Application.Current?.MainWindow
+            };
+            if (dlg.ShowDialog() != true) return;
+            if (!string.IsNullOrEmpty(dlg.ResultName))
+                SelectedItem.Name = dlg.ResultName!;
+            SelectedItem.Role = dlg.ResultRole;
         }
 
         /// <summary>

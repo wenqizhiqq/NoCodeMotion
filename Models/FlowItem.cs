@@ -17,6 +17,15 @@ namespace NoCodeMotion.Models
         Vision = 2
     }
 
+    /// <summary>流程角色：主流程（常规运行）/ 复位流程（设备上电或急停复位后先执行）。</summary>
+    public enum FlowRole
+    {
+        /// <summary>主流程：常规生产运行流程。</summary>
+        Main = 0,
+        /// <summary>复位流程：设备上电、急停复位后先执行的归零 / 复位流程。</summary>
+        Reset = 1
+    }
+
     /// <summary>流程项目：左侧列表中的一项，自身包含若干步骤（FlowStep）。</summary>
     public class FlowItem : EditorItemBase
     {
@@ -41,6 +50,14 @@ namespace NoCodeMotion.Models
         {
             get => _luaSource;
             set => SetField(ref _luaSource, value);
+        }
+
+        private FlowRole _role = FlowRole.Main;
+        /// <summary>流程角色：主流程 / 复位流程。</summary>
+        public FlowRole Role
+        {
+            get => _role;
+            set => SetField(ref _role, value);
         }
 
         public const string DefaultLuaTemplate =
