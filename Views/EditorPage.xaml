@@ -22,8 +22,9 @@
             </Style.Triggers>
         </Style>
 
-        <!-- 左侧列表项模板：左侧优先显示「复位」药丸（仅 Role==Reset 时），
-             否则按 Kind 显示流程类型图标；右侧是流程名。
+        <!-- 左侧列表项模板：左侧按需并排显示「流程类型图标 + 复位药丸」，
+             两者各自按条件显示，可同时出现（复位流程要求图标与药丸共存），
+             右侧是流程名。
              非 FlowItem 类型没有 Role / Kind 属性，绑定求值为空，
              DataTrigger 不命中 → 全部走默认 Collapsed / 既有图标逻辑，不会爆错。 -->
         <DataTemplate x:Key="EditorListItemTemplate">
@@ -33,41 +34,43 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- 左 1：流程类型图标（Path）。Role==Reset 时强制隐藏，让位给「复位」药丸 -->
-                <Path Grid.Column="0" Width="15" Height="15" Stretch="Uniform" Margin="0,0,6,0"
-                      VerticalAlignment="Center" Fill="{StaticResource TextSecondaryBrush}">
-                    <Path.Style>
-                        <Style TargetType="Path">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Setter Property="Data" Value="{StaticResource TableIconGeometry}"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Kind}" Value="{x:Static models:FlowKind.Table}">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                    <Setter Property="Data" Value="{StaticResource TableIconGeometry}"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding Kind}" Value="{x:Static models:FlowKind.Lua}">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                    <Setter Property="Data" Value="{StaticResource ScriptIconGeometry}"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding Kind}" Value="{x:Static models:FlowKind.Vision}">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                    <Setter Property="Data" Value="{StaticResource VisionIconGeometry}"/>
-                                </DataTrigger>
-                                <!-- 复位流程：用「复位」药丸代替图标 -->
-                                <DataTrigger Binding="{Binding Role}" Value="{x:Static models:FlowRole.Reset}">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Path.Style>
-                </Path>
-
-                <!-- 左 1：复位标签（Border + 「复位」文字）。
-                     与图标共享 Grid.Column="0"，因图标已 Collapsed，不重叠。
-                     复用 FlowResetChipStyle：DataTrigger 控制可见性，默认隐藏。 -->
-                <Border Grid.Column="0" Margin="0,0,6,0" Style="{StaticResource FlowResetChipStyle}">
-                    <TextBlock Text="复位" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
-                </Border>
+                <!-- 左 1：图标 + 复位药丸 的水平组合。
+                     图标按 Kind 着色（运控=#2563EB / 脚本=#F59E0B / 视觉=#10B981），
+                     复位药丸仅在 Role==Reset 时可见，二者各自条件显示、互不冲突。 -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- 流程类型图标（Path），按 Kind 着色，与工具栏一致 -->
+                    <Path Width="15" Height="15" Stretch="Uniform" Margin="0,0,6,0"
+                          VerticalAlignment="Center">
+                        <Path.Style>
+                            <Style TargetType="Path">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Setter Property="Data" Value="{StaticResource TableIconGeometry}"/>
+                                <Setter Property="Fill" Value="{StaticResource TextSecondaryBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Kind}" Value="{x:Static models:FlowKind.Table}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Setter Property="Data" Value="{StaticResource TableIconGeometry}"/>
+                                        <Setter Property="Fill" Value="#2563EB"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Kind}" Value="{x:Static models:FlowKind.Lua}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Setter Property="Data" Value="{StaticResource ScriptIconGeometry}"/>
+                                        <Setter Property="Fill" Value="#F59E0B"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Kind}" Value="{x:Static models:FlowKind.Vision}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Setter Property="Data" Value="{StaticResource VisionIconGeometry}"/>
+                                        <Setter Property="Fill" Value="#10B981"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Path.Style>
+                    </Path>
+                    <!-- 复位药丸：仅 Role==Reset 时显示 -->
+                    <Border Margin="0,0,6,0" Style="{StaticResource FlowResetChipStyle}">
+                        <TextBlock Text="复位" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                    </Border>
+                </StackPanel>
 
                 <!-- 左 2：流程名称 -->
                 <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
