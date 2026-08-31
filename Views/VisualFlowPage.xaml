@@ -202,6 +202,48 @@
                                                Stroke="{StaticResource AccentBrush}" StrokeThickness="2"
                                                Fill="#1A007AFF"/>
                                 </Canvas>
+                                <!-- 匹配结果覆盖层：点「开启匹配」后叠加显示相似度/精度/位置/角度；绿底通过，红底未达阈值 -->
+                                <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10"
+                                        CornerRadius="6" Padding="10,6" IsHitTestVisible="False"
+                                        Visibility="{Binding HasMatchResult, Converter={StaticResource BoolToVis}}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#E616A34A"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding MatchResult.Pass}" Value="False">
+                                                    <Setter Property="Background" Value="#E6DC2626"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+                                        <TextBlock Text="匹配结果" Foreground="White" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                                        <TextBlock Foreground="White" FontSize="12">
+                                            <Run Text="相似度 "/>
+                                            <Run Text="{Binding MatchResult.Similarity, StringFormat={}{0:F3}}"/>
+                                            <Run Text="　精度 "/>
+                                            <Run Text="{Binding MatchResult.PrecisionPercent, StringFormat={}{0:F1}}"/>
+                                            <Run Text="%"/>
+                                        </TextBlock>
+                                        <TextBlock Foreground="White" FontSize="11">
+                                            <Run Text="位置 ("/>
+                                            <Run Text="{Binding MatchResult.X}"/>
+                                            <Run Text=", "/>
+                                            <Run Text="{Binding MatchResult.Y}"/>
+                                            <Run Text=")　角度 "/>
+                                            <Run Text="{Binding MatchResult.Angle, StringFormat={}{0:F0}}"/>
+                                            <Run Text="°"/>
+                                        </TextBlock>
+                                        <TextBlock Foreground="White" FontSize="11">
+                                            <Run Text="模板 "/>
+                                            <Run Text="{Binding MatchResult.W}"/>
+                                            <Run Text="×"/>
+                                            <Run Text="{Binding MatchResult.H}"/>
+                                            <Run Text="　阈值 "/>
+                                            <Run Text="{Binding MatchResult.Threshold, StringFormat={}{0:F2}}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
                                 <TextBlock Text="运行后在此显示结果图" HorizontalAlignment="Center" VerticalAlignment="Center"
                                            Foreground="#71717A" FontSize="12" IsHitTestVisible="False">
                                     <TextBlock.Style>
@@ -359,15 +401,33 @@
                                           SelectedItem="{Binding SelectedStep.MatchMode, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <!-- 确定模板：把右侧已框选区域裁剪为模板图像并显示在下方预览 -->
                                 <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="模板路径"/>
-                                    <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
-                                        Style="{StaticResource ToolButtonStyle}"
-                                        ToolTip="选择模板图像"
-                                        Command="{Binding BrowsePathCommand}" CommandParameter="TemplatePath"/>
-                                    <TextBox Style="{StaticResource AppleTextField}"
-                                         Text="{Binding SelectedStep.TemplatePath, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="模板"/>
+                                    <Button DockPanel.Dock="Right" Content="确定模板" Padding="12,4" Margin="8,0,0,0"
+                                            Style="{StaticResource ToolButtonStyle}"
+                                            ToolTip="把右侧已框选的区域裁剪为模板图像，保存到 Templates/ 目录并在下方预览"
+                                            Command="{Binding ConfirmTemplateCommand}"/>
                                 </DockPanel>
+                                <!-- 模板预览：点确定模板后显示裁剪出来的模板图 -->
+                                <Border Margin="20,2,20,10" Height="140" CornerRadius="6" Background="#1D1D1F">
+                                    <Grid>
+                                        <Image Source="{Binding TemplatePreviewImage}" Stretch="Uniform"/>
+                                        <TextBlock Text="点「确定模板」后显示模板图像" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="#71717A" FontSize="11" IsHitTestVisible="False">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasTemplatePreview}" Value="False">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                </Border>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <!-- 模板区域回显 + 清除框选（在右侧图上拖拽鼠标确定） -->
                                 <DockPanel Style="{StaticResource AppleRow}">

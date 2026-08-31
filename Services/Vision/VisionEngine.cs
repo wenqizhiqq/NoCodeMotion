@@ -22,6 +22,29 @@ namespace NoCodeMotion.Services.Vision
     }
 
     /// <summary>
+/// 模板匹配结果（页面在结果图上叠加显示「相似度/精度/位置/角度」并画框用）。
+/// </summary>
+    public sealed class MatchOutcome
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+        public int W { get; set; }
+        public int H { get; set; }
+        public double Score { get; set; }
+        public double Angle { get; set; }
+        public double Threshold { get; set; }
+        public bool Pass { get; set; }
+        public string Mode { get; set; } = "";
+        public string Template { get; set; } = "";
+
+        /// <summary>相似度 0~1。</summary>
+        public double Similarity => Score;
+
+        /// <summary>精度 0~100%（= 相似度 × 100）。</summary>
+        public double PrecisionPercent => Score * 100.0;
+    }
+
+    /// <summary>
     /// 视觉流程运行报告：包含最终标注后的图像像素缓冲（BGRA）与每步结果。
     /// 计算在后台线程完成，像素缓冲为纯 byte[]，由调用方（UI 线程）组装成 WriteableBitmap。
     /// </summary>
@@ -32,6 +55,9 @@ namespace NoCodeMotion.Services.Vision
         public int Height;
         public byte[]? Bgra = Array.Empty<byte>();
         public List<VisionStepResult> Results { get; } = new();
+
+        /// <summary>最近的「模板匹配」步骤结果（用于 UI 叠加绿框/红框 + 文本）。无匹配步则为 null。</summary>
+        public MatchOutcome? Match { get; set; }
     }
 
     /// <summary>
@@ -346,9 +372,22 @@ namespace NoCodeMotion.Services.Vision
             bool pass = best >= Clamp(s.ScoreThreshold, 0, 1);
 
             var dst = display ?? cur;
-            Cv.Cv2.Rectangle(dst, new Cv.Rect(bx, by, tw, th), Rgb(0, 200, 80), 2);
-            Cv.Cv2.DrawMarker(dst, new Cv.Point(bx + tw / 2, by + th / 2), Rgb(0, 200, 80), Cv.MarkerTypes.Cross, 12, 2);
+            // 通过则画绿框，未达阈值画红框（视觉反馈更直观）
+            var boxColor = pass ? Rgb(0, 200, 80) : Rgb(220, 40, 40);
+            Cv.Cv2.Rectangle(dst, new Cv.Rect(bx, by, tw, th), boxColor, 2);
+            Cv.Cv2.DrawMarker(dst, new Cv.Point(bx + tw / 2, by + th / 2), boxColor, Cv.MarkerTypes.Cross, 12, 2);
             featurePts.Add((bx + tw / 2.0, by + th / 2.0, "匹配"));
+
+            // 结构化结果供页面叠加相似度/精度/位置/角度
+            report.Match = new MatchOutcome
+            {
+                X = bx, Y = by, W = tw, H = th,
+                Score = best, Angle = bangle,
+                Pass = pass,
+                Threshold = Clamp(s.ScoreThreshold, 0, 1),
+                Mode = mode,
+                Template = tsrc
+            };
 
             tpl.Dispose();
 

@@ -126,6 +126,37 @@ namespace NoCodeMotion.Views
             set => SetValue(RunStatusProperty, value ?? "");
         }
 
+        // ---- 模板预览（点「确定模板」后裁剪 ROI 区域显示在按钮下方） ----
+        public static readonly DependencyProperty TemplatePreviewImageProperty =
+            DependencyProperty.Register(nameof(TemplatePreviewImage), typeof(ImageSource), typeof(VisualFlowDetailViewModel));
+
+        public ImageSource? TemplatePreviewImage
+        {
+            get => (ImageSource?)GetValue(TemplatePreviewImageProperty);
+            set => SetValue(TemplatePreviewImageProperty, value);
+        }
+
+        public static readonly DependencyProperty HasTemplatePreviewProperty =
+            DependencyProperty.Register(nameof(HasTemplatePreview), typeof(bool), typeof(VisualFlowDetailViewModel));
+
+        public bool HasTemplatePreview
+        {
+            get => (bool)GetValue(HasTemplatePreviewProperty);
+            private set => SetValue(HasTemplatePreviewProperty, value);
+        }
+
+        // ---- 模板匹配结果（点「开启匹配」后叠加在右侧图像上：相似度 / 精度 / 位置 / 角度） ----
+        public static readonly DependencyProperty MatchResultProperty =
+            DependencyProperty.Register(nameof(MatchResult), typeof(MatchOutcome), typeof(VisualFlowDetailViewModel));
+
+        public MatchOutcome? MatchResult
+        {
+            get => (MatchOutcome?)GetValue(MatchResultProperty);
+            set => SetValue(MatchResultProperty, value);
+        }
+
+        public bool HasMatchResult => MatchResult != null;
+
         /// <summary>每步执行结果（绑定到结果列表）。同一实例，增删由集合自身通知。</summary>
         public ObservableCollection<VisionStepResult> Results { get; } = new();
 
@@ -154,6 +185,66 @@ namespace NoCodeMotion.Views
             {
                 RunStatus = $"载入图像失败：{ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// 把当前选中步骤的 ROI 区域从 ResultImage 裁剪出来，保存为 PNG 写到 Templates/ 目录，
+        /// 回写 step.TemplatePath，并把裁剪图设到 TemplatePreviewImage（在参数卡「确定模板」按钮下方预览）。
+        /// </summary>
+        private void CaptureTemplate()
+        {
+            var step = SelectedStep;
+            if (step == null) { RunStatus = "请先选中一个模板匹配步骤"; return; }
+            if (ResultImage == null) { RunStatus = "请先在「图像采集」步骤浏览一张图像（作为模板源图）"; return; }
+            if (step.TemplateRoiW <= 0 || step.TemplateRoiH <= 0)
+            {
+                RunStatus = "请先在右侧图像上拖拽画框确定模板区域，再点「确定模板」";
+                return;
+            }
+
+            try
+            {
+                var src = (BitmapSource)ResultImage;
+                int x = Math.Max(0, step.TemplateRoiX);
+                int y = Math.Max(0, step.TemplateRoiY);
+                int w = Math.Min(step.TemplateRoiW, src.PixelWidth - x);
+                int h = Math.Min(step.TemplateRoiH, src.PixelHeight - y);
+                if (w <= 0 || h <= 0) { RunStatus = "框选区域超出图像范围"; return; }
+
+                var cropped = new CroppedBitmap(src, new Int32Rect(x, y, w, h));
+                cropped.Freeze();
+
+                // 保存到 工作目录/Templates/，文件名 = 步骤名_时间戳.png
+                string dir = Path.Combine(Directory.GetCurrentDirectory(), "Templates");
+                Directory.CreateDirectory(dir);
+                string safe = SanitizeFileName(string.IsNullOrWhiteSpace(step.Name) ? "template" : step.Name!);
+                string fileName = $"{safe}_{DateTime.Now:yyyyMMdd_HHmmss}.png";
+                string fullPath = Path.Combine(dir, fileName);
+
+                using (var fs = File.Create(fullPath))
+                {
+                    var enc = new PngBitmapEncoder();
+                    enc.Frames.Add(BitmapFrame.Create(cropped));
+                    enc.Save(fs);
+                }
+
+                step.TemplatePath = fullPath;
+                TemplatePreviewImage = cropped;
+                HasTemplatePreview = true;
+                RunStatus = $"模板已保存：{fileName}（{w}×{h}）";
+            }
+            catch (Exception ex)
+            {
+                RunStatus = $"确定模板失败：{ex.Message}";
+            }
+        }
+
+        private static string SanitizeFileName(string raw)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var sb = new System.Text.StringBuilder(raw.Length);
+            foreach (var c in raw) sb.Append(Array.IndexOf(invalid, c) >= 0 ? '_' : c);
+            return sb.ToString();
         }
 
         /// <summary>
@@ -216,11 +307,16 @@ namespace NoCodeMotion.Views
                 HasResult = true;
             }
 
+            // 结构化匹配结果供右侧图像叠加（相似度 / 精度 / 位置 / 角度）
+            MatchResult = report.Match;
+
             int ok = 0;
             foreach (var r in Results) if (r.Ok) ok++;
             IsRunning = false;
             CanRun = true;
-            RunStatus = $"匹配完成：{Results.Count} 步，{ok} 步成功";
+            RunStatus = report.Match != null
+                ? $"匹配完成：{Results.Count} 步，{ok} 步成功　相似度 {report.Match.Score:F3} / 阈值 {report.Match.Threshold:F2}"
+                : $"匹配完成：{Results.Count} 步，{ok} 步成功";
         }
 
         /// <summary>路径浏览命令：参数为要写入的属性名（SavePath/FolderPath/TemplatePath/PreImage2Path）。</summary>
@@ -229,6 +325,11 @@ namespace NoCodeMotion.Views
         public ICommand RunMatchCommand { get; }
         /// <summary>清除已框选的模板区域。</summary>
         public ICommand ClearTemplateRoiCommand { get; }
+        /// <summary>
+        /// 「确定模板」：把右侧已框选的 ROI 区域从当前 ResultImage 裁剪出来，保存到 Templates/ 目录，
+        /// 同时把裁剪图显示到参数卡按钮下方的预览区，并把路径回写到 step.TemplatePath。
+        /// </summary>
+        public ICommand ConfirmTemplateCommand { get; }
 
         private readonly Progress<string> _progress;
 
@@ -262,8 +363,11 @@ namespace NoCodeMotion.Views
                 SelectedStep.TemplateRoiH = 0;
                 SelectedStep.TemplateRoiX = 0;
                 SelectedStep.TemplateRoiY = 0;
+                TemplatePreviewImage = null;
+                HasTemplatePreview = false;
                 RunStatus = "已清除模板框选";
             });
+            ConfirmTemplateCommand = new SimpleRelayCommand(_ => CaptureTemplate());
             _progress = new Progress<string>(msg => RunStatus = msg);
         }
 
@@ -319,6 +423,10 @@ namespace NoCodeMotion.Views
             if (e.OldValue is INotifyPropertyChanged oldInpc) oldInpc.PropertyChanged -= vm.OnSelectedStepTypeChanged;
             if (e.NewValue is INotifyPropertyChanged newInpc) newInpc.PropertyChanged += vm.OnSelectedStepTypeChanged;
             vm.HasStep = e.NewValue != null;
+            // 切换步骤时清空模板预览 / 匹配结果（不同步骤数据互不串）
+            vm.TemplatePreviewImage = null;
+            vm.HasTemplatePreview = false;
+            vm.MatchResult = null;
             vm.RaiseTypeFlags();
             vm.RaiseSourceFlags();
         }

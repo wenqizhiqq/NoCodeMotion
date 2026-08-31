@@ -1,0 +1,53 @@
+﻿<UserControl x:Class="NoCodeMotion.Views.StatusBarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:NoCodeMotion.Views"
+             FontFamily="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif">
+    <Border Background="{StaticResource SurfaceBrush}"
+            BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0">
+        <Grid Margin="14,5,14,5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 工程 -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,18,0">
+                <TextBlock Text="工程" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,6,0" FontSize="12"/>
+                <TextBlock Text="{Binding ProjectName}" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- 用户 -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,18,0">
+                <TextBlock Text="用户" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,6,0" FontSize="12"/>
+                <TextBlock Text="{Binding UserName}" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding UserRole, StringFormat=({0})}" Foreground="{StaticResource TextSecondaryBrush}" Margin="4,0,8,0" FontSize="11" VerticalAlignment="Center"/>
+                <Button Content="切换用户" Style="{StaticResource TtPillBlueBtn}" Padding="10,3" Click="SwitchUser_Click"/>
+                <Button Content="用户管理" Style="{StaticResource TtPillBlueBtn}" Padding="10,3" Margin="6,0,0,0" Click="UserManagement_Click"/>
+            </StackPanel>
+
+            <!-- 运行状态 -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <TextBlock Text="状态" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,6,0" FontSize="12" VerticalAlignment="Center"/>
+                <Ellipse Width="9" Height="9" Fill="{Binding RunColor}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding RunStatusText}" Foreground="{Binding RunColor}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- 异常情况 -->
+            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                <Path Data="{StaticResource WarnIcon}" Width="14" Height="14" Stretch="Uniform"
+                      Fill="#DC2626" Margin="0,0,5,0" VerticalAlignment="Center"
+                      Visibility="{Binding HasException, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="{Binding ExceptionText}" Foreground="#DC2626" FontSize="12" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" MaxWidth="420"
+                           Visibility="{Binding HasException, Converter={StaticResource BoolToVis}}"/>
+                <Button Content="清除" Style="{StaticResource TtPillRedBtn}" Padding="8,2" Margin="8,0,0,0"
+                        Click="ClearException_Click"
+                        Visibility="{Binding HasException, Converter={StaticResource BoolToVis}}"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>
