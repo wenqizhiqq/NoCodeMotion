@@ -37,13 +37,12 @@
             <sys:String>延时</sys:String>
         </x:Array>
         <x:Array x:Key="OperationOptions" Type="sys:String">
-            <sys:String>修改</sys:String>
+            <sys:String>修改为</sys:String>
             <sys:String>加</sys:String>
             <sys:String>减</sys:String>
             <sys:String>乘</sys:String>
             <sys:String>除</sys:String>
-            <sys:String>等于</sys:String>
-            <sys:String>是否等于</sys:String>
+            <sys:String>等于</sys:String> 
             <sys:String>大于</sys:String>
             <sys:String>小于</sys:String>
             <sys:String>大于等于</sys:String>
