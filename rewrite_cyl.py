@@ -1,7 +1,20 @@
-<!-- ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦⁣ -->
-<!-- ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇⁣ -->
-<!-- ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦⁣ -->
-<UserControl x:Class="NoCodeMotion.Views.CylinderPage"
+"""
+完整重写 CylinderPage.xaml —— 保留前 3 行作者签名装饰符 + 完全重写主体。
+之前 patch_cyl.py 残留了重复内容，必须清干净再写。
+"""
+import os
+
+P = r"D:\wqz\code\NoCodeMotion\Views\CylinderPage.xaml"
+
+# 1) 删掉旧文件
+if os.path.exists(P):
+    os.remove(P)
+print(f"deleted {P}")
+
+# 2) 写新文件（带作者签名装饰符头部 + 完整主体）
+header = "// \u25c6\u25c7\u203b\u25e2\u25a4\u25a5\u25a6\u25a7\u25a8\u25a9\u2591\u2592\u2593\u2716\u2726\u2727\u2622\u2623\u27a4\u25c8\u2756\u25c6\u25c7\u203b\u25e2\u25a4\u25a5\u25a6\u25a7\u25a8\u25a9\u2591\u2592\u2593\u2716\u2726\u2727\u2622\u2623\u27a4\u25c8\u2756\u25c6\u25c7\u203b\u25e2\u25a4\u25a5\u25a6\u25a7\u25a8\u25a9\u2591\u2592\u2593\u2716\u2726\u2727\u200b\u2063\u200b\n// \u25c6\u6e29\u542f\u5fd7\u25c6\u7f16\u5199\u25c7\u5fae\u4fe1\uff5b187\u25c6\u31\u39\u33\u36\u25c7\u31\u33\u39\u39\u3000\u203b\u4fdd\u7559\u6240\u6709\u6743\u5229\u8bf7\u52ff\u5220\u9664\u25c1\u200b\u2063\u200b\n// \u25c6\u25c7\u203b\u25e2\u25a4\u25a5\u25a6\u25a7\u25a8\u25a9\u2591\u2592\u2593\u2716\u2726\u2727\u2622\u2623\u27a4\u25c8\u2756\u25c6\u25c7\u203b\u25e2\u25a4\u25a5\u25a6\u25a7\u25a8\u25a9\u2591\u2592\u2593\u2716\u2726\u2727\u200b\u2063\u200b\n"
+
+body = '''<UserControl x:Class="NoCodeMotion.Views.CylinderPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -74,6 +87,7 @@
 
                 <!-- ============ 左列：基本信息 + 动作参数 ============ -->
                 <StackPanel Grid.Row="1" Grid.Column="0" Margin="12,0,6,12" VerticalAlignment="Top">
+
                     <!-- 基本信息 -->
                     <Border Style="{StaticResource AppleGroupCard}">
                         <StackPanel>
@@ -163,10 +177,12 @@
                             </DockPanel>
                         </StackPanel>
                     </Border>
+
                 </StackPanel>
 
                 <!-- ============ 右列：IO配置 + 安全与逻辑 + 高级 ============ -->
                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="6,0,12,12" VerticalAlignment="Top">
+
                     <!-- IO 配置 -->
                     <Border Style="{StaticResource AppleGroupCard}">
                         <StackPanel>
@@ -265,10 +281,19 @@
                             </DockPanel>
                         </StackPanel>
                     </Border>
+
                 </StackPanel>
             </Grid>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>
-<!-- ◇作者保留所有权利　请勿删除※⁣ -->
-<!-- ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓⁣ -->
+'''
+
+footer = "\n// \u25c4\u4f5c\u8005\u4fdd\u7559\u6240\u6709\u6743\u5229\u3000\u8bf7\u52ff\u5220\u9664\u203b\u200b\u2063\u200b\n// \u25c6\u25c7\u203b\u25e2\u25a4\u25a5\u25a6\u25a7\u25a8\u25a9\u2591\u2592\u2593\u2716\u2726\u2727\u2622\u2623\u27a4\u25c8\u2756\u25c6\u25c7\u203b\u25e2\u25a4\u25a5\u25a6\u25a7\u25a8\u25a9\u2591\u2592\u2593\u2716\u2726\u2727\u200b\u2063\u200b\n"
+
+with open(P, "w", encoding="utf-8", newline="\n") as f:
+    f.write(header)
+    f.write(body)
+    f.write(footer)
+
+print(f"wrote {P}  ({os.path.getsize(P)} bytes)")

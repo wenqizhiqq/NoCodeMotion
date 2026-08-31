@@ -1,7 +1,41 @@
-<!-- ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦⁣ -->
-<!-- ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇⁣ -->
-<!-- ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦⁣ -->
-<UserControl x:Class="NoCodeMotion.Views.CylinderPage"
+"""
+重写 EditorPage.xaml.cs + EditorPage.xaml + CylinderPage.xaml：
+- EditorPage 新增 LeftListItemTemplate DP
+- EditorPage ListBox 用 TemplateBinding 优先用新模板
+- CylinderPage 定义含 伸出/缩回 内联按钮的 ListItem 模板
+- 删掉 CylinderPage 右侧的"手动动作"卡片
+"""
+import os, re
+
+BASE = r"D:\wqz\code\NoCodeMotion"
+
+# ============ 1) EditorPage.xaml.cs：已通过上一个 Python 重写完成 ============
+# (已加入 LeftListItemTemplate DP + 注释更新)
+
+# ============ 2) EditorPage.xaml：ListBox 改用 TemplateBinding ============
+p = os.path.join(BASE, r"Views\EditorPage.xaml")
+with open(p, "r", encoding="utf-8") as f:
+    raw = f.read()
+# 改 ListBox 的 ItemTemplate
+old = 'ItemTemplate="{StaticResource EditorListItemTemplate}"'
+new = 'ItemTemplate="{Binding LeftListItemTemplate, RelativeSource={RelativeSource AncestorType=local:EditorPage}, FallbackValue={StaticResource EditorListItemTemplate}}"'
+assert old in raw, "EditorPage.xaml: ListBox ItemTemplate line not found"
+raw = raw.replace(old, new, 1)
+with open(p, "w", encoding="utf-8", newline="\n") as f:
+    f.write(raw)
+print(f"  patched {p}")
+
+# ============ 3) CylinderPage.xaml：重写整个文件 ============
+# 用 Python 保留前 3 行作者签名 + 重写主体
+p2 = os.path.join(BASE, r"Views\CylinderPage.xaml")
+with open(p2, "r", encoding="utf-8") as f:
+    raw2 = f.read()
+lines2 = raw2.splitlines(keepends=True)
+header2 = "".join(lines2[:3])
+# 留 footer (最后 3 行装饰)
+footer2 = "\n" + "".join(lines2[-3:])
+
+new_xaml = '''<UserControl x:Class="NoCodeMotion.Views.CylinderPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -13,8 +47,10 @@
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
     <!--
-        气缸页：左侧列表（每行内嵌"伸出 / 缩回"按钮）+ 右侧详情（仅配置表单）。
-        手动动作按钮已从右侧详情移至左侧列表 —— 通过 EditorPage.LeftListItemTemplate 注入。
+        气缸页：左侧列表 + 右侧详情。
+        左侧每行带"伸出/缩回"内联按钮 —— 列表行模板用 EditorPage.LeftListItemTemplate
+        覆盖默认模板（气缸命名空间下）。
+        右侧详情保留基本配置（名称/IO/动作参数/安全/高级）—— 手动动作按钮已移至左侧列表。
     -->
     <UserControl.Resources>
         <!-- 气缸页专用的列表项模板：名称 + 伸出/缩回 内联按钮 -->
@@ -45,12 +81,21 @@
                 </StackPanel>
             </Grid>
         </DataTemplate>
+
+        <!--
+            模板选择器：默认用 EditorPage 自带的 EditorListItemTemplate；
+            如果宿主页注入了 LeftListItemTemplate（气缸页会注入 CylinderListItemTemplate）则用之。
+            实际更简单的做法是：在 EditorPage 的 ListBox.ItemTemplate 上直接用
+            ItemTemplate="{Binding LeftListItemTemplate, ..., FallbackValue={StaticResource EditorListItemTemplate}}"
+            （已在 EditorPage.xaml 中实现），这里就不再重复覆盖。
+        -->
     </UserControl.Resources>
 
     <local:EditorPage>
-        <!-- 注入列表项模板：让 EditorPage 用含内联按钮的版本 -->
+        <!-- 注入：列表项模板换成含 伸出/缩回 按钮的版本 -->
         <local:EditorPage.LeftListItemTemplate>
             <DataTemplate>
+                <!-- 透传到 UserControl.Resources 里定义的模板，简化重复 -->
                 <ContentControl ContentTemplate="{StaticResource CylinderListItemTemplate}" Content="{Binding}"/>
             </DataTemplate>
         </local:EditorPage.LeftListItemTemplate>
@@ -74,6 +119,7 @@
 
                 <!-- ============ 左列：基本信息 + 动作参数 ============ -->
                 <StackPanel Grid.Row="1" Grid.Column="0" Margin="12,0,6,12" VerticalAlignment="Top">
+
                     <!-- 基本信息 -->
                     <Border Style="{StaticResource AppleGroupCard}">
                         <StackPanel>
@@ -163,10 +209,12 @@
                             </DockPanel>
                         </StackPanel>
                     </Border>
+
                 </StackPanel>
 
                 <!-- ============ 右列：IO配置 + 安全与逻辑 + 高级 ============ -->
                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="6,0,12,12" VerticalAlignment="Top">
+
                     <!-- IO 配置 -->
                     <Border Style="{StaticResource AppleGroupCard}">
                         <StackPanel>
@@ -265,10 +313,18 @@
                             </DockPanel>
                         </StackPanel>
                     </Border>
+
                 </StackPanel>
             </Grid>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>
-<!-- ◇作者保留所有权利　请勿删除※⁣ -->
-<!-- ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓⁣ -->
+'''
+
+with open(p2, "w", encoding="utf-8", newline="\n") as f:
+    f.write(header2)
+    f.write(new_xaml)
+    f.write(footer2)
+
+print(f"  patched {p2}")
+print("DONE")

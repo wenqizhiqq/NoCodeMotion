@@ -158,7 +158,7 @@
                      ItemsSource="{Binding Items}"
                      SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                      Style="{StaticResource ProjectListStyle}"
-                     ItemTemplate="{StaticResource EditorListItemTemplate}"/>
+                     ItemTemplate="{Binding LeftListItemTemplate, RelativeSource={RelativeSource AncestorType=local:EditorPage}, FallbackValue={StaticResource EditorListItemTemplate}}"/>
 
             <!-- 注意：不要在这里套 ScrollViewer。套了会给 Detail 无限高上下文，
                  使 FlowPage 内 Grid.Row=2 Height=* 的表格无法被约束高度、整表被撑开，

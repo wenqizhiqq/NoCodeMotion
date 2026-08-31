@@ -1,7 +1,15 @@
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
-// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
-using System.Windows;
+import os
+P = r"D:\wqz\code\NoCodeMotion\Views\EditorPage.xaml.cs"
+
+with open(P, "r", encoding="utf-8") as f:
+    raw = f.read()
+
+# 保留前 3 行签名 + 余下主体
+lines = raw.splitlines(keepends=True)
+header = "".join(lines[:3])
+footer = "\n" + "".join(lines[-3:])
+
+new_body = '''using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Markup;
 
@@ -67,5 +75,11 @@ namespace NoCodeMotion.Views
         }
     }
 }
-// ◇作者保留所有权利　请勿删除※​⁣​
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​
+'''
+
+with open(P, "w", encoding="utf-8", newline="\n") as f:
+    f.write(header)
+    f.write(new_body)
+    f.write(footer)
+
+print("OK", os.path.getsize(P), "bytes")
