@@ -7,7 +7,7 @@
 //
 // 模板总数：17 个（含 1 个空白）。
 // 分类：空白 / 轴运动(6) / 气缸(2) / IO(2) / 综合(6)。
-// 覆盖：轴 / IO / 气缸 / 点位 / 流程（主流程多个 + 复位流程）/ 控制器 / 通讯。
+// 覆盖：控制器 / 轴 / IO(入+出) / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 变量 / 流程（主流程多个 + 复位流程）。
 // =====================================================================
 using System;
 using System.Collections.Generic;
@@ -73,14 +73,16 @@ namespace NoCodeMotion.Services
             Id = "single-axis",
             Name = "单轴点动",
             Category = "轴运动",
-            Description = "1 个控制卡 + 1 个 X 轴 + 4 入 4 出，含点动 / 复位两条流程。",
-            Summary = "1 控制器 / 1 轴 / 4 入 / 4 出 / 1 主流程 / 1 复位",
+            Description = "1 个控制卡 + 1 个 X 轴 + 4 入 4 出 + Modbus 主站，含点动 / 复位两条流程。",
+            Summary = "1 控制 · 1 轴 · 4 入 4 出 · 1 通讯 · 2 变量 · 1 主流程 · 1 复位",
             Highlights = new[]
             {
                 "控制器：雷赛 DMC5400 (脉冲)",
                 "轴：X 脉冲轴，单位 mm",
                 "输入：启动 / 停止 / 复位 / 急停",
                 "输出：运行 / 就绪 / 报警 / 完成",
+                "通讯：Modbus 主站 COM1 (9600)",
+                "变量：计数 / 总数",
                 "主流程：等待启动 → 移动到 100mm",
                 "复位流程：X 回零 + 清报警"
             },
@@ -97,6 +99,8 @@ namespace NoCodeMotion.Services
                 d.Outputs.Add(Out("就绪", "动点", "控制卡1", 0, 0, 1));
                 d.Outputs.Add(Out("报警", "动点", "控制卡1", 0, 0, 2));
                 d.Outputs.Add(Out("完成", "动点", "控制卡1", 0, 0, 3));
+                d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("主流程", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("就绪", "1"),
@@ -119,14 +123,16 @@ namespace NoCodeMotion.Services
             Id = "two-axis",
             Name = "两轴同步",
             Category = "轴运动",
-            Description = "1 个控制卡 + X/Y 两轴 + 6 入 6 出，含 XY 同步走位 / 单轴回零。",
-            Summary = "1 控制器 / 2 轴 / 6 入 / 6 出 / 2 主流程 / 1 复位",
+            Description = "1 个控制卡 + X/Y 两轴 + 6 入 6 出 + Modbus 主站 / 串口，含 XY 同步走位。",
+            Summary = "1 控制 · 2 轴 · 6 入 6 出 · 1 通讯 · 2 变量 · 2 主流程 · 1 复位",
             Highlights = new[]
             {
                 "控制器：固高 GHN_FB (PCI)",
                 "轴：X/Y 同步直线插补",
                 "输入：启动 / 停止 / 复位 / 急停 / 暂停 / 手自动",
                 "输出：运行 / 就绪 / 报警 / 完成 / 暂停 / 同步",
+                "通讯：Modbus 主站 + 串口扫描枪",
+                "变量：计数 / 总数",
                 "主流程1：XY 同步到 (100, 50)",
                 "主流程2：XY 同步到 (200, 150)",
                 "复位流程：X/Y 依次回零"
@@ -149,6 +155,8 @@ namespace NoCodeMotion.Services
                 d.Outputs.Add(Out("完成", "动点", "控制卡1", 0, 0, 3));
                 d.Outputs.Add(Out("暂停", "动点", "控制卡1", 0, 0, 4));
                 d.Outputs.Add(Out("同步", "动点", "控制卡1", 0, 0, 5));
+                d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("主流程1", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -175,14 +183,16 @@ namespace NoCodeMotion.Services
             Id = "three-axis-xyz",
             Name = "三轴 XYZ 直角",
             Category = "轴运动",
-            Description = "经典 XYZ 三轴直角机器人：上下料 / 移载 / 点胶等场景。",
-            Summary = "1 控制器 / 3 轴 / 8 入 / 8 出 / 2 主流程 / 1 复位",
+            Description = "经典 XYZ 三轴直角机器人（上下料 / 移载 / 点胶等），含 Modbus 主站 + 变量。",
+            Summary = "1 控制 · 3 轴 · 8 入 8 出 · 1 通讯 · 2 变量 · 2 主流程 · 1 复位",
             Highlights = new[]
             {
                 "控制器：雷赛 DMC5800 (PCI)",
                 "轴：X/Y/Z，单位 mm，Z 轴带抱闸逻辑",
                 "输入：8 路（启动/停止/复位/急停/暂停/手自动/原点到位/Z 抱闸确认）",
                 "输出：8 路（运行/就绪/报警/完成/暂停/Z 抱闸/真空/下料）",
+                "通讯：Modbus 主站",
+                "变量：计数 / 总数",
                 "主流程1：XY 走位 + Z 下降",
                 "主流程2：XY 走位 + Z 上升",
                 "复位流程：Z 先抬升 → X/Y 归零"
@@ -199,6 +209,8 @@ namespace NoCodeMotion.Services
                 for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], inFns[i], "控制卡1", 0, 0, i));
                 string[] outNames = { "运行", "就绪", "报警", "完成", "暂停", "Z抱闸", "真空", "下料" };
                 for (int i = 0; i < 8; i++) d.Outputs.Add(Out(outNames[i], "动点", "控制卡1", 0, 0, i));
+                d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("取料", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -234,14 +246,17 @@ namespace NoCodeMotion.Services
             Id = "four-axis-xyzr",
             Name = "四轴 XYZR 龙门",
             Category = "轴运动",
-            Description = "XYZ + R（旋转）四轴龙门，适用点胶 / 螺丝机 / 贴标等。",
-            Summary = "1 控制器 / 4 轴 / 8 入 / 8 出 / 3 主流程 / 1 复位",
+            Description = "XYZ + R 旋转四轴龙门（点胶 / 螺丝机 / 贴标），含 2 通讯 + 1 料盘 + 变量。",
+            Summary = "1 控制 · 4 轴 · 8 入 8 出 · 1 料盘 · 2 通讯 · 2 变量 · 3 主流程 · 1 复位",
             Highlights = new[]
             {
                 "控制器：EtherCAT 主站",
                 "轴：X/Y/Z 直线 + R 旋转轴",
                 "输入：8 路（启动/停止/复位/急停/暂停/手自动/原点到位/R 编码器Z）",
                 "输出：8 路（运行/就绪/报警/完成/暂停/真空/R 锁紧/点胶阀）",
+                "料盘：原料盘 8×6 (16mm 间距)",
+                "通讯：Modbus 主站 + 串口扫描枪",
+                "变量：计数 / 总数",
                 "主流程1：点胶动作（XY 移动 + R 旋转 + 阀开）",
                 "主流程2：贴标动作（XY 移动 + R 旋转）",
                 "主流程3：自动循环",
@@ -259,6 +274,10 @@ namespace NoCodeMotion.Services
                 for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], "动点", "控制卡1", 0, 0, i));
                 string[] outNames = { "运行", "就绪", "报警", "完成", "暂停", "真空", "R锁紧", "点胶阀" };
                 for (int i = 0; i < 8; i++) d.Outputs.Add(Out(outNames[i], "动点", "控制卡1", 0, 0, i));
+                d.Trays.Add(Tray("原料盘", 8, 6, 0, 0, 16, 16));
+                d.Comms.Add(Comm("Modbus主站", "ModbusTCP", "192.168.1.10", 502));
+                d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("点胶", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -310,14 +329,17 @@ namespace NoCodeMotion.Services
             Id = "scara",
             Name = "SCARA 水平多关节",
             Category = "轴运动",
-            Description = "J1/J2/Z/R 四轴 SCARA 水平多关节机器人，含示教/运行/暂停/复位。",
-            Summary = "1 控制器 / 4 轴 / 8 入 / 8 出 / 4 主流程 / 2 复位",
+            Description = "J1/J2/Z/R 四轴 SCARA 水平多关节机器人，含示教/运行/暂停/复位 + 2 通讯 + 1 料盘 + 变量。",
+            Summary = "1 控制 · 4 轴 · 8 入 8 出 · 1 料盘 · 2 通讯 · 2 变量 · 4 主流程 · 2 复位",
             Highlights = new[]
             {
                 "控制器：EtherCAT 主站",
                 "轴：J1 大臂 + J2 小臂（°） + Z 升降（mm） + R 旋转（°）",
                 "输入：8 路（启动/停止/复位/急停/暂停/手自动/示教/R编码器Z）",
                 "输出：8 路（运行/就绪/报警/完成/暂停/真空/夹爪/R锁紧）",
+                "料盘：原料盘 10×8 (15mm 间距)",
+                "通讯：Modbus 主站 + 串口扫描枪",
+                "变量：计数 / 总数 / 当前产品",
                 "主流程1：自动取料",
                 "主流程2：自动放料",
                 "主流程3：示教记录",
@@ -337,6 +359,10 @@ namespace NoCodeMotion.Services
                 for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], "动点", "控制卡1", 0, 0, i));
                 string[] outNames = { "运行", "就绪", "报警", "完成", "暂停", "真空", "夹爪", "R锁紧" };
                 for (int i = 0; i < 8; i++) d.Outputs.Add(Out(outNames[i], "动点", "控制卡1", 0, 0, i));
+                d.Trays.Add(Tray("原料盘", 10, 8, 0, 0, 15, 15));
+                d.Comms.Add(Comm("Modbus主站", "ModbusTCP", "192.168.1.10", 502));
+                d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"), ("当前产品", "A"));
                 d.Flows.Add(TblFlow("自动取料", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -396,8 +422,8 @@ namespace NoCodeMotion.Services
             Id = "six-axis",
             Name = "六轴串联机械手",
             Category = "轴运动",
-            Description = "2 块控制卡 + 6 轴（J1-J6）+ 16 IO 的全功能串联机械手工程。",
-            Summary = "2 控制器 / 6 轴 / 16 入 / 16 出 / 5 主流程 / 2 复位",
+            Description = "2 块控制卡 + 6 轴（J1-J6）+ 16 IO + 2 通讯 + 1 料盘 + 变量，全功能串联机械手工程。",
+            Summary = "2 控制 · 6 轴 · 16 入 16 出 · 1 料盘 · 2 通讯 · 3 变量 · 5 主流程 · 2 复位",
             Highlights = new[]
             {
                 "控制器1：EtherCAT 主站（控制 J1/J2/J3）",
@@ -405,6 +431,9 @@ namespace NoCodeMotion.Services
                 "轴：J1 基座 + J2 肩 + J3 肘 + J4 腕旋 + J5 腕俯 + J6 腕摆",
                 "输入：16 路（启动/停止/复位/急停/暂停/手自动/示教/原点 等）",
                 "输出：16 路（运行/就绪/报警/完成/真空/夹爪/工装 等）",
+                "料盘：原料盘 12×8 (12mm 间距)",
+                "通讯：Modbus 主站 + Modbus 扩展IO",
+                "变量：计数 / 总数 / 当前产品",
                 "5 个主流程：取料/放料/示教/点焊/搬运",
                 "2 个复位：完整复位 / 快速归位"
             },
@@ -427,6 +456,10 @@ namespace NoCodeMotion.Services
                 string[] outNames = { "运行", "就绪", "报警", "完成", "暂停", "真空", "夹爪", "工装1",
                                       "工装2", "焊接", "冷却", "润滑", "绿灯", "红灯", "黄灯", "蜂鸣" };
                 for (int i = 0; i < 16; i++) d.Outputs.Add(Out(outNames[i], "动点", i < 8 ? "控制卡1" : "控制卡2", i < 8 ? 0 : 1, 0, i % 8));
+                d.Trays.Add(Tray("原料盘", 12, 8, 0, 0, 12, 12));
+                d.Comms.Add(Comm("Modbus主站", "ModbusTCP", "192.168.1.10", 502));
+                d.Comms.Add(Comm("ModbusIO", "ModbusTCP", "192.168.1.20", 502));
+                AddVars(d, ("计数", "0"), ("总数", "0"), ("当前产品", "A"));
                 d.Flows.Add(TblFlow("取料", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -503,14 +536,16 @@ namespace NoCodeMotion.Services
             Id = "simple-cylinder",
             Name = "简单气缸",
             Category = "气缸",
-            Description = "2 个双作用气缸 + 4 入 4 出，最小气缸演示工程。",
-            Summary = "0 控制器 / 0 轴 / 4 入 / 4 出 / 2 气缸 / 1 主流程 / 1 复位",
+            Description = "2 个双作用气缸 + 4 入 4 出 + Modbus 主站 + 变量，最小气缸演示工程。",
+            Summary = "4 入 4 出 · 2 气缸 · 1 通讯 · 2 变量 · 1 主流程 · 1 复位",
             Highlights = new[]
             {
                 "气缸 1：推料气缸（伸出/缩回）",
                 "气缸 2：挡料气缸（伸出/缩回）",
                 "输入：启动 / 停止 / 复位 / 急停",
                 "输出：运行 / 就绪 / 报警 / 完成",
+                "通讯：Modbus 主站",
+                "变量：计数 / 总数",
                 "主流程：推料 → 延时 → 挡料",
                 "复位流程：所有气缸缩回"
             },
@@ -527,6 +562,8 @@ namespace NoCodeMotion.Services
                 d.Outputs.Add(Out("完成", "动点"));
                 d.Cylinders.Add(Cyl("推料", "Y0", "X0", "X1"));
                 d.Cylinders.Add(Cyl("挡料", "Y1", "X2", "X3"));
+                d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("主流程", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -551,8 +588,8 @@ namespace NoCodeMotion.Services
             Id = "multi-cylinder",
             Name = "多气缸装配",
             Category = "气缸",
-            Description = "4 个气缸的典型装配工程：送料 / 夹紧 / 打螺丝 / 顶升。",
-            Summary = "0 控制器 / 0 轴 / 8 入 / 8 出 / 4 气缸 / 2 主流程 / 1 复位",
+            Description = "4 个气缸（送料 / 夹紧 / 打螺丝 / 顶升）+ 8 IO + 2 通讯 + 变量，典型装配工程。",
+            Summary = "8 入 8 出 · 4 气缸 · 2 通讯 · 2 变量 · 2 主流程 · 1 复位",
             Highlights = new[]
             {
                 "气缸 1：送料（Y0/X0/X1）",
@@ -561,6 +598,8 @@ namespace NoCodeMotion.Services
                 "气缸 4：顶升（Y3/X6/X7）",
                 "输入：启动/停止/复位/急停/手自动/暂停/送料完成/装配完成",
                 "输出：运行/就绪/报警/完成/送料/夹紧/打螺丝/顶升",
+                "通讯：Modbus 主站 + Modbus 压力传感器",
+                "变量：计数 / 总数",
                 "主流程1：装配动作链",
                 "主流程2：循环装配",
                 "复位：所有气缸缩回 + 报警清"
@@ -576,6 +615,9 @@ namespace NoCodeMotion.Services
                 d.Cylinders.Add(Cyl("夹紧", "Y1", "X2", "X3"));
                 d.Cylinders.Add(Cyl("打螺丝", "Y2", "X4", "X5"));
                 d.Cylinders.Add(Cyl("顶升", "Y3", "X6", "X7"));
+                d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
+                d.Comms.Add(Comm("压力传感器", "ModbusTCP", "192.168.1.30", 502));
+                AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("装配", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -621,13 +663,15 @@ namespace NoCodeMotion.Services
             Id = "io-8x8",
             Name = "IO 扩展 8 入 8 出",
             Category = "IO",
-            Description = "1 块扩展 IO 模块 + 8 入 8 出，最小 IO 演示工程。",
-            Summary = "1 控制器 / 0 轴 / 8 入 / 8 出 / 0 气缸 / 1 主流程 / 1 复位",
+            Description = "1 块扩展 IO 模块 + 8 入 8 出 + Modbus 主/从站 + 变量，最小 IO 演示工程。",
+            Summary = "1 控制 · 8 入 8 出 · 2 通讯 · 2 变量 · 1 主流程 · 1 复位",
             Highlights = new[]
             {
                 "控制器：扩展IO 模块（雷赛）",
                 "输入：8 路（启动/停止/复位/急停/手自动/暂停/允许/完成）",
                 "输出：8 路（运行/就绪/报警/完成/暂停/允许/送料/装配）",
+                "通讯：Modbus 主站 + Modbus 从站",
+                "变量：计数 / 总数",
                 "主流程：输入条件 → 输出响应",
                 "复位：清报警 + 就绪"
             },
@@ -639,6 +683,9 @@ namespace NoCodeMotion.Services
                 for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], "动点", "扩展IO1", 0, 0, i));
                 string[] outNames = { "运行", "就绪", "报警", "完成", "暂停", "允许", "送料", "装配" };
                 for (int i = 0; i < 8; i++) d.Outputs.Add(Out(outNames[i], "动点", "扩展IO1", 0, 0, i));
+                d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
+                d.Comms.Add(Comm("ModbusIO从站", "ModbusRTU", "COM2", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("主流程", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -663,14 +710,16 @@ namespace NoCodeMotion.Services
             Id = "io-16x16",
             Name = "IO 扩展 16 入 16 出",
             Category = "IO",
-            Description = "2 块扩展 IO 模块 + 16 入 16 出，适合多工位 IO 联动。",
-            Summary = "2 控制器 / 0 轴 / 16 入 / 16 出 / 0 气缸 / 2 主流程 / 1 复位",
+            Description = "2 块扩展 IO 模块 + 16 入 16 出 + Modbus 多通道通讯 + 变量，适合多工位 IO 联动。",
+            Summary = "2 控制 · 16 入 16 出 · 2 通讯 · 3 变量 · 2 主流程 · 1 复位",
             Highlights = new[]
             {
                 "控制器1：扩展IO1（8 入 8 出）",
                 "控制器2：扩展IO2（8 入 8 出）",
                 "输入：16 路（启动/停止/复位/急停/手自动/暂停 + 8 工位感应）",
                 "输出：16 路（运行/就绪/报警/完成/暂停 + 4 工位控制 + 4 指示灯）",
+                "通讯：Modbus 主站 + Modbus TCP 网桥",
+                "变量：计数 / 总数 / 当前工位",
                 "主流程1：单工位动作",
                 "主流程2：多工位并行",
                 "复位：所有输出清零 + 就绪"
@@ -688,6 +737,9 @@ namespace NoCodeMotion.Services
                 string[] outNamesB = { "工位4控制", "工位5控制", "工位6控制", "工位7控制", "工位8控制", "绿灯", "红灯", "蜂鸣" };
                 for (int i = 0; i < 8; i++) d.Outputs.Add(Out(outNamesA[i], "动点", "扩展IO1", 0, 0, i));
                 for (int i = 0; i < 8; i++) d.Outputs.Add(Out(outNamesB[i], "动点", "扩展IO2", 1, 0, i));
+                d.Comms.Add(Comm("Modbus主站", "ModbusTCP", "192.168.1.10", 502));
+                d.Comms.Add(Comm("ModbusTCP桥", "ModbusTCP", "192.168.1.20", 502));
+                AddVars(d, ("计数", "0"), ("总数", "0"), ("当前工位", "1"));
                 d.Flows.Add(TblFlow("单工位", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -731,14 +783,17 @@ namespace NoCodeMotion.Services
             Id = "point-pick",
             Name = "点位抓取（XY+Z）",
             Category = "综合",
-            Description = "3 轴 + 1 工位（含 6 个点位：取料位/放料位/安全位/中转位等）+ 1 气缸抓取。",
-            Summary = "1 控制器 / 3 轴 / 4 入 / 4 出 / 1 气缸 / 1 点位表(6 点) / 2 主流程 / 2 复位",
+            Description = "3 轴 + 1 工位（含 6 个点位）+ 1 气缸抓取 + 1 料盘 + Modbus + 变量。",
+            Summary = "1 控制 · 3 轴 · 4 入 4 出 · 1 气缸 · 6 点位 · 1 料盘 · 1 通讯 · 2 变量 · 2 主流程 · 2 复位",
             Highlights = new[]
             {
                 "控制器：雷赛 DMC5400",
                 "轴：X/Y/Z 三轴",
                 "气缸：抓取气缸（Y0/X0/X1）",
                 "工位1：6 个点位（取料/放料/安全/中转/备用1/备用2）",
+                "料盘：原料盘 6×5 (20mm 间距)",
+                "通讯：Modbus 主站",
+                "变量：计数 / 总数",
                 "主流程1：取料动作（点1→点2）",
                 "主流程2：放料动作（点2→点3）",
                 "复位1：完整回零",
@@ -769,6 +824,9 @@ namespace NoCodeMotion.Services
                 t.Points.Add(MakePoint("备用1", 0, 0, 0));
                 t.Points.Add(MakePoint("备用2", 0, 0, 0));
                 d.PointTables.Add(t);
+                d.Trays.Add(Tray("原料盘", 6, 5, 0, 0, 20, 20));
+                d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("取料", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -810,8 +868,8 @@ namespace NoCodeMotion.Services
             Id = "dual-station",
             Name = "双工位分拣",
             Category = "综合",
-            Description = "2 个工位（工位1 分拣 / 工位2 包装），每工位 6 个点位 + 2 个气缸。",
-            Summary = "1 控制器 / 3 轴 / 12 入 / 12 出 / 2 气缸 / 2 点位表 / 3 主流程 / 2 复位",
+            Description = "2 个工位（分拣 + 包装），每工位 6 个点位 + 2 气缸 + 2 料盘 + 2 通讯 + 变量。",
+            Summary = "1 控制 · 4 轴 · 12 入 12 出 · 2 气缸 · 12 点位 · 2 料盘 · 2 通讯 · 3 变量 · 3 主流程 · 2 复位",
             Highlights = new[]
             {
                 "控制器：雷赛 DMC5800",
@@ -819,6 +877,10 @@ namespace NoCodeMotion.Services
                 "气缸：分拣气缸 + 包装气缸",
                 "工位1：6 个点位（入料/分拣A/分拣B/不良/检测/等待）",
                 "工位2：6 个点位（上料/定位/包装/封口/出料/等待）",
+                "料盘1：分拣料盘 6×4 (25mm 间距)",
+                "料盘2：包装料盘 8×3 (30mm 间距)",
+                "通讯：Modbus 主站 + 串口扫描枪",
+                "变量：计数 / 总数 / 当前工位",
                 "3 个主流程：分拣 / 包装 / 联动循环",
                 "2 个复位：完整复位 / 快速归位"
             },
@@ -856,6 +918,11 @@ namespace NoCodeMotion.Services
                 t2.Points.Add(MakePoint("出料", 400, 200, 0));
                 t2.Points.Add(MakePoint("等待", 0, 0, 50));
                 d.PointTables.Add(t2);
+                d.Trays.Add(Tray("分拣料盘", 6, 4, 0, 0, 25, 25));
+                d.Trays.Add(Tray("包装料盘", 8, 3, 300, 0, 30, 30));
+                d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
+                d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"), ("当前工位", "1"));
                 d.Flows.Add(TblFlow("分拣", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -921,14 +988,18 @@ namespace NoCodeMotion.Services
             Id = "assembly-line",
             Name = "流水线装配",
             Category = "综合",
-            Description = "4 轴 + 4 气缸 + 16 IO + 1 工位 10 点的完整流水线装配工程。",
-            Summary = "1 控制器 / 4 轴 / 16 入 / 16 出 / 4 气缸 / 1 点位表(10) / 4 主流程 / 2 复位",
+            Description = "4 轴 + 4 气缸 + 16 IO + 1 工位 10 点 + 2 料盘 + 2 通讯 + 变量，完整流水线装配工程。",
+            Summary = "1 控制 · 4 轴 · 16 入 16 出 · 4 气缸 · 10 点位 · 2 料盘 · 2 通讯 · 3 变量 · 4 主流程 · 2 复位",
             Highlights = new[]
             {
                 "控制器：雷赛 DMC5800",
                 "轴：X 输送 + Y 横移 + Z1/Z2 升降",
                 "气缸：送料/夹紧/打螺丝/顶升",
                 "工位1：10 个点位（上料/装配1/装配2/装配3/装配4/检测/打螺丝/出料/等待/安全）",
+                "料盘1：上料盘 12×6 (15mm 间距)",
+                "料盘2：装配盘 8×8 (20mm 间距)",
+                "通讯：Modbus 主站 + 串口扫描枪",
+                "变量：计数 / 总数 / 当前工序",
                 "4 个主流程：送料/装配/打螺丝/检测",
                 "2 个复位：完整复位 / 快速归位"
             },
@@ -965,6 +1036,11 @@ namespace NoCodeMotion.Services
                 t.Points.Add(MakePoint("等待", 0, 0, 50, 50));
                 t.Points.Add(MakePoint("安全", 50, 50, 50, 50));
                 d.PointTables.Add(t);
+                d.Trays.Add(Tray("上料盘", 12, 6, -50, 0, 15, 15));
+                d.Trays.Add(Tray("装配盘", 8, 8, 750, 0, 20, 20));
+                d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
+                d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"), ("当前工序", "1"));
                 d.Flows.Add(TblFlow("送料", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -1038,13 +1114,18 @@ namespace NoCodeMotion.Services
             Id = "vision-guided",
             Name = "视觉引导抓取",
             Category = "综合",
-            Description = "4 轴 + 8 IO + 2 气缸 + 1 视觉流程（图像采集/模板匹配/缺陷检测）的视觉引导工程。",
-            Summary = "1 控制器 / 4 轴 / 8 入 / 8 出 / 2 气缸 / 1 视觉流程 / 3 主流程 / 2 复位",
+            Description = "4 轴 + 8 IO + 2 气缸 + 2 相机 + 1 料盘 + 1 视觉流程（图像采集/模板匹配/缺陷检测）+ 通讯 + 变量。",
+            Summary = "1 控制 · 4 轴 · 8 入 8 出 · 2 气缸 · 1 料盘 · 2 相机 · 2 通讯 · 3 变量 · 1 视觉流 · 3 主流程 · 2 复位",
             Highlights = new[]
             {
                 "控制器：雷赛 EtherCAT 主站",
                 "轴：X/Y/Z/R 4 轴",
                 "气缸：夹爪 + 真空",
+                "料盘：原料盘 8×6 (15mm 间距)",
+                "相机1：海康工业相机（1920×1080）",
+                "相机2：巴斯勒 GigE（2448×2048）",
+                "通讯：Modbus 主站 + 串口光源控制器",
+                "变量：计数 / 总数 / 匹配分数",
                 "视觉流程：图像采集 → 模板匹配 → 缺陷检测 → 输出位姿",
                 "主流程1：自动取料（视觉引导）",
                 "主流程2：自动放料",
@@ -1065,6 +1146,12 @@ namespace NoCodeMotion.Services
                 for (int i = 0; i < 8; i++) d.Outputs.Add(Out(outNames[i], "动点", "控制卡1", 0, 0, i));
                 d.Cylinders.Add(Cyl("夹爪", "Y0", "X0", "X1"));
                 d.Cylinders.Add(Cyl("真空", "Y1", "X2", "X3"));
+                d.Trays.Add(Tray("原料盘", 8, 6, 0, 0, 15, 15));
+                d.Cameras.Add(Cam("上视相机", "海康威视", "192.168.1.100", 8000, 1920, 1080, 10.0, 1.0, "装配检测"));
+                d.Cameras.Add(Cam("下视相机", "巴斯勒", "192.168.1.101", 8000, 2448, 2048, 8.0, 1.5, "位置识别"));
+                d.Comms.Add(Comm("Modbus主站", "ModbusTCP", "192.168.1.10", 502));
+                d.Comms.Add(Comm("光源控制器", "串口", "COM3", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"), ("匹配分数", "0"));
                 d.Flows.Add(TblFlow("自动取料", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -1126,13 +1213,17 @@ namespace NoCodeMotion.Services
             Id = "multi-product",
             Name = "多产品切换",
             Category = "综合",
-            Description = "4 轴 + 8 IO + 1 工位 8 点的多产品共线工程（产品 A / B / C 共三套主流程）。",
-            Summary = "1 控制器 / 4 轴 / 8 入 / 8 出 / 0 气缸 / 1 点位表(8) / 3 主流程 / 1 复位",
+            Description = "4 轴 + 8 IO + 1 工位 8 点（产品 A/B/C 共线）+ 2 料盘 + 2 通讯 + 变量。",
+            Summary = "1 控制 · 4 轴 · 8 入 8 出 · 8 点位 · 2 料盘 · 2 通讯 · 3 变量 · 3 主流程 · 1 复位",
             Highlights = new[]
             {
                 "控制器：雷赛 DMC5800",
                 "轴：X/Y/Z/R 4 轴",
                 "工位1：8 个点位（产品A 4 个 + 产品B 2 个 + 产品C 2 个）",
+                "料盘1：产品A料盘 4×3 (30mm 间距)",
+                "料盘2：产品B料盘 4×3 (30mm 间距)",
+                "通讯：Modbus 主站 + 串口扫描枪",
+                "变量：当前产品 / 计数 / 总数",
                 "主流程1：产品 A 完整工艺",
                 "主流程2：产品 B 完整工艺",
                 "主流程3：产品 C 完整工艺",
@@ -1161,6 +1252,11 @@ namespace NoCodeMotion.Services
                 t.Points.Add(MakePoint("产品C取料", 0, 300, -40, 0));
                 t.Points.Add(MakePoint("产品C出料", 300, 300, 0, 0));
                 d.PointTables.Add(t);
+                d.Trays.Add(Tray("产品A料盘", 4, 3, -50, 0, 30, 30));
+                d.Trays.Add(Tray("产品B料盘", 4, 3, -50, 100, 30, 30));
+                d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
+                d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
+                AddVars(d, ("当前产品", "A"), ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("产品A", FlowRole.Main,
                     WaitIO("产品A", "1", 3000),
                     SetIO("产品A运行", "1"),
@@ -1220,8 +1316,8 @@ namespace NoCodeMotion.Services
             Id = "full-featured",
             Name = "全功能完整工程",
             Category = "综合",
-            Description = "最大演示工程：2 控制卡 + 6 轴 + 16 IO + 4 气缸 + 2 工位 24 点 + 2 通讯。",
-            Summary = "2 控制器 / 6 轴 / 16 入 / 16 出 / 4 气缸 / 2 点位表(12+12) / 5 主流程 / 3 复位",
+            Description = "最大演示工程：2 控制卡 + 6 轴 + 16 IO + 4 气缸 + 2 工位 24 点 + 2 料盘 + 2 相机 + 3 通讯 + 变量。",
+            Summary = "2 控制 · 6 轴 · 16 入 16 出 · 4 气缸 · 24 点位 · 2 料盘 · 2 相机 · 3 通讯 · 5 变量 · 5 主流程 · 3 复位",
             Highlights = new[]
             {
                 "控制器1：EtherCAT 主站（轴 0-3）",
@@ -1230,9 +1326,14 @@ namespace NoCodeMotion.Services
                 "气缸：送料 / 夹紧 / 打螺丝 / 顶升",
                 "工位1：12 个点位（X/Y/Z 3 轴）",
                 "工位2：12 个点位（X/Y/Z 3 轴）",
-                "通讯：Modbus 主站 + 串口",
+                "料盘1：上料盘 10×6 (15mm 间距)",
+                "料盘2：装配盘 8×8 (20mm 间距)",
+                "相机1：海康工业相机（装配检测）",
+                "相机2：巴斯勒 GigE（位置识别）",
+                "通讯：Modbus 主站 + Modbus 扩展IO + 串口扫描枪",
+                "变量：计数 / 总数 / 当前产品 / 工位选择 / 循环数",
                 "5 个主流程 + 3 个复位流程",
-                "含变量、IO、气缸、轴、点位、流程全套"
+                "含变量、IO、气缸、轴、点位、流程、料盘、相机、通讯全套"
             },
             Factory = () =>
             {
@@ -1285,7 +1386,14 @@ namespace NoCodeMotion.Services
                 t2.Points.Add(MakePoint("备用1", 0, 0, 0));
                 t2.Points.Add(MakePoint("备用2", 0, 0, 0));
                 d.PointTables.Add(t2);
-                d.Variables.Add(MakeVar(("计数", "0"), ("总数", "0"), ("当前产品", "A"), ("工位选择", "1"), ("循环数", "0")));
+                d.Trays.Add(Tray("上料盘", 10, 6, -50, 0, 15, 15));
+                d.Trays.Add(Tray("装配盘", 8, 8, 750, 0, 20, 20));
+                d.Cameras.Add(Cam("上视相机", "海康威视", "192.168.1.100", 8000, 1920, 1080, 10.0, 1.0, "装配检测"));
+                d.Cameras.Add(Cam("下视相机", "巴斯勒", "192.168.1.101", 8000, 2448, 2048, 8.0, 1.5, "位置识别"));
+                d.Comms.Add(Comm("Modbus主站", "ModbusTCP", "192.168.1.10", 502));
+                d.Comms.Add(Comm("ModbusIO扩展", "ModbusTCP", "192.168.1.20", 502));
+                d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"), ("当前产品", "A"), ("工位选择", "1"), ("循环数", "0"));
                 d.Flows.Add(TblFlow("自动取料", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
@@ -1489,6 +1597,75 @@ namespace NoCodeMotion.Services
             if (vars.Length > 4) { v.Name5 = vars[4].name; v.Value5 = vars[4].value; }
             return v;
         }
+
+        /// <summary>变量批量加入：每行最多 5 个 (名称,值)，超过自动多行。</summary>
+        private static void AddVars(ProjectData d, params (string name, string value)[] vars)
+        {
+            for (int i = 0; i < vars.Length; i += 5)
+            {
+                var batch = new (string, string)[Math.Min(5, vars.Length - i)];
+                for (int j = 0; j < batch.Length; j++) batch[j] = vars[i + j];
+                d.Variables.Add(MakeVar(batch));
+            }
+        }
+
+        // 通讯构造助手
+        private static CommItem Comm(string name, string commType, string portOrIp,
+            int baudOrPort = 9600, string parity = "无", int dataBits = 8, double stopBits = 1.0, int timeoutMs = 1000)
+            => new()
+            {
+                Name = name,
+                CommType = commType,
+                PortOrIp = portOrIp,
+                BaudOrPort = baudOrPort,
+                Parity = parity,
+                DataBits = dataBits,
+                StopBits = stopBits,
+                TimeoutMs = timeoutMs,
+            };
+
+        // 料盘构造助手
+        private static TrayItem Tray(string name, int rows, int cols,
+            double startX = 0, double startY = 0, double pitchX = 20, double pitchY = 20)
+            => new()
+            {
+                Name = name,
+                Rows = rows,
+                Cols = cols,
+                StartX = startX,
+                StartY = startY,
+                PitchX = pitchX,
+                PitchY = pitchY,
+            };
+
+        // 相机构造助手
+        private static CameraItem Cam(string name, string vendor = "海康威视",
+            string ip = "192.168.1.100", int port = 8000,
+            int width = 1920, int height = 1080, double exposureMs = 10.0,
+            double gain = 1.0, string description = "")
+            => new()
+            {
+                Name = name,
+                Vendor = vendor,
+                IpAddress = ip,
+                Port = port,
+                Width = width,
+                Height = height,
+                ExposureMs = exposureMs,
+                Gain = gain,
+                Description = description,
+            };
+
+        // 流程步骤：Modbus/串口发送
+        private static FlowStep CommSend(string commName, string content)
+            => new()
+            {
+                Logic = "就",
+                Function = "modbus",
+                Property = "发送",
+                Operation = "修改",
+                SetValue = content,
+            };
     }
 }
 // ◇作者保留所有权利　请勿删除※⁣

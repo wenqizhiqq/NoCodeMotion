@@ -22,7 +22,8 @@ namespace NoCodeMotion.ViewModels
     /// </summary>
     public class CameraViewModel : INotifyPropertyChanged
     {
-        public ObservableCollection<CameraItem> Items { get; } = new();
+        /// <summary>相机项集合直接指向 ProjectStore.Data.Cameras，让模板填充与跨页面共享保持一致。</summary>
+        public ObservableCollection<CameraItem> Items => NoCodeMotion.Services.ProjectStore.Data.Cameras;
 
         private CameraItem? _selectedItem;
         public CameraItem? SelectedItem

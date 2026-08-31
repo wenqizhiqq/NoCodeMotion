@@ -18,6 +18,9 @@ namespace NoCodeMotion.Models
         public ObservableCollection<TrayItem> Trays { get; set; } = new();
         public ObservableCollection<FlowItem> Flows { get; set; } = new();
 
+        /// <summary>相机列表：相机页/视觉流程共用。模板填充时直接在这里 Add 即可。</summary>
+        public ObservableCollection<CameraItem> Cameras { get; set; } = new();
+
         /// <summary>点位表列表：一个点位表 = 一个工位，含该工位的 4 个轴与全部点位行。</summary>
         public ObservableCollection<PointTable> PointTables { get; set; } = new();
 
@@ -92,6 +95,7 @@ namespace NoCodeMotion.Models
             Comms.Clear(); foreach (var x in src.Comms) Comms.Add(x);
             Trays.Clear(); foreach (var x in src.Trays) Trays.Add(x);
             Flows.Clear(); foreach (var x in src.Flows) Flows.Add(x);
+            Cameras.Clear(); foreach (var x in src.Cameras) Cameras.Add(x);
             PointTables.Clear(); foreach (var x in src.PointTables) PointTables.Add(x);
             Points.Clear(); foreach (var x in src.Points) Points.Add(x);
             PointAxes.Clear(); foreach (var x in src.PointAxes) PointAxes.Add(x);
