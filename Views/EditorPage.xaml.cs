@@ -50,15 +50,39 @@ namespace NoCodeMotion.Views
         }
 
         /// <summary>自定义左侧列表项模板。宿主页（如气缸页）想给每行加内联按钮时设置此属性；
-        /// 不设置则回退到 EditorListItemTemplate（默认模板，流程页/通用页用）。</summary>
+        /// 不设置则用 EditorListItemTemplate（默认模板，流程页/通用页用）。
+        /// **关键**：XAML 里 ListBox.ItemTemplate 必须是直接引用（StaticResource），不能用 Binding +
+        /// FallbackValue——后者在 WPF 中 FallbackValue 的 {StaticResource} 解析存在边角问题，
+        /// 会导致部分页面的 ItemTemplate 为 null，ListBox 回退显示 data context 的 ToString（类名）。
+        /// 这里用 DP 变更回调在代码后端直接给 ListBox.ItemTemplate 赋值，最稳。</summary>
         public static readonly DependencyProperty LeftListItemTemplateProperty =
             DependencyProperty.Register(nameof(LeftListItemTemplate), typeof(DataTemplate), typeof(EditorPage),
-                new PropertyMetadata(null));
+                new PropertyMetadata(null, OnLeftListItemTemplateChanged));
 
         public DataTemplate? LeftListItemTemplate
         {
             get => (DataTemplate?)GetValue(LeftListItemTemplateProperty);
             set => SetValue(LeftListItemTemplateProperty, value);
+        }
+
+        private static void OnLeftListItemTemplateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is not EditorPage ep) return;
+            // 用 Loaded 时机保证 ListBox 模板已实例化（XAML 已 InitializeComponent 完成）
+            if (ep.IsLoaded)
+                ep.ApplyLeftListItemTemplate();
+            else
+                ep.Loaded += (_, _) => ep.ApplyLeftListItemTemplate();
+        }
+
+        /// <summary>把当前 LeftListItemTemplate 写到 ListBox.ItemTemplate（null 时回退默认模板）。</summary>
+        private void ApplyLeftListItemTemplate()
+        {
+            var lb = this.FindName("ListBox") as System.Windows.Controls.ListBox
+                  ?? (this.Content as System.Windows.FrameworkElement)?.FindName("ListBox") as System.Windows.Controls.ListBox;
+            if (lb == null) return;
+            lb.ItemTemplate = LeftListItemTemplate
+                ?? (this.Resources["EditorListItemTemplate"] as DataTemplate);
         }
 
         public EditorPage()

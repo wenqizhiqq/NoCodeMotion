@@ -26,26 +26,42 @@
              默认可见（Idle = 浅灰「就绪」），按 Status 切色：
              Idle=浅灰 / Running=绿 / Paused=橙 / Breakpoint=红 / Exception=深红 / Stopped=深灰。
              这样列表项右侧始终有指示，一眼能看出流程是否在运行、是否已停、是否异常。 -->
+        <!--
+            流程状态芯片：右侧「就绪/运行/暂停/断点/异常/停止」指示。
+            关键：默认 Collapsed（不是 Visible）。非 FlowItem（轴/IO/气缸/控制器/点位/通讯/料盘/相机/变量）
+            没有 Status 属性，binding 失败 → TextBlock 回退显示整个 data context 的 ToString()，
+            渲染出 "NoCodeMotion.Models.AxisController" 这种 .NET 类名。
+            默认 Collapsed + 仅 6 个 FlowStatus 枚举值显式展开（每个 DataTrigger 都设 Visibility=Visible），
+            非 FlowItem 的 6 个 DataTrigger 都不命中 → 保持 Collapsed，干净。
+        -->
         <Style x:Key="FlowStatusChipStyle" TargetType="Border">
-            <Setter Property="Visibility" Value="Visible"/>
+            <Setter Property="Visibility" Value="Collapsed"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Padding" Value="6,2"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Background" Value="#CBD5E1"/>
             <Style.Triggers>
+                <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Idle}">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Running}">
+                    <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#10B981"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Paused}">
+                    <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#F59E0B"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Breakpoint}">
+                    <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#EF4444"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Exception}">
+                    <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#DC2626"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Stopped}">
+                    <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#6B7280"/>
                 </DataTrigger>
             </Style.Triggers>
@@ -154,11 +170,17 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <ListBox Grid.Column="0"
+            <!--
+                直接 StaticResource：之前用 Binding + FallbackValue 在 WPF 里遇到 "FallbackValue 的
+                {StaticResource} 解析失败" 边角问题，部分页面会显示 data context ToString（类名）。
+                改成直接引用后默认模板稳生效。气缸页等需要换行模板的页面，通过 LeftListItemTemplate DP
+                在代码后端覆盖（见 EditorPage.xaml.cs 的 OnLeftListItemTemplateChanged 回调）。
+            -->
+            <ListBox x:Name="ListBox" Grid.Column="0"
                      ItemsSource="{Binding Items}"
                      SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                      Style="{StaticResource ProjectListStyle}"
-                     ItemTemplate="{Binding LeftListItemTemplate, RelativeSource={RelativeSource AncestorType=local:EditorPage}, FallbackValue={StaticResource EditorListItemTemplate}}"/>
+                     ItemTemplate="{StaticResource EditorListItemTemplate}"/>
 
             <!-- 注意：不要在这里套 ScrollViewer。套了会给 Detail 无限高上下文，
                  使 FlowPage 内 Grid.Row=2 Height=* 的表格无法被约束高度、整表被撑开，
