@@ -12,6 +12,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 顶部导航栏 -->
@@ -106,5 +107,8 @@
 
         <!-- 页面内容区 -->
         <ContentControl Grid.Row="1" x:Name="PageHost"/>
+
+        <!-- 底部状态栏 -->
+        <views:StatusBarView Grid.Row="2"/>
     </Grid>
 </Window>

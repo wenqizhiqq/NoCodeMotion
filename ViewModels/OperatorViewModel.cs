@@ -85,6 +85,7 @@ namespace NoCodeMotion.ViewModels
                 OnPropertyChanged(nameof(CanRun));
                 OnPropertyChanged(nameof(CanStart));
                 OnPropertyChanged(nameof(CanStop));
+                StatusBarService.SetRunState(IsRunning, EStopped);
             }
         }
 
@@ -96,6 +97,7 @@ namespace NoCodeMotion.ViewModels
             {
                 if (!SetField(ref _eStopped, value)) return;
                 OnPropertyChanged(nameof(CanStart));
+                StatusBarService.SetRunState(IsRunning, EStopped);
             }
         }
 
