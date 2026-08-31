@@ -8,13 +8,32 @@
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
     <UserControl.Resources>
-        <!-- 左侧列表项模板：图标（按流程类型切换）+ 名称（只读显示） -->
+        <!-- 复位角色标签：紧凑橙色药丸，仅在 Role==Reset 时显示 -->
+        <Style x:Key="FlowResetChipStyle" TargetType="Border">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="{StaticResource WarningBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Role}" Value="{x:Static models:FlowRole.Reset}">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 左侧列表项模板：左侧优先显示「复位」药丸（仅 Role==Reset 时），
+             否则按 Kind 显示流程类型图标；右侧是流程名。
+             非 FlowItem 类型没有 Role / Kind 属性，绑定求值为空，
+             DataTrigger 不命中 → 全部走默认 Collapsed / 既有图标逻辑，不会爆错。 -->
         <DataTemplate x:Key="EditorListItemTemplate">
             <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
+
+                <!-- 左 1：流程类型图标（Path）。Role==Reset 时强制隐藏，让位给「复位」药丸 -->
                 <Path Grid.Column="0" Width="15" Height="15" Stretch="Uniform" Margin="0,0,6,0"
                       VerticalAlignment="Center" Fill="{StaticResource TextSecondaryBrush}">
                     <Path.Style>
@@ -34,10 +53,23 @@
                                     <Setter Property="Visibility" Value="Visible"/>
                                     <Setter Property="Data" Value="{StaticResource VisionIconGeometry}"/>
                                 </DataTrigger>
+                                <!-- 复位流程：用「复位」药丸代替图标 -->
+                                <DataTrigger Binding="{Binding Role}" Value="{x:Static models:FlowRole.Reset}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Path.Style>
                 </Path>
+
+                <!-- 左 1：复位标签（Border + 「复位」文字）。
+                     与图标共享 Grid.Column="0"，因图标已 Collapsed，不重叠。
+                     复用 FlowResetChipStyle：DataTrigger 控制可见性，默认隐藏。 -->
+                <Border Grid.Column="0" Margin="0,0,6,0" Style="{StaticResource FlowResetChipStyle}">
+                    <TextBlock Text="复位" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                </Border>
+
+                <!-- 左 2：流程名称 -->
                 <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis" Foreground="{StaticResource TextPrimaryBrush}"/>
             </Grid>
