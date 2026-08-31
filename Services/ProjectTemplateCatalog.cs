@@ -1543,6 +1543,7 @@ namespace NoCodeMotion.Services
         private static CylinderItem Cyl(string deviceId, string outPoint, string sensorExtend, string sensorRetract, string type = "双作用", int delayMs = 200)
             => new()
             {
+                Name = deviceId,        // 同时设 Name，否则左侧列表（绑 Name）显示空白
                 DeviceId = deviceId,
                 Type = type,
                 OutPoint = outPoint,

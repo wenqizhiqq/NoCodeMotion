@@ -173,6 +173,36 @@ namespace NoCodeMotion.Services
             catch { }
         }
 
+        /// <summary>读取指定工程的需求列表（AI 生成流程用的输入需求）。文件不存在时返回空列表。</summary>
+        public static List<string> GetRequirements(string name)
+        {
+            var path = FileFor(name);
+            if (!File.Exists(path)) return new List<string>();
+            try
+            {
+                var data = JsonSerializer.Deserialize<ProjectData>(File.ReadAllText(path));
+                return data?.Requirements?.Where(r => !string.IsNullOrWhiteSpace(r)).ToList()
+                       ?? new List<string>();
+            }
+            catch { return new List<string>(); }
+        }
+
+        /// <summary>写入指定工程的需求列表（改写其 JSON 文件，并更新修改时间）。</summary>
+        public static void SetRequirements(string name, List<string> requirements)
+        {
+            var path = FileFor(name);
+            if (!File.Exists(path)) return;
+            try
+            {
+                var data = JsonSerializer.Deserialize<ProjectData>(File.ReadAllText(path)) ?? new ProjectData();
+                data.Requirements.Clear();
+                foreach (var r in requirements ?? new List<string>())
+                    data.Requirements.Add(r);
+                WriteFile(name, data);
+            }
+            catch { }
+        }
+
         public static void DeleteProject(string name)
         {
             try { File.Delete(FileFor(name)); } catch { }
