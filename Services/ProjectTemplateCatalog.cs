@@ -1316,8 +1316,8 @@ namespace NoCodeMotion.Services
             Id = "full-featured",
             Name = "全功能完整工程",
             Category = "综合",
-            Description = "最大演示工程：2 控制卡 + 6 轴 + 16 IO + 4 气缸 + 2 工位 24 点 + 2 料盘 + 2 相机 + 3 通讯 + 变量。",
-            Summary = "2 控制 · 6 轴 · 16 入 16 出 · 4 气缸 · 24 点位 · 2 料盘 · 2 相机 · 3 通讯 · 5 变量 · 5 主流程 · 3 复位",
+            Description = "最大演示工程：2 控制卡 + 6 轴 + 16 IO + 4 气缸 + 2 工位 24 点 + 2 料盘 + 2 相机 + 3 通讯 + 变量 + 视觉流程 + Lua 脚本流程。",
+            Summary = "2 控制 · 6 轴 · 16 入 16 出 · 4 气缸 · 24 点位 · 2 料盘 · 2 相机 · 3 通讯 · 5 变量 · 5 主流程 · 1 视觉流 · 1 脚本流 · 3 复位",
             Highlights = new[]
             {
                 "控制器1：EtherCAT 主站（轴 0-3）",
@@ -1332,8 +1332,10 @@ namespace NoCodeMotion.Services
                 "相机2：巴斯勒 GigE（位置识别）",
                 "通讯：Modbus 主站 + Modbus 扩展IO + 串口扫描枪",
                 "变量：计数 / 总数 / 当前产品 / 工位选择 / 循环数",
-                "5 个主流程 + 3 个复位流程",
-                "含变量、IO、气缸、轴、点位、流程、料盘、相机、通讯全套"
+                "视觉流程：相机2 拍照 → 模板匹配 → 缺陷检测 → 输出位姿到变量",
+                "脚本流程：Lua 脚本（轴联动 + IO 读写 + 延时）",
+                "5 个主流程 + 1 视觉流程 + 1 脚本流程 + 3 个复位流程",
+                "含变量、IO、气缸、轴、点位、流程、料盘、相机、通讯、视觉、脚本全套"
             },
             Factory = () =>
             {
@@ -1481,6 +1483,95 @@ namespace NoCodeMotion.Services
                     CylBack("打螺丝"),
                     CylBack("顶升"),
                     SetIO("就绪", "1")));
+
+                // 视觉流程：用相机2 拍照 → 模板匹配定位 → 缺陷检测 → 把结果写到变量
+                var vis = new FlowItem { Name = "视觉检测", Kind = FlowKind.Vision, Role = FlowRole.Main };
+                vis.VisualSteps.Add(new VisualFlowStep
+                {
+                    Name = "图像采集",
+                    StepType = "图像采集",
+                    CameraId = "下视相机",
+                    ExposureMs = 8,
+                    Width = 2448,
+                    Height = 2048,
+                    SavePath = "Images/inspection/"
+                });
+                vis.VisualSteps.Add(new VisualFlowStep
+                {
+                    Name = "模板匹配",
+                    StepType = "模板匹配",
+                    CameraId = "下视相机",
+                    TemplatePath = "Templates/part_a.bmp",
+                    ScoreThreshold = 0.85,
+                    AngleRange = 360,
+                    MatchMode = "灰度匹配",
+                    TemplateRoiX = 1100, TemplateRoiY = 900, TemplateRoiW = 200, TemplateRoiH = 200
+                });
+                vis.VisualSteps.Add(new VisualFlowStep
+                {
+                    Name = "缺陷检测",
+                    StepType = "缺陷检测",
+                    Algorithm = "NCC",
+                    MinArea = 100,
+                    MaxArea = 100000,
+                    Threshold = 128,
+                    DetectMode = "阈值面积"
+                });
+                vis.VisualSteps.Add(new VisualFlowStep
+                {
+                    Name = "输出位姿",
+                    StepType = "通讯",
+                    Protocol = "变量",
+                    Target = "匹配分数",
+                    Content = "{匹配分数},{X},{Y},{R}"
+                });
+                d.Flows.Add(vis);
+
+                // Lua 脚本流程：演示 Lua 语法（变量赋值 / 轴移动 / IO 读写 / 延时 / 打印）
+                var lua = new FlowItem
+                {
+                    Name = "脚本流程",
+                    Kind = FlowKind.Lua,
+                    Role = FlowRole.Main,
+                    LuaSource = @"-- 脚本流程示例：Lua 控制流程
+-- 通过 LuaSource 编写逻辑，运行时会逐行执行
+local cycle = Variable.Get('循环数') or 0
+cycle = cycle + 1
+Variable.Set('循环数', tostring(cycle))
+
+-- 等待启动信号
+while IO.Get('启动') ~= '1' do
+    Delay(50)
+    if EStop() then return end
+end
+
+IO.Set('运行', '1')
+
+-- 演示轴联动：X/Y 走一个矩形
+Axis.MoveAbs('X', 0, 800)
+Axis.MoveAbs('Y', 0, 800)
+Delay(200)
+Axis.MoveAbs('X', 100, 800)
+Axis.MoveAbs('Y', 0, 800)
+Delay(200)
+Axis.MoveAbs('X', 100, 800)
+Axis.MoveAbs('Y', 100, 800)
+Delay(200)
+Axis.MoveAbs('X', 0, 800)
+Axis.MoveAbs('Y', 100, 800)
+Delay(200)
+
+-- 气缸动作
+Cylinder.Out('夹紧')
+Delay(300)
+Cylinder.Back('夹紧')
+
+IO.Set('完成', '1')
+Print(string.format('脚本流程 第 %d 次循环完成', cycle))
+"
+                };
+                d.Flows.Add(lua);
+
                 return d;
             },
         };
