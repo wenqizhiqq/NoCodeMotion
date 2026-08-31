@@ -2,17 +2,25 @@
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇⁣
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦⁣
 // =====================================================================
-// AI 工程交换服务（项目管理页「复制 / 粘贴」按钮的后端）。
+// AI 工程交换服务（项目管理页「复制需求 / 粘贴生成」按钮的后端）。
 //
 // 工作流：
 //   1) 用户在右侧详情填「备注」+「需求」
-//   2) 点【复制需求】→ 本服务生成一段提示词（含 JSON 契约）进剪贴板
-//   3) 用户粘贴到 WorkBuddy / 任意 AI，AI 返回工程配置 JSON
-//   4) 用户复制 AI 返回的 JSON，回本页点【粘贴生成】
-//   5) 本服务容错解析并写入 ProjectStore.Data（轴/IO/气缸/流程/点位/通讯/变量）
+//   2) 点【复制需求】→ 生成中文提示词（含中文 JSON 契约 + 数量要求）进剪贴板
+//   3) 粘贴到豆包 / WorkBuddy / 任意 AI，AI 返回工程配置 JSON
+//   4) 复制 AI 返回的 JSON，回本页点【粘贴生成】
+//   5) 本服务容错解析并写入 ProjectStore.Data
+//
+// 关键设计一：**中英文键名全兼容**。
+//   中文 AI（豆包等）习惯输出中文键名（"轴"/"名称"/"速度"），英文模型输出
+//   英文键名（"axes"/"name"/"speed"）。所有读取都走别名匹配，两套都认。
+//
+// 关键设计二：**动词归一化**（NormFunction/NormProperty/NormOperation）。
+//   AI 写的可能是中文动词（"移动"/"置位"/"伸出"）也可能是英文（"IO"/"Axis"/"Output"），
+//   统一映射到本软件 FlowStep.Function / Property / Operation 的合法取值。
 //
 // 解析原则：**逐条容错**。任何一条数据字段缺失/类型不对只跳过该条，
-// 不抛异常中断整体导入，保证 AI 输出不完美时仍能拿到可用配置。
+//   不抛异常中断整体导入，保证 AI 输出不完美时仍能拿到可用配置。
 // =====================================================================
 using System;
 using System.Collections.Generic;
@@ -28,7 +36,7 @@ namespace NoCodeMotion.Services
     {
         // ==================== 1. 生成提示词（复制按钮用） ====================
 
-        /// <summary>按工程名 / 备注 / 需求列表生成给 AI 的提示词（含严格 JSON 契约）。</summary>
+        /// <summary>按工程名 / 备注 / 需求列表生成给 AI 的中文提示词（含中文 JSON 契约 + 数量要求）。</summary>
         public static string BuildPrompt(string projectName, string? remark, IEnumerable<string>? requirements)
         {
             var reqs = (requirements ?? Enumerable.Empty<string>())
@@ -37,84 +45,140 @@ namespace NoCodeMotion.Services
                        .ToList();
 
             var sb = new StringBuilder();
-            sb.AppendLine("# 任务：为无代码运动控制软件生成工程配置");
+            sb.AppendLine("你是无代码运动控制软件的工程配置助手。请根据我的需求，生成一个**完整、可运行**的工程配置 JSON。");
             sb.AppendLine();
-            sb.AppendLine($"工程名称：{projectName}");
+            sb.AppendLine("【工程名称】" + projectName);
             if (!string.IsNullOrWhiteSpace(remark))
-                sb.AppendLine($"工程备注：{remark.Trim()}");
+                sb.AppendLine("【工程备注】" + remark.Trim());
             sb.AppendLine();
 
             if (reqs.Count > 0)
             {
-                sb.AppendLine("## 用户需求");
+                sb.AppendLine("【我的需求】");
                 for (int i = 0; i < reqs.Count; i++)
-                    sb.AppendLine($"{i + 1}. {reqs[i]}");
+                    sb.AppendLine((i + 1) + ". " + reqs[i]);
+                sb.AppendLine();
+            }
+            else
+            {
+                sb.AppendLine("【我的需求】（尚未填写，请根据工程名称与备注合理推断一套典型配置）");
                 sb.AppendLine();
             }
 
-            sb.AppendLine("## 输出要求");
-            sb.AppendLine("只输出一个 JSON 对象，不要任何解释文字、不要 Markdown 代码块围栏。");
-            sb.AppendLine("JSON 结构如下（数组都可为空数组，字段缺失则用默认值）：");
+            // ===== 数量要求：这是关键，防止 AI 只生成最少内容 =====
+            sb.AppendLine("【数量要求】请生成足够丰富的内容，不要只给最小示例。按下面下限生成：");
+            sb.AppendLine("- 控制器：1~2 个");
+            sb.AppendLine("- 轴：2~4 个（按需求涉及的自由度给足）");
+            sb.AppendLine("- 输入：至少 8 个（启动、停止、复位、急停、手自动、暂停、原点、正限位、负限位、来料、完成 等）");
+            sb.AppendLine("- 输出：至少 8 个（运行、就绪、报警、完成、暂停、各工位控制输出、指示灯 等）");
+            sb.AppendLine("- 气缸：0~4 个（需求涉及抓取/推料/压紧/分拣等动作时必须给）");
+            sb.AppendLine("- 流程：至少 2 个（1 个「主流程」+ 1 个「复位流程」），每个流程至少 8~15 个步骤，覆盖完整的取料→加工→放料→回零流程");
+            sb.AppendLine("- 工位：1~2 个，每个工位至少 4 个点位（取料位、放料位、安全位、等待位 等）");
+            sb.AppendLine("- 通讯：0~2 个（Modbus 主站 / 串口扫码枪 等）");
+            sb.AppendLine("- 变量：2~5 个（计数、总数、当前工位、当前工序 等）");
             sb.AppendLine();
+
+            sb.AppendLine("【重要要求】");
+            sb.AppendLine("1. 所有名称（轴名、IO 名、气缸名、流程名、点位名、变量名）必须用中文，不要用英文。");
+            sb.AppendLine("2. 只输出 JSON，不要任何解释、不要 Markdown 代码块标记。");
+            sb.AppendLine("3. 用不到的分类填空数组 []，不要删除分类。");
+            sb.AppendLine("4. 流程步骤里引用的轴名、IO 名、气缸名，必须和上面定义过的名称完全一致。");
+            sb.AppendLine("5. 步骤要足够详细：回零→移动到点位→等待输入→输出动作→气缸伸出/缩回→延时→计数，按真实工艺流程编排。");
+            sb.AppendLine();
+            sb.AppendLine("【输出格式】严格按下面这个结构输出：");
             sb.AppendLine(SchemaText);
-            sb.AppendLine();
-            sb.AppendLine("## 字段说明与取值");
-            sb.AppendLine("- controllers：运动控制卡。busType 取 脉冲/EtherCAT/Modbus；connection 取 PCI/网口/串口。");
-            sb.AppendLine("- axes：轴。axisType 取 脉冲/EtherCAT；unit 取 mm/°；axisNo 从 0 开始、同一控制器内不重复。");
-            sb.AppendLine("- inputs/outputs：IO 点。level 固定 取反。sequence 为位号，从 0 开始。");
-            sb.AppendLine("- cylinders：气缸。type 取 双作用/单作用；initialState 取 伸出/缩回。");
-            sb.AppendLine("- flows：流程。kind 取 Table/Lua/Vision；role 取 Main/Reset。");
-            sb.AppendLine("- flows[].steps：步骤。function 取 轴/IO/气缸/点位/变量/modbus/系统；");
-            sb.AppendLine("  operation 取 等于/修改/加/减/复位/等待；timeout 取 空/等待3秒就统计/不停机。");
-            sb.AppendLine("- pointTables：工位（点位表）。axes 为 4 个轴名（不足补空串）。");
-            sb.AppendLine("- comms：通讯。commType 取 串口/网口TCP/网口UDP/ModbusTCP/ModbusRTU。");
-            sb.AppendLine();
-            sb.AppendLine("请确保流程步骤引用的轴名 / IO 名 / 气缸名 与上面 axes、inputs、outputs、cylinders 中的 name 完全一致。");
             return sb.ToString();
         }
 
-        /// <summary>JSON 契约模板（同时用于提示词与文档）。</summary>
+        /// <summary>中文 JSON 契约模板（提示词用；解析器同时兼容英文键名）。</summary>
         private const string SchemaText = """
 {
-  "controllers": [
-    { "name": "控制卡1", "vendor": "雷赛", "cardType": "DMC5400", "cardNo": 0, "axisCount": 4, "busType": "脉冲", "connection": "PCI" }
+  "控制器": [
+    { "名称": "控制卡1", "型号": "DMC5400", "卡号": 0, "轴数": 4, "总线": "脉冲" }
   ],
-  "axes": [
-    { "name": "X", "controller": "控制卡1", "axisType": "脉冲", "axisNo": 0, "unit": "mm", "speed": 100, "accel": 50, "decel": 50 }
+  "轴": [
+    { "名称": "X轴", "类型": "脉冲", "轴号": 0, "单位": "mm", "速度": 100, "加速度": 50, "减速度": 50 },
+    { "名称": "Y轴", "类型": "脉冲", "轴号": 1, "单位": "mm", "速度": 100, "加速度": 50, "减速度": 50 },
+    { "名称": "Z轴", "类型": "脉冲", "轴号": 2, "单位": "mm", "速度": 80, "加速度": 40, "减速度": 40 }
   ],
-  "inputs": [
-    { "name": "启动", "function": "启动按钮", "controller": "控制卡1", "cardNo": 0, "moduleNo": 0, "sequence": 0 }
+  "输入": [
+    { "名称": "启动", "功能": "启动按钮", "卡号": 0, "位号": 0 },
+    { "名称": "停止", "功能": "停止按钮", "卡号": 0, "位号": 1 },
+    { "名称": "复位", "功能": "复位按钮", "卡号": 0, "位号": 2 },
+    { "名称": "急停", "功能": "安全门", "卡号": 0, "位号": 3 },
+    { "名称": "手自动", "功能": "动点", "卡号": 0, "位号": 4 },
+    { "名称": "暂停", "功能": "动点", "卡号": 0, "位号": 5 },
+    { "名称": "原点到位", "功能": "原点", "卡号": 0, "位号": 6 },
+    { "名称": "来料检测", "功能": "动点", "卡号": 0, "位号": 7 }
   ],
-  "outputs": [
-    { "name": "运行", "function": "动点", "controller": "控制卡1", "cardNo": 0, "moduleNo": 0, "sequence": 0 }
+  "输出": [
+    { "名称": "运行", "功能": "动点", "卡号": 0, "位号": 0 },
+    { "名称": "就绪", "功能": "动点", "卡号": 0, "位号": 1 },
+    { "名称": "报警", "功能": "动点", "卡号": 0, "位号": 2 },
+    { "名称": "完成", "功能": "动点", "卡号": 0, "位号": 3 },
+    { "名称": "暂停指示", "功能": "动点", "卡号": 0, "位号": 4 },
+    { "名称": "取料阀", "功能": "动点", "卡号": 0, "位号": 5 },
+    { "名称": "放料阀", "功能": "动点", "卡号": 0, "位号": 6 },
+    { "名称": "绿灯", "功能": "动点", "卡号": 0, "位号": 7 }
   ],
-  "cylinders": [
-    { "name": "推料", "deviceId": "推料", "outPoint": "Y0", "sensorExtend": "X0", "sensorRetract": "X1", "type": "双作用", "initialState": "缩回" }
+  "气缸": [
+    { "名称": "推料缸", "输出点": "Y0", "伸出感应": "X0", "缩回感应": "X1", "初始状态": "缩回" },
+    { "名称": "夹爪缸", "输出点": "Y1", "伸出感应": "X2", "缩回感应": "X3", "初始状态": "缩回" }
   ],
-  "flows": [
+  "流程": [
     {
-      "name": "主流程",
-      "kind": "Table",
-      "role": "Main",
-      "steps": [
-        { "logic": "就", "function": "轴", "name": "X", "property": "位置", "operation": "等于", "setValue": "100", "timeout": "空", "durationMs": 500 }
+      "名称": "主流程",
+      "角色": "主流程",
+      "步骤": [
+        { "功能": "轴", "对象": "X轴", "动作": "回零", "值": "" },
+        { "功能": "轴", "对象": "Y轴", "动作": "回零", "值": "" },
+        { "功能": "轴", "对象": "Z轴", "动作": "回零", "值": "" },
+        { "功能": "输入", "对象": "来料检测", "动作": "等待", "值": "1" },
+        { "功能": "轴", "对象": "X轴", "动作": "移动", "值": "100" },
+        { "功能": "轴", "对象": "Y轴", "动作": "移动", "值": "50" },
+        { "功能": "轴", "对象": "Z轴", "动作": "移动", "值": "0" },
+        { "功能": "气缸", "对象": "夹爪缸", "动作": "伸出", "值": "" },
+        { "功能": "延时", "对象": "", "动作": "", "值": "300" },
+        { "功能": "气缸", "对象": "夹爪缸", "动作": "缩回", "值": "" },
+        { "功能": "输出", "对象": "完成", "动作": "置位", "值": "1" },
+        { "功能": "变量", "对象": "计数", "动作": "加", "值": "1" },
+        { "功能": "输出", "对象": "完成", "动作": "复位", "值": "0" }
+      ]
+    },
+    {
+      "名称": "复位流程",
+      "角色": "复位流程",
+      "步骤": [
+        { "功能": "输出", "对象": "报警", "动作": "复位", "值": "0" },
+        { "功能": "气缸", "对象": "推料缸", "动作": "缩回", "值": "" },
+        { "功能": "气缸", "对象": "夹爪缸", "动作": "缩回", "值": "" },
+        { "功能": "轴", "对象": "Z轴", "动作": "移动", "值": "0" },
+        { "功能": "轴", "对象": "X轴", "动作": "回零", "值": "" },
+        { "功能": "轴", "对象": "Y轴", "动作": "回零", "值": "" },
+        { "功能": "轴", "对象": "Z轴", "动作": "回零", "值": "" },
+        { "功能": "输出", "对象": "就绪", "动作": "置位", "值": "1" }
       ]
     }
   ],
-  "pointTables": [
+  "工位": [
     {
-      "name": "工位1",
-      "axes": ["X", "Y", "Z", ""],
-      "points": [
-        { "name": "取料位", "x": 100, "y": 50, "z": 0, "r": 0 }
+      "名称": "工位1",
+      "轴": ["X轴", "Y轴", "Z轴"],
+      "点位": [
+        { "名称": "取料位", "X": 100, "Y": 50, "Z": 0 },
+        { "名称": "放料位", "X": 200, "Y": 150, "Z": 0 },
+        { "名称": "安全位", "X": 0, "Y": 0, "Z": 50 },
+        { "名称": "等待位", "X": 50, "Y": 50, "Z": 30 }
       ]
     }
   ],
-  "comms": [
-    { "name": "Modbus主站", "commType": "ModbusRTU", "portOrIp": "COM1", "baudOrPort": 9600, "parity": "无", "dataBits": 8, "stopBits": 1, "timeoutMs": 1000 }
+  "通讯": [
+    { "名称": "主站", "类型": "串口", "端口": "COM1", "波特率": 9600 }
   ],
-  "variables": [
-    { "name": "计数", "value": "0" }
+  "变量": [
+    { "名称": "计数", "值": "0" },
+    { "名称": "总数", "值": "0" },
+    { "名称": "当前工位", "值": "1" }
   ]
 }
 """;
@@ -122,15 +186,14 @@ namespace NoCodeMotion.Services
         // ==================== 2. 解析并应用（粘贴按钮用） ====================
 
         /// <summary>
-        /// 容错解析 AI 返回的 JSON 并写入目标 ProjectData。
-        /// 返回人类可读的结果摘要（各分类成功导入条数 + 跳过原因）。
+        /// 容错解析 AI 返回的 JSON 并写入目标 ProjectData（中英文键名都兼容）。
+        /// 返回人类可读的结果摘要。
         /// </summary>
         public static string ApplyGenerated(ProjectData data, string json)
         {
             if (data == null) return "目标工程数据为空。";
             if (string.IsNullOrWhiteSpace(json)) return "剪贴板内容为空。";
 
-            // 容忍 AI 用 ```json ... ``` 包裹
             var text = StripCodeFence(json.Trim());
 
             JsonDocument doc;
@@ -144,25 +207,25 @@ namespace NoCodeMotion.Services
             }
             catch (JsonException ex)
             {
-                return "JSON 解析失败：" + ex.Message;
+                return "JSON 解析失败：" + ex.Message + "（请复制 AI 返回的完整 JSON，不要只复制一部分）";
             }
 
             using (doc)
             {
                 var root = doc.RootElement;
                 if (root.ValueKind != JsonValueKind.Object)
-                    return "内容不是一个 JSON 对象，请复制 AI 返回的完整 JSON。";
+                    return "内容不是一个 JSON 对象。请复制 AI 返回的完整 JSON（以 { 开头）。";
 
                 var log = new List<string>();
                 int n;
 
                 n = ApplyControllers(data, root); if (n > 0) log.Add($"控制器 {n}");
                 n = ApplyAxes(data, root); if (n > 0) log.Add($"轴 {n}");
-                n = ApplyIo(data, root, "inputs", isInput: true); if (n > 0) log.Add($"输入 {n}");
-                n = ApplyIo(data, root, "outputs", isInput: false); if (n > 0) log.Add($"输出 {n}");
+                n = ApplyIo(data, root, isInput: true); if (n > 0) log.Add($"输入 {n}");
+                n = ApplyIo(data, root, isInput: false); if (n > 0) log.Add($"输出 {n}");
                 n = ApplyCylinders(data, root); if (n > 0) log.Add($"气缸 {n}");
                 n = ApplyComms(data, root); if (n > 0) log.Add($"通讯 {n}");
-                n = ApplyPointTables(data, root); if (n > 0) log.Add($"点位表 {n}");
+                n = ApplyPointTables(data, root); if (n > 0) log.Add($"工位 {n}");
                 n = ApplyFlows(data, root); if (n > 0) log.Add($"流程 {n}");
                 n = ApplyVariables(data, root); if (n > 0) log.Add($"变量 {n}");
 
@@ -170,7 +233,7 @@ namespace NoCodeMotion.Services
                 Catalog.SyncAllFromData(data);
 
                 return log.Count == 0
-                    ? "未识别到任何可导入的配置，请检查 JSON 是否包含 controllers/axes/inputs/outputs/cylinders/flows 等字段。"
+                    ? "没识别到可导入的数据。请确认复制的是 AI 返回的完整 JSON（应包含「轴」「输入」「输出」「气缸」「流程」等分类）。"
                     : "已生成：" + string.Join("、", log);
             }
         }
@@ -181,31 +244,30 @@ namespace NoCodeMotion.Services
             if (!text.StartsWith("```")) return text;
             var firstNl = text.IndexOf('\n');
             if (firstNl < 0) return text;
-            // 去掉首行（```json 之类）
             var body = text.Substring(firstNl + 1);
             var end = body.LastIndexOf("```", StringComparison.Ordinal);
             if (end >= 0) body = body.Substring(0, end);
             return body.Trim();
         }
 
-        // ---------------- 各分类导入 ----------------
+        // ---------------- 各分类导入（键名走别名匹配） ----------------
 
         private static int ApplyControllers(ProjectData d, JsonElement root)
         {
             int n = 0;
-            foreach (var e in Items(root, "controllers"))
+            foreach (var e in Items(root, "控制器", "controllers", "controller"))
             {
-                var name = Str(e, "name");
+                var name = Str(e, "名称", "name", "名字");
                 if (string.IsNullOrWhiteSpace(name)) continue;
                 d.Controllers.Add(new AxisControllerItem
                 {
                     Name = name,
-                    Vendor = Str(e, "vendor") ?? "雷赛",
-                    CardType = Str(e, "cardType") ?? "",
-                    CardNo = Int(e, "cardNo"),
-                    AxisCount = Int(e, "axisCount", 4),
-                    BusType = Str(e, "busType") ?? "脉冲",
-                    Connection = Str(e, "connection") ?? "PCI"
+                    Vendor = Str(e, "厂商", "vendor", "品牌") ?? "雷赛",
+                    CardType = Str(e, "型号", "cardType", "卡型号") ?? "",
+                    CardNo = Int(e, "卡号", "cardNo"),
+                    AxisCount = IntDef(e, 4, "轴数", "axisCount"),
+                    BusType = Str(e, "总线", "busType", "总线类型") ?? "脉冲",
+                    Connection = Str(e, "连接", "connection", "连接方式") ?? "PCI"
                 });
                 n++;
             }
@@ -215,42 +277,46 @@ namespace NoCodeMotion.Services
         private static int ApplyAxes(ProjectData d, JsonElement root)
         {
             int n = 0;
-            foreach (var e in Items(root, "axes"))
+            foreach (var e in Items(root, "轴", "axes", "axis"))
             {
-                var name = Str(e, "name");
+                var name = Str(e, "名称", "name", "轴名", "名字");
                 if (string.IsNullOrWhiteSpace(name)) continue;
                 d.Axes.Add(new AxisItem
                 {
                     Name = name,
-                    Controller = Str(e, "controller") ?? "",
-                    AxisType = Str(e, "axisType") ?? "脉冲",
-                    AxisNo = Int(e, "axisNo"),
-                    Unit = Str(e, "unit") ?? "mm",
-                    Speed = Dbl(e, "speed", 100),
-                    Accel = Dbl(e, "accel", 50),
-                    Decel = Dbl(e, "decel", 50)
+                    Controller = Str(e, "控制器", "controller", "归属控制器") ?? "",
+                    AxisType = Str(e, "类型", "axisType", "轴类型") ?? "脉冲",
+                    AxisNo = Int(e, "轴号", "axisNo", "序号"),
+                    Unit = Str(e, "单位", "unit") ?? "mm",
+                    Speed = DblDef(e, 100, "速度", "speed"),
+                    Accel = DblDef(e, 50, "加速度", "accel"),
+                    Decel = DblDef(e, 50, "减速度", "decel")
                 });
                 n++;
             }
             return n;
         }
 
-        private static int ApplyIo(ProjectData d, JsonElement root, string key, bool isInput)
+        private static int ApplyIo(ProjectData d, JsonElement root, bool isInput)
         {
             int n = 0;
-            foreach (var e in Items(root, key))
+            var keys = isInput
+                ? new[] { "输入", "输入点", "inputs", "input" }
+                : new[] { "输出", "输出点", "outputs", "output" };
+
+            foreach (var e in Items(root, keys))
             {
-                var name = Str(e, "name");
+                var name = Str(e, "名称", "name", "名字");
                 if (string.IsNullOrWhiteSpace(name)) continue;
                 var io = new IoItem
                 {
                     Name = name,
-                    Function = Str(e, "function") ?? (isInput ? "动点" : "动点"),
-                    Controller = Str(e, "controller") ?? "",
-                    CardNo = Int(e, "cardNo"),
-                    ModuleNo = Int(e, "moduleNo"),
-                    Sequence = Int(e, "sequence"),
-                    Level = Str(e, "level") ?? "取反"
+                    Function = Str(e, "功能", "function") ?? "动点",
+                    Controller = Str(e, "控制器", "controller") ?? "",
+                    CardNo = Int(e, "卡号", "cardNo"),
+                    ModuleNo = Int(e, "模块", "moduleNo"),
+                    Sequence = Int(e, "位号", "序号", "sequence"),
+                    Level = Str(e, "电平", "level") ?? "取反"
                 };
                 if (isInput) d.Inputs.Add(io); else d.Outputs.Add(io);
                 n++;
@@ -261,20 +327,20 @@ namespace NoCodeMotion.Services
         private static int ApplyCylinders(ProjectData d, JsonElement root)
         {
             int n = 0;
-            foreach (var e in Items(root, "cylinders"))
+            foreach (var e in Items(root, "气缸", "cylinders", "cylinder"))
             {
-                var name = Str(e, "name");
+                var name = Str(e, "名称", "name", "名字");
                 if (string.IsNullOrWhiteSpace(name)) continue;
-                var init = Str(e, "initialState") ?? "缩回";
+                var init = Str(e, "初始状态", "initialState") ?? "缩回";
                 if (init != "伸出" && init != "缩回") init = "缩回";
                 d.Cylinders.Add(new CylinderItem
                 {
                     Name = name,
-                    DeviceId = Str(e, "deviceId") ?? name,
-                    OutPoint = Str(e, "outPoint") ?? "",
-                    SensorExtend = Str(e, "sensorExtend") ?? "",
-                    SensorRetract = Str(e, "sensorRetract") ?? "",
-                    Type = Str(e, "type") ?? "双作用",
+                    DeviceId = Str(e, "设备编号", "deviceId") ?? name,
+                    OutPoint = Str(e, "输出点", "outPoint") ?? "",
+                    SensorExtend = Str(e, "伸出感应", "sensorExtend") ?? "",
+                    SensorRetract = Str(e, "缩回感应", "sensorRetract") ?? "",
+                    Type = Str(e, "类型", "type") ?? "双作用",
                     InitialState = init,
                     CurrentState = init
                 });
@@ -286,20 +352,20 @@ namespace NoCodeMotion.Services
         private static int ApplyComms(ProjectData d, JsonElement root)
         {
             int n = 0;
-            foreach (var e in Items(root, "comms"))
+            foreach (var e in Items(root, "通讯", "通信", "comms", "comm"))
             {
-                var name = Str(e, "name");
+                var name = Str(e, "名称", "name");
                 if (string.IsNullOrWhiteSpace(name)) continue;
                 d.Comms.Add(new CommItem
                 {
                     Name = name,
-                    CommType = Str(e, "commType") ?? "串口",
-                    PortOrIp = Str(e, "portOrIp") ?? "COM1",
-                    BaudOrPort = Int(e, "baudOrPort", 9600),
-                    Parity = Str(e, "parity") ?? "无",
-                    DataBits = Int(e, "dataBits", 8),
-                    StopBits = Dbl(e, "stopBits", 1),
-                    TimeoutMs = Int(e, "timeoutMs", 1000)
+                    CommType = Str(e, "类型", "commType", "通讯类型") ?? "串口",
+                    PortOrIp = Str(e, "端口", "portOrIp", "串口号", "IP") ?? "COM1",
+                    BaudOrPort = IntDef(e, 9600, "波特率", "baudOrPort", "波特"),
+                    Parity = Str(e, "校验", "parity") ?? "无",
+                    DataBits = IntDef(e, 8, "数据位", "dataBits"),
+                    StopBits = DblDef(e, 1, "停止位", "stopBits"),
+                    TimeoutMs = IntDef(e, 1000, "超时", "timeoutMs")
                 });
                 n++;
             }
@@ -309,14 +375,14 @@ namespace NoCodeMotion.Services
         private static int ApplyPointTables(ProjectData d, JsonElement root)
         {
             int n = 0;
-            foreach (var e in Items(root, "pointTables"))
+            foreach (var e in Items(root, "工位", "点位表", "pointTables", "points"))
             {
-                var tname = Str(e, "name");
+                var tname = Str(e, "名称", "name");
                 if (string.IsNullOrWhiteSpace(tname)) continue;
 
                 var t = new PointTable { Name = tname };
-                // axes: ["X","Y","Z",""]
-                if (e.TryGetProperty("axes", out var ax) && ax.ValueKind == JsonValueKind.Array)
+
+                if (TryGet(e, out var ax, "轴", "axes") && ax.ValueKind == JsonValueKind.Array)
                 {
                     int i = 0;
                     foreach (var a in ax.EnumerateArray())
@@ -325,17 +391,23 @@ namespace NoCodeMotion.Services
                         t.AxisNames[i++] = a.ValueKind == JsonValueKind.String ? (a.GetString() ?? "") : "";
                     }
                 }
-                foreach (var p in Items(e, "points"))
+
+                foreach (var p in Items(e, "点位", "points"))
                 {
-                    var pname = Str(p, "name");
+                    var pname = Str(p, "名称", "name");
                     if (string.IsNullOrWhiteSpace(pname)) continue;
                     var item = new PointItem { Name = pname };
-                    item.Positions[0] = new PointAxis { Position = Dbl(p, "x"), Speed = 100 };
-                    item.Positions[1] = new PointAxis { Position = Dbl(p, "y"), Speed = 100 };
-                    item.Positions[2] = new PointAxis { Position = Dbl(p, "z"), Speed = 100 };
-                    item.Positions[3] = new PointAxis { Position = Dbl(p, "r"), Speed = 100 };
+                    string n0 = t.AxisNames.Count > 0 ? t.AxisNames[0] : "";
+                    string n1 = t.AxisNames.Count > 1 ? t.AxisNames[1] : "";
+                    string n2 = t.AxisNames.Count > 2 ? t.AxisNames[2] : "";
+                    string n3 = t.AxisNames.Count > 3 ? t.AxisNames[3] : "";
+                    item.Positions[0] = new PointAxis { Position = DblDef(p, 0, n0, "x", "X"), Speed = 100 };
+                    item.Positions[1] = new PointAxis { Position = DblDef(p, 0, n1, "y", "Y"), Speed = 100 };
+                    item.Positions[2] = new PointAxis { Position = DblDef(p, 0, n2, "z", "Z"), Speed = 100 };
+                    item.Positions[3] = new PointAxis { Position = DblDef(p, 0, n3, "r", "R"), Speed = 100 };
                     t.Points.Add(item);
                 }
+
                 d.PointTables.Add(t);
                 n++;
             }
@@ -345,42 +417,45 @@ namespace NoCodeMotion.Services
         private static int ApplyFlows(ProjectData d, JsonElement root)
         {
             int n = 0;
-            foreach (var e in Items(root, "flows"))
+            foreach (var e in Items(root, "流程", "flows", "flow"))
             {
-                var name = Str(e, "name");
+                var name = Str(e, "名称", "name");
                 if (string.IsNullOrWhiteSpace(name)) continue;
 
-                var kind = Str(e, "kind") ?? "Table";
-                var fk = kind.Equals("Lua", StringComparison.OrdinalIgnoreCase) ? FlowKind.Lua
-                       : kind.Equals("Vision", StringComparison.OrdinalIgnoreCase) ? FlowKind.Vision
-                       : FlowKind.Table;
-
-                var role = Str(e, "role") ?? "Main";
-                var fr = role.Equals("Reset", StringComparison.OrdinalIgnoreCase) ? FlowRole.Reset
+                var roleStr = Str(e, "角色", "role") ?? "主流程";
+                var fr = roleStr.Contains("复位") || roleStr.Equals("Reset", StringComparison.OrdinalIgnoreCase)
+                       ? FlowRole.Reset
                        : FlowRole.Main;
+
+                var kindStr = Str(e, "类型", "kind") ?? "";
+                var fk = kindStr.Contains("脚本") || kindStr.Equals("Lua", StringComparison.OrdinalIgnoreCase) ? FlowKind.Lua
+                       : kindStr.Contains("视觉") || kindStr.Equals("Vision", StringComparison.OrdinalIgnoreCase) ? FlowKind.Vision
+                       : FlowKind.Table;
 
                 var f = new FlowItem { Name = name, Kind = fk, Role = fr };
 
                 if (fk == FlowKind.Lua)
                 {
-                    f.LuaSource = Str(e, "luaSource") ?? "";
+                    f.LuaSource = Str(e, "脚本", "源码", "luaSource", "source") ?? "";
                 }
                 else
                 {
-                    foreach (var s in Items(e, "steps"))
+                    foreach (var s in Items(e, "步骤", "steps", "step"))
                     {
-                        // 名称字段：AI 常写 name / target 都可接受
-                        var target = Str(s, "name") ?? Str(s, "target") ?? "";
+                        var func = Str(s, "功能", "function") ?? "轴";
+                        var target = Str(s, "对象", "name", "target", "名称") ?? "";
+                        var op = Str(s, "动作", "operation") ?? "移动";
+                        var val = Str(s, "值", "setValue", "参数") ?? "";
+
                         f.Steps.Add(new FlowStep
                         {
-                            Logic = Str(s, "logic") ?? "就",
-                            Function = Str(s, "function") ?? "轴",
-                            // Property 槽位承载"对谁操作"（轴名/IO名/气缸名）
-                            Property = Str(s, "property") ?? "位置",
-                            Operation = Str(s, "operation") ?? "等于",
-                            SetValue = Str(s, "setValue") ?? target,
-                            Timeout = Str(s, "timeout") ?? "空",
-                            DurationMs = Int(s, "durationMs")
+                            Logic = Str(s, "条件", "logic") ?? "就",
+                            Function = NormFunction(func),
+                            Property = NormProperty(func, op),
+                            Operation = NormOperation(func, op),
+                            SetValue = string.IsNullOrEmpty(val) ? target : val,
+                            Timeout = Str(s, "超时", "timeout") ?? "空",
+                            DurationMs = Int(s, "时长", "延时", "durationMs")
                         });
                     }
                 }
@@ -391,18 +466,77 @@ namespace NoCodeMotion.Services
             return n;
         }
 
+        /// <summary>把 AI 写的中文/英文功能名归一为本软件 Function 取值。</summary>
+        private static string NormFunction(string func)
+        {
+            if (string.IsNullOrWhiteSpace(func)) return "轴";
+
+            // 英文/缩写精确匹配优先（豆包常直接写 "IO"/"Axis"/"Output" 等）
+            if (func.Equals("IO", StringComparison.OrdinalIgnoreCase)
+             || func.Equals("Input", StringComparison.OrdinalIgnoreCase)
+             || func.Equals("Output", StringComparison.OrdinalIgnoreCase)) return "IO";
+            if (func.Equals("Axis", StringComparison.OrdinalIgnoreCase)) return "轴";
+            if (func.Equals("Cylinder", StringComparison.OrdinalIgnoreCase)) return "气缸";
+            if (func.Equals("Point", StringComparison.OrdinalIgnoreCase)) return "点位";
+            if (func.Equals("Variable", StringComparison.OrdinalIgnoreCase)) return "变量";
+            if (func.Equals("Delay", StringComparison.OrdinalIgnoreCase)) return "系统";
+            if (func.Equals("Comm", StringComparison.OrdinalIgnoreCase)) return "modbus";
+
+            // 中文包含匹配
+            if (func.Contains("轴") || func.Contains("移动")) return "轴";
+            if (func.Contains("输出") || func.Contains("输出点")) return "IO";
+            if (func.Contains("输入") || func.Contains("等待输入")) return "IO";
+            if (func.Contains("气缸") || func.Contains("电磁阀")) return "气缸";
+            if (func.Contains("延时") || func.Contains("等待")) return "系统";
+            if (func.Contains("点位")) return "点位";
+            if (func.Contains("变量")) return "变量";
+            if (func.Contains("通讯") || func.Contains("通信") || func.Contains("modbus")) return "modbus";
+            return "轴";
+        }
+
+        /// <summary>Property 槽位：中文/英文动作 → 本软件的属性取值。</summary>
+        private static string NormProperty(string func, string op)
+        {
+            var f = NormFunction(func);
+            if (f == "轴")
+            {
+                if (op.Contains("回零") || op.Contains("原点") || op.Equals("Home", StringComparison.OrdinalIgnoreCase)) return "回零";
+                return "位置";
+            }
+            if (f == "气缸")
+                return op.Contains("缩回") || op.Equals("Retract", StringComparison.OrdinalIgnoreCase) ? "缩回" : "伸出";
+            if (f == "系统") return "延时";
+            if (f == "IO")
+                return op.Contains("复位") || op.Equals("Reset", StringComparison.OrdinalIgnoreCase) ? "复位" : "输出";
+            return "位置";
+        }
+
+        /// <summary>Operation 槽位：中文/英文动作 → 本软件的运算取值。</summary>
+        private static string NormOperation(string func, string op)
+        {
+            if (string.IsNullOrWhiteSpace(op)) return "等于";
+            if (op.Contains("回零") || op.Equals("Home", StringComparison.OrdinalIgnoreCase)) return "回零";
+            if (op.Contains("置位") || op.Contains("打开") || op.Equals("Set", StringComparison.OrdinalIgnoreCase)) return "置位";
+            if (op.Contains("复位") || op.Contains("关闭") || op.Equals("Reset", StringComparison.OrdinalIgnoreCase)) return "复位";
+            if (op.Contains("伸出") || op.Equals("Extend", StringComparison.OrdinalIgnoreCase)) return "伸出";
+            if (op.Contains("缩回") || op.Equals("Retract", StringComparison.OrdinalIgnoreCase)) return "缩回";
+            if (op.Contains("等待") || op.Equals("Wait", StringComparison.OrdinalIgnoreCase)) return "等待";
+            if (op.Contains("加") || op.Equals("Add", StringComparison.OrdinalIgnoreCase)) return "加";
+            if (op.Contains("减") || op.Equals("Sub", StringComparison.OrdinalIgnoreCase)) return "减";
+            return "等于";
+        }
+
         private static int ApplyVariables(ProjectData d, JsonElement root)
         {
             var pairs = new List<(string name, string value)>();
-            foreach (var e in Items(root, "variables"))
+            foreach (var e in Items(root, "变量", "variables", "variable"))
             {
-                var name = Str(e, "name");
+                var name = Str(e, "名称", "name");
                 if (string.IsNullOrWhiteSpace(name)) continue;
-                pairs.Add((name, Str(e, "value") ?? "0"));
+                pairs.Add((name, Str(e, "值", "value", "初始值") ?? "0"));
             }
             if (pairs.Count == 0) return 0;
 
-            // 每行 5 槽位，超出自动换行
             for (int i = 0; i < pairs.Count; i += 5)
             {
                 var v = new VariableRow();
@@ -417,49 +551,56 @@ namespace NoCodeMotion.Services
             return pairs.Count;
         }
 
-        // ---------------- 容错读取辅助 ----------------
+        // ---------------- 容错读取辅助（全部支持中英文别名） ----------------
 
-        /// <summary>取 root[key] 数组元素；缺失或不是数组时返回空序列。</summary>
-        private static IEnumerable<JsonElement> Items(JsonElement parent, string key)
+        private static IEnumerable<JsonElement> Items(JsonElement parent, params string[] aliases)
         {
             if (parent.ValueKind != JsonValueKind.Object) yield break;
-            if (!parent.TryGetProperty(key, out var arr)) yield break;
+            if (!TryGet(parent, out var arr, aliases)) yield break;
             if (arr.ValueKind != JsonValueKind.Array) yield break;
             foreach (var e in arr.EnumerateArray())
-            {
-                if (e.ValueKind == JsonValueKind.Object)
-                    yield return e;
-            }
+                if (e.ValueKind == JsonValueKind.Object) yield return e;
         }
 
-        private static string? Str(JsonElement e, string key)
+        private static bool TryGet(JsonElement parent, out JsonElement value, params string[] aliases)
         {
-            if (e.ValueKind != JsonValueKind.Object) return null;
-            if (!e.TryGetProperty(key, out var v)) return null;
+            value = default;
+            if (parent.ValueKind != JsonValueKind.Object) return false;
+            foreach (var a in aliases)
+            {
+                if (string.IsNullOrEmpty(a)) continue;
+                if (parent.TryGetProperty(a, out var v)) { value = v; return true; }
+            }
+            return false;
+        }
+
+        private static string? Str(JsonElement e, params string[] aliases)
+        {
+            if (!TryGet(e, out var v, aliases)) return null;
             return v.ValueKind switch
             {
                 JsonValueKind.String => v.GetString(),
                 JsonValueKind.Number => v.GetRawText(),
-                JsonValueKind.True => "true",
-                JsonValueKind.False => "false",
+                JsonValueKind.True => "1",
+                JsonValueKind.False => "0",
                 _ => null
             };
         }
 
-        private static int Int(JsonElement e, string key, int def = 0)
+        private static int Int(JsonElement e, params string[] aliases) => IntDef(e, 0, aliases);
+
+        private static int IntDef(JsonElement e, int def, params string[] aliases)
         {
-            if (e.ValueKind != JsonValueKind.Object) return def;
-            if (!e.TryGetProperty(key, out var v)) return def;
+            if (!TryGet(e, out var v, aliases)) return def;
             if (v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var i)) return i;
             if (v.ValueKind == JsonValueKind.String &&
                 int.TryParse(v.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var s)) return s;
             return def;
         }
 
-        private static double Dbl(JsonElement e, string key, double def = 0)
+        private static double DblDef(JsonElement e, double def, params string[] aliases)
         {
-            if (e.ValueKind != JsonValueKind.Object) return def;
-            if (!e.TryGetProperty(key, out var v)) return def;
+            if (!TryGet(e, out var v, aliases)) return def;
             if (v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var d)) return d;
             if (v.ValueKind == JsonValueKind.String &&
                 double.TryParse(v.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var s)) return s;
