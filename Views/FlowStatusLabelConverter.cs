@@ -18,12 +18,12 @@ namespace NoCodeMotion.Views
             {
                 switch (st)
                 {
-                    case FlowStatus.Idle: return "";
+                    case FlowStatus.Idle: return "就绪";      // 浅灰（始终显示，便于一眼辨别未运行 vs 已停/异常）
                     case FlowStatus.Running: return "运行";     // 绿
                     case FlowStatus.Paused: return "暂停";        // 橙
                     case FlowStatus.Breakpoint: return "断点";   // 红
                     case FlowStatus.Exception: return "异常";    // 深红
-                    case FlowStatus.Stopped: return "停止";      // 灰
+                    case FlowStatus.Stopped: return "停止";      // 灰（与 Idle 不同色，区分"正常完成"与"用户停/急停"）
                 }
             }
             return "";

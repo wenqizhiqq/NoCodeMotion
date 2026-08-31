@@ -22,34 +22,30 @@
             </Style.Triggers>
         </Style>
 
-        <!-- 流程状态芯片：右侧「运行中 / 暂停 / 断点 / 异常 / 停止」单字符指示。
-             默认隐藏（Status=Idle 时不显示），仅 Status != Idle 时可见。
-             颜色按 Status 分支：Running=绿 / Paused=橙 / Breakpoint=红 / Exception=深红 / Stopped=灰。 -->
+        <!-- 流程状态芯片：右侧「运行中 / 暂停 / 断点 / 异常 / 停止 / 就绪」单字符指示。
+             默认可见（Idle = 浅灰「就绪」），按 Status 切色：
+             Idle=浅灰 / Running=绿 / Paused=橙 / Breakpoint=红 / Exception=深红 / Stopped=深灰。
+             这样列表项右侧始终有指示，一眼能看出流程是否在运行、是否已停、是否异常。 -->
         <Style x:Key="FlowStatusChipStyle" TargetType="Border">
-            <Setter Property="Visibility" Value="Collapsed"/>
+            <Setter Property="Visibility" Value="Visible"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Padding" Value="6,2"/>
             <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Background" Value="#94A3B8"/>
+            <Setter Property="Background" Value="#CBD5E1"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Running}">
-                    <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#10B981"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Paused}">
-                    <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#F59E0B"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Breakpoint}">
-                    <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#EF4444"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Exception}">
-                    <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#DC2626"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Stopped}">
-                    <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#6B7280"/>
                 </DataTrigger>
             </Style.Triggers>
