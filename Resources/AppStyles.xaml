@@ -654,6 +654,10 @@
     </Style>
 
     <Style x:Key="CellComboStyle" TargetType="ComboBox">
+        <!-- IsReadOnly=True：与 IsEditable=True 组合使用——保留选中文字显示与下拉选择能力，
+             但禁止用户手动键入/修改（避免名称/属性被改成 Catalog 之外的值）。
+             仅在此样式需要用户输入时，再在调用处显式覆盖 IsReadOnly=False。 -->
+        <Setter Property="IsReadOnly" Value="True"/>
         <Setter Property="Height" Value="24"/>
         <Setter Property="MinHeight" Value="24"/>
         <Setter Property="Padding" Value="7,0,22,0"/>
@@ -708,16 +712,46 @@
                                       Background="Transparent" BorderThickness="0"
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                             <Grid>
+                                <!-- 非编辑态：显示 SelectionBoxItem（用 ContentPresenter 渲染选中项）。
+                                     当 IsEditable=True 时让位给下面的 PART_EditableTextBox。 -->
                                 <ContentPresenter x:Name="PART_ContentSite"
                                                   Content="{TemplateBinding SelectionBoxItem}"
                                                   ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                                   ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
                                                   Margin="{TemplateBinding Padding}"
-                                                  VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                                  VerticalAlignment="Center" HorizontalAlignment="Left">
+                                    <ContentPresenter.Style>
+                                        <Style TargetType="ContentPresenter">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsEditable, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ContentPresenter.Style>
+                                </ContentPresenter>
+                                <!-- 编辑态：可输入/显示文本。ComboBox.IsEditable=True 时显示，
+                                     用户从下拉选择会通过 ComboBox.Text 双向同步到 PART_EditableTextBox。
+                                     早期版本缺这个名字，编辑栏只渲染 ContentPresenter，导致
+                                     IsEditable=True 的格子（FlowPage 步骤编辑的「名称」「属性」列）
+                                     选完之后只看到下拉箭头、不显示已选项。补上即修复。 -->
+                                <TextBox x:Name="PART_EditableTextBox"
+                                         Padding="{TemplateBinding Padding}"
+                                         Margin="0"
+                                         BorderThickness="0"
+                                         Background="Transparent"
+                                         Foreground="{TemplateBinding Foreground}"
+                                         FontSize="{TemplateBinding FontSize}"
+                                         VerticalAlignment="Stretch"
+                                         VerticalContentAlignment="Center"
+                                         HorizontalAlignment="Stretch"
+                                         HorizontalContentAlignment="Stretch"
+                                         Visibility="{Binding IsEditable, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BoolToVis}}"/>
                                 <Path x:Name="Arrow" Data="M0,0 L5,0 L2.5,3 Z"
                                       Fill="{StaticResource TextMutedBrush}"
                                       HorizontalAlignment="Right" VerticalAlignment="Center"
-                                      Margin="0,0,8,0" Stretch="Uniform" Width="9" Height="5"/>
+                                      Margin="0,0,8,0" Stretch="Uniform" Width="9" Height="5"
+                                      IsHitTestVisible="False"/>
                             </Grid>
                         </ToggleButton>
                         <Popup x:Name="PART_Popup"
@@ -743,6 +777,9 @@
                         <Trigger Property="IsDropDownOpen" Value="True">
                             <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
                             <Setter TargetName="Arrow" Property="Fill" Value="{StaticResource AccentBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
