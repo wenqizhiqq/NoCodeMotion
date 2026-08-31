@@ -106,8 +106,15 @@ namespace NoCodeMotion.Services
 
         /// <summary>新建工程：写入空工程文件并原地载入为当前数据。</summary>
         public static void NewProject(string name)
+            => NewProject(name, template: null);
+
+        /// <summary>
+        /// 新建工程（支持模板）：按模板预填数据，写入工程文件并原地载入为当前数据。
+        /// template 为 null 时等同于空工程；否则用 template.Build() 拿到的数据初始化。
+        /// </summary>
+        public static void NewProject(string name, ProjectTemplate? template)
         {
-            var fresh = new ProjectData();
+            var fresh = template != null ? template.Build() : new ProjectData();
             fresh.EnsurePointTables();
             fresh.CreatedAt = DateTime.Now;
             CurrentName = name;

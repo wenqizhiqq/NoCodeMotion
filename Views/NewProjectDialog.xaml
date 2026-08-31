@@ -1,0 +1,247 @@
+<Window x:Class="NoCodeMotion.Views.NewProjectDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        Width="760" Height="560" MinWidth="680" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+    <!-- Apple 风格双栏「新建工程」弹窗：左侧按分类折叠的模板列表，右侧选中模板详情预览 + 名称输入。 -->
+    <Window.Resources>
+        <!-- 模板按 Category 分组（不显式排序，按 ProjectTemplateCatalog.All 的插入顺序成组） -->
+        <CollectionViewSource x:Key="GroupedTemplates" Source="{Binding}">
+            <CollectionViewSource.GroupDescriptions>
+                <PropertyGroupDescription PropertyName="Category"/>
+            </CollectionViewSource.GroupDescriptions>
+        </CollectionViewSource>
+
+        <!-- 类别配色表（按 Category 关键字映射浅色背景与深色文字） -->
+        <Style x:Key="CategoryBadge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#E2E8F0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding}" Value="轴运动">
+                    <Setter Property="Background" Value="#DBEAFE"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="气缸">
+                    <Setter Property="Background" Value="#FED7AA"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="IO">
+                    <Setter Property="Background" Value="#D1FAE5"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="综合">
+                    <Setter Property="Background" Value="#E9D5FF"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CategoryBadgeText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#475569"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding}" Value="轴运动">
+                    <Setter Property="Foreground" Value="#1D4ED8"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="气缸">
+                    <Setter Property="Foreground" Value="#C2410C"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="IO">
+                    <Setter Property="Foreground" Value="#047857"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="综合">
+                    <Setter Property="Foreground" Value="#6B21A8"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 模板列表项样式（去掉默认 padding 与高亮背景，由 DataTemplate 控制） -->
+        <Style x:Key="TemplateListItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderThickness="2,0,0,0" BorderBrush="Transparent" Padding="12,8">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F1F5F9"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EFF6FF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#2563EB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 模板列表项模板 -->
+        <DataTemplate x:Key="TemplateItemTemplate">
+            <StackPanel>
+                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Text="{Binding Summary}" FontSize="11"
+                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"
+                           TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- 分组头样式：类别名 + 数量 -->
+        <DataTemplate x:Key="GroupHeaderTemplate">
+            <Border Background="#F8FAFC" Padding="12,6,12,6" BorderThickness="0,0,0,1" BorderBrush="#E2E8F0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{Binding ItemCount, StringFormat=（{0}）}" FontSize="11"
+                               Foreground="{StaticResource TextMutedBrush}" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- 列表分组容器：直接展开，无 Expander，避免与可点击模板项交互冲突 -->
+        <Style x:Key="GroupContainerStyle" TargetType="GroupItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupItem">
+                        <StackPanel>
+                            <ContentControl ContentTemplate="{StaticResource GroupHeaderTemplate}" Content="{Binding}"/>
+                            <ItemsPresenter/>
+                        </StackPanel>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="14" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Margin="16" Effect="{StaticResource SoftShadow}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 标题栏 -->
+            <Border Grid.Row="0" Padding="22,18,22,14" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="M14,2H6C4.9,2 4,2.9 4,4v16c0,1.1 0.9,2 2,2h12c1.1,0 2-0.9 2-2V8L14,2z M13,9V3.5L18.5,9H13z"
+                          Width="20" Height="20" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TitleText" Text="新建工程" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 名称输入行 -->
+            <DockPanel Grid.Row="1" LastChildFill="True" Margin="22,16,22,12">
+                <TextBlock Text="名称" VerticalAlignment="Center" Margin="0,0,10,0"
+                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" DockPanel.Dock="Left"/>
+                <TextBox x:Name="NameBox" VerticalContentAlignment="Center" FontSize="14" Padding="8,7"
+                         BorderThickness="1" BorderBrush="{StaticResource LineBrush}"
+                         Background="{StaticResource SurfaceBrush}"
+                         Foreground="{StaticResource TextPrimaryBrush}"/>
+            </DockPanel>
+
+            <!-- 双栏主体：左侧模板列表 + 右侧预览 -->
+            <Grid Grid.Row="2" Margin="16,0,16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="280" MinWidth="240"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左：分组模板列表 -->
+                <Border Grid.Column="0" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="8" Background="#FAFBFC" SnapsToDevicePixels="True">
+                    <ListBox x:Name="TemplateList"
+                             ItemsSource="{Binding Source={StaticResource GroupedTemplates}}"
+                             ItemTemplate="{StaticResource TemplateItemTemplate}"
+                             ItemContainerStyle="{StaticResource TemplateListItem}"
+                             BorderThickness="0" Background="Transparent"
+                             MouseDoubleClick="TemplateList_MouseDoubleClick"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.GroupStyle>
+                            <GroupStyle ContainerStyle="{StaticResource GroupContainerStyle}"/>
+                        </ListBox.GroupStyle>
+                    </ListBox>
+                </Border>
+
+                <GridSplitter Grid.Column="1" Width="6" Background="Transparent" HorizontalAlignment="Center" Visibility="Collapsed"/>
+
+                <!-- 右：选中模板的详情预览 -->
+                <Border Grid.Column="2" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="8" Background="{StaticResource SurfaceBrush}">
+                    <Grid>
+                        <!-- 有选中：显示模板详情 -->
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding SelectedItem, ElementName=TemplateList}">
+                            <StackPanel Margin="20,18,20,18">
+                                <!-- 类别 + 名称 -->
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource CategoryBadge}">
+                                        <TextBlock Text="{Binding Category}" Style="{StaticResource CategoryBadgeText}"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="{Binding Name}" FontSize="20" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}" Margin="0,8,0,6"/>
+                                <TextBlock Text="{Binding Description}" FontSize="13"
+                                           Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="20"/>
+
+                                <!-- Summary 摘要芯片 -->
+                                <Border Background="#F1F5F9" CornerRadius="6" Padding="10,8" Margin="0,14,0,14">
+                                    <TextBlock Text="{Binding Summary}" FontSize="12"
+                                               Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                                </Border>
+
+                                <!-- Highlights 列表 -->
+                                <TextBlock Text="包含" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,6"/>
+                                <ItemsControl ItemsSource="{Binding Highlights}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                                <TextBlock Text="•" FontSize="13" Foreground="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Top"/>
+                                                <TextBlock Text="{Binding}" FontSize="12"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                        <!-- 无选中：占位 -->
+                        <TextBlock Text="从左侧选择一个模板" FontSize="13" Foreground="{StaticResource TextMutedBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedItem, ElementName=TemplateList}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- 底部按钮 -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,14,16,16">
+                <Button x:Name="CancelButton" Content="取消" Style="{StaticResource TtGrayBtn}" Click="CancelButton_Click" IsCancel="True"/>
+                <Button x:Name="ConfirmButton" Content="创建" Style="{StaticResource TtBaseBtn}" Margin="8,0,0,0" Click="ConfirmButton_Click" IsDefault="True"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

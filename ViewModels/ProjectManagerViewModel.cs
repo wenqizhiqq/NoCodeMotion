@@ -48,13 +48,20 @@ namespace NoCodeMotion.ViewModels
 
         private void New()
         {
-            var dlg = new RenameDialog("新建工程", "工程" + (Projects.Count + 1));
-            if (dlg.ShowDialog() != true || string.IsNullOrEmpty(dlg.ResultName)) return;
+            // 弹新弹窗：选模板 + 输入工程名。取消 / 无效输入直接退出。
+            var dlg = new NewProjectDialog("工程" + (Projects.Count + 1));
+            if (dlg.ShowDialog() != true) return;
             var name = dlg.ResultName!;
+            var template = dlg.SelectedTemplate!;
             if (ProjectManager.Exists(name))
+            {
+                // 同名已存在则直接打开，避免覆盖；用户想覆盖可手动删除后重建。
                 ProjectManager.OpenProject(name);
+            }
             else
-                ProjectManager.NewProject(name);
+            {
+                ProjectManager.NewProject(name, template);
+            }
             // 新建/打开会触发界面重建，列表由重建后的页面重新刷新，此处无需额外 Refresh
         }
 
