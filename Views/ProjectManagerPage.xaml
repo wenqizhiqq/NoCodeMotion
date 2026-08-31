@@ -6,9 +6,12 @@
              xmlns:local="clr-namespace:NoCodeMotion.Views"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
+    <!--
+        项目管理页：左侧工程列表 + 右侧详情（工程信息 / 备注 / 需求 / AI 生成）。
+        AI 往返流程：填备注与需求 →【复制需求】→ 粘贴到 AI → AI 返回 JSON →【粘贴生成】→ 自动生成配置与流程。
+    -->
     <Grid Background="{StaticResource CanvasBrush}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
@@ -25,7 +28,7 @@
                 <Button Command="{Binding OpenCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource FolderIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                        <TextBlock Text="刷新" VerticalAlignment="Center"/>
+                        <TextBlock Text="打开" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Command="{Binding SaveCommand}" Style="{StaticResource ToolButtonStyle}">
@@ -53,49 +56,157 @@
                     </StackPanel>
                 </Button>
                 <TextBlock Text="{Binding Projects.Count, StringFormat=共 {0} 个工程}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                <TextBlock Text="{Binding CurrentProject, StringFormat=当前：{0}}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
             </StackPanel>
         </Border>
 
-        <!-- 当前工程提示 -->
-        <Border Grid.Row="1" Style="{StaticResource DetailPanelStyle}" Margin="12,12,12,0">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="当前工程：" Foreground="{StaticResource TextSecondaryBrush}"/>
-                <TextBlock Text="{Binding CurrentProject, TargetNullValue=未指定}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                <TextBlock Text="　·　双击列表中的工程可快速打开；备注列可直接编辑" Foreground="{StaticResource TextMutedBrush}" Margin="16,0,0,0"/>
-            </StackPanel>
-        </Border>
+        <!-- 左列表 + 右详情 -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-        <!-- 工程表格：名称 / 创建时间 / 修改时间 / 备注 -->
-        <DataGrid Grid.Row="2" Margin="12"
-                  ItemsSource="{Binding Projects}"
-                  SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False" CanUserDeleteRows="False"
-                  GridLinesVisibility="Horizontal"
-                  HeadersVisibility="Column"
-                  BorderBrush="{StaticResource LineBrush}"
-                  Background="{StaticResource SurfaceBrush}"
-                  RowBackground="{StaticResource SurfaceBrush}"
-                  AlternatingRowBackground="{StaticResource CanvasBrush}"
-                  Foreground="{StaticResource TextPrimaryBrush}"
-                  MouseDoubleClick="ProjectGrid_DoubleClick"
-                  CellEditEnding="ProjectGrid_CellEditEnding">
-            <DataGrid.ColumnHeaderStyle>
-                <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Background" Value="{StaticResource HeaderBrush}"/>
-                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-                    <Setter Property="Padding" Value="8,6"/>
-                    <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
-                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                </Style>
-            </DataGrid.ColumnHeaderStyle>
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="工程名称" Binding="{Binding Name}" IsReadOnly="True" Width="*"/>
-                <DataGridTextColumn Header="创建时间" Binding="{Binding CreatedAt, StringFormat='yyyy-MM-dd HH:mm'}" IsReadOnly="True" Width="160"/>
-                <DataGridTextColumn Header="修改时间" Binding="{Binding UpdatedAt, StringFormat='yyyy-MM-dd HH:mm'}" IsReadOnly="True" Width="160"/>
-                <DataGridTextColumn Header="备注" Binding="{Binding Remark, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
-            </DataGrid.Columns>
-        </DataGrid>
+            <!-- ============ 左：工程列表 ============ -->
+            <Border Grid.Column="0" Style="{StaticResource DetailPanelStyle}" Margin="12,12,6,12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="工程列表" Style="{StaticResource AppleSectionHeader}"/>
+                    <ListBox Grid.Row="1"
+                             ItemsSource="{Binding Projects}"
+                             SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                             Style="{StaticResource ProjectListStyle}"
+                             MouseDoubleClick="ProjectList_DoubleClick">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="12,6">
+                                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding UpdatedAt, StringFormat=修改：yyyy-MM-dd HH:mm}"
+                                               FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                               Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- ============ 右：详情（工程信息 / 备注 / 需求 / AI 生成） ============ -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="6,12,12,12">
+                <StackPanel IsEnabled="{Binding CanEditDetail}">
+
+                    <!-- 工程信息 -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="工程信息"/>
+                            <DockPanel Style="{StaticResource AppleRow}" LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="工程名称"/>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding SelectedEntry.Name, TargetNullValue=—}"
+                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}" LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="创建时间"/>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding SelectedEntry.CreatedAt, StringFormat='yyyy-MM-dd HH:mm', TargetNullValue=—}"
+                                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}" LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="修改时间"/>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding SelectedEntry.UpdatedAt, StringFormat='yyyy-MM-dd HH:mm', TargetNullValue=—}"
+                                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 备注 -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="备注"/>
+                            <TextBox Margin="12,4,12,8" MinHeight="80" MaxHeight="200"
+                                     AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto"
+                                     VerticalContentAlignment="Top"
+                                     Padding="8,6" FontSize="13"
+                                     BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                     Background="{StaticResource SurfaceBrush}"
+                                     Foreground="{StaticResource TextPrimaryBrush}"
+                                     Text="{Binding DetailRemark, UpdateSourceTrigger=PropertyChanged}"/>
+                            <StackPanel Orientation="Horizontal" Margin="12,0,12,10">
+                                <Button Content="保存备注" Style="{StaticResource TtPillGreenBtn}"
+                                        Command="{Binding SaveRemarkCommand}" ToolTip="把备注写回工程文件"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 需求 -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="需求"/>
+                            <ListBox Margin="12,4,12,8" MinHeight="120" MaxHeight="260"
+                                     ItemsSource="{Binding Requirements}"
+                                     SelectedItem="{Binding SelectedRequirement, Mode=TwoWay}"
+                                     BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                     Background="{StaticResource SurfaceBrush}"
+                                     Foreground="{StaticResource TextPrimaryBrush}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap" Padding="8,5" FontSize="13"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <!-- 新增需求：输入框 + 添加 / 删除 -->
+                            <StackPanel Orientation="Horizontal" Margin="12,0,12,4">
+                                <TextBox Width="420" MinWidth="200" Height="30" Padding="8,0"
+                                         VerticalContentAlignment="Center" FontSize="13"
+                                         BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                         Background="{StaticResource SurfaceBrush}"
+                                         Foreground="{StaticResource TextPrimaryBrush}"
+                                         Text="{Binding NewRequirement, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="输入一条需求后点「添加」"/>
+                                <Button Content="添加" Style="{StaticResource TtPillBlueBtn}" Margin="8,0,0,0"
+                                        Command="{Binding AddRequirementCommand}"/>
+                                <Button Content="删除" Style="{StaticResource TtPillRedBtn}" Margin="8,0,0,0"
+                                        Command="{Binding RemoveRequirementCommand}" ToolTip="删除选中的需求"/>
+                            </StackPanel>
+                            <TextBlock Margin="12,2,12,10" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                       Text="需求写清楚动作、IO、气缸、点位等，AI 才能生成准确配置。"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- AI 生成：复制需求 / 粘贴生成 -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="AI 生成工程"/>
+                            <TextBlock Margin="12,2,12,8" FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Text="① 填好上方备注与需求 → ② 点「复制需求」→ ③ 粘贴到 AI（WorkBuddy 等）→ ④ 复制 AI 返回的 JSON → ⑤ 点「粘贴生成」。"/>
+                            <StackPanel Orientation="Horizontal" Margin="12,0,12,12">
+                                <Button Content="复制需求" Style="{StaticResource TtBaseBtn}" MinWidth="110"
+                                        Command="{Binding CopyPromptCommand}"
+                                        ToolTip="把工程名 + 备注 + 需求 + JSON 契约复制为 AI 提示词"/>
+                                <Button Content="粘贴生成" Style="{StaticResource TtPillGreenBtn}" MinWidth="110" Margin="8,0,0,0"
+                                        Command="{Binding PasteGenerateCommand}"
+                                        ToolTip="读取剪贴板里的 AI 返回 JSON，生成轴/IO/气缸/流程/点位等配置"/>
+                            </StackPanel>
+                            <Border Margin="12,0,12,12" Padding="10,8" CornerRadius="6"
+                                    Background="{StaticResource AccentSoftBrush}">
+                                <TextBlock Text="{Binding StatusMessage, TargetNullValue=—}"
+                                           FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </UserControl>

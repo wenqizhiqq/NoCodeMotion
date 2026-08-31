@@ -2,6 +2,8 @@
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Windows;
 using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
@@ -9,7 +11,7 @@ using NoCodeMotion.Views;
 
 namespace NoCodeMotion.ViewModels
 {
-    /// <summary>项目管理页面：以表格列出全部工程（名称/创建时间/修改时间/备注），并提供 新建 / 打开(读取) / 保存 / 删除 / 重命名 / 刷新。</summary>
+    /// <summary>项目管理页面：左列表 + 右详情（备注 / 需求 / 复制给AI / 粘贴生成）。</summary>
     public class ProjectManagerViewModel : ViewModelBase, IEnsureDefaultSelection
     {
         public ObservableCollection<ProjectEntry> Projects { get; } = new();
@@ -18,10 +20,64 @@ namespace NoCodeMotion.ViewModels
         public ProjectEntry? SelectedEntry
         {
             get => _selectedEntry;
-            set => SetField(ref _selectedEntry, value);
+            set
+            {
+                if (SetField(ref _selectedEntry, value))
+                {
+                    LoadDetailFor(value);
+                    OnPropertyChanged(nameof(CanEditDetail));
+                }
+            }
         }
 
         public string? CurrentProject => ProjectManager.CurrentName;
+
+        // ==================== 右侧详情：备注 + 需求 ====================
+
+        /// <summary>有选中工程时才允许编辑备注/需求。</summary>
+        public bool CanEditDetail => SelectedEntry != null;
+
+        private string _detailRemark = "";
+        /// <summary>右侧详情的备注（编辑后点【保存备注】写回工程文件）。</summary>
+        public string DetailRemark
+        {
+            get => _detailRemark;
+            set => SetField(ref _detailRemark, value);
+        }
+
+        /// <summary>右侧详情的需求列表（对应 ProjectData.Requirements）。</summary>
+        public ObservableCollection<string> Requirements { get; } = new();
+
+        private string? _selectedRequirement;
+        public string? SelectedRequirement
+        {
+            get => _selectedRequirement;
+            set
+            {
+                if (SetField(ref _selectedRequirement, value))
+                    OnPropertyChanged(nameof(CanRemoveRequirement));
+            }
+        }
+
+        public bool CanRemoveRequirement => SelectedRequirement != null;
+
+        private string _newRequirement = "";
+        /// <summary>新增需求输入框的内容。</summary>
+        public string NewRequirement
+        {
+            get => _newRequirement;
+            set => SetField(ref _newRequirement, value);
+        }
+
+        private string _statusMessage = "";
+        /// <summary>操作结果提示（复制成功 / 粘贴生成结果 / 错误信息）。</summary>
+        public string StatusMessage
+        {
+            get => _statusMessage;
+            set => SetField(ref _statusMessage, value);
+        }
+
+        // ==================== 命令 ====================
 
         public ICommand NewCommand => new RelayCommand(_ => New());
         public ICommand OpenCommand => new RelayCommand(_ => Open(), _ => SelectedEntry != null);
@@ -30,10 +86,135 @@ namespace NoCodeMotion.ViewModels
         public ICommand RenameCommand => new RelayCommand(_ => Rename(), _ => SelectedEntry != null);
         public ICommand RefreshCommand => new RelayCommand(_ => Refresh());
 
+        public ICommand SaveRemarkCommand => new RelayCommand(_ => SaveRemark(), _ => SelectedEntry != null);
+        public ICommand AddRequirementCommand => new RelayCommand(_ => AddRequirement(), _ => SelectedEntry != null);
+        public ICommand RemoveRequirementCommand => new RelayCommand(_ => RemoveRequirement(), _ => CanRemoveRequirement);
+        public ICommand SaveRequirementsCommand => new RelayCommand(_ => SaveRequirements(), _ => SelectedEntry != null);
+        public ICommand CopyPromptCommand => new RelayCommand(_ => CopyPrompt(), _ => SelectedEntry != null);
+        public ICommand PasteGenerateCommand => new RelayCommand(_ => PasteGenerate());
+
         public ProjectManagerViewModel()
         {
             Refresh();
         }
+
+        // ==================== 详情加载 / 保存 ====================
+
+        /// <summary>选中某个工程后，从工程文件读取备注与需求到右侧详情。</summary>
+        private void LoadDetailFor(ProjectEntry? entry)
+        {
+            Requirements.Clear();
+            DetailRemark = "";
+            SelectedRequirement = null;
+
+            if (entry == null) return;
+
+            DetailRemark = entry.Remark ?? "";
+            foreach (var r in ProjectManager.GetRequirements(entry.Name))
+                Requirements.Add(r);
+        }
+
+        private void SaveRemark()
+        {
+            if (SelectedEntry == null) return;
+            ProjectManager.SetRemark(SelectedEntry.Name, DetailRemark);
+            SelectedEntry.Remark = DetailRemark;
+            Refresh();
+            StatusMessage = "备注已保存。";
+        }
+
+        private void AddRequirement()
+        {
+            var text = (NewRequirement ?? "").Trim();
+            if (string.IsNullOrEmpty(text)) return;
+            Requirements.Add(text);
+            NewRequirement = "";
+            SelectedRequirement = text;
+            SaveRequirements();
+        }
+
+        private void RemoveRequirement()
+        {
+            if (SelectedRequirement == null) return;
+            Requirements.Remove(SelectedRequirement);
+            SelectedRequirement = null;
+            SaveRequirements();
+        }
+
+        /// <summary>把右侧需求列表写回工程文件（ProjectData.Requirements）。</summary>
+        private void SaveRequirements()
+        {
+            if (SelectedEntry == null) return;
+            ProjectManager.SetRequirements(SelectedEntry.Name, Requirements.ToList());
+            StatusMessage = $"需求已保存（共 {Requirements.Count} 条）。";
+        }
+
+        // ==================== 复制 / 粘贴（AI 往返） ====================
+
+        /// <summary>【复制需求】生成给 AI 的提示词（含 JSON 契约）到剪贴板。</summary>
+        private void CopyPrompt()
+        {
+            if (SelectedEntry == null) return;
+            try
+            {
+                var prompt = AiProjectExchange.BuildPrompt(
+                    SelectedEntry.Name,
+                    string.IsNullOrWhiteSpace(DetailRemark) ? SelectedEntry.Remark : DetailRemark,
+                    Requirements);
+                Clipboard.SetText(prompt);
+                StatusMessage = $"提示词已复制（工程「{SelectedEntry.Name}」+ {Requirements.Count} 条需求）。粘贴到 AI 即可生成配置。";
+            }
+            catch (System.Exception ex)
+            {
+                StatusMessage = "复制失败：" + ex.Message;
+            }
+        }
+
+        /// <summary>【粘贴生成】读取剪贴板里的 AI 返回 JSON 并应用到当前工程。</summary>
+        private void PasteGenerate()
+        {
+            string text;
+            try
+            {
+                if (!Clipboard.ContainsText())
+                {
+                    StatusMessage = "剪贴板没有文本内容。请先复制 AI 返回的 JSON。";
+                    return;
+                }
+                text = Clipboard.GetText();
+            }
+            catch (System.Exception ex)
+            {
+                StatusMessage = "读取剪贴板失败：" + ex.Message;
+                return;
+            }
+
+            // 没有打开工程时，拿选中项打开一个作为生成目标
+            var target = ProjectManager.CurrentName;
+            if (string.IsNullOrEmpty(target) && SelectedEntry != null)
+            {
+                ProjectManager.OpenProject(SelectedEntry.Name);
+                target = SelectedEntry.Name;
+            }
+            if (string.IsNullOrEmpty(target))
+            {
+                StatusMessage = "请先双击列表打开一个工程，再粘贴生成。";
+                return;
+            }
+
+            var result = AiProjectExchange.ApplyGenerated(ProjectStore.Data, text);
+            if (result.StartsWith("未识别") || result.StartsWith("JSON 解析失败") || result.StartsWith("内容不是"))
+            {
+                StatusMessage = result;
+                return;
+            }
+
+            ProjectManager.SaveCurrent(target);
+            Refresh();
+            StatusMessage = result + "。已保存到工程「" + target + "」。";
+        }
+
+        // ==================== 原有工程操作 ====================
 
         private void Refresh()
         {
