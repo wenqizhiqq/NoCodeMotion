@@ -22,6 +22,13 @@ namespace NoCodeMotion.Views
             if (DataContext is ProjectManagerViewModel vm && vm.OpenCommand.CanExecute(null))
                 vm.OpenCommand.Execute(null);
         }
+
+        /// <summary>备注文本框失焦时自动保存到工程文件。</summary>
+        private void Remark_LostFocus(object sender, System.Windows.RoutedEventArgs e)
+        {
+            if (DataContext is ProjectManagerViewModel vm && vm.SaveRemarkCommand.CanExecute(null))
+                vm.SaveRemarkCommand.Execute(null);
+        }
     }
 }
 // ◇作者保留所有权利　请勿删除※​⁣​

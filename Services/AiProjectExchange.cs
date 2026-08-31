@@ -36,12 +36,15 @@ namespace NoCodeMotion.Services
     {
         // ==================== 1. 生成提示词（复制按钮用） ====================
 
-        /// <summary>按工程名 / 备注 / 需求列表生成给 AI 的中文提示词（含中文 JSON 契约 + 数量要求）。</summary>
-        public static string BuildPrompt(string projectName, string? remark, IEnumerable<string>? requirements)
+        /// <summary>按工程名 / 备注 / 需求文本生成给 AI 的中文提示词（含中文 JSON 契约 + 数量要求 + 三类流程）。</summary>
+        public static string BuildPrompt(string projectName, string? remark, string? requirementsText)
         {
-            var reqs = (requirements ?? Enumerable.Empty<string>())
-                       .Where(r => !string.IsNullOrWhiteSpace(r))
+            // 把需求文本逐行化展示（保留空行作为段落分隔）
+            var reqs = (requirementsText ?? "")
+                       .Replace("\r\n", "\n")
+                       .Split('\n')
                        .Select(r => r.Trim())
+                       .Where(r => r.Length > 0)
                        .ToList();
 
             var sb = new StringBuilder();
@@ -72,7 +75,12 @@ namespace NoCodeMotion.Services
             sb.AppendLine("- 输入：至少 8 个（启动、停止、复位、急停、手自动、暂停、原点、正限位、负限位、来料、完成 等）");
             sb.AppendLine("- 输出：至少 8 个（运行、就绪、报警、完成、暂停、各工位控制输出、指示灯 等）");
             sb.AppendLine("- 气缸：0~4 个（需求涉及抓取/推料/压紧/分拣等动作时必须给）");
-            sb.AppendLine("- 流程：至少 2 个（1 个「主流程」+ 1 个「复位流程」），每个流程至少 8~15 个步骤，覆盖完整的取料→加工→放料→回零流程");
+            sb.AppendLine("- 相机：1~2 个（需求涉及视觉检测/视觉引导/拍照定位时必须给）");
+            sb.AppendLine("- 流程：至少 3 个，覆盖三种类型，必须齐全：");
+            sb.AppendLine("    * 1 个「运控流程」（类型：\"运控\"，即表格步骤 - 轴/IO/气缸/变量/延时 步骤），至少 10 个步骤");
+            sb.AppendLine("    * 1 个「脚本流程」（类型：\"脚本\"，用 Lua 写一些工艺逻辑，例如配方切换/统计/报警分支），源码完整可运行");
+            sb.AppendLine("    * 1 个「视觉流程」（类型：\"视觉\"，用 Lua 调用相机/图像处理，对应视觉步骤）");
+            sb.AppendLine("    * 复位流程（角色：\"复位\"）作为运控流程的补充，至少 6 步");
             sb.AppendLine("- 工位：1~2 个，每个工位至少 4 个点位（取料位、放料位、安全位、等待位 等）");
             sb.AppendLine("- 通讯：0~2 个（Modbus 主站 / 串口扫码枪 等）");
             sb.AppendLine("- 变量：2~5 个（计数、总数、当前工位、当前工序 等）");
@@ -84,6 +92,10 @@ namespace NoCodeMotion.Services
             sb.AppendLine("3. 用不到的分类填空数组 []，不要删除分类。");
             sb.AppendLine("4. 流程步骤里引用的轴名、IO 名、气缸名，必须和上面定义过的名称完全一致。");
             sb.AppendLine("5. 步骤要足够详细：回零→移动到点位→等待输入→输出动作→气缸伸出/缩回→延时→计数，按真实工艺流程编排。");
+            sb.AppendLine("6. 流程必须写明「类型」字段：运控流程写 \"运控\"，脚本流程写 \"脚本\"，视觉流程写 \"视觉\"。");
+            sb.AppendLine("7. 脚本流程不要留 \"脚本\" 字段为空，至少 5 行完整可读的 Lua 源码（含 Log.Info/Variable.Get/Variable.Set/if/return）。");
+            sb.AppendLine("8. 视觉流程的步骤里要包含 至少 1 个 \"功能\": \"相机\"（拍照）+ 1 个 \"功能\": \"视觉\"（匹配/检测）。");
+            sb.AppendLine("9. 运控流程每个步骤都要写齐 4 个字段（功能/对象/动作/值），不要留空。");
             sb.AppendLine();
             sb.AppendLine("【输出格式】严格按下面这个结构输出：");
             sb.AppendLine(SchemaText);
@@ -128,6 +140,7 @@ namespace NoCodeMotion.Services
   "流程": [
     {
       "名称": "主流程",
+      "类型": "运控",
       "角色": "主流程",
       "步骤": [
         { "功能": "轴", "对象": "X轴", "动作": "回零", "值": "" },
@@ -158,6 +171,16 @@ namespace NoCodeMotion.Services
         { "功能": "轴", "对象": "Z轴", "动作": "回零", "值": "" },
         { "功能": "输出", "对象": "就绪", "动作": "置位", "值": "1" }
       ]
+    },
+    {
+      "名称": "配方脚本",
+      "类型": "脚本",
+      "脚本": "-- 切换当前加工配方（依据变量「当前工序」决定工件号）\nlocal recipe = Variable.Get(\"当前工序\") or \"A\"\nif recipe == \"A\" then\n  Log.Info(\"运行 A 配方\")\n  Variable.Set(\"缺陷阈值\", 0.95)\nelseif recipe == \"B\" then\n  Log.Info(\"运行 B 配方\")\n  Variable.Set(\"缺陷阈值\", 0.90)\nelse\n  Log.Warn(\"未知配方：\" .. recipe)\nend\nreturn true"
+    },
+    {
+      "名称": "缺陷检测",
+      "类型": "视觉",
+      "脚本": "-- 顶视相机拍照 + 模板匹配 + 缺陷检测\nlocal img = Camera.Grab(\"顶视相机\")          -- 拍照取图\nif img == nil then\n  Log.Error(\"相机取图失败\")\n  return false\nend\n\nlocal score = Vision.Match(img, \"模板A\")     -- 模板匹配，返回 0~1\nLog.Info(\"匹配得分：\" .. score)\nif score < 0.8 then\n  Log.Warn(\"匹配失败，跳过\")\n  return false\nend\n\nlocal defect = Vision.Defect(img, 0.9)       -- 缺陷检测\nif defect then\n  Variable.Set(\"缺陷计数\", (Variable.Get(\"缺陷计数\") or 0) + 1)\n  Log.Warn(\"检出缺陷，累计：\" .. Variable.Get(\"缺陷计数\"))\nend\nreturn true"
     }
   ],
   "工位": [
@@ -175,6 +198,10 @@ namespace NoCodeMotion.Services
   "通讯": [
     { "名称": "主站", "类型": "串口", "端口": "COM1", "波特率": 9600 }
   ],
+  "相机": [
+    { "名称": "顶视相机", "类型": "海康面阵", "接口": "GigE", "编号": 0, "触发模式": "软件触发", "曝光ms": 20, "增益": 1.0 },
+    { "名称": "底视相机", "类型": "海康面阵", "接口": "GigE", "编号": 1, "触发模式": "硬件触发", "曝光ms": 30, "增益": 1.2 }
+  ],
   "变量": [
     { "名称": "计数", "值": "0" },
     { "名称": "总数", "值": "0" },
@@ -182,6 +209,8 @@ namespace NoCodeMotion.Services
   ]
 }
 """;
+
+        // cameras 已加到 schema 上半段；流程示例加在下面（运控 / 脚本 / 视觉 / 复位 4 个示例）
 
         // ==================== 2. 解析并应用（粘贴按钮用） ====================
 
@@ -224,6 +253,7 @@ namespace NoCodeMotion.Services
                 n = ApplyIo(data, root, isInput: true); if (n > 0) log.Add($"输入 {n}");
                 n = ApplyIo(data, root, isInput: false); if (n > 0) log.Add($"输出 {n}");
                 n = ApplyCylinders(data, root); if (n > 0) log.Add($"气缸 {n}");
+                n = ApplyCameras(data, root); if (n > 0) log.Add($"相机 {n}");
                 n = ApplyComms(data, root); if (n > 0) log.Add($"通讯 {n}");
                 n = ApplyPointTables(data, root); if (n > 0) log.Add($"工位 {n}");
                 n = ApplyFlows(data, root); if (n > 0) log.Add($"流程 {n}");
@@ -349,6 +379,51 @@ namespace NoCodeMotion.Services
             return n;
         }
 
+        private static int ApplyCameras(ProjectData d, JsonElement root)
+        {
+            int n = 0;
+            foreach (var e in Items(root, "相机", "摄像头", "cameras", "camera"))
+            {
+                var name = Str(e, "名称", "name");
+                if (string.IsNullOrWhiteSpace(name)) continue;
+
+                // 相机字段名兼容：编号/slotNo → Port；IP/接口 → IpAddress（去掉 GigE 字面只留 IP）；
+                // 触发模式：仅存到 Description
+                var vendor = Str(e, "厂商", "vendor", "品牌", "类型", "type") ?? "海康威视";
+                var ip = Str(e, "IP", "ip", "ipAddress")
+                      ?? Str(e, "接口", "interface", "connection")
+                      ?? "192.168.1.100";
+                if (ip.Equals("GigE", StringComparison.OrdinalIgnoreCase)) ip = "192.168.1.100";
+
+                var port = IntDef(e, 8000, "端口", "port", "编号", "编号", "slotNo");
+                var width = IntDef(e, 1920, "宽度", "width", "分辨率宽");
+                var height = IntDef(e, 1080, "高度", "height", "分辨率高");
+                var exposure = DblDef(e, 10.0, "曝光ms", "曝光", "exposureMs", "exposure");
+                var gain = DblDef(e, 1.0, "增益", "gain");
+
+                // 触发模式追加到 Description
+                var desc = Str(e, "备注", "description", "remark");
+                var trig = Str(e, "触发模式", "trigger", "triggerMode");
+                if (!string.IsNullOrEmpty(trig))
+                    desc = "[触发:" + trig + "] " + (desc ?? "");
+
+                d.Cameras.Add(new CameraItem
+                {
+                    Name = name,
+                    Vendor = vendor,
+                    IpAddress = ip,
+                    Port = port == 0 ? 8000 : port,
+                    Width = width == 0 ? 1920 : width,
+                    Height = height == 0 ? 1080 : height,
+                    ExposureMs = exposure,
+                    Gain = gain,
+                    Description = (desc ?? "").Trim()
+                });
+                n++;
+            }
+            return n;
+        }
+
         private static int ApplyComms(ProjectData d, JsonElement root)
         {
             int n = 0;
@@ -428,15 +503,18 @@ namespace NoCodeMotion.Services
                        : FlowRole.Main;
 
                 var kindStr = Str(e, "类型", "kind") ?? "";
-                var fk = kindStr.Contains("脚本") || kindStr.Equals("Lua", StringComparison.OrdinalIgnoreCase) ? FlowKind.Lua
-                       : kindStr.Contains("视觉") || kindStr.Equals("Vision", StringComparison.OrdinalIgnoreCase) ? FlowKind.Vision
-                       : FlowKind.Table;
+                var fk = NormFlowKind(kindStr);
 
                 var f = new FlowItem { Name = name, Kind = fk, Role = fr };
 
-                if (fk == FlowKind.Lua)
+                // 脚本 / 视觉流程都走 Lua 源码；运控流程走表格步骤。
+                // 容差：若流程声明是 Lua/Vision 但没给「脚本」字段，退回去读「步骤」。
+                var lua = fk == FlowKind.Table ? null
+                        : (Str(e, "脚本", "源码", "luaSource", "source") ?? "");
+
+                if (fk != FlowKind.Table && !string.IsNullOrWhiteSpace(lua))
                 {
-                    f.LuaSource = Str(e, "脚本", "源码", "luaSource", "source") ?? "";
+                    f.LuaSource = lua;
                 }
                 else
                 {
@@ -464,6 +542,30 @@ namespace NoCodeMotion.Services
                 n++;
             }
             return n;
+        }
+
+        /// <summary>把 AI 写的流程类型（中英文/口语化）归一为本软件 FlowKind（运控/脚本/视觉）。</summary>
+        private static FlowKind NormFlowKind(string kind)
+        {
+            if (string.IsNullOrWhiteSpace(kind)) return FlowKind.Table;
+
+            // 脚本类：脚本 / Lua / LuaScript / 脚本流程
+            if (kind.Contains("脚本")
+             || kind.Equals("Lua", StringComparison.OrdinalIgnoreCase)
+             || kind.Equals("LuaScript", StringComparison.OrdinalIgnoreCase)
+             || kind.Equals("Script", StringComparison.OrdinalIgnoreCase))
+                return FlowKind.Lua;
+
+            // 视觉类：视觉 / Vision / 相机 / 图像
+            if (kind.Contains("视觉")
+             || kind.Contains("相机")
+             || kind.Contains("图像")
+             || kind.Equals("Vision", StringComparison.OrdinalIgnoreCase)
+             || kind.Equals("Camera", StringComparison.OrdinalIgnoreCase))
+                return FlowKind.Vision;
+
+            // 运控类：运控 / 运动控制 / 表格 / Table / Motion（含默认兜底）
+            return FlowKind.Table;
         }
 
         /// <summary>把 AI 写的中文/英文功能名归一为本软件 Function 取值。</summary>

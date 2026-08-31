@@ -1,6 +1,7 @@
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
@@ -45,28 +46,12 @@ namespace NoCodeMotion.ViewModels
             set => SetField(ref _detailRemark, value);
         }
 
-        /// <summary>右侧详情的需求列表（对应 ProjectData.Requirements）。</summary>
-        public ObservableCollection<string> Requirements { get; } = new();
-
-        private string? _selectedRequirement;
-        public string? SelectedRequirement
+        /// <summary>右侧详情的需求（多行文本，每行一条需求或一段自然语言描述）。\n        /// 编辑后点【保存需求】写回工程文件。</summary>
+        private string _requirementsText = "";
+        public string RequirementsText
         {
-            get => _selectedRequirement;
-            set
-            {
-                if (SetField(ref _selectedRequirement, value))
-                    OnPropertyChanged(nameof(CanRemoveRequirement));
-            }
-        }
-
-        public bool CanRemoveRequirement => SelectedRequirement != null;
-
-        private string _newRequirement = "";
-        /// <summary>新增需求输入框的内容。</summary>
-        public string NewRequirement
-        {
-            get => _newRequirement;
-            set => SetField(ref _newRequirement, value);
+            get => _requirementsText;
+            set => SetField(ref _requirementsText, value);
         }
 
         private string _statusMessage = "";
@@ -87,8 +72,6 @@ namespace NoCodeMotion.ViewModels
         public ICommand RefreshCommand => new RelayCommand(_ => Refresh());
 
         public ICommand SaveRemarkCommand => new RelayCommand(_ => SaveRemark(), _ => SelectedEntry != null);
-        public ICommand AddRequirementCommand => new RelayCommand(_ => AddRequirement(), _ => SelectedEntry != null);
-        public ICommand RemoveRequirementCommand => new RelayCommand(_ => RemoveRequirement(), _ => CanRemoveRequirement);
         public ICommand SaveRequirementsCommand => new RelayCommand(_ => SaveRequirements(), _ => SelectedEntry != null);
         public ICommand CopyPromptCommand => new RelayCommand(_ => CopyPrompt(), _ => SelectedEntry != null);
         public ICommand PasteGenerateCommand => new RelayCommand(_ => PasteGenerate());
@@ -103,15 +86,12 @@ namespace NoCodeMotion.ViewModels
         /// <summary>选中某个工程后，从工程文件读取备注与需求到右侧详情。</summary>
         private void LoadDetailFor(ProjectEntry? entry)
         {
-            Requirements.Clear();
-            DetailRemark = "";
-            SelectedRequirement = null;
+            RequirementsText = "";
 
             if (entry == null) return;
 
             DetailRemark = entry.Remark ?? "";
-            foreach (var r in ProjectManager.GetRequirements(entry.Name))
-                Requirements.Add(r);
+            RequirementsText = ProjectManager.GetRequirementsText(entry.Name);
         }
 
         private void SaveRemark()
@@ -123,30 +103,15 @@ namespace NoCodeMotion.ViewModels
             StatusMessage = "备注已保存。";
         }
 
-        private void AddRequirement()
-        {
-            var text = (NewRequirement ?? "").Trim();
-            if (string.IsNullOrEmpty(text)) return;
-            Requirements.Add(text);
-            NewRequirement = "";
-            SelectedRequirement = text;
-            SaveRequirements();
-        }
-
-        private void RemoveRequirement()
-        {
-            if (SelectedRequirement == null) return;
-            Requirements.Remove(SelectedRequirement);
-            SelectedRequirement = null;
-            SaveRequirements();
-        }
-
-        /// <summary>把右侧需求列表写回工程文件（ProjectData.Requirements）。</summary>
+        /// <summary>把右侧需求文本写回工程文件（ProjectData.RequirementsText）。</summary>
         private void SaveRequirements()
         {
             if (SelectedEntry == null) return;
-            ProjectManager.SetRequirements(SelectedEntry.Name, Requirements.ToList());
-            StatusMessage = $"需求已保存（共 {Requirements.Count} 条）。";
+            ProjectManager.SetRequirementsText(SelectedEntry.Name, RequirementsText);
+            var lineCount = RequirementsText.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+            StatusMessage = string.IsNullOrWhiteSpace(RequirementsText)
+                ? "需求已清空。"
+                : $"需求已保存（共 {lineCount} 条）。";
         }
 
         // ==================== 复制 / 粘贴（AI 往返） ====================
@@ -160,9 +125,9 @@ namespace NoCodeMotion.ViewModels
                 var prompt = AiProjectExchange.BuildPrompt(
                     SelectedEntry.Name,
                     string.IsNullOrWhiteSpace(DetailRemark) ? SelectedEntry.Remark : DetailRemark,
-                    Requirements);
+                    RequirementsText);
                 Clipboard.SetText(prompt);
-                StatusMessage = $"提示词已复制（工程「{SelectedEntry.Name}」+ {Requirements.Count} 条需求）。粘贴到 AI 即可生成配置。";
+                StatusMessage = $"提示词已复制（工程「{SelectedEntry.Name}」+ {RequirementsText.Length} 字需求）。粘贴到 AI 即可生成配置。";
             }
             catch (System.Exception ex)
             {

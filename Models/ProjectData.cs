@@ -39,8 +39,8 @@ namespace NoCodeMotion.Models
         /// <summary>变量表（流程/逻辑中可引用的计算与状态变量），每行含 5 个 (名称/字符串值)。</summary>
         public ObservableCollection<VariableRow> Variables { get; set; } = new();
 
-        /// <summary>需求列表：用户在项目管理页填写，用于「复制给 AI → 生成配置 → 粘贴回来」。</summary>
-        public ObservableCollection<string> Requirements { get; set; } = new();
+        /// <summary>需求文本：用户在项目管理页填写，用于「复制给 AI → 生成配置 → 粘贴回来」。\n        /// 多行字符串，每行一条需求或一段自然语言描述。</summary>
+        public string RequirementsText { get; set; } = "";
 
         /// <summary>工程创建时间（首次保存时写入）。</summary>
         public DateTime? CreatedAt { get; set; }
@@ -105,7 +105,7 @@ namespace NoCodeMotion.Models
             Inputs.Clear(); foreach (var x in src.Inputs) Inputs.Add(x);
             Outputs.Clear(); foreach (var x in src.Outputs) Outputs.Add(x);
             Variables.Clear(); foreach (var x in src.Variables) Variables.Add(x);
-            Requirements.Clear(); foreach (var x in src.Requirements) Requirements.Add(x);
+            RequirementsText = src.RequirementsText;
             CreatedAt = src.CreatedAt;
             UpdatedAt = src.UpdatedAt;
             Remark = src.Remark;
