@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:NoCodeMotion"
         xmlns:views="clr-namespace:NoCodeMotion.Views"
-        Title="NoCodeMotion · 无代码运动控制 · ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​ "  
+        Title="NoCodeMotion · 无代码运动控制"  
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         FontFamily="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif"
