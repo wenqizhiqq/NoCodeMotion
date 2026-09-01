@@ -131,7 +131,7 @@ namespace NoCodeMotion.ViewModels
         {
             if (flow == null) return;
             var name = flow.Name ?? "(未命名流程)";
-            if (flow.Kind.ToString() == "Lua")
+            if (flow.Kind == FlowKind.Lua)
             {
                 RunOneFlowLua(flow, index, ctrl, log, onStep, onFlowDone);
                 return;
@@ -144,12 +144,63 @@ namespace NoCodeMotion.ViewModels
                 onFlowDone?.Invoke(index, name);
                 return;
             }
+
+            // 主流程（Role=Main）：循环执行——每轮跑完所有步骤后从头再来，直到停止/急停。
+            // 复位流程（Role=Reset）：单次执行——归位/复位不应循环，跑完即结束。
+            if (flow.Role == FlowRole.Main)
+            {
+                log?.Invoke($"流程「{name}」开始循环运行（{steps.Count} 步/轮，直到停止/急停）。");
+                int cycle = 0;
+                try
+                {
+                    while (!ctrl.StopRequested && !ctrl.EStopRequested)
+                    {
+                        cycle++;
+                        SetStatus(flow, FlowStatus.Running);
+                        var exec = new FlowExecutor(flow, index, steps, ctrl, log, onStep);
+                        try
+                        {
+                            exec.Run(ct);
+                            log?.Invoke($"流程「{name}」第 {cycle} 轮运行结束。");
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            SetStatus(flow, FlowStatus.Stopped);
+                            log?.Invoke(ctrl.EStopRequested
+                                ? $"流程「{name}」在第 {cycle} 轮急停。"
+                                : $"流程「{name}」在第 {cycle} 轮停止。");
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            SetStatus(flow, FlowStatus.Exception);
+                            log?.Invoke($"流程「{name}」第 {cycle} 轮运行异常：{ex.Message}");
+                            Thread.Sleep(500);   // 避免持续异常时紧密重试刷屏
+                        }
+                        finally
+                        {
+                            exec.ClearCurrent();   // 每轮结束清掉上一轮的高亮行
+                        }
+                    }
+                    SetStatus(flow, FlowStatus.Stopped);
+                    log?.Invoke(ctrl.EStopRequested
+                        ? $"流程「{name}」已急停（{cycle} 轮）。"
+                        : $"流程「{name}」已停止（{cycle} 轮）。");
+                }
+                finally
+                {
+                    onFlowDone?.Invoke(index, name);
+                }
+                return;
+            }
+
+            // 复位流程：单次执行（保留旧行为）
             SetStatus(flow, FlowStatus.Running);
-            var exec = new FlowExecutor(flow, index, steps, ctrl, log, onStep);
-            log?.Invoke($"流程「{name}」开始运行（{steps.Count} 步）。");
+            var exec2 = new FlowExecutor(flow, index, steps, ctrl, log, onStep);
+            log?.Invoke($"流程「{name}」开始运行（{steps.Count} 步，复位流程单次执行）。");
             try
             {
-                exec.Run(ct);
+                exec2.Run(ct);
                 SetStatus(flow, FlowStatus.Idle);
                 log?.Invoke($"流程「{name}」运行结束。");
             }
@@ -165,7 +216,7 @@ namespace NoCodeMotion.ViewModels
             }
             finally
             {
-                exec.ClearCurrent();
+                exec2.ClearCurrent();
                 onFlowDone?.Invoke(index, name);
             }
         }
