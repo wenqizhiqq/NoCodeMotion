@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:NoCodeMotion"
         xmlns:views="clr-namespace:NoCodeMotion.Views"
-        Title="NoCodeMotion · 无代码运动控制"  
+        Title="NoCodeMotion · 无代码运动控制 · ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​ "  
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         FontFamily="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif"
@@ -111,17 +111,6 @@
 
         <!-- 底部状态栏 -->
         <views:StatusBarView Grid.Row="2"/>
-
-        <!-- 版权署名（永久可见，最底行；字符被拆段+零宽混淆，搜索替换无效） -->
-        <Border Grid.Row="3" Background="#0F172A" Padding="14,3">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock x:Name="AuthorSignatureText"
-                           Foreground="#E2E8F0"
-                           FontFamily="Consolas, Microsoft YaHei UI"
-                           FontSize="11"
-                           FontWeight="SemiBold"
-                           VerticalAlignment="Center"/>
-            </StackPanel>
-        </Border>
+ 
     </Grid>
 </Window>

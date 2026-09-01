@@ -47,9 +47,7 @@ namespace NoCodeMotion
             StatusBarService.SetProject(ProjectManager.CurrentName ?? "未打开工程");
             StatusBarService.RefreshUser();
             // 底栏署名（AuthorWatermark 是 internal，作者联系串在源码里被拆段+零宽混淆，
-            // 即便有人用整段字符串批量替换也无法一次抹掉。本字段仅在 InitializeComponent 之后可用）
-            if (AuthorSignatureText != null)
-                AuthorSignatureText.Text = AuthorWatermark.UiSignature();
+            // 即便有人用整段字符串批量替换也无法一次抹掉。本字段仅在 InitializeComponent 之后可用） 
             // 默认打开「流程」页面
             NavigateTo("Flow");
         }
