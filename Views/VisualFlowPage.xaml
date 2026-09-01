@@ -259,7 +259,7 @@
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#E616A34A"/>
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding MatchResult.Pass}" Value="False">
+                                                <DataTrigger Binding="{Binding Mode=OneWay, Path=MatchResult.Pass}" Value="False">
                                                     <Setter Property="Background" Value="#E6DC2626"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -269,27 +269,27 @@
                                         <TextBlock Text="匹配结果" Foreground="White" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
                                         <TextBlock Foreground="White" FontSize="12">
                                             <Run Text="相似度 "/>
-                                            <Run Text="{Binding MatchResult.Similarity, StringFormat={}{0:F3}}"/>
+                                            <Run Text="{Binding Mode=OneWay, Path=MatchResult.Similarity, StringFormat={}{0:F3}}"/>
                                             <Run Text="　精度 "/>
-                                            <Run Text="{Binding MatchResult.PrecisionPercent, StringFormat={}{0:F1}}"/>
+                                            <Run Text="{Binding Mode=OneWay, Path=MatchResult.PrecisionPercent, StringFormat={}{0:F1}}"/>
                                             <Run Text="%"/>
                                         </TextBlock>
                                         <TextBlock Foreground="White" FontSize="11">
                                             <Run Text="位置 ("/>
-                                            <Run Text="{Binding MatchResult.X}"/>
+                                            <Run Text="{Binding Mode=OneWay, Path=MatchResult.X}"/>
                                             <Run Text=", "/>
-                                            <Run Text="{Binding MatchResult.Y}"/>
+                                            <Run Text="{Binding Mode=OneWay, Path=MatchResult.Y}"/>
                                             <Run Text=")　角度 "/>
-                                            <Run Text="{Binding MatchResult.Angle, StringFormat={}{0:F0}}"/>
+                                            <Run Text="{Binding Mode=OneWay, Path=MatchResult.Angle, StringFormat={}{0:F0}}"/>
                                             <Run Text="°"/>
                                         </TextBlock>
                                         <TextBlock Foreground="White" FontSize="11">
                                             <Run Text="模板 "/>
-                                            <Run Text="{Binding MatchResult.W}"/>
+                                            <Run Text="{Binding Mode=OneWay, Path=MatchResult.W}"/>
                                             <Run Text="×"/>
-                                            <Run Text="{Binding MatchResult.H}"/>
+                                            <Run Text="{Binding Mode=OneWay, Path=MatchResult.H}"/>
                                             <Run Text="　阈值 "/>
-                                            <Run Text="{Binding MatchResult.Threshold, StringFormat={}{0:F2}}"/>
+                                            <Run Text="{Binding Mode=OneWay, Path=MatchResult.Threshold, StringFormat={}{0:F2}}"/>
                                         </TextBlock>
                                     </StackPanel>
                                 </Border>
