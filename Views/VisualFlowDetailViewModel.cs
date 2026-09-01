@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using NoCodeMotion.Models;
+using NoCodeMotion.Services;
 using NoCodeMotion.Services.Vision;
 
 namespace NoCodeMotion.Views
@@ -292,31 +293,44 @@ namespace NoCodeMotion.Views
                 ScoreThreshold = step.ScoreThreshold, AngleRange = step.AngleRange
             };
 
-            var report = await Task.Run(() =>
-                VisionEngine.Run(new ObservableCollection<VisualFlowStep> { acq, mt }, _progress));
-
-            // 回到 UI 线程组装结果
-            Results.Clear();
-            foreach (var r in report.Results) Results.Add(r);
-
-            if (report.HasImage && report.Bgra != null && report.Bgra.Length == report.Width * report.Height * 4)
+            try
             {
-                var wb = new WriteableBitmap(report.Width, report.Height, 96, 96, PixelFormats.Bgra32, null);
-                wb.WritePixels(new Int32Rect(0, 0, report.Width, report.Height), report.Bgra, report.Width * 4, 0);
-                ResultImage = wb;
-                HasResult = true;
+                var report = await Task.Run(() =>
+                    VisionEngine.Run(new ObservableCollection<VisualFlowStep> { acq, mt }, _progress));
+
+                // 回到 UI 线程组装结果
+                Results.Clear();
+                foreach (var r in report.Results) Results.Add(r);
+
+                if (report.HasImage && report.Bgra != null && report.Bgra.Length == report.Width * report.Height * 4)
+                {
+                    var wb = new WriteableBitmap(report.Width, report.Height, 96, 96, PixelFormats.Bgra32, null);
+                    wb.WritePixels(new Int32Rect(0, 0, report.Width, report.Height), report.Bgra, report.Width * 4, 0);
+                    ResultImage = wb;
+                    HasResult = true;
+                }
+
+                // 结构化匹配结果供右侧图像叠加（相似度 / 精度 / 位置 / 角度）
+                MatchResult = report.Match;
+
+                int ok = 0;
+                foreach (var r in Results) if (r.Ok) ok++;
+                RunStatus = report.Match != null
+                    ? $"匹配完成：{Results.Count} 步，{ok} 步成功　相似度 {report.Match.Score:F3} / 阈值 {report.Match.Threshold:F2}"
+                    : $"匹配完成：{Results.Count} 步，{ok} 步成功";
             }
-
-            // 结构化匹配结果供右侧图像叠加（相似度 / 精度 / 位置 / 角度）
-            MatchResult = report.Match;
-
-            int ok = 0;
-            foreach (var r in Results) if (r.Ok) ok++;
-            IsRunning = false;
-            CanRun = true;
-            RunStatus = report.Match != null
-                ? $"匹配完成：{Results.Count} 步，{ok} 步成功　相似度 {report.Match.Score:F3} / 阈值 {report.Match.Threshold:F2}"
-                : $"匹配完成：{Results.Count} 步，{ok} 步成功";
+            catch (Exception ex)
+            {
+                // 异常不再逃逸到 UnobservedTaskException；同时显式提示到状态栏
+                RunStatus = $"匹配失败：{ex.Message}";
+                StatusBarService.ReportException($"模板匹配失败：{ex.Message}");
+            }
+            finally
+            {
+                // 异常路径也要恢复「运行中」标志，否则按钮永久变灰
+                IsRunning = false;
+                CanRun = true;
+            }
         }
 
         /// <summary>路径浏览命令：参数为要写入的属性名（SavePath/FolderPath/TemplatePath/PreImage2Path）。</summary>

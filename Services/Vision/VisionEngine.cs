@@ -347,8 +347,14 @@ namespace NoCodeMotion.Services.Vision
                 matcher.UseContour = (mode == "轮廓匹配");
 
                 double angleRange = Clamp(s.AngleRange, 0, 360);
-                // 角度步长参考 GrayMatch.Wpf 默认 1° 精确扫描；范围≤0 时退化为 0°（仅原角度）
-                double angleStep = angleRange <= 0 ? 0.0 : 1.0;
+                // 角度步长智能选：范围≤30°（短旋转 / 水平对齐）时 1° 精扫；
+                // 范围 >30° 时用 5° 粗扫提速 5 倍（GrayMatch 的 0.35× 精修步 3° 会兜住）。
+                // 范围≤0 时退化为 0°（仅原角度）。
+                double angleStep = angleRange <= 0 ? 0.0
+                                 : angleRange <= 30 ? 1.0
+                                 : 5.0;
+                // topN = 12：图里通常有十几个目标，全部显示；搜索时间与 topN 几乎无关
+                // （GrayMatch 走传统两遍 / 全图扫描，NMS 后只保留前 N 个）
                 var results = matcher.Match(
                     pyramidLevels: 0,            // 0 = 传统两遍全分辨率（稳健，不踩金字塔分支漏检 bug）
                     angleStart: 0,
@@ -356,7 +362,7 @@ namespace NoCodeMotion.Services.Vision
                     angleStep: angleStep,
                     nccThreshold: Clamp(s.ScoreThreshold, 0, 1),
                     maxOverlap: 0.3,
-                    topN: 1,                     // 视觉流程单步一般只取最佳匹配
+                    topN: 12,                    // 视觉流程默认 12：让多目标场景全部框出
                     denseMode: 0);
 
                 if (results.Count > 0)
