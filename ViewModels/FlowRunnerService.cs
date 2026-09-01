@@ -242,6 +242,8 @@ namespace NoCodeMotion.ViewModels
         {
             var name = flow.Name ?? "(未命名流程)";
             SetStatus(flow, FlowStatus.Running);
+            // Lua Main 循环：每轮跑完脚本后判断 Ended.IsError，一旦脚本报错就停止循环并把状态置 Exception，
+            // 避免早前实现的「错误也立即重启」造成的 LuaScriptThread/LuaWatch 死循环刷屏与 UI 卡顿。
             try
             {
             var editor = LuaEditorView.Active;
@@ -250,6 +252,7 @@ namespace NoCodeMotion.ViewModels
                 while (!ctrl.StopRequested && !ctrl.EStopRequested)
                 {
                     LuaDebugSession session = null;
+                    ExecutionEndedInfo lastEnded = null;
                     try
                     {
                         editor.Dispatcher.Invoke(() =>
@@ -259,11 +262,17 @@ namespace NoCodeMotion.ViewModels
                             {
                                 session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}");
                                 session.LineStepped += line => onStep?.Invoke(index, name, $"Lua 行 {line}");
+                                Action<ExecutionEndedInfo> onEnded = null;
+                                onEnded = info =>
+                                {
+                                    lastEnded = info;
+                                };
+                                session.Ended += onEnded;
                             }
                         });
                     }
-                    catch (Exception ex) { log?.Invoke($"流程「{name}」Lua 启动异常：{ex.Message}"); Thread.Sleep(50); continue; }
-                    if (session == null) { Thread.Sleep(50); continue; } // 编辑器正忙（用户手动调试），稍后重试
+                    catch (Exception ex) { log?.Invoke($"流程「{name}」Lua 启动异常：{ex.Message}"); Thread.Sleep(200); continue; }
+                    if (session == null) { Thread.Sleep(200); continue; } // 编辑器正忙（用户手动调试），稍后重试
                     log?.Invoke($"流程「{name}」开始连续运行（复用 Lua 编辑器页面运行，直到停止）。");
                     while (session.IsBusy && !ctrl.EStopRequested && !ctrl.StopRequested)
                     {
@@ -284,7 +293,15 @@ namespace NoCodeMotion.ViewModels
                     LuaRunMonitor.ReportEnded(flow);
                     if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。"); break; }
                     if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。"); break; }
-                    Thread.Sleep(1);
+                    // 脚本以错误结束 → 跳出循环，状态置 Exception，不再重试（早前实现刷屏根因）
+                    if (lastEnded != null && lastEnded.IsError)
+                    {
+                        SetStatus(flow, FlowStatus.Exception);
+                        log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。");
+                        break;
+                    }
+                    // 正常结束一轮 → 节流后再起下一轮，避免脚本短到几毫秒时紧贴循环独占 CPU。
+                    Thread.Sleep(200);
                 }
                 onFlowDone?.Invoke(index, name);
                 return;
@@ -294,6 +311,7 @@ namespace NoCodeMotion.ViewModels
             while (!ctrl.StopRequested && !ctrl.EStopRequested)
             {
                 var ended = new ManualResetEventSlim(false);
+                ExecutionEndedInfo lastEnded = null;
                 try
                 {
                     var session = new LuaDebugSession();
@@ -305,6 +323,7 @@ namespace NoCodeMotion.ViewModels
                     };
                     session.Ended += info =>
                     {
+                        lastEnded = info;
                         if (info.IsError) log?.Invoke($"[Lua:{name}] 运行错误（行 {info.ErrorLine}）：{info.Message}");
                         ended.Set();
                     };
@@ -335,16 +354,23 @@ namespace NoCodeMotion.ViewModels
                 finally { LuaRunMonitor.ReportEnded(flow); }
                 if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。"); break; }
                 if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。"); break; }
-                Thread.Sleep(1);
+                // 错误结束 → 跳出循环，状态置 Exception，不再重试（早前实现刷屏根因）
+                if (lastEnded != null && lastEnded.IsError)
+                {
+                    SetStatus(flow, FlowStatus.Exception);
+                    log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。");
+                    break;
+                }
+                Thread.Sleep(200);
             }
             onFlowDone?.Invoke(index, name);
             }
             finally
             {
-                // 收尾状态：被停止 → Stopped，否则正常完成 → Idle
+                // 收尾状态：被停止 / 急停 → Stopped；脚本错误 → 保持已置 Exception；其它正常完成 → Idle
                 if (ctrl.EStopRequested || ctrl.StopRequested)
                     SetStatus(flow, FlowStatus.Stopped);
-                else
+                else if (flow.Status != FlowStatus.Exception)
                     SetStatus(flow, FlowStatus.Idle);
             }
         }
