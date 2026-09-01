@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using NoCodeMotion.Services.Vision;
 using NoCodeMotion.Views;
 using MoonSharp.Interpreter.Debugging;
 
@@ -144,6 +145,11 @@ namespace NoCodeMotion.ViewModels
             if (flow.Kind == FlowKind.Lua)
             {
                 RunOneFlowLua(flow, index, ctrl, log, onStep, onFlowDone);
+                return;
+            }
+            if (flow.Kind == FlowKind.Vision)
+            {
+                RunOneFlowVision(flow, index, ctrl, log, onStep, onFlowDone);
                 return;
             }
             var steps = flow.Steps?.ToList();
@@ -385,11 +391,112 @@ namespace NoCodeMotion.ViewModels
             finally
             {
                 // 收尾状态：被停止 / 急停 → Stopped；脚本错误 → 保持已置 Exception；其它正常完成 → Idle
+                // 注意：必须检查 FlowRunStore 中的实时状态，而不是 flow.Status——
+                // flow.Status 由 OperatorViewModel 的 DispatcherTimer 异步写入，有最多 150ms 滞后，
+                // 错误分支刚 SetStatus(Exception) 立刻 break 时 flow.Status 还是旧 Running，
+                // 会错误地把 Exception 覆盖成 Idle（早前 Lua 流程一直「就绪」的根因）。
                 if (ctrl.EStopRequested || ctrl.StopRequested)
                     SetStatus(flow, FlowStatus.Stopped);
-                else if (flow.Status != FlowStatus.Exception)
+                else if (FlowRunStore.Get(flow).Status != FlowStatus.Exception)
                     SetStatus(flow, FlowStatus.Idle);
             }
+        }
+
+        /// <summary>视觉流程：复用 VisionEngine 真实执行 图像采集 / 预处理 / 模板匹配 / 缺陷检测 / 测量 / 通讯
+        /// 六类算子，每轮跑完整条视觉流程后从头再来（Role=Main 循环；Role=Reset 单次）。运行期高频写回只走
+        /// FlowRunStore 与进度回调，界面由 OperatorViewModel 的 DispatcherTimer 周期拉取，不卡界面。</summary>
+        private static void RunOneFlowVision(FlowItem flow, int index, FlowRunControl ctrl,
+            Action<string> log, Action<int, string, string> onStep, Action<int, string> onFlowDone)
+        {
+            var name = flow.Name ?? "(未命名流程)";
+            var steps = flow.VisualSteps?.ToList();
+            if (steps == null || steps.Count == 0)
+            {
+                log?.Invoke($"视觉流程「{name}」没有步骤，已跳过。");
+                SetStatus(flow, FlowStatus.Idle);
+                onFlowDone?.Invoke(index, name);
+                return;
+            }
+
+            // 进度回调：只入队日志（线程安全 ConcurrentQueue）并写共享态，不碰 UI。
+            IProgress<string> progress = new DirectProgress(msg =>
+            {
+                log?.Invoke($"[视觉:{name}] {msg}");
+                FlowRunStore.SetStep(flow, msg);
+            });
+
+            // 主流程（Role=Main）：循环运行——每轮跑完整条视觉流程后从头再来，直到停止 / 急停。
+            if (flow.Role == FlowRole.Main)
+            {
+                log?.Invoke($"视觉流程「{name}」开始循环运行（{steps.Count} 步/轮，直到停止/急停）。");
+                int cycle = 0;
+                try
+                {
+                    while (!ctrl.StopRequested && !ctrl.EStopRequested)
+                    {
+                        // 暂停：以整轮为粒度响应——暂停期间阻塞在 ResumeEvent，恢复后继续下一轮。
+                        if (ctrl.PauseRequested)
+                        {
+                            SetStatus(flow, FlowStatus.Paused);
+                            try { ctrl.ResumeEvent?.Wait(); } catch { }
+                            if (ctrl.StopRequested || ctrl.EStopRequested) break;
+                            SetStatus(flow, FlowStatus.Running);
+                        }
+                        cycle++;
+                        SetStatus(flow, FlowStatus.Running);
+                        try
+                        {
+                            var report = VisionEngine.Run(steps, progress);
+                            bool anyFail = report.Results.Any(r => !r.Ok);
+                            log?.Invoke($"视觉流程「{name}」第 {cycle} 轮完成（{(anyFail ? "有失败步骤" : "全部通过")}，{report.Results.Count} 步）。");
+                        }
+                        catch (Exception ex)
+                        {
+                            SetStatus(flow, FlowStatus.Exception);
+                            log?.Invoke($"视觉流程「{name}」第 {cycle} 轮运行异常：{ex.Message}");
+                            Thread.Sleep(500);   // 避免持续异常时紧密重试刷屏
+                        }
+                        Thread.Sleep(1);   // 让出 CPU，避免 while 紧密循环抢占 UI 线程导致卡顿
+                    }
+                    SetStatus(flow, FlowStatus.Stopped);
+                    log?.Invoke(ctrl.EStopRequested
+                        ? $"视觉流程「{name}」已急停（{cycle} 轮）。"
+                        : $"视觉流程「{name}」已停止（{cycle} 轮）。");
+                }
+                finally
+                {
+                    onFlowDone?.Invoke(index, name);
+                }
+                return;
+            }
+
+            // 复位流程：单次执行（跑完即结束，不循环）
+            SetStatus(flow, FlowStatus.Running);
+            log?.Invoke($"视觉流程「{name}」开始运行（{steps.Count} 步，复位流程单次执行）。");
+            try
+            {
+                var report = VisionEngine.Run(steps, progress);
+                SetStatus(flow, FlowStatus.Idle);
+                log?.Invoke($"视觉流程「{name}」运行结束。");
+            }
+            catch (Exception ex)
+            {
+                SetStatus(flow, FlowStatus.Exception);
+                log?.Invoke($"视觉流程「{name}」运行异常：{ex.Message}");
+            }
+            finally
+            {
+                onFlowDone?.Invoke(index, name);
+            }
+        }
+
+        /// <summary>无 SynchronizationContext 依赖的进度回调：直接在调用线程（后台流程线程）执行，
+        /// 仅做线程安全操作（入队日志 + 写共享态），不触发任何 UI 刷新。</summary>
+        private sealed class DirectProgress : IProgress<string>
+        {
+            private readonly Action<string> _cb;
+            public DirectProgress(Action<string> cb) => _cb = cb;
+            public void Report(string value) => _cb?.Invoke(value);
         }
     }
 
