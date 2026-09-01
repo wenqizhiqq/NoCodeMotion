@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using Cv = OpenCvSharp;
+using GrayMatch;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 
@@ -328,55 +329,59 @@ namespace NoCodeMotion.Services.Vision
             }
             if (tpl == null) { AddFail(report, s, "请先框选模板区域（或设置有效模板路径）"); return cur; }
 
+            // ===== 改用 GrayMatch.Wpf 的旋转不变 NCC 匹配核心（RotatedTemplateMatcher） =====
+            // 源图与模板都转单通道灰度喂给 native NCC；轮廓匹配模式复用 UseContour 开关。
             string mode = (s.MatchMode ?? "灰度匹配").Trim();
             using var sGray = new Cv.Mat();
+            Cv.Cv2.CvtColor(cur, sGray, Cv.ColorConversionCodes.BGRA2GRAY);
             using var tGray = new Cv.Mat();
-            if (mode == "轮廓匹配")
-            {
-                using var g1 = new Cv.Mat(); Cv.Cv2.CvtColor(cur, g1, Cv.ColorConversionCodes.BGRA2GRAY); Cv.Cv2.Canny(g1, sGray, 50, 150);
-                using var g2 = new Cv.Mat(); Cv.Cv2.CvtColor(tpl, g2, Cv.ColorConversionCodes.BGRA2GRAY); Cv.Cv2.Canny(g2, tGray, 50, 150);
-            }
-            else
-            {
-                Cv.Cv2.CvtColor(cur, sGray, Cv.ColorConversionCodes.BGRA2GRAY);
-                Cv.Cv2.CvtColor(tpl, tGray, Cv.ColorConversionCodes.BGRA2GRAY);
-            }
+            Cv.Cv2.CvtColor(tpl, tGray, Cv.ColorConversionCodes.BGRA2GRAY);
 
-            double angleRange = Clamp(s.AngleRange, 0, 360);
-            var angles = BuildAngles(angleRange);
             double best = -2; int bx = 0, by = 0; double bangle = 0;
-            foreach (var a in angles)
+            int tw = tpl.Width, th = tpl.Height;
             {
-                Cv.Mat rt;
-                if (Math.Abs(a) < 1e-6)
-                {
-                    rt = tGray;
-                }
-                else
-                {
-                    using var rm = Cv.Cv2.GetRotationMatrix2D(new Cv.Point2f(tGray.Width / 2f, tGray.Height / 2f), a, 1.0);
-                    rt = new Cv.Mat();
-                    Cv.Cv2.WarpAffine(tGray, rt, rm, tGray.Size());
-                }
+                using var matcher = new RotatedTemplateMatcher();
+                matcher.SetSource(sGray);
+                matcher.SetTemplate(tGray);
+                // 轮廓匹配模式：用边缘梯度图代替灰度，对光照/前景背景灰度接近更鲁棒
+                matcher.UseContour = (mode == "轮廓匹配");
 
-                using var res = new Cv.Mat();
-                Cv.Cv2.MatchTemplate(sGray, rt, res, Cv.TemplateMatchModes.CCoeffNormed);
-                Cv.Cv2.MinMaxLoc(res, out _, out double maxVal, out _, out Cv.Point maxLoc);
-                if (maxVal > best) { best = maxVal; bx = maxLoc.X; by = maxLoc.Y; bangle = a; }
+                double angleRange = Clamp(s.AngleRange, 0, 360);
+                // 角度步长参考 GrayMatch.Wpf 默认 1° 精确扫描；范围≤0 时退化为 0°（仅原角度）
+                double angleStep = angleRange <= 0 ? 0.0 : 1.0;
+                var results = matcher.Match(
+                    pyramidLevels: 0,            // 0 = 传统两遍全分辨率（稳健，不踩金字塔分支漏检 bug）
+                    angleStart: 0,
+                    angleEnd: angleRange,
+                    angleStep: angleStep,
+                    nccThreshold: Clamp(s.ScoreThreshold, 0, 1),
+                    maxOverlap: 0.3,
+                    topN: 1,                     // 视觉流程单步一般只取最佳匹配
+                    denseMode: 0);
 
-                if (rt != tGray) rt.Dispose();
-                if (best >= 0.999) break;
+                if (results.Count > 0)
+                {
+                    var r0 = results[0];         // 已按 Score 降序
+                    best = r0.Score;
+                    bx = r0.LeftTopX;
+                    by = r0.LeftTopY;
+                    bangle = r0.Angle;
+                    tw = r0.TemplateWidth;
+                    th = r0.TemplateHeight;
+                }
             }
 
-            int tw = tpl.Width, th = tpl.Height;
             bool pass = best >= Clamp(s.ScoreThreshold, 0, 1);
 
             var dst = display ?? cur;
             // 通过则画绿框，未达阈值画红框（视觉反馈更直观）
             var boxColor = pass ? Rgb(0, 200, 80) : Rgb(220, 40, 40);
             Cv.Cv2.Rectangle(dst, new Cv.Rect(bx, by, tw, th), boxColor, 2);
-            Cv.Cv2.DrawMarker(dst, new Cv.Point(bx + tw / 2, by + th / 2), boxColor, Cv.MarkerTypes.Cross, 12, 2);
-            featurePts.Add((bx + tw / 2.0, by + th / 2.0, "匹配"));
+            if (tw > 0 && th > 0)
+            {
+                Cv.Cv2.DrawMarker(dst, new Cv.Point(bx + tw / 2, by + th / 2), boxColor, Cv.MarkerTypes.Cross, 12, 2);
+                featurePts.Add((bx + tw / 2.0, by + th / 2.0, "匹配"));
+            }
 
             // 结构化结果供页面叠加相似度/精度/位置/角度
             report.Match = new MatchOutcome

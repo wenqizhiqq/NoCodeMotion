@@ -17,6 +17,34 @@
     <Page Remove="artifacts\**" />
   </ItemGroup>
 
+  <!-- 复用 GrayMatch.Wpf 的旋转不变 NCC 匹配核心（与 GrayMatch 工程共用同一份源文件，单一事实来源）。
+       仅含纯算法/C# 部分（RotatedTemplateMatcher + MatchResult + DefectResult），不引入 WPF/WinForms 依赖。
+       作者：温启志◆编写◇微信﹕187◆1936◇1399 -->
+  <ItemGroup>
+    <Compile Include="..\GrayMatch\GrayMatch\RotatedTemplateMatcher.cs" Link="Vision\GrayMatch\RotatedTemplateMatcher.cs" />
+    <Compile Include="..\GrayMatch\GrayMatch\MatchResult.cs" Link="Vision\GrayMatch\MatchResult.cs" />
+    <Compile Include="..\GrayMatch\GrayMatch\DefectResult.cs" Link="Vision\GrayMatch\DefectResult.cs" />
+  </ItemGroup>
+
+  <!-- 原生匹配 DLL（x64）与其 OpenMP 运行时（vcomp140）。GrayModelNative 由 C++ 编译，
+       使用 OpenMP 并行，运行时必须随附 vcomp140.dll，否则 P/Invoke 加载失败。 -->
+  <ItemGroup>
+    <None Include="..\GrayMatch\GrayModelNative\build-ninja9\GrayModelNative.dll" Link="GrayModelNative.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="CopyGrayMatchNativeDeps" AfterTargets="Build">
+    <PropertyGroup>
+      <_VsRedistRoot Condition="Exists('C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC')">C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC</_VsRedistRoot>
+      <_VsRedistRoot Condition="'$(_VsRedistRoot)' == '' AND Exists('C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Redist\MSVC')">C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Redist\MSVC</_VsRedistRoot>
+      <_VsRedistRoot Condition="'$(_VsRedistRoot)' == '' AND Exists('C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC')">C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC</_VsRedistRoot>
+      <_VsRedistRoot Condition="'$(_VsRedistRoot)' == '' AND Exists('C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Redist\MSVC')">C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Redist\MSVC</_VsRedistRoot>
+    </PropertyGroup>
+    <ItemGroup>
+      <_VcompDll Include="$(_VsRedistRoot)\*\x64\Microsoft.VC143.OpenMP\vcomp140.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_VcompDll)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('%(Identity)')" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
     <PackageReference Include="ClosedXML" Version="0.105.1" />
