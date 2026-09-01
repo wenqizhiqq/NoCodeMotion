@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using NoCodeMotion.Models;
 using NoCodeMotion.ViewModels;
 
@@ -43,7 +44,17 @@ namespace NoCodeMotion.Views
             if (e.PropertyName == nameof(VisualFlowDetailViewModel.ResultImage)
                 || e.PropertyName == nameof(VisualFlowDetailViewModel.MatchResults))
             {
-                UpdateMatchOverlayTransform();
+                // 关键：PropertyChanged 触发时 Image 控件还没完成布局，ResultImageView.Source
+                // 可能是 null（旧源未释放）或 ImageHost.ActualWidth/Height 仍是旧值，导致
+                // 同步调用 UpdateMatchOverlayTransform 早退（RenderTransform=null），且
+                // ImageHost 自身尺寸没变 → SizeChanged 不会再次触发 → 叠加层永远没变换，
+                // 绿框按原始像素坐标当屏幕坐标画，必然错位。必须 BeginInvoke 到布局完成后执行。
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    UpdateMatchOverlayTransform();
+                    // 二次保护：再排一次 Render 优先级，确保 Measure/Arrange 完后再算
+                    Dispatcher.BeginInvoke(new Action(UpdateMatchOverlayTransform), DispatcherPriority.Render);
+                }), DispatcherPriority.Background);
             }
         }
 

@@ -148,7 +148,8 @@ namespace NoCodeMotion.Views
 
         // ---- 模板匹配结果（点「开启匹配」后叠加在右侧图像上：相似度 / 精度 / 位置 / 角度） ----
         public static readonly DependencyProperty MatchResultProperty =
-            DependencyProperty.Register(nameof(MatchResult), typeof(MatchOutcome), typeof(VisualFlowDetailViewModel));
+            DependencyProperty.Register(nameof(MatchResult), typeof(MatchOutcome), typeof(VisualFlowDetailViewModel),
+                new PropertyMetadata(null, (d, e) => ((VisualFlowDetailViewModel)d).OnPropertyChanged(nameof(HasMatchResult))));
 
         public MatchOutcome? MatchResult
         {
@@ -162,7 +163,8 @@ namespace NoCodeMotion.Views
         // 与 MatchResult（单条 best）并存：MatchResult 喂顶部信息胶囊，MatchResults 喂叠加层。
         public static readonly DependencyProperty MatchResultsProperty =
             DependencyProperty.Register(nameof(MatchResults), typeof(ObservableCollection<MatchBox>),
-                typeof(VisualFlowDetailViewModel));
+                typeof(VisualFlowDetailViewModel),
+                new PropertyMetadata(null, (d, e) => ((VisualFlowDetailViewModel)d).OnPropertyChanged(nameof(HasMatchResults))));
 
         public ObservableCollection<MatchBox>? MatchResults
         {
