@@ -260,6 +260,12 @@
                                     <TextBlock Text="添加点位" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
+                            <Button Command="{Binding ImportDxfCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="从 DXF 图形文件导入几何生成点位行：轴1/轴2 ← DXF X/Y，轴3/轴4 留 0，采样步长 5mm。追加到当前工位末尾。">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource ImportIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                    <TextBlock Text="导入DXF" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <Button Command="{Binding DeletePointCommand}" Style="{StaticResource TtPillRedBtn}" ToolTip="删除表格中选中的那一行点位。">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource DeleteIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>

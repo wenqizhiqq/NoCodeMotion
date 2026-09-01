@@ -6,8 +6,10 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows.Input;
+using Microsoft.Win32;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using NoCodeMotion.Services.Cad;
 using NoCodeMotion.Views;
 
 namespace NoCodeMotion.ViewModels
@@ -124,6 +126,7 @@ namespace NoCodeMotion.ViewModels
             AddPointCommand = new RelayCommand(_ => AddPoint(), _ => SelectedItem != null);
             DeletePointCommand = new RelayCommand(_ => DeletePoint(), _ => CanDeletePoint);
             CompileCommand = new RelayCommand(_ => Compile(), _ => SelectedItem != null);
+            ImportDxfCommand = new RelayCommand(_ => ImportDxf(), _ => SelectedItem != null);
 
             // 工位切换 → 重新载入 4 个轴名、刷新右侧表格
             PropertyChanged += OnSelfPropertyChanged;
@@ -219,6 +222,7 @@ namespace NoCodeMotion.ViewModels
         public ICommand AddPointCommand { get; }
         public ICommand DeletePointCommand { get; }
         public ICommand CompileCommand { get; }
+        public ICommand ImportDxfCommand { get; }
 
         private void AddPoint()
         {
@@ -226,6 +230,53 @@ namespace NoCodeMotion.ViewModels
             var point = new PointItem { Name = UniqueName("点位", table.Points.Select(p => p.Name)) };
             table.Points.Add(point);
             SelectedPoint = point;
+        }
+
+        /// <summary>从 DXF 导入几何，生成点位表行（轴1/轴2 ← DXF X/Y，步长 5mm）。
+        /// 追加到当前工位末尾，不覆盖已有行；用户可手动删除冗余后再用。</summary>
+        private void ImportDxf()
+        {
+            if (SelectedItem is not PointTable table) return;
+            try
+            {
+                var dlg = new OpenFileDialog
+                {
+                    Title = "选择 DXF 图形文件",
+                    Filter = "DXF 图形 (*.dxf)|*.dxf|所有文件 (*.*)|*.*",
+                    CheckFileExists = true,
+                    Multiselect = false
+                };
+                if (dlg.ShowDialog() != true) return;
+
+                // stepMm=5：5mm 采样兼顾密度与点表规模；用户后续可在表格里改位置/速度。
+                var pts = DxfImporter.ImportToPoints(dlg.FileName, stepMm: 5.0);
+                if (pts.Count == 0)
+                {
+                    StatusBarService.ReportException("DXF 解析完成但未提取到几何（支持 LINE / LWPOLYLINE / POLYLINE / ARC / CIRCLE）。");
+                    return;
+                }
+
+                int baseIndex = table.Points.Count;
+                for (int i = 0; i < pts.Count; i++)
+                {
+                    var p = new PointItem
+                    {
+                        Name = UniqueName($"DXF{baseIndex + i + 1}", table.Points.Select(x => x.Name))
+                    };
+                    p.Positions[0].Position = Math.Round(pts[i].X, 4);
+                    p.Positions[1].Position = Math.Round(pts[i].Y, 4);
+                    // Positions[2]/[3]（轴3/轴4，如 Z/A）留 0，用户按需编辑
+                    p.Positions[0].Speed = 100;
+                    p.Positions[1].Speed = 100;
+                    table.Points.Add(p);
+                }
+                SelectedPoint = table.Points[table.Points.Count - 1];
+            }
+            catch (Exception ex)
+            {
+                // 对话框若被环境（如安全软件）阻断，给出明确提示，避免"点了没反应"
+                StatusBarService.ReportException($"导入 DXF 失败：{ex.Message}");
+            }
         }
 
         private void DeletePoint()
