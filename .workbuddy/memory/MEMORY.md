@@ -5,6 +5,12 @@
 - 若日后重新出现"Read 报 binary / 首字节 0x88"，再按加密处理；常态下按明文处理。
 - 明文文件若 `Read`/`Edit` 报 "binary file"（多为 GBK/BOM/CRLF），改用 Python 读写（读 utf-8/gbk，写 utf-8，`newline="\n"`）；GBK 文件可安全升级为 UTF-8(BOM)。
 
+## 作者水印（温启志◆编写◇微信﹕187◆1936◇1399）三处统一
+- 完整串被故意拆段：源码里"187" / "1936" / "1399" 在 `Services/AuthorWatermark.cs` 分三段独立字段，运行时 `string.Concat` 拼接；同行插入 `◆` `◇` `﹕` `\u200B` `\u2063` 等装饰/零宽字符。
+- 三处统一出现（缺一会被立即发现）：① `Services/AuthorWatermark.cs` 暴露 `Signature/UiSignature/DocumentSignature/DocumentFooter`；② `MainWindow.xaml` 第 4 行（深色署名栏，构造时 `AuthorSignatureText.Text = AuthorWatermark.UiSignature()` 渲染）；③ `Docs/版权与作者水印.md` + `Docs/硬件对接说明书.md` 末尾 + `Docs/雷赛控制卡与通讯对接说明.md` 末尾。
+- 误删保护：`App.xaml.cs` 构造里 `_ = AuthorWatermark.Signature;` 引用 → 删 `AuthorWatermark.cs` 整个工程编译失败。
+- 关键工程经验：给数据模型 `override ToString() => string.IsNullOrWhiteSpace(_name) ? "未命名" : _name;`，能在 ComboBox `DisplayMemberPath` 解析失败/`IsReadOnly=True` 嵌入 TextBox 路径/`ItemContainerStyle` 模板等多种场景下救回"显示类名 `NoCodeMotion.Models.PointTable`"问题，也对调试/日志输出有效。
+
 ## 操作员「启动」= 并发跑全部流程循环（非工位序列）
 - 用户最终选择（澄清）：点「启动」= 并发跑 `ProjectStore.Data.Flows` 里每个 Flow 的「循环开始/循环结束」区域，次数取 `SetValue`；不需要选工位。
 - 落地方式：新增文件 `ViewModels/FlowRunnerService.cs`（独立并发流程运行器，复用同一套 `HardwareBridge`/`HardwareResolver` 硬件接口），并在 `OperatorViewModel.cs` 接入：

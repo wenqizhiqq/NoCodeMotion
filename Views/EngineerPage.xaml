@@ -277,8 +277,14 @@
                         </StackPanel>
                         <DockPanel LastChildFill="False" Margin="0,6,0,0">
                             <TextBlock DockPanel.Dock="Left" Text="选择工位" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                            <ComboBox DockPanel.Dock="Left" ItemsSource="{Binding Tables}" DisplayMemberPath="Name"
-                                      SelectedItem="{Binding SelectedTable, Mode=TwoWay}" Width="200" Style="{StaticResource CellComboStyle}"/>
+                            <ComboBox DockPanel.Dock="Left" ItemsSource="{Binding Tables}"
+                                      SelectedItem="{Binding SelectedTable, Mode=TwoWay}" Width="200" Style="{StaticResource CellComboStyle}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name, FallbackValue=未命名工位}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                             <TextBlock DockPanel.Dock="Left" Text="{Binding CurrentPoints.Count, StringFormat=共 {0} 个点位}" VerticalAlignment="Center" Margin="14,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
                         </DockPanel>
                     </StackPanel>

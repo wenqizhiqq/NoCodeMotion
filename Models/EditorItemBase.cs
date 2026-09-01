@@ -19,6 +19,14 @@ namespace NoCodeMotion.Models
             set => SetField(ref _name, value);
         }
 
+        /// <summary>
+        /// 兜底显示：当 <see cref="Name"/> 解析失败 / ComboBox 绑定回退 / 日志输出 / 调试窗口，
+        /// 任何路径下显示本对象的字符串时，统一返回 Name 而不是 <c>NoCodeMotion.Models.PointTable</c>。
+        /// 空名时显示「未命名」，避免工程师在 ComboBox / 列表里看到类型名而不知发生了什么。
+        /// </summary>
+        public override string ToString() =>
+            string.IsNullOrWhiteSpace(_name) ? "未命名" : _name;
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
