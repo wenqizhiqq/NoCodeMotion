@@ -2,6 +2,7 @@
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 using System;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Diagnostics;
@@ -238,6 +239,18 @@ namespace NoCodeMotion.ViewModels
         private Stopwatch _runSw = new();
         private FlowRunControl? _flowCtrl;
 
+        // ---------- 定时器刷新（运行流程只写共享态，UI 由本定时器周期拉取，解耦防卡顿）----------
+        /// <summary>150ms 定时器：把后台流程写进 FlowRunStore 的状态推到 FlowItem.Status / 状态文本 / 运行时长，
+        /// 并排空日志与 UI 动作队列。运行线程本身绝不调用 Dispatcher，界面刷新完全由本定时器在 UI 线程完成。</summary>
+        private readonly DispatcherTimer _uiTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
+        /// <summary>运行线程 → UI 的日志队列（线程安全，定时器在 UI 线程排空）。</summary>
+        private readonly ConcurrentQueue<string> _logQueue = new();
+        /// <summary>运行线程 → UI 的动作队列（如 AdvanceProduction），定时器在 UI 线程执行。</summary>
+        private readonly ConcurrentQueue<Action> _uiQueue = new();
+        /// <summary>是否有运行在进行中（流程并发 / 工位顺序）。为 true 时定时器才把共享态推到 FlowItem.Status，
+        /// 避免运行结束后定时器把手动（流程页单步）运行时写的状态覆盖成 就绪。</summary>
+        private volatile bool _runActive;
+
         public OperatorViewModel()
         {
             _ = AuthorWatermark.Signature;   // 作者水印引用（误删 AuthorWatermark.cs 将编译失败）
@@ -267,6 +280,51 @@ namespace NoCodeMotion.ViewModels
             }
             RebuildChart();
             AddLog(LogLevel.Info, "操作员控制台已启动。");
+
+            // 定时器刷新：运行流程只写共享态（FlowRunStore），UI 完全由此定时器在 UI 线程周期拉取，
+            // 流程线程不与界面交互，杜绝高频 Invoke 造成的卡顿。
+            _uiTimer.Tick += UiTimerTick;
+            _uiTimer.Start();
+        }
+
+        /// <summary>定时器回调（UI 线程）：推状态、刷新文本、排空队列。运行线程不在此做任何 UI 操作。</summary>
+        private void UiTimerTick(object? sender, EventArgs e)
+        {
+            // 1) 排空日志队列
+            while (_logQueue.TryDequeue(out var msg))
+                AddLog(LogLevel.Info, msg);
+
+            // 2) 排空 UI 动作队列（onFlowDone 等）
+            while (_uiQueue.TryDequeue(out var act))
+            {
+                try { act(); } catch { }
+            }
+
+            // 3) 运行期：把共享态推到 FlowItem.Status（UI 线程安全；SetField 同值不触发 INPC，无抖动）
+            if (_runActive)
+            {
+                var flows = ProjectStore.Data.Flows;
+                if (flows != null)
+                {
+                    string? runningStep = null;
+                    int runningCount = 0;
+                    foreach (var f in flows)
+                    {
+                        if (!FlowRunStore.Contains(f)) continue;
+                        var (st, step, _) = FlowRunStore.Get(f);
+                        if (f.Status != st) f.Status = st;
+                        if (st == FlowStatus.Running)
+                        {
+                            runningCount++;
+                            if (runningStep == null) runningStep = step;
+                        }
+                    }
+                    if (runningCount > 0 && runningStep != null)
+                        StatusText = $"运行中：{runningCount} 个流程执行中 · {runningStep}";
+                }
+                var el = _runSw.Elapsed;
+                RunElapsedText = $"{(int)el.TotalMinutes:D2}:{el.Seconds:D2}";
+            }
         }
 
         // ---------- 运行控制 ----------
@@ -290,7 +348,8 @@ namespace NoCodeMotion.ViewModels
                 }
                 int idx = _runIndex;
                 var table = SelectedTable;
-                Task.Run(() =>
+                // 用 Thread 而非 Task：后台执行该点动作（WaitAxisDone 可能阻塞），完成后经 Ui 异步回写。
+                var t = new Thread(() =>
                 {
                     ExecutePoint(idx);
                     Ui(() =>
@@ -299,7 +358,8 @@ namespace NoCodeMotion.ViewModels
                         RecordTiming(idx, table.Points[idx]);
                         AdvanceProduction();
                     });
-                });
+                }) { IsBackground = true, Name = "OpStep" };
+                t.Start();
                 StatusText = $"手动单步：「{table.Name}」{table.Points[idx].Name}（{idx + 1}/{table.Points.Count}）";
                 AddLog(LogLevel.Info, $"手动单步 -> {table.Points[idx].Name}");
                 return;
@@ -325,12 +385,13 @@ namespace NoCodeMotion.ViewModels
             int runnable = Tables.Count(t => t.Points != null && t.Points.Count > 0);
             AddLog(LogLevel.Info, $"启动运行（自动）：全部 {runnable} 个工位，按顺序连续运行。");
             StatusText = runnable > 0 ? "运行中：按全部工位顺序执行…" : "运行中：无工位可执行。";
+            _runActive = true;
             _runThread = new Thread(RunLoop) { IsBackground = true, Name = "OpRun" };
             _runThread.Start();
         }
 
         /// <summary>启动 = 并发跑 ProjectStore.Data.Flows 里每个 Flow 的「循环开始/循环结束」等逻辑区域（次数取 SetValue）。
-        /// 通过 FlowRunnerService 为每条流程起一条后台 Task，真实驱动机台；支持暂停 / 停止 / 急停。</summary>
+        /// 通过 FlowRunnerService 为每条流程起一条后台 Thread（内部 while 循环），真实驱动机台；支持暂停 / 停止 / 急停。</summary>
         private void StartFlows()
         {
             var flows = ProjectStore.Data.Flows;
@@ -348,28 +409,38 @@ namespace NoCodeMotion.ViewModels
             ctrl.InitVars();
             _flowCtrl = ctrl;
 
+            // 运行线程只写共享态 FlowRunStore，UI 由定时器拉取；日志/动作入队，定时器在 UI 线程排空。
+            // 全部流程结束后由看门狗线程触发 onComplete（入队到 UI 线程执行），全程不依赖 Task。
+            FlowRunStore.ClearAll();
+            _runActive = true;
+
             AddLog(LogLevel.Info, $"启动运行（自动）：并发执行 {flows.Count} 个流程。");
             StatusText = $"运行中：并发执行 {flows.Count} 个流程…";
 
-            _ = FlowRunnerService.RunAllAsync(
+            FlowRunnerService.RunAllAsync(
                 ctrl,
-                log: msg => Ui(() => AddLog(LogLevel.Info, msg)),
-                onStep: (idx, name, cur) => Ui(() => { StatusText = $"运行中：流程「{name}」{cur}"; }),
-                onFlowDone: (idx, name) => Ui(() => AdvanceProduction()),
+                log: msg => _logQueue.Enqueue(msg),
+                onStep: (idx, name, cur) => { },
+                onFlowDone: (idx, name) => _uiQueue.Enqueue(() => AdvanceProduction()),
+                onComplete: () => _uiQueue.Enqueue(FinalizeRun),
                 ct: CancellationToken.None
-            ).ContinueWith(_ => Ui(() =>
-            {
-                IsRunning = false;
-                IsPaused = false;
-                _flowCtrl?.WriteBackVars();
-                if (_eStopRequested)
-                    StatusText = "急停！请复位后重新启动。";
-                else if (_stopRequested)
-                    StatusText = "已停止。";
-                else
-                    StatusText = $"全部流程运行完成：{ProjectStore.Data.Flows.Count} 个流程 / 产量 {TotalCount} 件。";
-                AddLog(LogLevel.Info, "全部流程运行结束。");
-            }), TaskScheduler.Default);
+            );
+        }
+
+        /// <summary>全部流程运行结束后的收尾（由 UI 定时器队列在 UI 线程执行）：复位运行态、写回变量、刷新状态文本。</summary>
+        private void FinalizeRun()
+        {
+            IsRunning = false;
+            IsPaused = false;
+            _runActive = false;
+            _flowCtrl?.WriteBackVars();
+            if (_eStopRequested)
+                StatusText = "急停！请复位后重新启动。";
+            else if (_stopRequested)
+                StatusText = "已停止。";
+            else
+                StatusText = $"全部流程运行完成：{ProjectStore.Data.Flows.Count} 个流程 / 产量 {TotalCount} 件。";
+            AddLog(LogLevel.Info, "全部流程运行结束。");
         }
 
         /// <summary>推进一次生产数据采样（手动单步与自动 tick 共用）。</summary>
@@ -391,6 +462,9 @@ namespace NoCodeMotion.ViewModels
             _flowCtrl?.StopRequested = true; _flowCtrl?.ResumeEvent.Set();
             IsRunning = false;
             IsPaused = false;
+            _runActive = false;
+            FlowRunStore.ClearAll();
+            ResetFlowStatuses();
             StatusText = "已停止。";
             AddLog(LogLevel.Warn, "运行已手动停止。");
         }
@@ -414,6 +488,9 @@ namespace NoCodeMotion.ViewModels
             IsRunning = false;
             IsPaused = false;
             EStopped = true;
+            _runActive = false;
+            FlowRunStore.ClearAll();
+            ResetFlowStatuses();
             _runIndex = -1;
             SelectedPoint = null;
             TimingRows.Clear();
@@ -430,6 +507,9 @@ namespace NoCodeMotion.ViewModels
             IsRunning = false;
             IsPaused = false;
             EStopped = false;
+            _runActive = false;
+            FlowRunStore.ClearAll();
+            ResetFlowStatuses();
             _runIndex = -1;
             SelectedPoint = null;
             TimingRows.Clear();
@@ -441,6 +521,14 @@ namespace NoCodeMotion.ViewModels
             RebuildChart();
             StatusText = "已复位，点「启动」运行（按全部流程并发）。";
             AddLog(LogLevel.Info, "系统已复位。");
+        }
+
+        /// <summary>把各流程状态芯片重置为 就绪（UI 线程调用）。</summary>
+        private void ResetFlowStatuses()
+        {
+            var flows = ProjectStore.Data.Flows;
+            if (flows == null) return;
+            foreach (var f in flows) f.Status = FlowStatus.Idle;
         }
 
         // ---------- 启动/继续/暂停/复位 调度 ----------
@@ -518,6 +606,7 @@ namespace NoCodeMotion.ViewModels
             {
                 IsRunning = false;
                 IsPaused = false;
+                _runActive = false;
                 if (_eStopRequested)
                     StatusText = "急停！所有运动已切断，请复位后重新启动。";
                 else if (_stopRequested)
@@ -578,12 +667,13 @@ namespace NoCodeMotion.ViewModels
             }
         }
 
-        /// <summary>把动作封送回 UI 线程执行（后台运行循环调用）。</summary>
+        /// <summary>把动作异步封送回 UI 线程执行（后台运行循环调用）。用 BeginInvoke 而非 Invoke，
+        /// 避免后台线程在 UI 线程上被同步阻塞——这是运行期界面卡顿的根因之一。高频刷新改由定时器统一处理。</summary>
         private void Ui(Action a)
         {
             var app = Application.Current;
             if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess())
-                app.Dispatcher.Invoke(a);
+                app.Dispatcher.BeginInvoke(a);
             else
                 a();
         }

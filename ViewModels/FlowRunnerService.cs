@@ -98,15 +98,18 @@ namespace NoCodeMotion.ViewModels
     {
         static FlowRunnerService() { _ = AuthorWatermark.Signature; }   // 作者水印引用（误删 AuthorWatermark.cs 将编译失败）
 
-        public static Task RunAllAsync(
+        /// <summary>并发启动所有流程（每个 Flow 一条后台 Thread，内部 while 循环）。不使用 Task——
+        /// 全部走 Thread，结束由看门狗线程在全部流程 Signal 后触发 onComplete。</summary>
+        public static void RunAllAsync(
             FlowRunControl ctrl,
             Action<string> log,
             Action<int, string, string> onStep,
             Action<int, string> onFlowDone,
+            Action onComplete,
             CancellationToken ct = default)
         {
             var flows = ProjectStore.Data?.Flows?.ToList() ?? new List<FlowItem>();
-            if (flows.Count == 0) return Task.CompletedTask;
+            if (flows.Count == 0) { onComplete?.Invoke(); return; }
             var done = new CountdownEvent(flows.Count);
             for (int i = 0; i < flows.Count; i++)
             {
@@ -122,7 +125,14 @@ namespace NoCodeMotion.ViewModels
                 { IsBackground = true, Name = $"Flow-{idx}" };
                 th.Start();
             }
-            return Task.Run(() => done.Wait());
+            // 看门狗线程：等所有流程结束 → 触发完成回调（回调内部自行入队到 UI 线程执行）。
+            var watch = new Thread(() =>
+            {
+                try { done.Wait(); } catch { }
+                onComplete?.Invoke();
+            })
+            { IsBackground = true, Name = "FlowWatchdog" };
+            watch.Start();
         }
 
         private static void RunOneFlow(FlowItem flow, int index, FlowRunControl ctrl,
@@ -181,6 +191,7 @@ namespace NoCodeMotion.ViewModels
                         {
                             exec.ClearCurrent();   // 每轮结束清掉上一轮的高亮行
                         }
+                        Thread.Sleep(1);   // 让出 CPU，避免 while 紧密循环抢占 UI 线程导致卡顿
                     }
                     SetStatus(flow, FlowStatus.Stopped);
                     log?.Invoke(ctrl.EStopRequested
@@ -221,17 +232,11 @@ namespace NoCodeMotion.ViewModels
             }
         }
 
-        /// <summary>把 FlowItem.Status 通过 UI 线程写回（FlowRunnerService 在后台线程跑，必须跨线程）。
-/// 复制自 FlowExecutor.UiSet 的最小实现（UiSet 是 FlowExecutor 的 private static，
-/// 跨类访问需要 inline 一份）。</summary>
+        /// <summary>把流程状态写入线程安全共享态 FlowRunStore。不直接碰 UI——UI 由 OperatorViewModel 的
+/// DispatcherTimer 周期拉取并推到 FlowItem.Status，从而运行期高频刷新与界面渲染解耦，流程再快也不卡界面。</summary>
         private static void SetStatus(FlowItem flow, FlowStatus st)
         {
-            if (flow == null) return;
-            var app = System.Windows.Application.Current;
-            if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess())
-                app.Dispatcher.Invoke(() => flow.Status = st);
-            else
-                flow.Status = st;
+            FlowRunStore.SetStatus(flow, st);
         }
 
         /// <summary>Lua 脚本流程：优先复用 Lua 编辑器页面自身的运行（RunFlow，用户要求“lua 直接走编辑器页面运行”，
@@ -251,27 +256,37 @@ namespace NoCodeMotion.ViewModels
             {
                 while (!ctrl.StopRequested && !ctrl.EStopRequested)
                 {
+                    Thread.Sleep(1);   // 让出 CPU，避免紧密循环抢占 UI 线程
                     LuaDebugSession session = null;
                     ExecutionEndedInfo lastEnded = null;
+                    var editorReady = new ManualResetEventSlim(false);
                     try
                     {
-                        editor.Dispatcher.Invoke(() =>
+                        // 用 BeginInvoke 异步把 RunFlow 派发到 UI 线程，避免后台线程被 Dispatcher.Invoke 同步阻塞；
+                        // 派发完成后置 editorReady，后台线程再继续（不碰 UI）。
+                        editor.Dispatcher.BeginInvoke(new Action(() =>
                         {
-                            session = editor.RunFlow(flow, false);
-                            if (session != null)
+                            try
                             {
-                                session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}");
-                                session.LineStepped += line => onStep?.Invoke(index, name, $"Lua 行 {line}");
-                                Action<ExecutionEndedInfo> onEnded = null;
-                                onEnded = info =>
+                                session = editor.RunFlow(flow, false);
+                                if (session != null)
                                 {
-                                    lastEnded = info;
-                                };
-                                session.Ended += onEnded;
+                                    session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}");
+                                    session.LineStepped += line =>
+                                    {
+                                        onStep?.Invoke(index, name, $"Lua 行 {line}");
+                                        FlowRunStore.SetStep(flow, $"Lua 行 {line}");
+                                    };
+                                    Action<ExecutionEndedInfo> onEnded = null;
+                                    onEnded = info => { lastEnded = info; };
+                                    session.Ended += onEnded;
+                                }
                             }
-                        });
+                            finally { editorReady.Set(); }
+                        }));
+                        if (!editorReady.Wait(2000)) { Thread.Sleep(200); continue; }   // 等待 UI 线程完成启动（超时则重试）
                     }
-                    catch (Exception ex) { log?.Invoke($"流程「{name}」Lua 启动异常：{ex.Message}"); Thread.Sleep(200); continue; }
+                    catch (Exception ex) { editorReady.Set(); log?.Invoke($"流程「{name}」Lua 启动异常：{ex.Message}"); Thread.Sleep(200); continue; }
                     if (session == null) { Thread.Sleep(200); continue; } // 编辑器正忙（用户手动调试），稍后重试
                     log?.Invoke($"流程「{name}」开始连续运行（复用 Lua 编辑器页面运行，直到停止）。");
                     while (session.IsBusy && !ctrl.EStopRequested && !ctrl.StopRequested)
@@ -310,6 +325,7 @@ namespace NoCodeMotion.ViewModels
             // 退化路径：Lua 编辑器页面未加载，用独立会话连续运行并广播当前行。
             while (!ctrl.StopRequested && !ctrl.EStopRequested)
             {
+                Thread.Sleep(1);   // 让出 CPU，避免紧密循环抢占 UI 线程
                 var ended = new ManualResetEventSlim(false);
                 ExecutionEndedInfo lastEnded = null;
                 try
@@ -320,6 +336,7 @@ namespace NoCodeMotion.ViewModels
                     {
                         LuaRunMonitor.Report(flow, line);
                         onStep?.Invoke(index, name, $"Lua 行 {line}");
+                        FlowRunStore.SetStep(flow, $"Lua 行 {line}");
                     };
                     session.Ended += info =>
                     {
@@ -439,10 +456,12 @@ namespace NoCodeMotion.ViewModels
             int i = start;
             while (i < endExclusive && i < _steps.Count)
             {
+                Thread.Sleep(1);   // 每步让出 CPU，避免密集步骤循环抢占 UI 线程
                 AbortCheck(ct);
                 var s = _steps[i];
                 var logic = (s.Logic ?? "").Trim();
                 _onStep?.Invoke(_index, _flow.Name ?? "", $"第 {i + 1}/{_steps.Count} 步 · {logic}");
+                FlowRunStore.SetStep(_flow, $"第 {i + 1}/{_steps.Count} 步 · {logic}");
                 UiSet(() =>
                 {
                     if (_lastCurrent != null && !ReferenceEquals(_lastCurrent, s)) _lastCurrent.IsCurrent = false;
@@ -761,9 +780,12 @@ namespace NoCodeMotion.ViewModels
 
         private static void UiSet(Action a)
         {
+            // 异步封送到 UI 线程：高亮当前行/变量等不需要同步等待，避免后台流程线程在 Invoke 上被 UI 阻塞（卡顿根因之一）。
             var app = Application.Current;
-            if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess()) app.Dispatcher.Invoke(a);
-            else a();
+            if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess())
+                app.Dispatcher.BeginInvoke(a);
+            else
+                a();
         }
     }
 }
