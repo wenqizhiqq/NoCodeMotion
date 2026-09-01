@@ -110,7 +110,8 @@
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
-                            Style="{StaticResource ToolButtonStyle}" Margin="8,0,0,0">
+                            Style="{StaticResource ToolButtonStyle}" Margin="8,0,0,0"
+                            ToolTip="依次跑该视觉流程的全部启用步骤（含图像采集/预处理/模板匹配/缺陷/测量/通讯等）；匹配步骤会用右侧已框选的 ROI 模板去搜索全图并把绿框/红框画到结果图上。">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource PlayIcon}" Width="15" Height="15" Stretch="Uniform"
                                   Margin="0,0,5,0" VerticalAlignment="Center"
@@ -204,27 +205,28 @@
                                                Stroke="{StaticResource AccentBrush}" StrokeThickness="2"
                                                Fill="#1A007AFF"/>
                                 </Canvas>
-                                <!-- 匹配结果叠加层（参考 GrayMatch.Wpf）：每个目标画旋转绿/红框 +
-                                     相似度/角度文字。子元素用源图像素坐标，由 code-behind 的
-                                     UpdateMatchOverlayTransform() 按 Stretch=Uniform 缩放/居中映射到屏幕。 -->
+                                <!-- 匹配结果叠加层（参考 GrayMatch.Wpf）：每个目标画旋转绿/红框 + 相似度/角度文字。
+                                     OverlayBox 已按 Stretch=Uniform 在 code-behind 投影为屏幕坐标，子元素用
+                                     Canvas.Left/Top/Width/Height 直接定位，不再依赖外层 RenderTransform，
+                                     彻底避开 PropertyChanged / 布局时序 race 引起的 1-2px 偏移。 -->
                                 <Canvas x:Name="MatchOverlay" IsHitTestVisible="False"
-                                        Visibility="{Binding HasMatchResults, Converter={StaticResource BoolToVis}}">
-                                    <ItemsControl ItemsSource="{Binding MatchResults}">
+                                        Visibility="{Binding HasOverlayBoxes, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl ItemsSource="{Binding OverlayBoxes}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <Canvas/>
+                                                <Canvas IsItemsHost="True"/>
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemContainerStyle>
                                             <Style TargetType="ContentPresenter">
-                                                <Setter Property="Canvas.Left" Value="{Binding LeftTopX}"/>
-                                                <Setter Property="Canvas.Top" Value="{Binding LeftTopY}"/>
+                                                <Setter Property="Canvas.Left" Value="{Binding ScreenLeft}"/>
+                                                <Setter Property="Canvas.Top" Value="{Binding ScreenTop}"/>
                                             </Style>
                                         </ItemsControl.ItemContainerStyle>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Canvas>
-                                                    <Rectangle Width="{Binding TemplateWidth}" Height="{Binding TemplateHeight}"
+                                                    <Rectangle Width="{Binding ScreenWidth}" Height="{Binding ScreenHeight}"
                                                                RenderTransformOrigin="0.5,0.5">
                                                         <Rectangle.Style>
                                                             <Style TargetType="Rectangle">
@@ -239,13 +241,51 @@
                                                             </Style>
                                                         </Rectangle.Style>
                                                         <Rectangle.RenderTransform>
-                                                            <RotateTransform Angle="{Binding Angle, Converter={StaticResource AngleNegate}}"/>
+                                                            <RotateTransform Angle="{Binding ScreenAngle}"/>
                                                         </Rectangle.RenderTransform>
                                                     </Rectangle>
-                                                    <TextBlock Canvas.Left="0" Canvas.Top="-20" Foreground="Lime" FontSize="12" FontWeight="Bold"
-                                                               Text="{Binding Score, StringFormat='相似度:{0:F3}'}"/>
-                                                    <TextBlock Canvas.Left="0" Canvas.Top="-6" Foreground="Yellow" FontSize="11"
-                                                               Text="{Binding Angle, StringFormat='角度:{0:F0}°'}"/>
+                                                    <!-- 相似度：顶部，紧贴框上沿外侧（Lime 绿，Pass=False 切红） -->
+                                                    <Border Canvas.Left="-2" Canvas.Top="-22" Background="#CC000000" CornerRadius="3" Padding="4,1"
+                                                            IsHitTestVisible="False" HorizontalAlignment="Left">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock FontSize="11" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="Lime"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Pass}" Value="False">
+                                                                            <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                            <Run Text="相似度 "/>
+                                                            <Run Text="{Binding Mode=OneWay, Path=Score, StringFormat={}{0:F3}}"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                    <!-- 角度：相似度下方一行（Yellow 黄，Pass=False 切红） -->
+                                                    <Border Canvas.Left="-2" Canvas.Top="-44" Background="#CC000000" CornerRadius="3" Padding="4,1"
+                                                            IsHitTestVisible="False" HorizontalAlignment="Left">
+                                                        <TextBlock FontSize="10" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="Yellow"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Pass}" Value="False">
+                                                                            <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                            <Run Text="角度 "/>
+                                                            <Run Text="{Binding Mode=OneWay, Path=OriginalAngle, StringFormat={}{0:F0}}"/>
+                                                            <Run Text="°"/>
+                                                        </TextBlock>
+                                                    </Border>
                                                 </Canvas>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -458,18 +498,33 @@
                                             ToolTip="把右侧已框选的区域裁剪为模板图像，保存到 Templates/ 目录并在下方预览"
                                             Command="{Binding ConfirmTemplateCommand}"/>
                                 </DockPanel>
-                                <!-- 模板预览：点确定模板后显示裁剪出来的模板图 -->
+                                <!-- 模板预览：优先显示已裁剪并保存的模板图（TEMPLATE 已确定时），
+                                     没有确定模板但已加载源图时回退到显示源图（让用户在右侧拖 ROI 时有视觉参考）。 -->
                                 <Border Margin="20,2,20,10" Height="140" CornerRadius="6" Background="#1D1D1F">
                                     <Grid>
-                                        <Image Source="{Binding TemplatePreviewImage}" Stretch="Uniform"/>
-                                        <TextBlock Text="点「确定模板」后显示模板图像" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        <Image Stretch="Uniform">
+                                            <Image.Source>
+                                                <!-- PriorityBinding：优先取 TemplatePreviewImage（已确定模板的裁剪图），
+                                                     否则取 ResultImage（源图本身作为拖框视觉参考），
+                                                     都没有时留空显示下方占位文本。-->
+                                                <PriorityBinding>
+                                                    <Binding Path="TemplatePreviewImage"/>
+                                                    <Binding Path="ResultImage"/>
+                                                </PriorityBinding>
+                                            </Image.Source>
+                                        </Image>
+                                        <TextBlock Text="请先在右侧图像上拖拽鼠标框选模板区域" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    Foreground="#71717A" FontSize="11" IsHitTestVisible="False">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Setter Property="Visibility" Value="Visible"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding HasTemplatePreview}" Value="False">
-                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        <!-- 已有源图或已确定模板 → 隐藏占位文本 -->
+                                                        <DataTrigger Binding="{Binding HasTemplatePreview}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding HasResult}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>

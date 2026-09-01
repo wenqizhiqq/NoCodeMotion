@@ -1,11 +1,13 @@
 // === NoCodeMotion 视觉流程页 | 作者：温启志 | 微信：18719361399 | 保留所有权利，请勿删除 ===
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 using NoCodeMotion.Models;
 using NoCodeMotion.ViewModels;
 
@@ -24,6 +26,8 @@ namespace NoCodeMotion.Views
         private readonly VisualFlowDetailViewModel _vm = new VisualFlowDetailViewModel();
         private FlowPage? _flowPage;
         private PropertyChangedEventHandler? _fvmHandler;
+        private NotifyCollectionChangedEventHandler? _matchResultsHandler;
+        private int _projRetry;   // 布局时序重试计数，避免无限重排
 
         public VisualFlowPage()
         {
@@ -31,57 +35,79 @@ namespace NoCodeMotion.Views
             DataContext = _vm;
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
-            // 布局尺寸变化时同步重算叠加层变换（图像实际像素 → 屏幕坐标）
-            ImageHost.SizeChanged += (_, _) => UpdateMatchOverlayTransform();
-            // VM 结果变化也可能影响显示（比如切步骤清空 MatchResults），
-            // 覆盖层 ItemsControl 会自动跟着空集合隐藏，但变换仍需重算
+            // 布局尺寸变化时同步重算匹配框的屏幕坐标
+            ImageHost.SizeChanged += (_, _) => ProjectOverlayBoxes();
+            // VM 的 ResultImage / MatchResults 变化也要重新投影
             _vm.PropertyChanged += OnVmPropertyChanged;
         }
 
         private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            // 图像源切换 / 匹配结果集合变化都会让有效像素宽高变，重算变换保证对齐
-            if (e.PropertyName == nameof(VisualFlowDetailViewModel.ResultImage)
-                || e.PropertyName == nameof(VisualFlowDetailViewModel.MatchResults))
+            // ResultImage 变化意味着源图宽高变了，所有 OverlayBox 都得按新图重算
+            if (e.PropertyName == nameof(VisualFlowDetailViewModel.ResultImage))
             {
-                // 关键：PropertyChanged 触发时 Image 控件还没完成布局，ResultImageView.Source
-                // 可能是 null（旧源未释放）或 ImageHost.ActualWidth/Height 仍是旧值，导致
-                // 同步调用 UpdateMatchOverlayTransform 早退（RenderTransform=null），且
-                // ImageHost 自身尺寸没变 → SizeChanged 不会再次触发 → 叠加层永远没变换，
-                // 绿框按原始像素坐标当屏幕坐标画，必然错位。必须 BeginInvoke 到布局完成后执行。
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    UpdateMatchOverlayTransform();
-                    // 二次保护：再排一次 Render 优先级，确保 Measure/Arrange 完后再算
-                    Dispatcher.BeginInvoke(new Action(UpdateMatchOverlayTransform), DispatcherPriority.Render);
-                }), DispatcherPriority.Background);
+                ProjectOverlayBoxes();
+            }
+            else if (e.PropertyName == nameof(VisualFlowDetailViewModel.MatchResults))
+            {
+                // 订阅新集合的 CollectionChanged（增删/重置），以便后续引擎追加结果时同步
+                HookMatchResultsCollection(_vm.MatchResults);
+                ProjectOverlayBoxes();
             }
         }
 
-        /// <summary>
-        /// 把像素坐标系的匹配叠加层对齐到当前 ResultImageView 的实际显示区域。
-        /// 图像 Stretch=Uniform（等比缩放 + 居中），叠加层用 TranslateTransform(ox,oy) +
-        /// ScaleTransform(s,s) 把子元素的源图像素坐标 (px,py) 映射到屏幕 (ox+px*s, oy+py*s)。
-        /// 与 ROI 拖拽使用的 scale/offset 公式一致（见 ApplyTemplateRoi）。
-        /// </summary>
-        private void UpdateMatchOverlayTransform()
+        private void HookMatchResultsCollection(ObservableCollection<MatchBox>? col)
         {
-            if (ResultImageView.Source is not BitmapSource src || src.PixelWidth <= 0 || src.PixelHeight <= 0)
+            if (_matchResultsHandler != null && _vm.MatchResults != null)
             {
-                MatchOverlay.RenderTransform = null;
+                _vm.MatchResults.CollectionChanged -= _matchResultsHandler;
+            }
+            _matchResultsHandler = (_, _) => ProjectOverlayBoxes();
+            if (col != null) col.CollectionChanged += _matchResultsHandler;
+        }
+
+        /// <summary>
+        /// 按当前 ResultImage 的像素尺寸 + ImageHost 的实际显示尺寸，把 MatchBox 投影为屏幕坐标 OverlayBox。
+        /// 公式与 Image.Stretch=Uniform 完全一致：scale = min(hostW/srcW, hostH/srcH)，
+        /// 偏移 = (hostW - srcW*scale)/2, (hostH - srcH*scale)/2。
+        /// OverlayBoxes 喂给叠加层 ItemsControl 直接使用 Canvas.Left/Top/Width/Height（屏幕像素），
+        /// 不再依赖外层 RenderTransform，避免 PropertyChanged / 布局时序 race。
+        /// </summary>
+        private void ProjectOverlayBoxes()
+        {
+            // 直接读 VM 上的 ResultImage（DP，同步可取），不依赖 ResultImageView.Source 的绑定传播时机，
+            // 避免「MatchResults 已就绪但 Image 控件 Source 还没刷新」导致拿不到像素尺寸。
+            var src = _vm.ResultImage as BitmapSource;
+            var matches = _vm.MatchResults;
+            if (matches == null || matches.Count == 0)
+            {
+                _vm.OverlayBoxes = null;
                 return;
             }
+            // 图像尚未解码完成（PixelWidth=0）或宿主尚未完成布局（ActualWidth=0）时，
+            // 立刻投影会拿到错误尺寸而放弃绘制。用一个 Render 优先级的延迟重试兜底，
+            // 避免「首次匹配绿框不出现」的布局时序 race。
+            if (src == null || src.PixelWidth <= 0 || src.PixelHeight <= 0
+                || ImageHost.ActualWidth <= 0 || ImageHost.ActualHeight <= 0)
+            {
+                // 最多重试 30 次（约数帧内必完成布局），超出则放弃，避免极端情况下空转
+                if (_projRetry++ < 30)
+                {
+                    ImageHost.Dispatcher.BeginInvoke(
+                        System.Windows.Threading.DispatcherPriority.Render,
+                        (Action)ProjectOverlayBoxes);
+                }
+                return;
+            }
+            _projRetry = 0;
             double hostW = ImageHost.ActualWidth, hostH = ImageHost.ActualHeight;
-            if (hostW <= 0 || hostH <= 0) { MatchOverlay.RenderTransform = null; return; }
 
-            double scale = Math.Min(hostW / src.PixelWidth, hostH / src.PixelHeight);
+            double scale = System.Math.Min(hostW / src.PixelWidth, hostH / src.PixelHeight);
             double dispW = src.PixelWidth * scale, dispH = src.PixelHeight * scale;
-            double ox = (hostW - dispW) / 2.0, oy = (hostH - dispH) / 2.0;
+            double offsetX = (hostW - dispW) / 2.0, offsetY = (hostH - dispH) / 2.0;
 
-            var g = new TransformGroup();
-            g.Children.Add(new TranslateTransform(ox, oy));
-            g.Children.Add(new ScaleTransform(scale, scale));
-            MatchOverlay.RenderTransform = g;
+            _vm.OverlayBoxes = new ObservableCollection<OverlayBox>(
+                matches.Select(m => OverlayBox.Project(m, scale, offsetX, offsetY)));
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -118,6 +144,10 @@ namespace NoCodeMotion.Views
             if (_flowPage?.DataContext is INotifyPropertyChanged inpc && _fvmHandler != null)
             {
                 inpc.PropertyChanged -= _fvmHandler;
+            }
+            if (_vm.MatchResults != null && _matchResultsHandler != null)
+            {
+                _vm.MatchResults.CollectionChanged -= _matchResultsHandler;
             }
             _fvmHandler = null;
         }
@@ -172,11 +202,11 @@ namespace NoCodeMotion.Views
         /// <summary>更新拖拽中矩形的屏幕位置/尺寸。</summary>
         private void UpdateRoiRect(Point a, Point b)
         {
-            double x = Math.Min(a.X, b.X), y = Math.Min(a.Y, b.Y);
+            double x = System.Math.Min(a.X, b.X), y = System.Math.Min(a.Y, b.Y);
             Canvas.SetLeft(RoiRect, x);
             Canvas.SetTop(RoiRect, y);
-            RoiRect.Width = Math.Abs(a.X - b.X);
-            RoiRect.Height = Math.Abs(a.Y - b.Y);
+            RoiRect.Width = System.Math.Abs(a.X - b.X);
+            RoiRect.Height = System.Math.Abs(a.Y - b.Y);
         }
 
         /// <summary>
@@ -198,16 +228,16 @@ namespace NoCodeMotion.Views
             double hostW = ImageHost.ActualWidth, hostH = ImageHost.ActualHeight;
             if (hostW <= 0 || hostH <= 0) { RoiRect.Visibility = Visibility.Collapsed; return; }
 
-            double scale = Math.Min(hostW / src.PixelWidth, hostH / src.PixelHeight);
+            double scale = System.Math.Min(hostW / src.PixelWidth, hostH / src.PixelHeight);
             double dispW = src.PixelWidth * scale, dispH = src.PixelHeight * scale;
             double offsetX = (hostW - dispW) / 2.0, offsetY = (hostH - dispH) / 2.0;
 
-            double x1 = Math.Max(0, (Math.Min(a.X, b.X) - offsetX) / scale);
-            double y1 = Math.Max(0, (Math.Min(a.Y, b.Y) - offsetY) / scale);
-            double x2 = Math.Min(src.PixelWidth, (Math.Max(a.X, b.X) - offsetX) / scale);
-            double y2 = Math.Min(src.PixelHeight, (Math.Max(a.Y, b.Y) - offsetY) / scale);
+            double x1 = System.Math.Max(0, (System.Math.Min(a.X, b.X) - offsetX) / scale);
+            double y1 = System.Math.Max(0, (System.Math.Min(a.Y, b.Y) - offsetY) / scale);
+            double x2 = System.Math.Min(src.PixelWidth, (System.Math.Max(a.X, b.X) - offsetX) / scale);
+            double y2 = System.Math.Min(src.PixelHeight, (System.Math.Max(a.Y, b.Y) - offsetY) / scale);
 
-            int w = (int)Math.Round(x2 - x1), h = (int)Math.Round(y2 - y1);
+            int w = (int)System.Math.Round(x2 - x1), h = (int)System.Math.Round(y2 - y1);
             if (w < 8 || h < 8)   // 太小的框视为误操作
             {
                 RoiRect.Visibility = Visibility.Collapsed;
@@ -215,11 +245,17 @@ namespace NoCodeMotion.Views
                 return;
             }
 
-            step.TemplateRoiX = (int)Math.Round(x1);
-            step.TemplateRoiY = (int)Math.Round(y1);
+            step.TemplateRoiX = (int)System.Math.Round(x1);
+            step.TemplateRoiY = (int)System.Math.Round(y1);
             step.TemplateRoiW = w;
             step.TemplateRoiH = h;
             vm.RunStatus = $"已框选模板区域：({step.TemplateRoiX},{step.TemplateRoiY}) {w}×{h}　点「开启匹配」执行";
+            // 自动保存：用户松手即把 ROI 区域裁剪成模板图保存到 Templates/，并回写到 step.TemplatePath。
+            // 这样「确定模板」按钮就退化成"用户已经看到对了，再点一下二次确认"的作用，无需手动。
+            if (vm.ConfirmTemplateCommand.CanExecute(null))
+            {
+                vm.ConfirmTemplateCommand.Execute(null);
+            }
         }
     }
 }

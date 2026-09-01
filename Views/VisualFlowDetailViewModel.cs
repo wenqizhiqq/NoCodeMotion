@@ -160,7 +160,7 @@ namespace NoCodeMotion.Views
         public bool HasMatchResult => MatchResult != null;
 
         // ---- 全部匹配结果框集合（供结果图 WPF 叠加层按 angle 绘制旋转矩形/文本）。
-        // 与 MatchResult（单条 best）并存：MatchResult 喂顶部信息胶囊，MatchResults 喂叠加层。
+        // 与 MatchResult（单条 best）并存：MatchResult 喂顶部信息胶囊，MatchResults 喂原始像素数据。
         public static readonly DependencyProperty MatchResultsProperty =
             DependencyProperty.Register(nameof(MatchResults), typeof(ObservableCollection<MatchBox>),
                 typeof(VisualFlowDetailViewModel),
@@ -173,6 +173,22 @@ namespace NoCodeMotion.Views
         }
 
         public bool HasMatchResults => MatchResults != null && MatchResults.Count > 0;
+
+        // ---- 屏幕坐标匹配框集合（OverlayBoxes）。每个元素已按当前 ImageHost 的 Stretch=Uniform
+        //     比例投影到屏幕坐标，叠加层直接用 Canvas.Left/Top/Width/Height 渲染即可，
+        //     不再依赖 RenderTransform。这样能彻底避开 PropertyChanged / 布局时序 race。---- //
+        public static readonly DependencyProperty OverlayBoxesProperty =
+            DependencyProperty.Register(nameof(OverlayBoxes), typeof(ObservableCollection<OverlayBox>),
+                typeof(VisualFlowDetailViewModel),
+                new PropertyMetadata(null, (d, e) => ((VisualFlowDetailViewModel)d).OnPropertyChanged(nameof(HasOverlayBoxes))));
+
+        public ObservableCollection<OverlayBox>? OverlayBoxes
+        {
+            get => (ObservableCollection<OverlayBox>?)GetValue(OverlayBoxesProperty);
+            set => SetValue(OverlayBoxesProperty, value);
+        }
+
+        public bool HasOverlayBoxes => OverlayBoxes != null && OverlayBoxes.Count > 0;
 
         /// <summary>每步执行结果（绑定到结果列表）。同一实例，增删由集合自身通知。</summary>
         public ObservableCollection<VisionStepResult> Results { get; } = new();
