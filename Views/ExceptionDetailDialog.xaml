@@ -1,0 +1,40 @@
+﻿<Window x:Class="NoCodeMotion.Views.ExceptionDetailDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+    <!-- 透明窗口 + 圆角白卡 + 柔和阴影 = Apple 风格自定义错误详情弹窗 -->
+    <Border CornerRadius="14" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Margin="16" Effect="{StaticResource SoftShadow}">
+        <StackPanel MinWidth="420" MaxWidth="640">
+            <!-- 标题区 -->
+            <Border Padding="22,18,22,14" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource WarnIcon}" Width="20" Height="20" Stretch="Uniform" Fill="#DC2626" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="错误详情" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+            <!-- 正文：可滚动、可全选、可复制 -->
+            <Border Padding="20,16,20,12">
+                <!-- 命名避开 MessageBox：x:Name=MessageBox 会与 System.Windows.MessageBox 同名，
+                     catch 块里 MessageBox.Show 会误解析成这个 TextBox（无 Show 方法）导致 CS1061 -->
+                <TextBox x:Name="MessageView" IsReadOnly="True" IsReadOnlyCaretVisible="True"
+                         TextWrapping="Wrap" AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                         MaxHeight="320"
+                         FontFamily="Consolas, Microsoft YaHei, monospace" FontSize="13"
+                         Foreground="{StaticResource TextPrimaryBrush}"
+                         Background="#F8FAFC" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                         Padding="10,8"/>
+            </Border>
+            <!-- 按钮区：右对齐，复制 + 关闭 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,4,16,16">
+                <Button x:Name="CopyButton" Content="复制" Style="{StaticResource TtBaseBtn}" Click="CopyButton_Click"/>
+                <Button Content="关闭" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0" Click="CloseButton_Click" IsCancel="True" IsDefault="True"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

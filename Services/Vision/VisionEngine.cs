@@ -59,6 +59,13 @@ namespace NoCodeMotion.Services.Vision
 
         /// <summary>最近的「模板匹配」步骤结果（用于 UI 叠加绿框/红框 + 文本）。无匹配步则为 null。</summary>
         public MatchOutcome? Match { get; set; }
+
+        /// <summary>
+        /// 模板匹配返回的全部 top-N 框（像素坐标，含角度/相似度/通过标志）。
+        /// 结果图上由 WPF 矢量叠加层画旋转矩形（参考 GrayMatch.Wpf），
+        /// 不在引擎里烧轴对齐框，避免 angle≠0 时框方向错。
+        /// </summary>
+        public List<MatchBox> Matches { get; } = new();
     }
 
     /// <summary>
@@ -365,6 +372,22 @@ namespace NoCodeMotion.Services.Vision
                     topN: 12,                    // 视觉流程默认 12：让多目标场景全部框出
                     denseMode: 0);
 
+                double thr = Clamp(s.ScoreThreshold, 0, 1);
+                // 收全部 top-N 结果到 report.Matches（供 WPF 叠加层画旋转框；不再只取 [0]）
+                foreach (var r in results)
+                {
+                    report.Matches.Add(new MatchBox
+                    {
+                        LeftTopX = r.LeftTopX,
+                        LeftTopY = r.LeftTopY,
+                        TemplateWidth = r.TemplateWidth,
+                        TemplateHeight = r.TemplateHeight,
+                        Angle = r.Angle,
+                        Score = r.Score,
+                        Scale = r.Scale,
+                        Pass = r.Score >= thr
+                    });
+                }
                 if (results.Count > 0)
                 {
                     var r0 = results[0];         // 已按 Score 降序
@@ -379,13 +402,12 @@ namespace NoCodeMotion.Services.Vision
 
             bool pass = best >= Clamp(s.ScoreThreshold, 0, 1);
 
-            var dst = display ?? cur;
-            // 通过则画绿框，未达阈值画红框（视觉反馈更直观）
-            var boxColor = pass ? Rgb(0, 200, 80) : Rgb(220, 40, 40);
-            Cv.Cv2.Rectangle(dst, new Cv.Rect(bx, by, tw, th), boxColor, 2);
+            // 不再在 Mat 上烧轴对齐框 — 结果图上的旋转绿/红框由 WPF 叠加层
+            // （ItemsControl + Canvas + Rectangle + RotateTransform）按 angle 精确绘制，
+            // 参考 GrayMatch.Wpf 的渲染方案，angle≠0 时方向正确。只把最佳中心加入
+            // featurePts 给后续「测量」步使用。
             if (tw > 0 && th > 0)
             {
-                Cv.Cv2.DrawMarker(dst, new Cv.Point(bx + tw / 2, by + th / 2), boxColor, Cv.MarkerTypes.Cross, 12, 2);
                 featurePts.Add((bx + tw / 2.0, by + th / 2.0, "匹配"));
             }
 

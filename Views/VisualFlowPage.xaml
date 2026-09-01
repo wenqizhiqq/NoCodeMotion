@@ -8,6 +8,8 @@
              mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1100">
 
     <UserControl.Resources>
+        <!-- OpenCV 角度（逆时针）→ WPF 旋转（顺时针）取反转换器，供匹配叠加层旋转框使用 -->
+        <local:AngleNegateConverter x:Key="AngleNegate"/>
         <!-- 视觉流程步骤的工具类型 -->
         <x:Array x:Key="VisualStepTypes" Type="sys:String">
             <sys:String>图像采集</sys:String>
@@ -201,6 +203,53 @@
                                     <Rectangle x:Name="RoiRect" Visibility="Collapsed"
                                                Stroke="{StaticResource AccentBrush}" StrokeThickness="2"
                                                Fill="#1A007AFF"/>
+                                </Canvas>
+                                <!-- 匹配结果叠加层（参考 GrayMatch.Wpf）：每个目标画旋转绿/红框 +
+                                     相似度/角度文字。子元素用源图像素坐标，由 code-behind 的
+                                     UpdateMatchOverlayTransform() 按 Stretch=Uniform 缩放/居中映射到屏幕。 -->
+                                <Canvas x:Name="MatchOverlay" IsHitTestVisible="False"
+                                        Visibility="{Binding HasMatchResults, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl ItemsSource="{Binding MatchResults}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding LeftTopX}"/>
+                                                <Setter Property="Canvas.Top" Value="{Binding LeftTopY}"/>
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Canvas>
+                                                    <Rectangle Width="{Binding TemplateWidth}" Height="{Binding TemplateHeight}"
+                                                               RenderTransformOrigin="0.5,0.5">
+                                                        <Rectangle.Style>
+                                                            <Style TargetType="Rectangle">
+                                                                <Setter Property="Stroke" Value="Lime"/>
+                                                                <Setter Property="StrokeThickness" Value="2"/>
+                                                                <Setter Property="Fill" Value="Transparent"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Pass}" Value="False">
+                                                                        <Setter Property="Stroke" Value="#DC2626"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Rectangle.Style>
+                                                        <Rectangle.RenderTransform>
+                                                            <RotateTransform Angle="{Binding Angle, Converter={StaticResource AngleNegate}}"/>
+                                                        </Rectangle.RenderTransform>
+                                                    </Rectangle>
+                                                    <TextBlock Canvas.Left="0" Canvas.Top="-20" Foreground="Lime" FontSize="12" FontWeight="Bold"
+                                                               Text="{Binding Score, StringFormat='相似度:{0:F3}'}"/>
+                                                    <TextBlock Canvas.Left="0" Canvas.Top="-6" Foreground="Yellow" FontSize="11"
+                                                               Text="{Binding Angle, StringFormat='角度:{0:F0}°'}"/>
+                                                </Canvas>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </Canvas>
                                 <!-- 匹配结果覆盖层：点「开启匹配」后叠加显示相似度/精度/位置/角度；绿底通过，红底未达阈值 -->
                                 <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10"

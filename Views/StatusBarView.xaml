@@ -36,14 +36,20 @@
                 <TextBlock Text="{Binding RunStatusText}" Foreground="{Binding RunColor}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
             </StackPanel>
 
-            <!-- 异常情况 -->
+            <!-- 异常情况：点击错误文本可弹窗查看完整内容（状态栏空间有限会截断显示） -->
             <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
                 <Path Data="{StaticResource WarnIcon}" Width="14" Height="14" Stretch="Uniform"
                       Fill="#DC2626" Margin="0,0,5,0" VerticalAlignment="Center"
                       Visibility="{Binding HasException, Converter={StaticResource BoolToVis}}"/>
-                <TextBlock Text="{Binding ExceptionText}" Foreground="#DC2626" FontSize="12" VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis" MaxWidth="420"
-                           Visibility="{Binding HasException, Converter={StaticResource BoolToVis}}"/>
+                <!-- 可点击的错误胶囊：淡红底 + 圆角 + 手型光标，给用户明确「这是可点的」 -->
+                <Border CornerRadius="4" Padding="6,3" Margin="0,0,0,0"
+                        Background="#22DC2626" Cursor="Hand"
+                        MouseLeftButtonUp="ShowException_Click"
+                        ToolTip="点击查看完整错误内容"
+                        Visibility="{Binding HasException, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="{Binding ExceptionText}" Foreground="#DC2626" FontSize="12" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+                </Border>
                 <Button Content="清除" Style="{StaticResource TtPillRedBtn}" Padding="8,2" Margin="8,0,0,0"
                         Click="ClearException_Click"
                         Visibility="{Binding HasException, Converter={StaticResource BoolToVis}}"/>

@@ -30,6 +30,47 @@ namespace NoCodeMotion.Views
             DataContext = _vm;
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
+            // 布局尺寸变化时同步重算叠加层变换（图像实际像素 → 屏幕坐标）
+            ImageHost.SizeChanged += (_, _) => UpdateMatchOverlayTransform();
+            // VM 结果变化也可能影响显示（比如切步骤清空 MatchResults），
+            // 覆盖层 ItemsControl 会自动跟着空集合隐藏，但变换仍需重算
+            _vm.PropertyChanged += OnVmPropertyChanged;
+        }
+
+        private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // 图像源切换 / 匹配结果集合变化都会让有效像素宽高变，重算变换保证对齐
+            if (e.PropertyName == nameof(VisualFlowDetailViewModel.ResultImage)
+                || e.PropertyName == nameof(VisualFlowDetailViewModel.MatchResults))
+            {
+                UpdateMatchOverlayTransform();
+            }
+        }
+
+        /// <summary>
+        /// 把像素坐标系的匹配叠加层对齐到当前 ResultImageView 的实际显示区域。
+        /// 图像 Stretch=Uniform（等比缩放 + 居中），叠加层用 TranslateTransform(ox,oy) +
+        /// ScaleTransform(s,s) 把子元素的源图像素坐标 (px,py) 映射到屏幕 (ox+px*s, oy+py*s)。
+        /// 与 ROI 拖拽使用的 scale/offset 公式一致（见 ApplyTemplateRoi）。
+        /// </summary>
+        private void UpdateMatchOverlayTransform()
+        {
+            if (ResultImageView.Source is not BitmapSource src || src.PixelWidth <= 0 || src.PixelHeight <= 0)
+            {
+                MatchOverlay.RenderTransform = null;
+                return;
+            }
+            double hostW = ImageHost.ActualWidth, hostH = ImageHost.ActualHeight;
+            if (hostW <= 0 || hostH <= 0) { MatchOverlay.RenderTransform = null; return; }
+
+            double scale = Math.Min(hostW / src.PixelWidth, hostH / src.PixelHeight);
+            double dispW = src.PixelWidth * scale, dispH = src.PixelHeight * scale;
+            double ox = (hostW - dispW) / 2.0, oy = (hostH - dispH) / 2.0;
+
+            var g = new TransformGroup();
+            g.Children.Add(new TranslateTransform(ox, oy));
+            g.Children.Add(new ScaleTransform(scale, scale));
+            MatchOverlay.RenderTransform = g;
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)

@@ -158,6 +158,20 @@ namespace NoCodeMotion.Views
 
         public bool HasMatchResult => MatchResult != null;
 
+        // ---- 全部匹配结果框集合（供结果图 WPF 叠加层按 angle 绘制旋转矩形/文本）。
+        // 与 MatchResult（单条 best）并存：MatchResult 喂顶部信息胶囊，MatchResults 喂叠加层。
+        public static readonly DependencyProperty MatchResultsProperty =
+            DependencyProperty.Register(nameof(MatchResults), typeof(ObservableCollection<MatchBox>),
+                typeof(VisualFlowDetailViewModel));
+
+        public ObservableCollection<MatchBox>? MatchResults
+        {
+            get => (ObservableCollection<MatchBox>?)GetValue(MatchResultsProperty);
+            set => SetValue(MatchResultsProperty, value);
+        }
+
+        public bool HasMatchResults => MatchResults != null && MatchResults.Count > 0;
+
         /// <summary>每步执行结果（绑定到结果列表）。同一实例，增删由集合自身通知。</summary>
         public ObservableCollection<VisionStepResult> Results { get; } = new();
 
@@ -313,10 +327,15 @@ namespace NoCodeMotion.Views
                 // 结构化匹配结果供右侧图像叠加（相似度 / 精度 / 位置 / 角度）
                 MatchResult = report.Match;
 
+                // 全部匹配框 → 叠加层画旋转矩形（避免 Angle≠0 时轴对齐框方向错）
+                MatchResults = report.Matches.Count > 0
+                    ? new ObservableCollection<MatchBox>(report.Matches)
+                    : null;
+
                 int ok = 0;
                 foreach (var r in Results) if (r.Ok) ok++;
                 RunStatus = report.Match != null
-                    ? $"匹配完成：{Results.Count} 步，{ok} 步成功　相似度 {report.Match.Score:F3} / 阈值 {report.Match.Threshold:F2}"
+                    ? $"匹配完成：{Results.Count} 步，{ok} 步成功　相似度 {report.Match.Score:F3} / 阈值 {report.Match.Threshold:F2}　共找到 {report.Matches.Count} 个目标"
                     : $"匹配完成：{Results.Count} 步，{ok} 步成功";
             }
             catch (Exception ex)
@@ -441,6 +460,7 @@ namespace NoCodeMotion.Views
             vm.TemplatePreviewImage = null;
             vm.HasTemplatePreview = false;
             vm.MatchResult = null;
+            vm.MatchResults = null;
             vm.RaiseTypeFlags();
             vm.RaiseSourceFlags();
         }
@@ -504,11 +524,20 @@ namespace NoCodeMotion.Views
                 HasResult = false;
             }
 
+            // 单条最佳摘要（喂顶部信息胶囊）
+            MatchResult = report.Match;
+            // 全部匹配框 → 叠加层旋转矩形
+            MatchResults = report.Matches.Count > 0
+                ? new ObservableCollection<MatchBox>(report.Matches)
+                : null;
+
             int ok = 0;
             foreach (var r in Results) if (r.Ok) ok++;
             IsRunning = false;
             CanRun = true;
-            RunStatus = $"完成：共 {Results.Count} 步，{ok} 步成功";
+            RunStatus = report.Matches.Count > 0
+                ? $"完成：共 {Results.Count} 步，{ok} 步成功　匹配 {report.Matches.Count} 个目标"
+                : $"完成：共 {Results.Count} 步，{ok} 步成功";
         }
 
         /// <summary>从首个启用步骤运行到 target（含），用于单步/分段验证，并回填该段每步的耗时与结果。</summary>
@@ -550,11 +579,19 @@ namespace NoCodeMotion.Views
                 HasResult = false;
             }
 
+            // 单条最佳摘要 + 全部匹配框（叠加层旋转矩形）
+            MatchResult = report.Match;
+            MatchResults = report.Matches.Count > 0
+                ? new ObservableCollection<MatchBox>(report.Matches)
+                : null;
+
             int ok = 0;
             foreach (var r in Results) if (r.Ok) ok++;
             IsRunning = false;
             CanRun = true;
-            RunStatus = $"运行到「{target.Name}」完成：{Results.Count} 步，{ok} 步成功";
+            RunStatus = report.Matches.Count > 0
+                ? $"运行到「{target.Name}」完成：{Results.Count} 步，{ok} 步成功　匹配 {report.Matches.Count} 个目标"
+                : $"运行到「{target.Name}」完成：{Results.Count} 步，{ok} 步成功";
         }
 
         private sealed class SimpleRelayCommand : ICommand
