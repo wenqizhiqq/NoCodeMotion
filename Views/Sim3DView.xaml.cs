@@ -164,7 +164,8 @@ namespace NoCodeMotion.Views
             };
             Vp.MouseWheel += (s, e) =>
             {
-                _radius *= (1 + e.Delta * 0.0008);
+                // 滚轮上滚(Delta>0)放大(相机靠近, radius 减小)；下滚缩小——与常见查看器一致
+                _radius *= (1 - e.Delta * 0.0008);
                 _radius = Math.Max(100, Math.Min(800, _radius));
                 UpdateCamera();
             };

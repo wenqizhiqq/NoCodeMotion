@@ -5,8 +5,9 @@
 // 新建工程弹窗所用的「项目模板」目录。
 // 每个模板是一个 ProjectTemplate，Factory() 每次返回全新的 ProjectData。
 //
-// 模板总数：17 个（含 1 个空白）。
-// 分类：空白 / 轴运动(6) / 气缸(2) / IO(2) / 综合(6)。
+// 模板总数：18 个（含 1 个空白）。
+// 分类：空白 / 轴运动(6) / 气缸(2) / IO(2) / 综合(7)。
+// 综合(7) 中「仿真演示」为专为 3D 仿真设计的示例：运行即可看到轴/气缸/相机动起来。
 // 覆盖：控制器 / 轴 / IO(入+出) / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 变量 / 流程（主流程多个 + 复位流程）。
 // =====================================================================
 using System;
@@ -40,13 +41,14 @@ namespace NoCodeMotion.Services
             Io8x8(),
             Io16x16(),
 
-            // ---------- 综合 (6) ----------
+            // ---------- 综合 (7) ----------
             PointPick(),
             DualStation(),
             AssemblyLine(),
             VisionGuided(),
             MultiProduct(),
             FullFeatured(),
+            SimDemo(),
         };
 
         // ====================================================================
@@ -1152,15 +1154,25 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("Modbus主站", "ModbusTCP", "192.168.1.10", 502));
                 d.Comms.Add(Comm("光源控制器", "串口", "COM3", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"), ("匹配分数", "0"));
+
+                // 点位表：视觉工位（4 轴槽 X/Y/Z/R），供「点位」步骤联动走位
+                var vtbl = new PointTable { Name = "视觉工位" };
+                vtbl.AxisNames[0] = "X"; vtbl.AxisNames[1] = "Y"; vtbl.AxisNames[2] = "Z"; vtbl.AxisNames[3] = "R";
+                vtbl.Points.Add(MakePoint("取料位", 100, 100, -30, 0));
+                vtbl.Points.Add(MakePoint("放料位", 200, 200, -30, 180));
+                d.PointTables.Add(vtbl);
+
                 d.Flows.Add(TblFlow("自动取料", FlowRole.Main,
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     SetIO("光源", "1"),
                     SetIO("真空", "1"),
                     WaitIO("拍照允许", "1", 5000),
+                    CameraStep("0"),
                     MoveAxis("X", 100, 800),
                     MoveAxis("Y", 100, 800),
                     MoveAxis("Z", -30, 400),
+                    PointStep("视觉工位", "取料位"),
                     CylOut("夹爪"),
                     Delay(300),
                     MoveAxis("Z", 0, 400),
@@ -1576,6 +1588,117 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             },
         };
 
+        // =================== 仿真演示（专为 3D 仿真设计） ===================
+        // 打开后「运行」即可看到：四轴联动走位 + 点位表运动 + 气缸伸缩 + 相机取帧预览。
+        // 轴/气缸/相机数量会被 3D 仿真页自动识别并建模；流程里的 相机/点位 步骤
+        // 直接驱动仿真预览与相机画面。
+        private static ProjectTemplate SimDemo() => new()
+        {
+            Id = "sim-demo",
+            Name = "仿真演示",
+            Category = "综合",
+            Description = "4 轴 + 8 IO + 2 气缸 + 2 相机 + 1 点位表，专为 3D 仿真设计的示例：运行即见轴/气缸/相机动起来。",
+            Summary = "1 控制 · 4 轴 · 8 入 8 出 · 2 气缸 · 2 相机 · 1 点位表 · 2 通讯 · 3 变量 · 2 主流程 · 1 复位",
+            Highlights = new[]
+            {
+                "控制器：雷赛 EtherCAT 主站",
+                "轴：X/Y/Z 直线 + R 旋转（单位 mm / °）",
+                "气缸：夹爪 + 真空，仿真中可见活塞伸缩",
+                "相机：上视 / 下视各一台，运行到「相机」步骤即刷新仿真取帧预览",
+                "点位表：取放工位（安全点 / 取料点 / 放料点），运行到「点位」步骤即联动走位",
+                "主流程1：安全点 → 取料点 → 夹取+拍照 → 放料点 → 释放",
+                "主流程2：视觉定位（连续拍照 + 走位循环）",
+                "复位：气缸缩回 + 各轴回零",
+                "适合直接点「运行」观察 3D 仿真动画"
+            },
+            Factory = () =>
+            {
+                var d = new ProjectData();
+                d.Controllers.Add(Ctl("控制卡1", "雷赛", "EtherCAT主站", 0, 4, "EtherCAT", "网口"));
+                d.Axes.Add(Ax("X", "控制卡1", "EtherCAT", 0, "mm", 400, 200, 200));
+                d.Axes.Add(Ax("Y", "控制卡1", "EtherCAT", 1, "mm", 400, 200, 200));
+                d.Axes.Add(Ax("Z", "控制卡1", "EtherCAT", 2, "mm", 150, 100, 100));
+                d.Axes.Add(Ax("R", "控制卡1", "EtherCAT", 3, "°", 360, 180, 180));
+                string[] inNames = { "启动", "停止", "复位", "急停", "手自动", "暂停", "示教", "拍照允许" };
+                for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], "动点", "控制卡1", 0, 0, i));
+                string[] outNames = { "运行", "就绪", "报警", "完成", "夹爪", "真空", "光源", "下料" };
+                for (int i = 0; i < 8; i++) d.Outputs.Add(Out(outNames[i], "动点", "控制卡1", 0, 0, i));
+                d.Cylinders.Add(Cyl("夹爪", "Y0", "X0", "X1"));
+                d.Cylinders.Add(Cyl("真空", "Y1", "X2", "X3"));
+                d.Cameras.Add(Cam("上视相机", "海康威视", "192.168.1.100", 8000, 1920, 1080, 10.0, 1.0, "装配检测"));
+                d.Cameras.Add(Cam("下视相机", "巴斯勒", "192.168.1.101", 8000, 2448, 2048, 8.0, 1.5, "位置识别"));
+                d.Comms.Add(Comm("Modbus主站", "ModbusTCP", "192.168.1.10", 502));
+                d.Comms.Add(Comm("光源控制器", "串口", "COM3", 9600));
+                AddVars(d, ("计数", "0"), ("总数", "0"), ("匹配分数", "0"));
+
+                // 点位表：取放工位（4 轴槽 X/Y/Z/R）
+                var tbl = new PointTable { Name = "取放工位" };
+                tbl.AxisNames[0] = "X";
+                tbl.AxisNames[1] = "Y";
+                tbl.AxisNames[2] = "Z";
+                tbl.AxisNames[3] = "R";
+                tbl.Points.Add(MakePoint("安全点", 0, 0, 50, 0));
+                tbl.Points.Add(MakePoint("取料点", 120, 80, -30, 0));
+                tbl.Points.Add(MakePoint("放料点", 260, 200, -30, 180));
+                d.PointTables.Add(tbl);
+
+                // 主流程1：完整取放（点位表走位 + 气缸 + 相机取帧）
+                d.Flows.Add(TblFlow("取放演示", FlowRole.Main,
+                    WaitIO("启动", "1", 3000),
+                    SetIO("运行", "1"),
+                    SetIO("光源", "1"),
+                    // 先回安全点（显式轴移动，仿真可见）
+                    MoveAxis("X", 0, 800),
+                    MoveAxis("Y", 0, 800),
+                    MoveAxis("Z", 50, 600),
+                    MoveAxis("R", 0, 600),
+                    // 点位表走位：仿真按 4 轴槽目标位置联动
+                    PointStep("取放工位", "取料点"),
+                    CylOut("夹爪"),
+                    Delay(300),
+                    // 相机取帧：仿真相机预览刷新（返回合成帧）
+                    CameraStep("0"),
+                    SetIO("真空", "1"),
+                    Delay(300),
+                    PointStep("取放工位", "放料点"),
+                    CylBack("夹爪"),
+                    SetIO("真空", "0"),
+                    Delay(300),
+                    MoveAxis("Z", 0, 600),
+                    SetIO("完成", "1")));
+
+                // 主流程2：视觉定位（连续拍照 + 走位循环，便于观察相机预览刷新）
+                d.Flows.Add(TblFlow("视觉定位", FlowRole.Main,
+                    WaitIO("启动", "1", 3000),
+                    SetIO("运行", "1"),
+                    SetIO("光源", "1"),
+                    MoveAxis("X", 60, 600),
+                    MoveAxis("Y", 60, 600),
+                    CameraStep("0"),
+                    MoveAxis("X", 200, 600),
+                    MoveAxis("Y", 160, 600),
+                    CameraStep("1"),
+                    MoveAxis("X", 320, 600),
+                    MoveAxis("Y", 280, 600),
+                    CameraStep("0"),
+                    SetIO("完成", "1")));
+
+                // 复位：气缸缩回 + 各轴回零
+                d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+                    SetIO("报警", "0"),
+                    CylBack("夹爪"),
+                    CylBack("真空"),
+                    SetIO("光源", "0"),
+                    MoveAxis("Z", 0, 600),
+                    HomeAxis("X"),
+                    HomeAxis("Y"),
+                    HomeAxis("Z"),
+                    HomeAxis("R"),
+                    SetIO("就绪", "1")));
+                return d;
+            },
+        };
+
         // ====================================================================
         // 构建助手
         // ====================================================================
@@ -1666,6 +1789,18 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             => new() { Logic = "就", Function = "轴", Property = "速度", Operation = "等于", SetValue = "0", DurationMs = ms };
         private static FlowStep SetIO(string ioName, string value)
             => new() { Logic = "就", Function = "IO", Property = "输出状态", Operation = "修改", SetValue = value };
+
+        // 相机采集步骤：Name 即相机序号（与 ProjectData.Cameras 的下标对应，0 起）。
+        // 运行到该步骤时 FlowRunnerService 会调用 VisionEngine.CaptureFrame 取一帧
+        // （仿真桩下返回合成帧），并触发 OnCameraCapture 让 3D 仿真相机预览刷新。
+        private static FlowStep CameraStep(string camIdx = "0")
+            => new() { Logic = "就", Function = "相机", Property = "采集", Operation = "修改", SetValue = camIdx, Name = camIdx };
+
+        // 点位步骤：Name = 点位表名，SetValue = 该表下的点位名（留空则取第一个点位）。
+        // 运行到该步骤时 FlowRunnerService 会按点位表里的 4 轴槽目标位置驱动各轴，
+        // 3D 仿真即随之同步运动。
+        private static FlowStep PointStep(string tableName, string pointName = "")
+            => new() { Logic = "就", Function = "点位", Property = "移动到", Operation = "修改", SetValue = pointName, Name = tableName };
 
         // 点位构造助手
         private static PointItem MakePoint(string name, double x, double y, double z, double r = 0)
