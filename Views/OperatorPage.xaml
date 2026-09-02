@@ -153,8 +153,7 @@
         </Style>
     </UserControl.Resources>
 
-    <!-- 自适应 2 列布局：左列为「生产数据 + 控制 + 折线图 + 3D 仿真」，右列为「时序偏差监控 + 异常日志」。
-         整页无外部滚动条；左列紧凑排布，右列两张卡各自占满并内部滚动。 -->
+        <!-- 操作员页布局：左右各占一半。右列=运行轨迹 3D 仿真（占满整高）；左列上=生产数据/控制/趋势，下(左下角)=时序偏差监控+异常日志。整页无外部滚动条。 -->
     <Grid Background="{StaticResource CanvasBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -182,11 +181,18 @@
         <Grid Grid.Row="1" Margin="16,12,16,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="1.25*"/>
+                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 左列：生产数据 + 控制 + 折线图 + 3D 仿真（无滚动条，紧凑排布） -->
-            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+            <!-- 左列：上=生产数据/控制/趋势，下(左下角)=时序偏差监控+异常日志 -->
+            <Grid Grid.Column="0" Margin="0,0,8,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- 左列上半：生产数据 + 控制 + 趋势 -->
+                <StackPanel Grid.Row="0">
 
                     <!-- 生产数据 KPI -->
                     <TextBlock Text="生产数据" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,8"/>
@@ -263,36 +269,16 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
+                </StackPanel>
 
-                    <!-- 运行轨迹 3D 仿真 -->
-                    <TextBlock Text="运行轨迹 3D 仿真" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
-                    <Border Style="{StaticResource CardBorderStyle}" Padding="12">
-                        <StackPanel>
-                            <DockPanel LastChildFill="False" Margin="0,0,0,8">
-                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
-                                    <Ellipse Style="{StaticResource SimRunDot}" Margin="0,0,8,0"/>
-                                    <TextBlock Text="3D 运行仿真" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource SimStatusTextStyle}" VerticalAlignment="Center"/>
-                            </DockPanel>
-                            <local:Sim3DView Height="200"
-                                             Points="{Binding OpSimPoints}"
-                                             Head="{Binding OpSimHead}"
-                                             HeadVisible="{Binding OpSimHeadVisible}"
-                                             CurrentIndex="{Binding OpSimIndex}"/>
-                        </StackPanel>
-                    </Border>
+                <!-- 左列下半(左下角)：时序偏差监控 + 异常日志 -->
+                <Grid Grid.Row="1" Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-            </StackPanel>
-
-            <!-- 右列：时序偏差监控（上） + 异常日志（下） -->
-            <Grid Grid.Column="1" Margin="8,0,0,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="1.3*"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <!-- 时序偏差监控（占满上方、内部滚动、列头固定） -->
+                <!-- 时序偏差监控 -->
                 <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,0,0,8">
                     <DockPanel LastChildFill="True">
                         <TextBlock DockPanel.Dock="Top" Text="时序偏差监控：实际触发时刻与预期时序标记比对，偏差 ≤ ±2ms 正常，≤ ±5ms 偏差，超出报警并写入异常日志；未配置标记显示「未配置」。"
@@ -322,7 +308,7 @@
                     </DockPanel>
                 </Border>
 
-                <!-- 异常日志（占满下方、内部滚动） -->
+                <!-- 异常日志 -->
                 <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,8,0,0">
                     <DockPanel LastChildFill="True">
                         <TextBlock DockPanel.Dock="Top" Text="异常日志" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
@@ -347,6 +333,24 @@
                     </DockPanel>
                 </Border>
             </Grid>
+            </Grid>
+
+            <!-- 右列(占一半)：运行轨迹 3D 仿真，占满整列高度 -->
+            <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="8,0,0,0">
+                <DockPanel LastChildFill="True">
+                    <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                            <Ellipse Style="{StaticResource SimRunDot}" Margin="0,0,8,0"/>
+                            <TextBlock Text="3D 运行仿真" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock DockPanel.Dock="Right" Style="{StaticResource SimStatusTextStyle}" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <local:Sim3DView Points="{Binding OpSimPoints}"
+                                     Head="{Binding OpSimHead}"
+                                     HeadVisible="{Binding OpSimHeadVisible}"
+                                     CurrentIndex="{Binding OpSimIndex}"/>
+                </DockPanel>
+            </Border>
         </Grid>
         <local:PageHintBar Grid.Row="2" OperationText="点「启动」并发运行全部流程（复位流程除外）；用「停止 / 急停 / 复位」控制；运行状态由定时器刷新。" PrecautionText="急停会切断所有输出；运行前确认现场安全；流程异常需先修正再重新启动。"/>
     </Grid>
