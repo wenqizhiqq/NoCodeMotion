@@ -107,9 +107,10 @@ namespace NoCodeMotion.ViewModels
             Action<int, string, string> onStep,
             Action<int, string> onFlowDone,
             Action onComplete,
-            CancellationToken ct = default)
+            CancellationToken ct = default,
+            Func<FlowItem, bool>? filter = null)
         {
-            var flows = ProjectStore.Data?.Flows?.ToList() ?? new List<FlowItem>();
+            var flows = ProjectStore.Data?.Flows?.Where(filter ?? (_ => true)).ToList() ?? new List<FlowItem>();
             if (flows.Count == 0) { onComplete?.Invoke(); return; }
             var done = new CountdownEvent(flows.Count);
             for (int i = 0; i < flows.Count; i++)

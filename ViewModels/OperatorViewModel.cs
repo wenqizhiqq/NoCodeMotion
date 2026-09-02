@@ -251,6 +251,10 @@ namespace NoCodeMotion.ViewModels
         /// 避免运行结束后定时器把手动（流程页单步）运行时写的状态覆盖成 就绪。</summary>
         private volatile bool _runActive;
 
+        /// <summary>运行代号：每次 启动/复位 自增；旧的 FinalizeRun/FinalizeReset 凭代号判断是否已被新运行取代，
+        /// 避免旧运行收尾在 UI 线程上把新运行的 _runActive 等状态错误覆盖（点复位时旧运行可能仍在跑）。</summary>
+        private int _runGen;
+
         public OperatorViewModel()
         {
             _ = AuthorWatermark.Signature;   // 作者水印引用（误删 AuthorWatermark.cs 将编译失败）
@@ -417,19 +421,21 @@ namespace NoCodeMotion.ViewModels
             AddLog(LogLevel.Info, $"启动运行（自动）：并发执行 {flows.Count} 个流程。");
             StatusText = $"运行中：并发执行 {flows.Count} 个流程…";
 
+            int gen = ++_runGen;
             FlowRunnerService.RunAllAsync(
                 ctrl,
                 log: msg => _logQueue.Enqueue(msg),
                 onStep: (idx, name, cur) => { },
                 onFlowDone: (idx, name) => _uiQueue.Enqueue(() => AdvanceProduction()),
-                onComplete: () => _uiQueue.Enqueue(FinalizeRun),
+                onComplete: () => _uiQueue.Enqueue(() => FinalizeRun(gen)),
                 ct: CancellationToken.None
             );
         }
 
         /// <summary>全部流程运行结束后的收尾（由 UI 定时器队列在 UI 线程执行）：复位运行态、写回变量、刷新状态文本。</summary>
-        private void FinalizeRun()
+        private void FinalizeRun(int gen)
         {
+            if (gen != _runGen) return;   // 已被新的 启动/复位 取代，丢弃旧收尾，避免覆盖新运行状态
             IsRunning = false;
             IsPaused = false;
             _runActive = false;
@@ -498,6 +504,9 @@ namespace NoCodeMotion.ViewModels
             AddLog(LogLevel.Error, wasRunning ? "急停触发！运行中工位已紧急切断。" : "急停触发！");
         }
 
+        /// <summary>复位按钮：先清掉运行态 / KPI / 时序（与旧行为一致），再把所有「复位流程」（Role=Reset）在后台
+        /// Thread 单次跑一遍（RunOneFlow 对 Role=Reset 本就只跑一轮不循环）。状态只写 FlowRunStore，UI 由 150ms
+        /// 定时器拉取——与启动运行同一套铁律（禁 Task / 只 Thread / 定时器刷新）。无复位流程时仅做状态复位。</summary>
         private void Reset()
         {
             _stopRequested = true;
@@ -519,8 +528,52 @@ namespace NoCodeMotion.ViewModels
             RunElapsedText = "00:00";
             Samples.Clear();
             RebuildChart();
-            StatusText = "已复位，点「启动」运行（按全部流程并发）。";
-            AddLog(LogLevel.Info, "系统已复位。");
+
+            // 若正在运行其它流程，先让其停止，避免两套运行重叠（旧收尾凭 _runGen 代号自动作废）
+            _flowCtrl?.StopRequested = true; _flowCtrl?.ResumeEvent.Set();
+
+            var resetFlows = ProjectStore.Data.Flows?.Where(f => f.Role == FlowRole.Reset).ToList();
+            if (resetFlows == null || resetFlows.Count == 0)
+            {
+                StatusText = "已复位，点「启动」运行（按全部流程并发）。";
+                AddLog(LogLevel.Info, "系统已复位（无复位流程）。");
+                return;
+            }
+
+            // 复位流程：每条后台 Thread 单次运行（不循环），状态经 FlowRunStore 由定时器刷新。
+            var ctrl = new FlowRunControl();
+            ctrl.InitVars();
+            _flowCtrl = ctrl;
+            FlowRunStore.ClearAll();
+            _runActive = true;
+            IsRunning = true;
+            IsPaused = false;
+            _runSw.Restart();
+            int gen = ++_runGen;
+            AddLog(LogLevel.Info, $"复位：并发执行 {resetFlows.Count} 个复位流程（单次，不循环）。");
+            StatusText = $"复位中：执行 {resetFlows.Count} 个复位流程…";
+
+            FlowRunnerService.RunAllAsync(
+                ctrl,
+                log: msg => _logQueue.Enqueue(msg),
+                onStep: (idx, name, cur) => { },
+                onFlowDone: (idx, name) => { },
+                onComplete: () => _uiQueue.Enqueue(() => FinalizeReset(gen)),
+                ct: CancellationToken.None,
+                filter: f => f.Role == FlowRole.Reset
+            );
+        }
+
+        /// <summary>复位流程全部执行完的收尾（由 UI 定时器队列在 UI 线程执行）：复位运行态、写回变量、刷新状态文本。</summary>
+        private void FinalizeReset(int gen)
+        {
+            if (gen != _runGen) return;   // 已被新的 启动/复位 取代，丢弃旧收尾
+            _runActive = false;
+            IsRunning = false;
+            IsPaused = false;
+            _flowCtrl?.WriteBackVars();
+            StatusText = "复位完成，点「启动」运行（按全部流程并发）。";
+            AddLog(LogLevel.Info, "复位流程执行完成。");
         }
 
         /// <summary>把各流程状态芯片重置为 就绪（UI 线程调用）。</summary>
