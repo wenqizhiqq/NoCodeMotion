@@ -20,8 +20,9 @@
             <ModelVisual3D>
                 <ModelVisual3D.Content>
                     <Model3DGroup>
-                        <AmbientLight Color="#CCCCCC"/>
+                        <AmbientLight Color="#E8E8E8"/>
                         <DirectionalLight Color="#FFFFFF" Direction="-0.4,-1,-0.6"/>
+                        <DirectionalLight Color="#B8C4D0" Direction="0.5,-0.4,0.6"/>
                     </Model3DGroup>
                 </ModelVisual3D.Content>
             </ModelVisual3D>
@@ -62,6 +63,10 @@
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
                 <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#1E293B" Margin="0,0,4,0" VerticalAlignment="Center"/>
                 <TextBlock Text="相机" FontSize="10.5" Foreground="#334155" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
+                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#9CA3B0" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                <TextBlock Text="气缸" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
                 <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#3B82F6" Margin="0,0,4,0" VerticalAlignment="Center"/>

@@ -1,17 +1,18 @@
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇
 // 运行轨迹 3D 仿真控件（参数化机台）。
-// 机台几何根据 ProjectStore.Data.Axes 自动生成（直线轴→导轨/滑座/主轴，旋转轴→转台），
+// 机台几何根据 ProjectStore.Data.Axes + 流程内容（相机/气缸等设备使用）自动生成，
 // 三轴联动由 AxisRuntimeState（流程/单步运行时实时写入的轴位置）驱动；
 // 流程「相机」步骤真实取帧后，抓拍图显示在卡片内的 CaptureImage 预览。
-// 支持鼠标拖拽旋转、滚轮缩放。
+// 支持鼠标拖拽旋转（自然跟踪球手感）、滚轮缩放；机台各部件使用程序化真实材质
+// （拉丝金属 / 烤漆 / 阳极氧化 / 深色塑料 / 镜头玻璃 / 床面网格等），基元网格带 UV 以正确贴图。
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 using NoCodeMotion.Models;
@@ -19,9 +20,18 @@ using NoCodeMotion.Services;
 
 namespace NoCodeMotion.Views
 {
-    /// <summary>运行轨迹 3D 仿真控件（参数化机台，由轴配置自动生成）。</summary>
+    /// <summary>运行轨迹 3D 仿真控件（参数化机台，由轴配置 + 流程内容自动生成，真实材质）。</summary>
     public partial class Sim3DView : UserControl
     {
+        // 部件材质种类（对应程序化真实材质）
+        private enum MatKind
+        {
+            Bed, Frame, Carriage, Spindle, ToolTip,
+            RotaryBase, Rotary, CameraBody, CameraLens, Workpiece,
+            CylBody, CylRod,
+            Point, Traj, Head
+        }
+
         // ===== 场景参数 =====
         private const double NormHalf = 40;   // 点位归一化半幅
         private const double WorkX = 50;      // 机台 X 工作空间半幅（场景 X 轴）
@@ -29,17 +39,7 @@ namespace NoCodeMotion.Views
         private const double WorkY = 25;      // 机台 vertical 工作空间半幅（场景 Y 轴）
         private const double BaseY = -10;     // 床面以上基准高度
 
-        // ===== 部件配色 =====
-        private static readonly Color C_Bed = Color.FromRgb(0x47, 0x55, 0x69);
-        private static readonly Color C_Frame = Color.FromRgb(0x64, 0x74, 0x8B);
-        private static readonly Color C_Carriage = Color.FromRgb(0x94, 0xA3, 0xB8);
-        private static readonly Color C_Spindle = Color.FromRgb(0x8B, 0x5C, 0xF6);
-        private static readonly Color C_ToolTip = Color.FromRgb(0xF9, 0x73, 0x16);
-        private static readonly Color C_RotaryBase = Color.FromRgb(0x33, 0x3D, 0x4D);
-        private static readonly Color C_Rotary = Color.FromRgb(0x0E, 0xA5, 0xE9);
-        private static readonly Color C_CameraBody = Color.FromRgb(0x1E, 0x29, 0x3B);
-        private static readonly Color C_CameraLens = Color.FromRgb(0x94, 0xA3, 0xB8);
-        private static readonly Color C_Workpiece = Color.FromRgb(0x3B, 0x82, 0xF6);
+        // 数据叠加层颜色（轨迹/点位/当前位置保持纯色以便辨识）
         private static readonly Color C_Traj = Color.FromRgb(0x3B, 0x82, 0xF6);
         private static readonly Color C_Point = Color.FromRgb(0x60, 0xA5, 0xFA);
         private static readonly Color C_Head = Color.FromRgb(0xEF, 0x44, 0x44);
@@ -99,7 +99,7 @@ namespace NoCodeMotion.Views
             set => SetValue(CaptureImageProperty, value);
         }
 
-        // ===== 相机轨道参数 =====
+        // ===== 相机轨道参数（自然跟踪球：拖拽方向与场景旋转一致） =====
         private double _theta = 0.7;
         private double _phi = 0.5;
         private double _radius = 240;
@@ -110,7 +110,7 @@ namespace NoCodeMotion.Views
         private double _scale = 1;
         private Point3D _center = new(0, 0, 0);
 
-        // ===== 共享几何（冻结） =====
+        // ===== 共享几何（冻结，带 UV 以贴图） =====
         private readonly MeshGeometry3D _sphere = BuildSphere();
         private readonly MeshGeometry3D _cyl = BuildCylinder();
         private readonly MeshGeometry3D _box = BuildBox();
@@ -125,10 +125,11 @@ namespace NoCodeMotion.Views
         private ModelVisual3D? _workpieceParent;
         private Point3D _vmHead = new(0, 0, 0);
 
-        // 轴分类结果
+        // 轴分类结果 + 流程设备使用
         private readonly List<AxisInfo> _linearInfos = new();
         private readonly List<AxisInfo> _rotaryInfos = new();
         private AxisInfo? _axialX, _axialYdepth, _axialZup;
+        private bool _usesCamera, _usesCylinder;
 
         private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(33) };
 
@@ -150,8 +151,9 @@ namespace NoCodeMotion.Views
                 double dx = p.X - _last.X;
                 double dy = p.Y - _last.Y;
                 _last = p;
-                _theta -= dx * 0.01;
-                _phi -= dy * 0.01;
+                // 自然跟踪球：拖动方向与场景旋转方向一致（抓取跟随手感）
+                _theta += dx * 0.01;
+                _phi += dy * 0.01;
                 _phi = Math.Max(-1.45, Math.Min(1.45, _phi));
                 UpdateCamera();
             };
@@ -169,8 +171,14 @@ namespace NoCodeMotion.Views
 
             _timer.Tick += (s, e) => UpdatePoseFromRuntime();
 
-            if (ProjectStore.Data?.Axes is INotifyCollectionChanged nc)
-                nc.CollectionChanged += (s, e) => Dispatcher.Invoke(BuildScene);
+            if (ProjectStore.Data?.Axes is INotifyCollectionChanged ncA)
+                ncA.CollectionChanged += (s, e) => Dispatcher.Invoke(BuildScene);
+            if (ProjectStore.Data?.Cameras is INotifyCollectionChanged ncC)
+                ncC.CollectionChanged += (s, e) => Dispatcher.Invoke(BuildScene);
+            if (ProjectStore.Data?.Cylinders is INotifyCollectionChanged ncY)
+                ncY.CollectionChanged += (s, e) => Dispatcher.Invoke(BuildScene);
+            if (ProjectStore.Data?.Flows is INotifyCollectionChanged ncF)
+                ncF.CollectionChanged += (s, e) => Dispatcher.Invoke(BuildScene);
 
             BuildScene();
             _timer.Start();
@@ -190,15 +198,17 @@ namespace NoCodeMotion.Views
             _axialX = _axialYdepth = _axialZup = null;
             _linearInfos.Clear();
             _rotaryInfos.Clear();
+            _usesCamera = _usesCylinder = false;
             _scale = 1;
             _center = new Point3D(0, 0, 0);
 
             var raw = Points;
             EmptyHint.Visibility = (raw == null || raw.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
 
-            // 参数化机台：始终根据轴配置生成（即使暂无点位也展示机台）
+            // 参数化机台：始终根据轴配置 + 流程内容生成（即使暂无点位也展示机台）
             BuildMachine();
 
+            // 轨迹 + 点位（来自点位表 / 流程点位步骤）—— raw 可能为 null，必须空保护
             if (raw != null && raw.Count > 0)
             {
                 // 计算包围盒 → 归一化到 80 尺度并居中
@@ -217,79 +227,95 @@ namespace NoCodeMotion.Views
                 _center = ctr;
                 _scale = 80.0 / maxDim;
 
-                double groundY = -52;
-                double span = 110;
                 var plane = new MeshGeometry3D();
+                double groundY = -52, span = 110;
                 plane.Positions.Add(new Point3D(-span, groundY, -span));
                 plane.Positions.Add(new Point3D(span, groundY, -span));
                 plane.Positions.Add(new Point3D(span, groundY, span));
                 plane.Positions.Add(new Point3D(-span, groundY, span));
                 plane.TriangleIndices.Add(0); plane.TriangleIndices.Add(1); plane.TriangleIndices.Add(2);
                 plane.TriangleIndices.Add(0); plane.TriangleIndices.Add(2); plane.TriangleIndices.Add(3);
-                AddModel(Root, plane, 1, 1, 1, new Point3D(0, 0, 0), Color.FromArgb(40, 226, 232, 240), null);
-            }
+                AddModel(Root, plane, 1, 1, 1, new Point3D(0, 0, 0), MatKind.Bed);
 
-            // ===== 轨迹 + 点位（来自点位表 / 流程点位步骤） =====
-            if (raw != null && raw.Count > 0)
-            {
                 var pts = new Point3D[raw.Count];
                 for (int i = 0; i < raw.Count; i++) pts[i] = ToMachine(ToSceneSafe(raw[i]));
                 for (int i = 0; i < pts.Length - 1; i++)
-                    AddSegment(pts[i], pts[i + 1], 1.2, C_Traj);
+                    AddSegment(pts[i], pts[i + 1], 1.2, MatKind.Traj);
                 for (int i = 0; i < pts.Length; i++)
-                {
-                    var col = i == 0 ? C_Traj : C_Point;
-                    _pointModels.Add(AddModel(Root, _sphere, 3.2, 3.2, 3.2, pts[i], col));
-                }
+                    _pointModels.Add(AddModel(Root, _sphere, 3.2, 3.2, 3.2, pts[i], MatKind.Point));
             }
 
             if (HeadVisible)
-                _headModel = AddModel(Root, _sphere, 4.6, 4.6, 4.6, new Point3D(0, 0, 0), C_Head);
+                _headModel = AddModel(Root, _sphere, 4.6, 4.6, 4.6, new Point3D(0, 0, 0), MatKind.Head);
 
             UpdatePoseFromRuntime();
             UpdateCurrent();
         }
 
+        // 机台：轴（龙门/导轨/转台）+ 流程内容驱动的外设（相机/气缸）
         private void BuildMachine()
         {
-            ClassifyAxes();
+            AnalyzeProject();
 
             _machineGroup = new ModelVisual3D();
             Root.Children.Add(_machineGroup);
 
             // 床身 + 4 底脚
-            AddModel(_machineGroup, _box, 130, 4, 90, new Point3D(0, -12, 0), C_Bed);
+            AddModel(_machineGroup, _box, 130, 4, 90, new Point3D(0, -12, 0), MatKind.Bed);
             foreach (var cx in new[] { -55.0, 55.0 })
                 foreach (var cz in new[] { -35.0, 35.0 })
-                    AddModel(_machineGroup, _cyl, 5, 10, 5, new Point3D(cx, -18, cz), C_Bed);
+                    AddModel(_machineGroup, _cyl, 5, 10, 5, new Point3D(cx, -18, cz), MatKind.RotaryBase);
 
-            // 直线轴：嵌套组 X ⊃ D(depth) ⊃ U(up)，每个组平移对应场景轴
+            // 直线轴：嵌套组 X ⊃ D(depth) ⊃ U(up)
             ModelVisual3D parent = _machineGroup;
             if (_axialX != null) { var g = new ModelVisual3D(); parent.Children.Add(g); _linearGroups['X'] = g; AddGantryStructure(g); parent = g; }
             if (_axialYdepth != null) { var g = new ModelVisual3D(); parent.Children.Add(g); _linearGroups['D'] = g; AddBridgeStructure(g); parent = g; }
             if (_axialZup != null) { var g = new ModelVisual3D(); parent.Children.Add(g); _linearGroups['U'] = g; AddSpindleStructure(g); parent = g; _deepestLinear = parent; }
 
-            // 旋转轴：床面转台（绕场景 Y/X/Z 轴）
+            // 旋转轴：床面转台
             foreach (var r in _rotaryInfos)
             {
                 var baseC = new ModelVisual3D();
                 _machineGroup.Children.Add(baseC);
-                AddModel(baseC, _cyl, 18, 3, 18, new Point3D(0, -9, 0), C_RotaryBase);
+                AddModel(baseC, _cyl, 18, 3, 18, new Point3D(0, -9, 0), MatKind.RotaryBase);
                 var top = new ModelVisual3D();
                 baseC.Children.Add(top);
-                AddModel(top, _cyl, 16, 4, 16, new Point3D(0, -6, 0), C_Rotary);
+                AddModel(top, _cyl, 16, 4, 16, new Point3D(0, -6, 0), MatKind.Rotary);
                 _rotaryTops[r.Role] = top;
                 if (_workpieceParent == null) _workpieceParent = top; // 工件随第一个旋转轴转
             }
 
-            // 工件（蓝块）：放在旋转台上（若有），否则床面
+            // 工件（蓝金属块）：放在旋转台上（若有），否则床面
             if (_workpieceParent == null) _workpieceParent = _machineGroup;
-            AddModel(_workpieceParent, _box, 22, 6, 18, new Point3D(0, -2, 0), C_Workpiece);
+            AddModel(_workpieceParent, _box, 22, 6, 18, new Point3D(0, -2, 0), MatKind.Workpiece);
 
-            // 相机模型（静止，前上方俯视床面）
-            AddModel(_machineGroup, _box, 14, 10, 18, new Point3D(0, 55, -58), C_CameraBody);
-            AddModel(_machineGroup, _cyl, 8, 8, 8, new Point3D(0, 46, -58), C_CameraLens);
-            AddModel(_machineGroup, _cyl, 3, 40, 3, new Point3D(0, 34, -58), C_CameraBody);
+            // 相机：由 ProjectStore.Data.Cameras 数量驱动（流程用到相机则至少 1 个）
+            int camN = ProjectStore.Data?.Cameras?.Count ?? 0;
+            if (camN == 0 && _usesCamera) camN = 1;
+            for (int i = 0; i < camN; i++)
+            {
+                double t = camN == 1 ? 0.5 : (double)i / (camN - 1);
+                double ang = (0.25 + 0.5 * t) * Math.PI;     // 45°..135°，前上方俯视床面
+                double cx = Math.Cos(ang) * 62;
+                double cz = -Math.Sin(ang) * 62;
+                double cy = 56 - i * 3;
+                AddModel(_machineGroup, _box, 14, 10, 18, new Point3D(cx, cy, cz), MatKind.CameraBody);
+                AddModel(_machineGroup, _cyl, 8, 8, 8, new Point3D(cx, cy - 9, cz), MatKind.CameraLens);
+                AddModel(_machineGroup, _cyl, 3, 40, 3, new Point3D(cx, cy - 21, cz), MatKind.CameraBody);
+                _machineGroup.Children.Add(MakeLabel("相机" + (camN > 1 ? (i + 1).ToString() : ""), new Point3D(cx, cy + 13, cz)));
+            }
+
+            // 气缸：由 ProjectStore.Data.Cylinders 数量驱动（流程用到气缸则至少 1 个）
+            int cylN = ProjectStore.Data?.Cylinders?.Count ?? 0;
+            if (cylN == 0 && _usesCylinder) cylN = 1;
+            for (int i = 0; i < cylN; i++)
+            {
+                double cx = cylN == 1 ? 0 : -40 + 80 * (double)i / (cylN - 1);
+                double cz = 32;
+                AddModel(_machineGroup, _cyl, 9, 16, 9, new Point3D(cx, -4, cz), MatKind.CylBody);   // 缸体
+                AddModel(_machineGroup, _cyl, 3.4, 16, 3.4, new Point3D(cx, 12, cz), MatKind.CylRod); // 活塞杆（伸出示意）
+                _machineGroup.Children.Add(MakeLabel("气缸" + (cylN > 1 ? (i + 1).ToString() : ""), new Point3D(cx, 26, cz)));
+            }
 
             BuildLabels();
         }
@@ -297,26 +323,25 @@ namespace NoCodeMotion.Views
         // 龙门结构（随 X 平移）
         private void AddGantryStructure(ModelVisual3D g)
         {
-            AddModel(g, _box, 8, 55, 8, new Point3D(0, 15, -32), C_Frame);
-            AddModel(g, _box, 8, 55, 8, new Point3D(0, 15, 32), C_Frame);
-            AddModel(g, _box, 8, 8, 72, new Point3D(0, 42, 0), C_Frame); // 顶部横梁（沿 depth）
+            AddModel(g, _box, 8, 55, 8, new Point3D(0, 15, -32), MatKind.Frame);
+            AddModel(g, _box, 8, 55, 8, new Point3D(0, 15, 32), MatKind.Frame);
+            AddModel(g, _box, 8, 8, 72, new Point3D(0, 42, 0), MatKind.Frame); // 顶部横梁（沿 depth）
         }
         // 桥式滑座（随 depth 平移）
         private void AddBridgeStructure(ModelVisual3D g)
         {
-            AddModel(g, _box, 110, 10, 12, new Point3D(0, 38, 0), C_Carriage);
+            AddModel(g, _box, 110, 10, 12, new Point3D(0, 38, 0), MatKind.Carriage);
         }
         // 主轴/刀具（随 up 平移）
         private void AddSpindleStructure(ModelVisual3D g)
         {
-            AddModel(g, _cyl, 10, 20, 10, new Point3D(0, 12, 0), C_Spindle);
-            AddModel(g, _box, 4, 8, 4, new Point3D(0, -2, 0), C_ToolTip);
+            AddModel(g, _cyl, 10, 20, 10, new Point3D(0, 12, 0), MatKind.Spindle);
+            AddModel(g, _box, 4, 8, 4, new Point3D(0, -2, 0), MatKind.ToolTip);
         }
 
         private void BuildLabels()
         {
-            _machineGroup!.Children.Add(MakeLabel("相机", new Point3D(0, 64, -58)));
-            _machineGroup.Children.Add(MakeLabel("工件", new Point3D(0, 4, 24)));
+            _machineGroup!.Children.Add(MakeLabel("工件", new Point3D(0, 4, 24)));
             foreach (var a in _linearInfos)
                 _machineGroup.Children.Add(MakeLabel(a.Name, LabelPos(a)));
             foreach (var r in _rotaryInfos)
@@ -331,33 +356,46 @@ namespace NoCodeMotion.Views
             return new Point3D(0, 48, 0);
         }
 
-        // 根据轴配置分类（直线/旋转 + 场景角色 + 行程范围）
-        private void ClassifyAxes()
+        // 分析项目：轴分类 + 流程步骤设备使用（相机/气缸）
+        private void AnalyzeProject()
         {
             _axialX = _axialYdepth = _axialZup = null;
             _linearInfos.Clear();
             _rotaryInfos.Clear();
+            _usesCamera = _usesCylinder = false;
+
             var axes = ProjectStore.Data?.Axes;
-            if (axes == null) return;
-            var linear = new List<AxisInfo>();
-            foreach (var a in axes)
+            if (axes != null)
             {
-                bool isRot = string.Equals(a.Unit, "°", StringComparison.OrdinalIgnoreCase);
-                char role = isRot ? PickRotaryRole(a.Name) : PickLinearRole(a.Name);
-                double mn = a.PosLimitMinus, mx = a.PosLimitPlus;
-                if (Math.Abs(mx - mn) < 1e-6) { mn = -100; mx = 100; }
-                var info = new AxisInfo { Name = a.Name, Role = role, IsRotary = isRot, Min = mn, Max = mx };
-                if (isRot) _rotaryInfos.Add(info); else linear.Add(info);
+                var linear = new List<AxisInfo>();
+                foreach (var a in axes)
+                {
+                    bool isRot = string.Equals(a.Unit, "°", StringComparison.OrdinalIgnoreCase);
+                    char role = isRot ? PickRotaryRole(a.Name) : PickLinearRole(a.Name);
+                    double mn = a.PosLimitMinus, mx = a.PosLimitPlus;
+                    if (Math.Abs(mx - mn) < 1e-6) { mn = -100; mx = 100; }
+                    var info = new AxisInfo { Name = a.Name, Role = role, IsRotary = isRot, Min = mn, Max = mx };
+                    if (isRot) _rotaryInfos.Add(info); else linear.Add(info);
+                }
+                for (int i = 0; i < linear.Count; i++)
+                {
+                    var li = linear[i];
+                    if (i == 0) { li.Scene = 'X'; _axialX = li; }
+                    else if (i == 1) { li.Scene = 'D'; _axialYdepth = li; }
+                    else if (i == 2) { li.Scene = 'U'; _axialZup = li; }
+                    _linearInfos.Add(li);
+                }
             }
-            // 前 3 个直线轴依次映射到 场景 X / depth / up
-            for (int i = 0; i < linear.Count; i++)
-            {
-                var li = linear[i];
-                if (i == 0) { li.Scene = 'X'; _axialX = li; }
-                else if (i == 1) { li.Scene = 'D'; _axialYdepth = li; }
-                else if (i == 2) { li.Scene = 'U'; _axialZup = li; }
-                _linearInfos.Add(li);
-            }
+
+            var flows = ProjectStore.Data?.Flows;
+            if (flows != null)
+                foreach (var f in flows)
+                    if (f.Steps != null)
+                        foreach (var s in f.Steps)
+                        {
+                            if (s.Function == "相机") _usesCamera = true;
+                            else if (s.Function == "气缸") _usesCylinder = true;
+                        }
         }
 
         private static char PickLinearRole(string name)
@@ -495,9 +533,9 @@ namespace NoCodeMotion.Views
 
         // ===================== 几何辅助 =====================
         private GeometryModel3D AddModel(ModelVisual3D parent, MeshGeometry3D mesh, double sx, double sy, double sz,
-            Point3D pos, Color color, Transform3D? rot = null)
+            Point3D pos, MatKind kind, Transform3D? rot = null)
         {
-            var mat = new DiffuseMaterial(new SolidColorBrush(color));
+            var mat = GetMaterial(kind);
             var g = new Transform3DGroup();
             if (rot != null) g.Children.Add(rot);
             g.Children.Add(new ScaleTransform3D(sx, sy, sz));
@@ -507,7 +545,7 @@ namespace NoCodeMotion.Views
             return gm;
         }
 
-        private void AddSegment(Point3D a, Point3D b, double radius, Color color)
+        private void AddSegment(Point3D a, Point3D b, double radius, MatKind kind)
         {
             Vector3D dir = b - a;
             double len = dir.Length;
@@ -522,7 +560,7 @@ namespace NoCodeMotion.Views
                 rot = new RotateTransform3D(new AxisAngleRotation3D(axis, ang));
             }
             var mid = new Point3D(a.X + dir.X * 0.5, a.Y + dir.Y * 0.5, a.Z + dir.Z * 0.5);
-            AddModel(Root, _cyl, radius, len, radius, mid, color, rot);
+            AddModel(Root, _cyl, radius, len, radius, mid, kind, rot);
         }
 
         private void UpdateCamera()
@@ -537,7 +575,160 @@ namespace NoCodeMotion.Views
             Cam.UpDirection = new Vector3D(0, 1, 0);
         }
 
-        // ===================== 基础网格生成 =====================
+        // ===================== 程序化真实材质（缓存） =====================
+        private static readonly Dictionary<MatKind, Material> _matCache = new();
+        private static Material GetMaterial(MatKind kind)
+        {
+            if (_matCache.TryGetValue(kind, out var m)) return m;
+            m = BuildMaterial(kind);
+            m.Freeze();
+            _matCache[kind] = m;
+            return m;
+        }
+
+        private static Material BuildMaterial(MatKind kind)
+        {
+            if (kind == MatKind.Point || kind == MatKind.Traj || kind == MatKind.Head)
+                return new DiffuseMaterial(new SolidColorBrush(kind == MatKind.Traj ? C_Traj : kind == MatKind.Head ? C_Head : C_Point));
+
+            var brush = new ImageBrush(Texture(kind))
+            {
+                TileMode = TileMode.Tile,
+                ViewportUnits = BrushMappingMode.RelativeToBoundingBox,
+                // 床面网格纹理需要重复平铺才能看出 T 型槽阵列；其余每面一张
+                Viewport = kind == MatKind.Bed ? new Rect(0, 0, 0.18, 0.18) : new Rect(0, 0, 1, 1)
+            };
+            var diff = new DiffuseMaterial(brush);
+            if (IsMetal(kind))
+            {
+                var grp = new MaterialGroup();
+                grp.Children.Add(diff);
+                grp.Children.Add(new SpecularMaterial(new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)), 24));
+                return grp;
+            }
+            return diff;
+        }
+
+        private static bool IsMetal(MatKind k) =>
+            k == MatKind.Bed || k == MatKind.Frame || k == MatKind.Carriage ||
+            k == MatKind.RotaryBase || k == MatKind.Rotary || k == MatKind.CylRod;
+
+        private static readonly Dictionary<MatKind, BitmapSource> _texCache = new();
+        private static BitmapSource Texture(MatKind kind)
+        {
+            if (_texCache.TryGetValue(kind, out var t)) return t;
+            int s = 128;
+            BitmapSource bmp = kind switch
+            {
+                MatKind.Bed => BedGrid(s),
+                MatKind.Frame => Brushed(s, Color.FromRgb(0x6B, 0x74, 0x82), Color.FromRgb(0x4A, 0x53, 0x63), true),
+                MatKind.Carriage => Brushed(s, Color.FromRgb(0xB6, 0xBE, 0xCA), Color.FromRgb(0x8F, 0x99, 0xA8), true),
+                MatKind.Spindle => Painted(s, Color.FromRgb(0xA7, 0x7D, 0xF6), Color.FromRgb(0x6D, 0x4A, 0xD6)),
+                MatKind.ToolTip => Painted(s, Color.FromRgb(0xFB, 0x92, 0x3C), Color.FromRgb(0xEA, 0x58, 0x0C)),
+                MatKind.RotaryBase => Brushed(s, Color.FromRgb(0x3A, 0x44, 0x52), Color.FromRgb(0x26, 0x2E, 0x3A), true),
+                MatKind.Rotary => Anodized(s, Color.FromRgb(0x22, 0xB8, 0xF3), Color.FromRgb(0x0E, 0xA5, 0xE9)),
+                MatKind.CameraBody => DarkPlastic(s),
+                MatKind.CameraLens => Lens(s),
+                MatKind.Workpiece => Brushed(s, Color.FromRgb(0x6A, 0xA8, 0xFA), Color.FromRgb(0x3B, 0x82, 0xF6), false),
+                MatKind.CylBody => Painted(s, Color.FromRgb(0x9C, 0xA3, 0xB0), Color.FromRgb(0x6B, 0x72, 0x80)),
+                MatKind.CylRod => Brushed(s, Color.FromRgb(0xDD, 0xE2, 0xE8), Color.FromRgb(0xB4, 0xBB, 0xC5), true),
+                _ => Brushed(s, Colors.Gray, Colors.DarkGray, true)
+            };
+            _texCache[kind] = bmp;
+            return bmp;
+        }
+
+        private static BitmapSource MakeTex(int s, Action<DrawingContext> draw)
+        {
+            var dv = new DrawingVisual();
+            using (var dc = dv.RenderOpen()) draw(dc);
+            var bmp = new RenderTargetBitmap(s, s, 96, 96, PixelFormats.Pbgra32);
+            bmp.Render(dv);
+            bmp.Freeze();
+            return bmp;
+        }
+
+        // 拉丝金属：基色渐变 + 细密条纹
+        private static BitmapSource Brushed(int s, Color a, Color b, bool vertical)
+        {
+            return MakeTex(s, dc =>
+            {
+                dc.DrawRectangle(new LinearGradientBrush(a, b, vertical ? 90 : 0), null, new Rect(0, 0, s, s));
+                var rnd = new Random(0x9E37);
+                for (int i = 0; i < s * 4; i++)
+                {
+                    double p = rnd.NextDouble() * s;
+                    byte al = (byte)(10 + rnd.NextDouble() * 22);
+                    var pen = new Pen(new SolidColorBrush(Color.FromArgb(al, 255, 255, 255)), 1);
+                    if (vertical) dc.DrawLine(pen, new Point(p, 0), new Point(p, s));
+                    else dc.DrawLine(pen, new Point(0, p), new Point(s, p));
+                }
+            });
+        }
+
+        // 烤漆：径向渐变 + 细微颗粒
+        private static BitmapSource Painted(int s, Color a, Color b)
+        {
+            return MakeTex(s, dc =>
+            {
+                dc.DrawRectangle(new RadialGradientBrush(a, b), null, new Rect(0, 0, s, s));
+                var rnd = new Random(0x51ED);
+                for (int i = 0; i < s * s / 30; i++)
+                    dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(14, 0, 0, 0)), null, new Rect(rnd.Next(s), rnd.Next(s), 1, 1));
+            });
+        }
+
+        // 阳极氧化：径向渐变 + 细密同心圆
+        private static BitmapSource Anodized(int s, Color a, Color b)
+        {
+            return MakeTex(s, dc =>
+            {
+                dc.DrawRectangle(new RadialGradientBrush(a, b), null, new Rect(0, 0, s, s));
+                var rnd = new Random(0x70D);
+                for (int i = 0; i < 60; i++)
+                {
+                    double r = rnd.NextDouble() * s * 0.5;
+                    dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(10, 255, 255, 255)), 1), new Point(s / 2.0, s / 2.0), r, r);
+                }
+            });
+        }
+
+        // 床面：深色机加工面 + T 型槽网格
+        private static BitmapSource BedGrid(int s)
+        {
+            return MakeTex(s, dc =>
+            {
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x39, 0x41, 0x4F)), null, new Rect(0, 0, s, s));
+                var pen = new Pen(new SolidColorBrush(Color.FromRgb(0x22, 0x29, 0x34)), 3);
+                int cells = 4;
+                for (int i = 0; i <= cells; i++) { double p = (double)i / cells * s; dc.DrawLine(pen, new Point(p, 0), new Point(p, s)); dc.DrawLine(pen, new Point(0, p), new Point(s, p)); }
+                dc.DrawLine(new Pen(new SolidColorBrush(Color.FromRgb(0x55, 0x60, 0x70)), 2), new Point(0, s / 2.0), new Point(s, s / 2.0));
+            });
+        }
+
+        // 深色工程塑料/橡胶
+        private static BitmapSource DarkPlastic(int s)
+        {
+            return MakeTex(s, dc =>
+            {
+                dc.DrawRectangle(new LinearGradientBrush(Color.FromRgb(0x33, 0x3A, 0x47), Color.FromRgb(0x10, 0x14, 0x1C), 90), null, new Rect(0, 0, s, s));
+                var rnd = new Random(0x42);
+                for (int i = 0; i < s * s / 40; i++)
+                    dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(12, 255, 255, 255)), null, new Rect(rnd.Next(s), rnd.Next(s), 1, 1));
+            });
+        }
+
+        // 镜头：玻璃质感径向高光
+        private static BitmapSource Lens(int s)
+        {
+            return MakeTex(s, dc =>
+            {
+                dc.DrawRectangle(new RadialGradientBrush(Color.FromRgb(0x66, 0x77, 0x90), Color.FromRgb(0x0B, 0x10, 0x18)), null, new Rect(0, 0, s, s));
+                dc.DrawEllipse(new RadialGradientBrush(Color.FromArgb(180, 255, 255, 255), Color.FromArgb(0, 255, 255, 255)), null, new Point(s * 0.38, s * 0.34), s * 0.16, s * 0.12);
+            });
+        }
+
+        // ===================== 基础网格生成（带 UV） =====================
         private static MeshGeometry3D BuildSphere(int stacks = 14, int slices = 18)
         {
             var m = new MeshGeometry3D();
@@ -547,14 +738,11 @@ namespace NoCodeMotion.Views
                 for (int j = 0; j <= slices; j++)
                 {
                     double theta = 2 * Math.PI * j / slices;
-                    m.Positions.Add(new Point3D(
-                        Math.Sin(phi) * Math.Cos(theta),
-                        Math.Cos(phi),
-                        Math.Sin(phi) * Math.Sin(theta)));
+                    m.Positions.Add(new Point3D(Math.Sin(phi) * Math.Cos(theta), Math.Cos(phi), Math.Sin(phi) * Math.Sin(theta)));
+                    m.TextureCoordinates.Add(new Point((double)j / slices, (double)i / stacks));
                 }
             }
             for (int i = 0; i < stacks; i++)
-            {
                 for (int j = 0; j < slices; j++)
                 {
                     int a = i * (slices + 1) + j;
@@ -562,7 +750,6 @@ namespace NoCodeMotion.Views
                     m.TriangleIndices.Add(a); m.TriangleIndices.Add(b); m.TriangleIndices.Add(a + 1);
                     m.TriangleIndices.Add(b); m.TriangleIndices.Add(b + 1); m.TriangleIndices.Add(a + 1);
                 }
-            }
             m.Freeze();
             return m;
         }
@@ -573,9 +760,9 @@ namespace NoCodeMotion.Views
             for (int j = 0; j <= slices; j++)
             {
                 double theta = 2 * Math.PI * j / slices;
-                double x = Math.Cos(theta), z = Math.Sin(theta);
-                m.Positions.Add(new Point3D(x, 0.5, z));
-                m.Positions.Add(new Point3D(x, -0.5, z));
+                double x = Math.Cos(theta), z = Math.Sin(theta), u = (double)j / slices;
+                m.Positions.Add(new Point3D(x, 0.5, z)); m.TextureCoordinates.Add(new Point(u, 1));   // 顶环
+                m.Positions.Add(new Point3D(x, -0.5, z)); m.TextureCoordinates.Add(new Point(u, 0));  // 底环
             }
             for (int j = 0; j < slices; j++)
             {
@@ -583,11 +770,12 @@ namespace NoCodeMotion.Views
                 m.TriangleIndices.Add(a); m.TriangleIndices.Add(b); m.TriangleIndices.Add(c);
                 m.TriangleIndices.Add(b); m.TriangleIndices.Add(d); m.TriangleIndices.Add(c);
             }
-            int top = m.Positions.Count; m.Positions.Add(new Point3D(0, 0.5, 0));
-            int bot = m.Positions.Count; m.Positions.Add(new Point3D(0, -0.5, 0));
+            int top = m.Positions.Count; m.Positions.Add(new Point3D(0, 0.5, 0)); m.TextureCoordinates.Add(new Point(0.5, 0.5));
+            int bot = m.Positions.Count; m.Positions.Add(new Point3D(0, -0.5, 0)); m.TextureCoordinates.Add(new Point(0.5, 0.5));
             for (int j = 0; j < slices; j++)
             {
                 int a = j * 2;
+                double x = Math.Cos(2 * Math.PI * j / slices), z = Math.Sin(2 * Math.PI * j / slices);
                 m.TriangleIndices.Add(top); m.TriangleIndices.Add(a); m.TriangleIndices.Add(a + 2);
                 m.TriangleIndices.Add(bot); m.TriangleIndices.Add(a + 3); m.TriangleIndices.Add(a + 1);
             }
@@ -595,26 +783,31 @@ namespace NoCodeMotion.Views
             return m;
         }
 
+        // 规范立方体（6 面，每面 4 顶点 + UV，外法线朝外）
         private static MeshGeometry3D BuildBox()
         {
             var m = new MeshGeometry3D();
             double h = 0.5;
-            var c = new[]
+            var faces = new[]
             {
-                new Point3D(-h,-h,-h), new Point3D(h,-h,-h), new Point3D(h,h,-h), new Point3D(-h,h,-h),
-                new Point3D(-h,-h, h), new Point3D(h,-h, h), new Point3D(h,h, h), new Point3D(-h,h, h)
+                new[] { new Point3D(-h,-h, h), new Point3D( h,-h, h), new Point3D( h, h, h), new Point3D(-h, h, h) }, // +Z
+                new[] { new Point3D( h,-h,-h), new Point3D(-h,-h,-h), new Point3D(-h, h,-h), new Point3D( h, h,-h) }, // -Z
+                new[] { new Point3D( h,-h, h), new Point3D( h,-h,-h), new Point3D( h, h,-h), new Point3D( h, h, h) }, // +X
+                new[] { new Point3D(-h,-h,-h), new Point3D(-h,-h, h), new Point3D(-h, h, h), new Point3D(-h, h,-h) }, // -X
+                new[] { new Point3D(-h, h,-h), new Point3D( h, h,-h), new Point3D( h, h, h), new Point3D(-h, h, h) }, // +Y
+                new[] { new Point3D(-h,-h,-h), new Point3D( h,-h,-h), new Point3D( h,-h, h), new Point3D(-h,-h, h) }, // -Y
             };
-            foreach (var p in c) m.Positions.Add(p);
-            int[] idx =
+            foreach (var f in faces)
             {
-                0,1,2, 0,2,3,
-                4,6,5, 4,7,6,
-                0,4,5, 0,5,1,
-                3,2,6, 3,6,7,
-                0,3,7, 0,7,4,
-                1,5,6, 1,6,2
-            };
-            foreach (var i in idx) m.TriangleIndices.Add(i);
+                int baseIdx = m.Positions.Count;
+                for (int i = 0; i < 4; i++)
+                {
+                    m.Positions.Add(f[i]);
+                    m.TextureCoordinates.Add(new Point(i == 0 || i == 3 ? 0 : 1, i >= 2 ? 1 : 0));
+                }
+                m.TriangleIndices.Add(baseIdx); m.TriangleIndices.Add(baseIdx + 1); m.TriangleIndices.Add(baseIdx + 2);
+                m.TriangleIndices.Add(baseIdx); m.TriangleIndices.Add(baseIdx + 2); m.TriangleIndices.Add(baseIdx + 3);
+            }
             m.Freeze();
             return m;
         }
