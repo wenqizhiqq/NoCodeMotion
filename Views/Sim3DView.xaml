@@ -54,6 +54,18 @@
                 <TextBlock Text="控制柜" FontSize="10.5" Foreground="#334155" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
+                <Grid Margin="0,0,4,0" VerticalAlignment="Center">
+                    <Rectangle Width="3" Height="10" Fill="#22C55E"/>
+                    <Rectangle Width="3" Height="10" Fill="#FBBF24" Margin="3,0,3,0"/>
+                    <Rectangle Width="3" Height="10" Fill="#EF4444" Margin="6,0,0,0"/>
+                </Grid>
+                <TextBlock Text="警示灯塔" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
+                <Ellipse Width="9" Height="9" Fill="#22C55E" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                <TextBlock Text="LED指示" FontSize="10.5" Foreground="#0F766E" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
                 <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#3B82F6" Margin="0,0,4,0" VerticalAlignment="Center"/>
                 <TextBlock Text="工件" FontSize="10.5" Foreground="#1D4ED8" VerticalAlignment="Center"/>
             </StackPanel>
