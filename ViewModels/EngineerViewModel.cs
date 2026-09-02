@@ -2,6 +2,8 @@
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows.Input;
 using NoCodeMotion.Models;
@@ -14,13 +16,18 @@ namespace NoCodeMotion.ViewModels
     /// 工程师页 ViewModel：把现场调试常用的四类控制集中到一个页面，方便工程师在设备上直接操作。
     /// ① 轴控制（4 个轴槽的使能/回原/寸动/JOG）；② IO 控制（输入只读 + 输出开关）；
     /// ③ 气缸控制（每个气缸伸出/缩回）；④ 点位移动和设置（选工位 → 逐行移动/保存点位）。
-    /// 轴的 4 个槽位在「轴控制」与「点位移动」之间共享，移动/保存即读写这 4 个轴槽的当前位置。
+    /// 「轴控制」的 4 个轴槽仅是调试面板的瞬时控制对象（不落盘、不联动工位）；
+    /// 「点位移动和设置」的列头由 <see cref="PointAxisStates"/> 单独承载，从当前工位的
+    /// <see cref="PointTable.AxisNames"/> 加载，与顶部下拉框完全解耦，保证点位表轴列固定。
     /// </summary>
     public class EngineerViewModel : ViewModelBase, IEnsureDefaultSelection
     {
         // ===== ① 轴控制 =====
-        /// <summary>共 4 个轴槽的运行态（轴名/使能/回原/当前位置）。轴名来自全局目录，故所有工位共用同一套轴。</summary>
+        /// <summary>共 4 个轴槽的运行态（轴名/使能/回原/当前位置）。仅调试用，不与 PointTable.AxisNames 联动。</summary>
         public ObservableCollection<EngineerAxisState> AxisStates { get; } = new();
+
+        /// <summary>点位表 4 个轴槽的列头（与 AxisStates 解耦），按当前工位的 PointTable.AxisNames 加载。</summary>
+        public ObservableCollection<EngineerAxisState> PointAxisStates { get; } = new();
 
         private double _inchStep = 1.0;
         private double _jogStep = 10.0;
@@ -80,7 +87,7 @@ namespace NoCodeMotion.ViewModels
 
         public EngineerViewModel()
         {
-            // ① 轴控制：4 个轴槽，默认无选中轴
+            // ① 轴控制：4 个轴槽（瞬时调试对象，不与点位表列头联动），默认无选中轴
             for (int i = 0; i < 4; i++)
                 AxisStates.Add(new EngineerAxisState(i));
             EnableCommand = new RelayCommand(ToggleEnable);
@@ -100,8 +107,11 @@ namespace NoCodeMotion.ViewModels
             ProjectStore.Data.Cylinders.CollectionChanged += OnCylindersChanged;
             ToggleCylinderCommand = new RelayCommand(ToggleCylinder);
 
-            // ④ 点位移动和设置
+            // ④ 点位移动和设置（列头由 PointAxisStates 单独承载，从 SelectedTable.AxisNames 加载）
             Tables = ProjectStore.Data.PointTables;
+            for (int i = 0; i < PointTable.SlotCount; i++)
+                PointAxisStates.Add(new EngineerAxisState(i));
+            PropertyChanged += OnSelfPropertyChanged;
             MoveToPointCommand = new RelayCommand(MoveToPoint);
             SaveCurrentCommand = new RelayCommand(SaveCurrent);
 
@@ -192,6 +202,34 @@ namespace NoCodeMotion.ViewModels
         {
             if (SelectedTable == null && Tables.Count > 0)
                 SelectedTable = Tables[0];
+        }
+
+        // ===== ④ 联动：SelectedTable 变化 → PointAxisStates 从工位的 AxisNames 加载 =====
+
+        private PointTable? _observedTable;
+
+        private void OnSelfPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(SelectedTable)) return;
+            if (_observedTable != null) _observedTable.PropertyChanged -= OnObservedTableChanged;
+            _observedTable = SelectedTable;
+            if (_observedTable != null) _observedTable.PropertyChanged += OnObservedTableChanged;
+            LoadPointAxisNames();
+        }
+
+        private void OnObservedTableChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // 工位的 AxisNames 被其它入口（如 PointPage）改动时，也即时刷新列头
+            if (e.PropertyName == nameof(PointTable.AxisNames))
+                LoadPointAxisNames();
+        }
+
+        private void LoadPointAxisNames()
+        {
+            var table = _observedTable;
+            for (int i = 0; i < PointAxisStates.Count; i++)
+                PointAxisStates[i].AxisName =
+                    table != null && i < table.AxisNames.Count ? table.AxisNames[i] : string.Empty;
         }
     }
 

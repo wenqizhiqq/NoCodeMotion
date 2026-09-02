@@ -8,60 +8,62 @@
              Background="{StaticResource CanvasBrush}">
 
     <UserControl.Resources>
-        <!-- ===== 8 个轴列头模板：取本页 AxisStates[i].AxisName + 后缀（位置/速度）；空轴名回退"未选轴" ===== -->
+        <!-- ===== 8 个轴列头模板：取本页 PointAxisStates[i].AxisName + 后缀（位置/速度）；空轴名回退"未选轴"。
+             PointAxisStates 与顶部「轴控制」的 AxisStates 解耦，仅跟随当前工位的 PointTable.AxisNames，
+             因此顶部选择轴不会影响底部点位表的列头。 -->
         <DataTemplate x:Key="H0Pos">
             <TextBlock TextAlignment="Center">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
-                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[0].AxisName"/>
+                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.PointAxisStates[0].AxisName"/>
                     <Binding Source="位置"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H0Spd">
             <TextBlock TextAlignment="Center">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
-                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[0].AxisName"/>
+                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.PointAxisStates[0].AxisName"/>
                     <Binding Source="速度"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H1Pos">
             <TextBlock TextAlignment="Center">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
-                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[1].AxisName"/>
+                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.PointAxisStates[1].AxisName"/>
                     <Binding Source="位置"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H1Spd">
             <TextBlock TextAlignment="Center">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
-                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[1].AxisName"/>
+                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.PointAxisStates[1].AxisName"/>
                     <Binding Source="速度"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H2Pos">
             <TextBlock TextAlignment="Center">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
-                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[2].AxisName"/>
+                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.PointAxisStates[2].AxisName"/>
                     <Binding Source="位置"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H2Spd">
             <TextBlock TextAlignment="Center">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
-                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[2].AxisName"/>
+                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.PointAxisStates[2].AxisName"/>
                     <Binding Source="速度"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H3Pos">
             <TextBlock TextAlignment="Center">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
-                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[3].AxisName"/>
+                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.PointAxisStates[3].AxisName"/>
                     <Binding Source="位置"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H3Spd">
             <TextBlock TextAlignment="Center">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
-                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[3].AxisName"/>
+                    <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.PointAxisStates[3].AxisName"/>
                     <Binding Source="速度"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
