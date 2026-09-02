@@ -27,6 +27,28 @@ namespace NoCodeMotion.Views
             set => SetValue(DetailProperty, value);
         }
 
+        /// <summary>底部说明栏的「操作」文案。各业务子页（轴/IO/气缸…）在 XAML 里设置本页内容。</summary>
+        public static readonly DependencyProperty HintOperationProperty =
+            DependencyProperty.Register(nameof(HintOperation), typeof(string), typeof(EditorPage),
+                new PropertyMetadata("左侧选择项目，右侧编辑属性；用「添加 / 删除 / 重命名」管理。"));
+
+        public string HintOperation
+        {
+            get => (string)GetValue(HintOperationProperty);
+            set => SetValue(HintOperationProperty, value);
+        }
+
+        /// <summary>底部说明栏的「注意」文案。各业务子页在 XAML 里设置本页内容。</summary>
+        public static readonly DependencyProperty HintPrecautionProperty =
+            DependencyProperty.Register(nameof(HintPrecaution), typeof(string), typeof(EditorPage),
+                new PropertyMetadata("修改关键参数后注意复核；删除操作不可恢复，请先确认。"));
+
+        public string HintPrecaution
+        {
+            get => (string)GetValue(HintPrecautionProperty);
+            set => SetValue(HintPrecautionProperty, value);
+        }
+
         /// <summary>是否显示默认的"添加"按钮。宿主页在提供自定义添加按钮时应设为 false。</summary>
         public static readonly DependencyProperty ShowDefaultAddButtonProperty =
             DependencyProperty.Register(nameof(ShowDefaultAddButton), typeof(bool), typeof(EditorPage),

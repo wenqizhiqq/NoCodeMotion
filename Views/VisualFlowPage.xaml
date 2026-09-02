@@ -72,6 +72,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 状态条已删（用户要求删掉整行），"运行视觉流程"按钮已挪到下方"删除步骤"按钮右侧 -->
@@ -653,5 +654,6 @@
                 </ScrollViewer>
             </DockPanel>
         </Grid>
+        <local:PageHintBar Grid.Row="2" OperationText="在画布添加采集 / 预处理 / 匹配 / 测量等步骤并连线；右侧编辑参数；点运行预览结果。" PrecautionText="模板需在当前光源下标定；步骤顺序影响结果；运行前确认相机已取流且视野无遮挡。"/>
     </Grid>
 </UserControl>

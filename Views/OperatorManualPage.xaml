@@ -10,6 +10,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 顶部标题栏 -->
@@ -330,5 +331,6 @@
                     </Border>
             </StackPanel>
         </ScrollViewer>
+        <local:PageHintBar Grid.Row="2" OperationText="查阅本机操作方法与注意事项说明；变更流程后同步更新手册内容。" PrecautionText="以本手册为准；内容与程序不一致时以实际程序行为为准并反馈修正。"/>
     </Grid>
 </UserControl>

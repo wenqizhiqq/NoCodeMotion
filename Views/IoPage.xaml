@@ -113,6 +113,7 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- ============== 输入 IO 面板 ============== -->
@@ -246,5 +247,6 @@
                 </DataGrid>
             </Border>
         </DockPanel>
+        <local:PageHintBar Grid.Row="1" Grid.ColumnSpan="2" OperationText="选择 IO 点后设置名称、方向、电平、对应轴或气缸；「添加 / 删除」管理点位；输出点可在调试页手动触发。" PrecautionText="接线前确认负载避免短路；输入滤波时间影响响应，误触发时适当加大；输出点勿带大功率直接驱动。"/>
     </Grid>
 </UserControl>

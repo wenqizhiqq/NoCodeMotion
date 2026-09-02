@@ -103,6 +103,10 @@
             <ColumnDefinition Width="200"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
         <!-- ===================== 左侧：点位表（工位）列表 ===================== -->
         <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}"
@@ -466,5 +470,6 @@
                         </StackPanel>
                     </Border>
         </Grid>
+        <local:PageHintBar Grid.Row="1" Grid.ColumnSpan="2" OperationText="上方选轴，下方表格填写各轴目标坐标与速度；「新增工位 / 删除工位」管理；可导出导入。" PrecautionText="首点位建议留安全位；运行前空跑验证轨迹防止撞机；坐标单位与轴配置保持一致。"/>
     </Grid>
 </UserControl>

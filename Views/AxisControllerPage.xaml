@@ -7,7 +7,9 @@
              xmlns:svc="clr-namespace:NoCodeMotion.Services"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
-    <local:EditorPage ShowDefaultAddButton="False">
+    <local:EditorPage ShowDefaultAddButton="False"
+        HintOperation="添加控制器并填写类型、通道与通讯参数；轴页通过「控制器」下拉关联到此处。"
+        HintPrecaution="通讯参数（波特率 / 站号 / IP）须与硬件一致；修改后重新连接，掉线时检查线缆与供电。">
         <local:EditorPage.LeftToolbarContent>
             <StackPanel Orientation="Horizontal">
                 <Button Command="{Binding AddCardCommand}" Style="{StaticResource ToolButtonStyle}">

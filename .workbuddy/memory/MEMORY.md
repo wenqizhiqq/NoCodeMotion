@@ -51,3 +51,9 @@
   - `LuaEditorView.xaml` 清空（输出面板）/ 清除断点（`LuaDbgButton` + `Background={StaticResource DangerBrush}`）
   - `CommPage.xaml` 清空日志
 - 经验：**破坏性操作用颜色编码**（红=删除破坏、橙=反向非破坏、蓝=正向主操作、绿=成功保存、灰=次要），比纯文字更防误操作。全局统一改这类按钮色时，**先 `Grep` 扫 `(Text|Content)="(删除|清空|清除|移除...)"` 或 `Command="...(Delete|Clear|Remove)..."` 列全清单**再逐个改，避免漏改。
+
+## 每个页面底部「操作说明 + 注意事项」栏（2026-09-02 起全局约定）
+- 复用控件：`Views/PageHintBar.xaml/.cs`（Apple 风格、贴底、浅色、可换行），两个 DP `OperationText`/`PrecautionText`。
+- EditorPage 宿主的子页（轴/IO/气缸/控制器/点位/通讯/料盘/相机/变量/流程）：在 `EditorPage` 根 Grid 第 3 行放 `PageHintBar`，绑定 `EditorPage.HintOperation`/`HintPrecaution`；各子页在 `<local:EditorPage>` 上设本页文案。
+- 独立根页面（Io/Point/Variable/Operator/Engineer/OperatorManual/VisualFlow/LuaEditor/ProjectManager）：根 `<Grid>` 加末尾 `Auto` 行 + `<local:PageHintBar Grid.Row=最后行 [Grid.ColumnSpan=列数]>`。
+- 文案默认由 AI 按页面功能撰写（操作 + 注意事项），用户截图微调。新增页面时务必同步加底栏，保持全局一致。

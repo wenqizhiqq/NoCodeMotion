@@ -43,7 +43,9 @@
         </Style>
     </UserControl.Resources>
 
-    <local:EditorPage>
+    <local:EditorPage
+        HintOperation="设置行 / 列 / 间距生成阵列点位；绑定到流程的取放动作；可增删点位。"
+        HintPrecaution="首件偏移与间距单位须一致；满盘 / 空盘判断阈值提前标定；单位用错会生成错位坐标。">
         <local:EditorPage.Detail>
             <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}" Margin="14">
                 <!-- 页标题 -->

@@ -13,7 +13,9 @@
 
     </UserControl.Resources>
 
-    <local:EditorPage>
+    <local:EditorPage
+        HintOperation="配置串口 / 网口参数与协议；在日志区查看收发；点「清空日志」清理输出。"
+        HintPrecaution="端口被占用会打不开；Modbus 从站地址与寄存器范围勿越界；修改参数后重新连接。">
         <local:EditorPage.Detail>
             <Border Background="{StaticResource CanvasBrush}">
                 <StackPanel Margin="14">

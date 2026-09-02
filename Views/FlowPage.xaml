@@ -147,7 +147,9 @@
         </Style>
     </UserControl.Resources>
     <!-- 流程页：EditorPage 宿主，顶部工具栏注入「添加运控 / 添加脚本」两个具体按钮并隐藏默认「添加」 -->
-    <local:EditorPage ShowDefaultAddButton="False">
+    <local:EditorPage ShowDefaultAddButton="False"
+        HintOperation="用「添加运控 / 添加脚本 / 添加视觉流程」新增流程；右侧编辑步骤，左侧列表管理启停与角色。"
+        HintPrecaution="循环次数有上限防死循环；复位流程只运行一次；运行前确认硬件已使能且安全门闭合。">
         <local:EditorPage.LeftToolbarContent>
             <StackPanel Orientation="Horizontal">
                 <!-- 添加运控流程（Kind=Table）：表格图标 + 蓝色 -->

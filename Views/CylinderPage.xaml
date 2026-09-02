@@ -90,7 +90,9 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <local:EditorPage>
+    <local:EditorPage
+        HintOperation="选择气缸后设置伸出 / 缩回输出与到位输入；在列表行内点「伸出 / 缩回」按钮手动测试动作。"
+        HintPrecaution="手动动作前确保机构无障碍；双电磁阀检查中位防止掉电坠落；确认气压在正常范围。">
         <!-- 注入列表项模板：让 EditorPage 用含内联按钮的版本 -->
         <local:EditorPage.LeftListItemTemplate>
             <DataTemplate>

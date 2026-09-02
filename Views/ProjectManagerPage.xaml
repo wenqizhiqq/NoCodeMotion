@@ -14,6 +14,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 顶部工具栏：新建 / 打开 / 保存 / 删除 / 重命名 / 刷新 -->
@@ -165,5 +166,6 @@
                 </StackPanel>
             </ScrollViewer>
         </Grid>
+        <local:PageHintBar Grid.Row="2" OperationText="左侧选项目，右侧编辑名称、备注与需求；「复制」生成 AI 提示词，「粘贴」解析回配置。" PrecautionText="备注即需求文档，切换项目前先保存；复制内容含工程配置，勿外泄敏感参数。"/>
     </Grid>
 </UserControl>

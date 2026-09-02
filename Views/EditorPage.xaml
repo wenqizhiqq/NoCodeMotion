@@ -129,6 +129,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 顶部工具栏：添加 / 删除 / 重命名 -->
@@ -192,5 +193,10 @@
                 <ContentControl Content="{Binding Detail, RelativeSource={RelativeSource AncestorType=local:EditorPage}}"/>
             </Border>
         </Grid>
+
+        <!-- 底部「操作说明 + 注意事项」栏：贴底、不随内容滚动；文案由各子页通过 HintOperation / HintPrecaution 设置。 -->
+        <local:PageHintBar Grid.Row="2" Grid.ColumnSpan="2"
+                           OperationText="{Binding HintOperation, RelativeSource={RelativeSource AncestorType=local:EditorPage}}"
+                           PrecautionText="{Binding HintPrecaution, RelativeSource={RelativeSource AncestorType=local:EditorPage}}"/>
     </Grid>
 </UserControl>

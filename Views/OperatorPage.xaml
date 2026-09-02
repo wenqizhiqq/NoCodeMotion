@@ -134,6 +134,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 顶部工具栏：标题 + 用户切换 -->
@@ -303,5 +304,6 @@
                 </Border>
             </Grid>
         </Grid>
+        <local:PageHintBar Grid.Row="2" OperationText="点「启动」并发运行全部流程（复位流程除外）；用「停止 / 急停 / 复位」控制；运行状态由定时器刷新。" PrecautionText="急停会切断所有输出；运行前确认现场安全；流程异常需先修正再重新启动。"/>
     </Grid>
 </UserControl>

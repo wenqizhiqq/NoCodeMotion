@@ -81,6 +81,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 页标题 -->
@@ -188,5 +189,6 @@
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
+        <local:PageHintBar Grid.Row="3" OperationText="表格内增删变量，填写名称、类型与初始值；流程中用 {变量名} 引用。" PrecautionText="变量名勿用中文或空格；运行期修改即时生效，注意单位与取值范围。"/>
     </Grid>
 </UserControl>

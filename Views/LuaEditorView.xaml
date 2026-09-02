@@ -70,6 +70,7 @@
             <RowDefinition Height="0" MinHeight="0"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="420"/>
@@ -292,5 +293,6 @@
                 </StackPanel>
             </Grid>
         </Border>
+        <local:PageHintBar Grid.Row="5" OperationText="编写 Lua 脚本，点「运行」调试；支持断点；错误会在输出区显示行号。" PrecautionText="语法或运行错误会令该流程置「异常」并停止；循环内注意退出条件，避免死循环。"/>
     </Grid>
 </UserControl>

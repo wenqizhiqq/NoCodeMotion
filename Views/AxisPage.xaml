@@ -7,7 +7,9 @@
              xmlns:svc="clr-namespace:NoCodeMotion.Services"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
-    <local:EditorPage>
+    <local:EditorPage
+        HintOperation="左侧选择轴后在右侧填写名称、轴类型、轴号与运动参数；点「添加」新建轴、「删除」移除选中轴、「重命名」改名称。"
+        HintPrecaution="修改脉冲当量、软限位或回零参数后需重新回零；使能前确认机械无干涉，急停必须有效。">
         <local:EditorPage.Detail>
             <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}">
                 <!-- 页标题 -->

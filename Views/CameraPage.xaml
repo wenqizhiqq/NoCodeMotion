@@ -11,7 +11,9 @@
             左侧列表 240px：增/删/重命名由 EditorPage 默认接管（AddCommand/DeleteCommand/RenameCommand）。
             右侧 Detail：本页自定义的属性编辑卡 + 拍照预览占位。
     -->
-    <local:EditorPage>
+    <local:EditorPage
+        HintOperation="选择相机并取流，设置曝光 / 增益；在视觉流程中调用采集、匹配与测量。"
+        HintPrecaution="光照变化会显著影响匹配；改光源后重新标定模板；分辨率越高速度越慢，按需取舍。">
         <local:EditorPage.Detail>
             <Grid Background="{StaticResource CanvasBrush}">
                 <Grid.RowDefinitions>
