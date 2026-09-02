@@ -1,0 +1,8 @@
+PID=72884 ALIVE=True
+running procs:
+  PID=72884 StartTime=09/02/2026 19:49:27
+--- markers ---
+APP_CTOR_START
+AFTER_SIG
+APP_CTOR_END
+DONE

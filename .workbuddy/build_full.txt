@@ -1,0 +1,30 @@
+EXIT=1
+
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+D:\wqz\code\NoCodeMotion\MainWindow.xaml(116,3): error MC1000: 未知的生成错误“Access to the path 'D:\wqz\code\NoCodeMotion\obj\Debug\net10.0-windows\GeneratedInternalTypeHelper.g.cs' is denied. 行 116 位置 3.” [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MC1000: 未知的生成错误“Access to the path 'D:\wqz\code\NoCodeMotion\obj\Debug\net10.0-windows\NoCodeMotion_MarkupCompile.cache' is denied.” [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018: “MarkupCompilePass1”任务意外失败。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018: System.UnauthorizedAccessException: Access to the path 'D:\wqz\code\NoCodeMotion\obj\Debug\net10.0-windows\NoCodeMotion_MarkupCompile.cache' is denied. [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018:    at System.IO.FileSystem.DeleteFile(String fullPath) [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018:    at Microsoft.Build.Tasks.Windows.MarkupCompilePass1.CleanupCacheFiles() [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018:    at Microsoft.Build.Tasks.Windows.MarkupCompilePass1.Execute() [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018:    at Microsoft.Build.BackEnd.TaskExecutionHost.Execute() [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018:    at Microsoft.Build.BackEnd.TaskBuilder.ExecuteInstantiatedTask(TaskExecutionHost taskExecutionHost, TaskLoggingContext taskLoggingContext, TaskHost taskHost, ItemBucket bucket, TaskExecutionMode howToExecuteTask) [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+
+生成失败。
+
+D:\wqz\code\NoCodeMotion\MainWindow.xaml(116,3): error MC1000: 未知的生成错误“Access to the path 'D:\wqz\code\NoCodeMotion\obj\Debug\net10.0-windows\GeneratedInternalTypeHelper.g.cs' is denied. 行 116 位置 3.” [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MC1000: 未知的生成错误“Access to the path 'D:\wqz\code\NoCodeMotion\obj\Debug\net10.0-windows\NoCodeMotion_MarkupCompile.cache' is denied.” [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018: “MarkupCompilePass1”任务意外失败。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018: System.UnauthorizedAccessException: Access to the path 'D:\wqz\code\NoCodeMotion\obj\Debug\net10.0-windows\NoCodeMotion_MarkupCompile.cache' is denied. [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018:    at System.IO.FileSystem.DeleteFile(String fullPath) [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018:    at Microsoft.Build.Tasks.Windows.MarkupCompilePass1.CleanupCacheFiles() [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018:    at Microsoft.Build.Tasks.Windows.MarkupCompilePass1.Execute() [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018:    at Microsoft.Build.BackEnd.TaskExecutionHost.Execute() [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+C:\Program Files\dotnet\sdk\10.0.102\Sdks\Microsoft.NET.Sdk.WindowsDesktop\targets\Microsoft.WinFX.targets(211,9): error MSB4018:    at Microsoft.Build.BackEnd.TaskBuilder.ExecuteInstantiatedTask(TaskExecutionHost taskExecutionHost, TaskLoggingContext taskLoggingContext, TaskHost taskHost, ItemBucket bucket, TaskExecutionMode howToExecuteTask) [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+    0 个警告
+    3 个错误
+
+已用时间 00:04:22.69
+

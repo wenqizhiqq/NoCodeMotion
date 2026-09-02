@@ -1,0 +1,9 @@
+PID=91488
+ALIVE=True
+TOTAL VISIBLE=26
+--- windows for our PID 91488 ---
+--- windows containing 'NoCodeMotion' in title ---
+  PID=21988 TITLE='NoCodeMotion - Sim3DView.xaml.cs - Microsoft Visual Studio(管理员)' CLS='HwndWrapper[DefaultDomain;;82296e87-7414-4930-8c9c-7c76e056d252]'
+--- HwndWrapper (WPF) windows ---
+  PID=55664 TITLE='SMotorse-All - DefaultDynamicTreeNodeProvider.cs - Microsoft Visual Studio(管理员)' CLS='HwndWrapper[DefaultDomain;;96e65150-b6ad-4bdf-8a68-ebca1fcb1f7d]'
+  PID=21988 TITLE='NoCodeMotion - Sim3DView.xaml.cs - Microsoft Visual Studio(管理员)' CLS='HwndWrapper[DefaultDomain;;82296e87-7414-4930-8c9c-7c76e056d252]'

@@ -1,0 +1,5 @@
+PID=79792
+ALIVE after 5s=True
+OUR_WINDOWS=0 []
+(no startup_error.txt -> no captured exception)
+ALIVE after terminate=False

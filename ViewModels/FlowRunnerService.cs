@@ -106,7 +106,7 @@ namespace NoCodeMotion.ViewModels
         /// 全部走 Thread，结束由看门狗线程在全部流程 Signal 后触发 onComplete。</summary>
         public static void RunAllAsync(
             FlowRunControl ctrl,
-            Action<string> log,
+            Action<string, LogLevel> log,
             Action<int, string, string> onStep,
             Action<int, string> onFlowDone,
             Action onComplete,
@@ -124,7 +124,7 @@ namespace NoCodeMotion.ViewModels
                 {
                     try { RunOneFlow(flow, idx, ctrl, log, onStep, onFlowDone, ct); }
                     catch (OperationCanceledException) { /* 正常中止 */ }
-                    catch (Exception ex) { log?.Invoke($"流程「{flow?.Name}」运行异常：{ex.Message}"); }
+                    catch (Exception ex) { log?.Invoke($"流程「{flow?.Name}」运行异常：{ex.Message}", LogLevel.Error); }
                     finally { done.Signal(); }
                 })
                 { IsBackground = true, Name = $"Flow-{idx}" };
@@ -141,7 +141,7 @@ namespace NoCodeMotion.ViewModels
         }
 
         private static void RunOneFlow(FlowItem flow, int index, FlowRunControl ctrl,
-            Action<string> log, Action<int, string, string> onStep, Action<int, string> onFlowDone,
+            Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone,
             CancellationToken ct)
         {
             if (flow == null) return;
@@ -159,7 +159,7 @@ namespace NoCodeMotion.ViewModels
             var steps = flow.Steps?.ToList();
             if (steps == null || steps.Count == 0)
             {
-                log?.Invoke($"流程「{name}」没有步骤，已跳过。");
+                log?.Invoke($"流程「{name}」没有步骤，已跳过。", LogLevel.Info);
                 SetStatus(flow, FlowStatus.Idle);
                 onFlowDone?.Invoke(index, name);
                 return;
@@ -169,7 +169,7 @@ namespace NoCodeMotion.ViewModels
             // 复位流程（Role=Reset）：单次执行——归位/复位不应循环，跑完即结束。
             if (flow.Role == FlowRole.Main)
             {
-                log?.Invoke($"流程「{name}」开始循环运行（{steps.Count} 步/轮，直到停止/急停）。");
+                log?.Invoke($"流程「{name}」开始循环运行（{steps.Count} 步/轮，直到停止/急停）。", LogLevel.Info);
                 int cycle = 0;
                 try
                 {
@@ -181,20 +181,20 @@ namespace NoCodeMotion.ViewModels
                         try
                         {
                             exec.Run(ct);
-                            log?.Invoke($"流程「{name}」第 {cycle} 轮运行结束。");
+                            log?.Invoke($"流程「{name}」第 {cycle} 轮运行结束。", LogLevel.Info);
                         }
                         catch (OperationCanceledException)
                         {
                             SetStatus(flow, FlowStatus.Stopped);
                             log?.Invoke(ctrl.EStopRequested
                                 ? $"流程「{name}」在第 {cycle} 轮急停。"
-                                : $"流程「{name}」在第 {cycle} 轮停止。");
+                                : $"流程「{name}」在第 {cycle} 轮停止。", LogLevel.Warn);
                             return;
                         }
                         catch (Exception ex)
                         {
                             SetStatus(flow, FlowStatus.Exception);
-                            log?.Invoke($"流程「{name}」第 {cycle} 轮运行异常：{ex.Message}");
+                            log?.Invoke($"流程「{name}」第 {cycle} 轮运行异常：{ex.Message}", LogLevel.Error);
                             Thread.Sleep(500);   // 避免持续异常时紧密重试刷屏
                         }
                         finally
@@ -206,7 +206,7 @@ namespace NoCodeMotion.ViewModels
                     SetStatus(flow, FlowStatus.Stopped);
                     log?.Invoke(ctrl.EStopRequested
                         ? $"流程「{name}」已急停（{cycle} 轮）。"
-                        : $"流程「{name}」已停止（{cycle} 轮）。");
+                        : $"流程「{name}」已停止（{cycle} 轮）。", LogLevel.Warn);
                 }
                 finally
                 {
@@ -218,22 +218,22 @@ namespace NoCodeMotion.ViewModels
             // 复位流程：单次执行（保留旧行为）
             SetStatus(flow, FlowStatus.Running);
             var exec2 = new FlowExecutor(flow, index, steps, ctrl, log, onStep);
-            log?.Invoke($"流程「{name}」开始运行（{steps.Count} 步，复位流程单次执行）。");
+            log?.Invoke($"流程「{name}」开始运行（{steps.Count} 步，复位流程单次执行）。", LogLevel.Info);
             try
             {
                 exec2.Run(ct);
                 SetStatus(flow, FlowStatus.Idle);
-                log?.Invoke($"流程「{name}」运行结束。");
+                log?.Invoke($"流程「{name}」运行结束。", LogLevel.Info);
             }
             catch (OperationCanceledException)
             {
                 SetStatus(flow, FlowStatus.Stopped);
-                log?.Invoke($"流程「{name}」已停止。");
+                log?.Invoke($"流程「{name}」已停止。", LogLevel.Warn);
             }
             catch (Exception ex)
             {
                 SetStatus(flow, FlowStatus.Exception);
-                log?.Invoke($"流程「{name}」运行异常：{ex.Message}");
+                log?.Invoke($"流程「{name}」运行异常：{ex.Message}", LogLevel.Error);
             }
             finally
             {
@@ -253,7 +253,7 @@ namespace NoCodeMotion.ViewModels
         /// 运行行/断点/单步与页面完全一致）；编辑器未就绪或被占用时退化为独立 LuaDebugSession 连续运行，
         /// 并把当前执行行广播给 LuaRunMonitor 供编辑器实时跳行高亮。暂停/停止映射到会话的 RequestPause/Resume/Stop。</summary>
         private static void RunOneFlowLua(FlowItem flow, int index, FlowRunControl ctrl,
-            Action<string> log, Action<int, string, string> onStep, Action<int, string> onFlowDone)
+            Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone)
         {
             var name = flow.Name ?? "(未命名流程)";
             SetStatus(flow, FlowStatus.Running);
@@ -281,7 +281,7 @@ namespace NoCodeMotion.ViewModels
                                 session = editor.RunFlow(flow, false);
                                 if (session != null)
                                 {
-                                    session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}");
+                                    session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}", LogLevel.Info);
                                     session.LineStepped += line =>
                                     {
                                         onStep?.Invoke(index, name, $"Lua 行 {line}");
@@ -296,9 +296,9 @@ namespace NoCodeMotion.ViewModels
                         }));
                         if (!editorReady.Wait(2000)) { Thread.Sleep(200); continue; }   // 等待 UI 线程完成启动（超时则重试）
                     }
-                    catch (Exception ex) { editorReady.Set(); log?.Invoke($"流程「{name}」Lua 启动异常：{ex.Message}"); Thread.Sleep(200); continue; }
+                    catch (Exception ex) { editorReady.Set(); log?.Invoke($"流程「{name}」Lua 启动异常：{ex.Message}", LogLevel.Error); Thread.Sleep(200); continue; }
                     if (session == null) { Thread.Sleep(200); continue; } // 编辑器正忙（用户手动调试），稍后重试
-                    log?.Invoke($"流程「{name}」开始连续运行（复用 Lua 编辑器页面运行，直到停止）。");
+                    log?.Invoke($"流程「{name}」开始连续运行（复用 Lua 编辑器页面运行，直到停止）。", LogLevel.Info);
                     while (session.IsBusy && !ctrl.EStopRequested && !ctrl.StopRequested)
                     {
                         Thread.Sleep(40);
@@ -316,13 +316,13 @@ namespace NoCodeMotion.ViewModels
                         }
                     }
                     LuaRunMonitor.ReportEnded(flow);
-                    if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。"); break; }
-                    if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。"); break; }
+                    if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。", LogLevel.Warn); break; }
+                    if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。", LogLevel.Warn); break; }
                     // 脚本以错误结束 → 跳出循环，状态置 Exception，不再重试（早前实现刷屏根因）
                     if (lastEnded != null && lastEnded.IsError)
                     {
                         SetStatus(flow, FlowStatus.Exception);
-                        log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。");
+                        log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。", LogLevel.Error);
                         break;
                     }
                     // 正常结束一轮 → 节流后再起下一轮，避免脚本短到几毫秒时紧贴循环独占 CPU。
@@ -341,7 +341,7 @@ namespace NoCodeMotion.ViewModels
                 try
                 {
                     var session = new LuaDebugSession();
-                    session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}");
+                    session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}", LogLevel.Info);
                     session.LineStepped += line =>
                     {
                         LuaRunMonitor.Report(flow, line);
@@ -351,10 +351,10 @@ namespace NoCodeMotion.ViewModels
                     session.Ended += info =>
                     {
                         lastEnded = info;
-                        if (info.IsError) log?.Invoke($"[Lua:{name}] 运行错误（行 {info.ErrorLine}）：{info.Message}");
+                        if (info.IsError) log?.Invoke($"[Lua:{name}] 运行错误（行 {info.ErrorLine}）：{info.Message}", LogLevel.Error);
                         ended.Set();
                     };
-                    log?.Invoke($"流程「{name}」开始连续运行（Lua，直到停止）。");
+                    log?.Invoke($"流程「{name}」开始连续运行（Lua，直到停止）。", LogLevel.Info);
                     session.Start(flow.LuaSource ?? "", false);
                     var watcher = new Thread(() =>
                     {
@@ -377,15 +377,15 @@ namespace NoCodeMotion.ViewModels
                     watcher.Start();
                     ended.Wait();
                 }
-                catch (Exception ex) { log?.Invoke($"流程「{name}」Lua 运行异常：{ex.Message}"); }
+                catch (Exception ex) { log?.Invoke($"流程「{name}」Lua 运行异常：{ex.Message}", LogLevel.Error); }
                 finally { LuaRunMonitor.ReportEnded(flow); }
-                if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。"); break; }
-                if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。"); break; }
+                if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。", LogLevel.Warn); break; }
+                if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。", LogLevel.Warn); break; }
                 // 错误结束 → 跳出循环，状态置 Exception，不再重试（早前实现刷屏根因）
                 if (lastEnded != null && lastEnded.IsError)
                 {
                     SetStatus(flow, FlowStatus.Exception);
-                    log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。");
+                    log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。", LogLevel.Error);
                     break;
                 }
                 Thread.Sleep(200);
@@ -410,13 +410,13 @@ namespace NoCodeMotion.ViewModels
         /// 六类算子，每轮跑完整条视觉流程后从头再来（Role=Main 循环；Role=Reset 单次）。运行期高频写回只走
         /// FlowRunStore 与进度回调，界面由 OperatorViewModel 的 DispatcherTimer 周期拉取，不卡界面。</summary>
         private static void RunOneFlowVision(FlowItem flow, int index, FlowRunControl ctrl,
-            Action<string> log, Action<int, string, string> onStep, Action<int, string> onFlowDone)
+            Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone)
         {
             var name = flow.Name ?? "(未命名流程)";
             var steps = flow.VisualSteps?.ToList();
             if (steps == null || steps.Count == 0)
             {
-                log?.Invoke($"视觉流程「{name}」没有步骤，已跳过。");
+                log?.Invoke($"视觉流程「{name}」没有步骤，已跳过。", LogLevel.Info);
                 SetStatus(flow, FlowStatus.Idle);
                 onFlowDone?.Invoke(index, name);
                 return;
@@ -425,14 +425,14 @@ namespace NoCodeMotion.ViewModels
             // 进度回调：只入队日志（线程安全 ConcurrentQueue）并写共享态，不碰 UI。
             IProgress<string> progress = new DirectProgress(msg =>
             {
-                log?.Invoke($"[视觉:{name}] {msg}");
+                log?.Invoke($"[视觉:{name}] {msg}", LogLevel.Info);
                 FlowRunStore.SetStep(flow, msg);
             });
 
             // 主流程（Role=Main）：循环运行——每轮跑完整条视觉流程后从头再来，直到停止 / 急停。
             if (flow.Role == FlowRole.Main)
             {
-                log?.Invoke($"视觉流程「{name}」开始循环运行（{steps.Count} 步/轮，直到停止/急停）。");
+                log?.Invoke($"视觉流程「{name}」开始循环运行（{steps.Count} 步/轮，直到停止/急停）。", LogLevel.Info);
                 int cycle = 0;
                 try
                 {
@@ -452,12 +452,12 @@ namespace NoCodeMotion.ViewModels
                         {
                             var report = VisionEngine.Run(steps, progress);
                             bool anyFail = report.Results.Any(r => !r.Ok);
-                            log?.Invoke($"视觉流程「{name}」第 {cycle} 轮完成（{(anyFail ? "有失败步骤" : "全部通过")}，{report.Results.Count} 步）。");
+                            log?.Invoke($"视觉流程「{name}」第 {cycle} 轮完成（{(anyFail ? "有失败步骤" : "全部通过")}，{report.Results.Count} 步）。", LogLevel.Info);
                         }
                         catch (Exception ex)
                         {
                             SetStatus(flow, FlowStatus.Exception);
-                            log?.Invoke($"视觉流程「{name}」第 {cycle} 轮运行异常：{ex.Message}");
+                            log?.Invoke($"视觉流程「{name}」第 {cycle} 轮运行异常：{ex.Message}", LogLevel.Error);
                             Thread.Sleep(500);   // 避免持续异常时紧密重试刷屏
                         }
                         Thread.Sleep(1);   // 让出 CPU，避免 while 紧密循环抢占 UI 线程导致卡顿
@@ -465,7 +465,7 @@ namespace NoCodeMotion.ViewModels
                     SetStatus(flow, FlowStatus.Stopped);
                     log?.Invoke(ctrl.EStopRequested
                         ? $"视觉流程「{name}」已急停（{cycle} 轮）。"
-                        : $"视觉流程「{name}」已停止（{cycle} 轮）。");
+                        : $"视觉流程「{name}」已停止（{cycle} 轮）。", LogLevel.Warn);
                 }
                 finally
                 {
@@ -476,17 +476,17 @@ namespace NoCodeMotion.ViewModels
 
             // 复位流程：单次执行（跑完即结束，不循环）
             SetStatus(flow, FlowStatus.Running);
-            log?.Invoke($"视觉流程「{name}」开始运行（{steps.Count} 步，复位流程单次执行）。");
+            log?.Invoke($"视觉流程「{name}」开始运行（{steps.Count} 步，复位流程单次执行）。", LogLevel.Info);
             try
             {
                 var report = VisionEngine.Run(steps, progress);
                 SetStatus(flow, FlowStatus.Idle);
-                log?.Invoke($"视觉流程「{name}」运行结束。");
+                log?.Invoke($"视觉流程「{name}」运行结束。", LogLevel.Info);
             }
             catch (Exception ex)
             {
                 SetStatus(flow, FlowStatus.Exception);
-                log?.Invoke($"视觉流程「{name}」运行异常：{ex.Message}");
+                log?.Invoke($"视觉流程「{name}」运行异常：{ex.Message}", LogLevel.Error);
             }
             finally
             {
@@ -511,7 +511,7 @@ namespace NoCodeMotion.ViewModels
         private readonly int _index;
         private readonly List<FlowStep> _steps;
         private readonly FlowRunControl _ctrl;
-        private readonly Action<string> _log;
+        private readonly Action<string, LogLevel> _log;
         private readonly Action<int, string, string> _onStep;
         private readonly IHardwareBridge _bridge;
         private long _guard;
@@ -519,7 +519,7 @@ namespace NoCodeMotion.ViewModels
         private bool _pauseActive;     // 当前流程是否处于暂停状态（控制列表右侧"暂"芯片切换）
 
         public FlowExecutor(FlowItem flow, int index, List<FlowStep> steps, FlowRunControl ctrl,
-            Action<string> log, Action<int, string, string> onStep)
+            Action<string, LogLevel> log, Action<int, string, string> onStep)
         {
             _flow = flow; _index = index; _steps = steps; _ctrl = ctrl; _log = log; _onStep = onStep;
             _bridge = HardwareBridge.Current;
@@ -721,7 +721,7 @@ namespace NoCodeMotion.ViewModels
                         break;
                     case "系统":
                         _bridge?.Log(setv);
-                        _log?.Invoke($"[系统] {setv}");
+                        _log?.Invoke($"[系统] {setv}", LogLevel.Info);
                         break;
                     case "相机":
                         try
@@ -731,15 +731,15 @@ namespace NoCodeMotion.ViewModels
                             var bgra = VisionEngine.CaptureFrame(camIdx, out int w, out int h);
                             if (bgra != null && w > 0 && h > 0)
                             {
-                                _log?.Invoke($"[相机] 已取帧 {w}x{h}（相机步骤「{name}」）。");
+                                _log?.Invoke($"[相机] 已取帧 {w}x{h}（相机步骤「{name}」）。", LogLevel.Info);
                                 _ctrl.OnCameraCapture?.Invoke(bgra, w, h);
                             }
                             else
-                                _log?.Invoke($"[相机] 取帧失败：{name}");
+                                _log?.Invoke($"[相机] 取帧失败：{name}", LogLevel.Warn);
                         }
                         catch (Exception ex)
                         {
-                            _log?.Invoke($"[相机] 取帧异常：{ex.Message}");
+                            _log?.Invoke($"[相机] 取帧异常：{ex.Message}", LogLevel.Error);
                         }
                         break;
                     case "延时":
@@ -747,22 +747,22 @@ namespace NoCodeMotion.ViewModels
                         if (ms > 0) SafeSleep(ms, CancellationToken.None);
                         break;
                     default:
-                        _log?.Invoke($"未识别的功能「{func}」，步骤已跳过。");
+                        _log?.Invoke($"未识别的功能「{func}」，步骤已跳过。", LogLevel.Warn);
                         break;
                 }
                 UiSet(() => { s.ActualValue = setv; s.DurationMs = 1; });
             }
             catch (Exception ex)
             {
-                _log?.Invoke($"步骤执行异常（{func} {name}）：{ex.Message}");
+                _log?.Invoke($"步骤执行异常（{func} {name}）：{ex.Message}", LogLevel.Error);
             }
         }
 
         private void ExecAxis(FlowStep s, string name, string setv)
         {
             var ax = HardwareResolver.ResolveAxis(name);
-            if (ax == null) { _log?.Invoke($"找不到轴：{name}"); return; }
-            if (!double.TryParse(setv, out var target)) { _log?.Invoke($"轴「{name}」目标位置无法解析：{setv}"); return; }
+            if (ax == null) { _log?.Invoke($"找不到轴：{name}", LogLevel.Error); return; }
+            if (!double.TryParse(setv, out var target)) { _log?.Invoke($"轴「{name}」目标位置无法解析：{setv}", LogLevel.Error); return; }
             string op = (s.Operation ?? "").Trim();
             if (double.TryParse(Sub(s.Property), out var sp) && sp > 0) _bridge?.SetAxisSpeed(ax, sp);
             if (op == "回零" || op == "home" || op == "归零") _bridge?.HomeAxis(ax);
@@ -775,7 +775,7 @@ namespace NoCodeMotion.ViewModels
         private void ExecIo(string name, string setv)
         {
             var io = HardwareResolver.ResolveOutput(name) ?? HardwareResolver.ResolveInput(name);
-            if (io == null) { _log?.Invoke($"找不到 IO：{name}"); return; }
+            if (io == null) { _log?.Invoke($"找不到 IO：{name}", LogLevel.Error); return; }
             int v = ParseInt(setv, 0);
             _bridge?.WriteOutput(io, v);
         }
@@ -783,7 +783,7 @@ namespace NoCodeMotion.ViewModels
         private void ExecCylinder(FlowStep s, string name, string setv)
         {
             var cy = HardwareResolver.ResolveCylinder(name);
-            if (cy == null) { _log?.Invoke($"找不到气缸：{name}"); return; }
+            if (cy == null) { _log?.Invoke($"找不到气缸：{name}", LogLevel.Error); return; }
             var sv = (setv ?? "").Trim();
             if (sv == "复位" || sv == "reset" || sv == "归位")
                 _bridge?.CylinderReset(cy);
@@ -798,7 +798,7 @@ namespace NoCodeMotion.ViewModels
         private void ExecPoint(string name, string setv)
         {
             var pt = HardwareResolver.ResolvePointTable(name);
-            if (pt == null) { _log?.Invoke($"找不到点位表：{name}"); return; }
+            if (pt == null) { _log?.Invoke($"找不到点位表：{name}", LogLevel.Error); return; }
             PointItem item = null;
             if (!string.IsNullOrEmpty(setv)) item = pt.Points.FirstOrDefault(p => p.Name == setv);
             if (item == null) item = pt.Points.FirstOrDefault();
@@ -808,7 +808,7 @@ namespace NoCodeMotion.ViewModels
                 var axisName = pt.AxisNames.Count > i ? pt.AxisNames[i] : "";
                 if (string.IsNullOrWhiteSpace(axisName)) continue;
                 var ax = HardwareResolver.ResolveAxis(axisName);
-                if (ax == null) { _log?.Invoke($"找不到轴：{axisName}"); continue; }
+                if (ax == null) { _log?.Invoke($"找不到轴：{axisName}", LogLevel.Error); continue; }
                 var slot = item.Positions.Count > i ? item.Positions[i] : null;
                 if (slot == null) continue;
                 if (slot.Speed > 0) _bridge?.SetAxisSpeed(ax, slot.Speed);
@@ -820,7 +820,7 @@ namespace NoCodeMotion.ViewModels
         private void ExecModbus(string name, string setv)
         {
             var comm = HardwareResolver.ResolveComm(name);
-            if (comm == null) { _log?.Invoke($"找不到通信：{name}"); return; }
+            if (comm == null) { _log?.Invoke($"找不到通信：{name}", LogLevel.Error); return; }
             _bridge?.CommSend(comm, setv);
         }
 

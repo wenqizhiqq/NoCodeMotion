@@ -1,0 +1,10 @@
+PID=37804 ALIVE=True
+MainWindowTitle=[]
+MainWindowHandle=NONE
+--- markers ---
+APP_CTOR_START
+AFTER_SIG
+APP_CTOR_END
+--- startup error ---
+  (none)
+DONE

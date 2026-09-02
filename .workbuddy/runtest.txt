@@ -1,0 +1,9 @@
+=== BUILD ===
+BUILD_EXIT=0 ERRORS=0 WARNINGS=0
+PIL ok
+=== LAUNCH ===
+PROCESS_ALIVE_AFTER_1.3s=True PID=42000
+WINDOWS_FOUND=1
+  HWND=200134 TITLE='NoCodeMotion - Sim3DView.xaml.cs - Microsoft Visual Studio(管理员)' CLS='HwndWrapper[DefaultDomain;;82296e87-7414-4930-8c9c-7c76e056d252]'
+CAPTURE=True PATH=D:\wqz\code\NoCodeMotion\.workbuddy\runtest_shot.png
+TERMINATED

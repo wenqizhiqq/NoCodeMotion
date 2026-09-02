@@ -356,19 +356,30 @@
                                                 <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}"/>
                                             </Style>
                                         </DataGridTemplateColumn.HeaderStyle>
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <!-- 耗时(ms)：只读显示（执行器回填耗时，不允许编辑），统一蓝色调 -->
-                                                <Border Margin="1" CornerRadius="4" Background="{StaticResource AccentSoftBrush}">
-                                                    <TextBlock Text="{Binding DurationMs}"
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                               Margin="6,0"
-                                                               Foreground="{StaticResource AccentDarkBrush}"
-                                                               FontWeight="SemiBold"
-                                                               FontSize="12"/>
-                                                </Border>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
+<DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <!-- 耗时(ms)：只读显示（执行器回填耗时，不允许编辑），统一蓝色调；
+                                                         IsCurrent → 橙色，与行背景 WarningBrush 一致，使当前行整行连续橙条不断裂。-->
+                                                    <Border Margin="1" CornerRadius="4">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                        <Setter Property="Background" Value="{StaticResource WarningBrush}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="{Binding DurationMs}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   Margin="6,0"
+                                                                   Foreground="{StaticResource AccentDarkBrush}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="12"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
                                     <DataGridTemplateColumn Header="实际值" Width="120">
@@ -380,20 +391,50 @@
                                         </DataGridTemplateColumn.HeaderStyle>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <Border Margin="1" CornerRadius="4" Background="{StaticResource AccentSoftBrush}">
+                                                <Border Margin="1" CornerRadius="4">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                    <Setter Property="Background" Value="{StaticResource WarningBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
                                                     <Grid>
                                                         <Ellipse Width="6" Height="6" Margin="6,0,0,0"
-                                                                 HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                                 Fill="{StaticResource AccentBrush}"/>
-                                                        <!-- 实际值：只读显示（执行器回填结果，不允许编辑），统一蓝色调 -->
+                                                                 HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                            <Ellipse.Style>
+                                                                <Style TargetType="Ellipse">
+                                                                    <Setter Property="Fill" Value="{StaticResource AccentBrush}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                            <Setter Property="Fill" Value="White"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Ellipse.Style>
+                                                        </Ellipse>
+                                                        <!-- 实际值：只读显示（执行器回填结果，不允许编辑）；当前步整格变橙、文字转白保持连续 -->
                                                         <TextBlock Text="{Binding ActualValue}"
                                                                    VerticalAlignment="Center"
                                                                    Margin="16,1,1,1"
                                                                    Padding="6,0"
-                                                                   Foreground="{StaticResource AccentDarkBrush}"
                                                                    FontWeight="SemiBold"
                                                                    FontSize="12"
-                                                                   TextTrimming="CharacterEllipsis"/>
+                                                                   TextTrimming="CharacterEllipsis">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                            <Setter Property="Foreground" Value="White"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>

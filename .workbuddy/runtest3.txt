@@ -1,0 +1,13 @@
+PID=86032
+--- after ~2s, ALIVE=True, matches=3 ---
+  PID=86032 T='NoCodeMotion · 无代码运动控制' C='HwndWrapper[NoCodeMotion;;2e91116c-2c70-48c0-8c2c-cded940d6da4]'
+  PID=90792 T='SMotorse 运动控制系统 V1.0' C='HwndWrapper[SMotorseWpf;;1d26372f-d294-4002-89ae-13b471d24d6c]'
+  PID=21988 T='NoCodeMotion - Sim3DView.xaml.cs - Microsoft Visual Studio(管理员)' C='HwndWrapper[DefaultDomain;;82296e87-7414-4930-8c9c-7c76e056d252]'
+--- after ~4s, ALIVE=True, matches=3 ---
+  PID=86032 T='NoCodeMotion · 无代码运动控制' C='HwndWrapper[NoCodeMotion;;2e91116c-2c70-48c0-8c2c-cded940d6da4]'
+  PID=90792 T='SMotorse 运动控制系统 V1.0' C='HwndWrapper[SMotorseWpf;;1d26372f-d294-4002-89ae-13b471d24d6c]'
+  PID=21988 T='NoCodeMotion - Sim3DView.xaml.cs - Microsoft Visual Studio(管理员)' C='HwndWrapper[DefaultDomain;;82296e87-7414-4930-8c9c-7c76e056d252]'
+--- after ~6s, ALIVE=True, matches=3 ---
+  PID=86032 T='NoCodeMotion · 无代码运动控制' C='HwndWrapper[NoCodeMotion;;2e91116c-2c70-48c0-8c2c-cded940d6da4]'
+  PID=90792 T='SMotorse 运动控制系统 V1.0' C='HwndWrapper[SMotorseWpf;;1d26372f-d294-4002-89ae-13b471d24d6c]'
+  PID=21988 T='NoCodeMotion - Sim3DView.xaml.cs - Microsoft Visual Studio(管理员)' C='HwndWrapper[DefaultDomain;;82296e87-7414-4930-8c9c-7c76e056d252]'

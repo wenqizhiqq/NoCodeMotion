@@ -1,0 +1,5 @@
+kill dotnet.exe rc=0
+kill VBCSCompiler.exe rc=0
+kill MSBuild.exe rc=128
+kill NoCodeMotion.exe rc=128
+rmtree err: PermissionError(13, '拒绝访问。')

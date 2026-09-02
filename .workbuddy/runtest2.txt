@@ -1,0 +1,5 @@
+=== LAUNCH (existing build) ===
+PID=82960
+ALIVE=True
+WINDOWS_FOR_PID=0
+CAPTURE=SKIP no window

@@ -1,0 +1,9 @@
+PID=74316
+ALIVE=True
+OUR_WINDOWS=0 []
+=== STARTUP_ERROR ===
+(missing)
+=== MARKERS ===
+APP_CTOR_START
+
+ALIVE after term=False

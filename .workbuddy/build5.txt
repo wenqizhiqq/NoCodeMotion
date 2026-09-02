@@ -1,0 +1,13 @@
+EXIT=0 ERRORS=0 WARNINGS=64
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(684,13): warning CS8602: ??????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion_flnuizny_wpftmp.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(695,13): warning CS8602: ??????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion_flnuizny_wpftmp.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: ???OperatorViewModel._timingClockMs??????????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion_flnuizny_wpftmp.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(684,13): warning CS8602: ??????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(695,13): warning CS8602: ??????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: ???OperatorViewModel._timingClockMs??????????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(684,13): warning CS8602: ??????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion_flnuizny_wpftmp.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(695,13): warning CS8602: ??????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion_flnuizny_wpftmp.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: ???OperatorViewModel._timingClockMs??????????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion_flnuizny_wpftmp.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(684,13): warning CS8602: ??????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(695,13): warning CS8602: ??????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+WRN D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: ???OperatorViewModel._timingClockMs??????????????? [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]

@@ -151,6 +151,9 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <!-- 空态可见性转换器（异常日志清空后显示"一切正常"提示） -->
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
         <!-- 操作员页布局：左右各占一半。右列=运行轨迹 3D 仿真（占满整高）；左列上=生产数据/控制/趋势，下(左下角)=时序偏差监控+异常日志。整页无外部滚动条。 -->
@@ -274,31 +277,51 @@
                 <!-- 下半(填满剩余高度)：异常日志(只保留日志) -->
                 <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,12,0,0">
                     <DockPanel LastChildFill="True">
-                        <!-- 标题 -->
+                        <!-- 标题：异常日志 + 分类计数 + 导出 + 清空 -->
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                            <Button DockPanel.Dock="Right" Content="清空" Style="{StaticResource TtPillRedBtn}"
+                                    Command="{Binding ClearLogCommand}" MinWidth="0" Padding="12,3"
+                                    ToolTip="清空异常日志（只清除本面板显示，不影响运行）"/>
+                            <Button DockPanel.Dock="Right" Content="导出" Style="{StaticResource TtPillBlueBtn}"
+                                    Command="{Binding ExportLogCommand}" MinWidth="0" Padding="12,3" Margin="0,0,8,0"
+                                    ToolTip="将当前异常/警告导出为 Logs/异常日志_时间戳.txt 文本文件，便于归档与上报"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                <TextBlock Text="异常 " FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ErrorCount}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text=" · 警告 " FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding WarnCount}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource WarningBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
                             <TextBlock DockPanel.Dock="Left" Text="异常日志" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                            <Ellipse DockPanel.Dock="Right" Style="{StaticResource LogDotStyle}" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                            <TextBlock DockPanel.Dock="Right" Text="{Binding Log.Count, StringFormat=共 {0} 条}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
                         </DockPanel>
-                        <!-- 异常日志列表(填满剩余空间) -->
-                        <ListBox ItemsSource="{Binding Log}" BorderThickness="0" Background="Transparent">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="6,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding Time, StringFormat=HH:mm:ss}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                        <Ellipse Grid.Column="1" Style="{StaticResource LogDotStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <TextBlock Grid.Column="2" Style="{StaticResource LogTagStyle}"/>
-                                        <TextBlock Grid.Column="3" Text="{Binding Message}" Style="{StaticResource LogMsgStyle}"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <!-- 异常日志列表(填满剩余空间) + 空态提示 -->
+                        <Grid>
+                            <ListBox ItemsSource="{Binding Log}" BorderThickness="0" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="6,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Time, StringFormat=HH:mm:ss}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <Ellipse Grid.Column="1" Style="{StaticResource LogDotStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <TextBlock Grid.Column="2" Style="{StaticResource LogTagStyle}"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Message}" Style="{StaticResource LogMsgStyle}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <!-- 空态：清空后或启动即无异常时显示"一切正常" -->
+                            <Border IsHitTestVisible="False" Background="Transparent"
+                                    Visibility="{Binding IsLogEmpty, Converter={StaticResource BoolToVis}}">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="✓" FontSize="30" Foreground="{StaticResource SuccessBrush}" HorizontalAlignment="Center" Opacity="0.7"/>
+                                    <TextBlock Text="一切正常，暂无异常" FontSize="13" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                     </DockPanel>
                 </Border>
             </Grid>

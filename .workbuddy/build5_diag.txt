@@ -1,0 +1,33 @@
+PID=84560 ALIVE=True
+ALL_VISIBLE_WINDOWS=28
+  7896 T='' C='ThumbnailDeviceHelperWnd'
+  7896 T='' C='Shell_TrayWnd'
+  7896 T='' C='XamlExplorerHostIslandWindow_WASDK'
+  67708 T='WeMail' C='Qt51517QWindowToolSaveBits'
+  29896 T='SMotorse ?????? V1.0' C='HwndWrapper[SMotorseWpf;;74be708a-9fcb-47bc-bcf7-0345962f086d]'
+  55664 T='SMotorse-All (????) - ?? - ContentView.Partial.cs - Microsoft Visual Studio(???)' C='HwndWrapper[DefaultDomain;;96e65150-b6ad-4bdf-8a68-ebca1fcb1f7d]'
+  51872 T='WorkBuddy' C='Chrome_WidgetWin_1'
+  68636 T='???' C='ConversationDocNoticeWindow'
+  68636 T='' C='PerryShadowWnd'
+  62588 T='??' C='Qt51514QWindowIcon'
+  35036 T='????????hy4?? - ??' C='Chrome_WidgetWin_1'
+  76728 T='?????' C='TaskManagerWindow'
+  21988 T='NoCodeMotion - Sim3DView.xaml.cs - Microsoft Visual Studio(???)' C='HwndWrapper[DefaultDomain;;82296e87-7414-4930-8c9c-7c76e056d252]'
+  78288 T='??????????????' C='Chrome_WidgetWin_0'
+  7896 T='bin - ???????' C='CabinetWClass'
+  7896 T='net10.0-windows - ???????' C='CabinetWClass'
+  7896 T='?? (C:) - ???????' C='CabinetWClass'
+  68636 T='' C='Tencent.WXWork.WedocHostWindow'
+  55396 T='??' C='Windows.UI.Core.CoreWindow'
+  29192 T='??' C='ApplicationFrameWindow'
+  19832 T='Windows ????' C='Windows.UI.Core.CoreWindow'
+  7896 T='' C='DummyDWMListenerWindow'
+  7896 T='' C='EdgeUiInputTopWndClass'
+  7896 T='' C='DummyDWMListenerWindow'
+  7896 T='' C='DummyDWMListenerWindow'
+  7896 T='' C='DummyDWMListenerWindow'
+  7896 T='' C='DummyDWMListenerWindow'
+  7896 T='Program Manager' C='Progman'
+OUR_VISIBLE_WINDOWS=0
+SCREEN_GRAB=True SIZE=(2560, 1600)
+WINDOW_GRAB=None

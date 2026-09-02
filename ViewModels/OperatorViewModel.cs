@@ -95,6 +95,8 @@ namespace NoCodeMotion.ViewModels
                 OnPropertyChanged(nameof(CanRun));
                 OnPropertyChanged(nameof(CanStart));
                 OnPropertyChanged(nameof(CanStop));
+                OnPropertyChanged(nameof(CanPause));
+                OnPropertyChanged(nameof(CanEStop));
                 StatusBarService.SetRunState(IsRunning, EStopped);
             }
         }
@@ -107,6 +109,8 @@ namespace NoCodeMotion.ViewModels
             {
                 if (!SetField(ref _eStopped, value)) return;
                 OnPropertyChanged(nameof(CanStart));
+                OnPropertyChanged(nameof(CanRun));
+                OnPropertyChanged(nameof(CanEStop));
                 StatusBarService.SetRunState(IsRunning, EStopped);
             }
         }
@@ -250,6 +254,14 @@ namespace NoCodeMotion.ViewModels
         // ---------- 异常日志 ----------
         public ObservableCollection<LogEntry> Log { get; } = new();
 
+        /// <summary>异常日志按等级分类计数（面板标题展示用，Log 变更时自动重算并触发 INPC）。</summary>
+        public int WarnCount { get; private set; }
+        public int ErrorCount { get; private set; }
+        public bool IsLogEmpty => Log.Count == 0;
+        public ICommand ClearLogCommand { get; }
+        /// <summary>导出异常日志到文件（按钮：导出）。仅当面板有内容（Warn/Error）时可用。</summary>
+        public ICommand ExportLogCommand { get; }
+
         // ---------- 用户切换 ----------
         public ObservableCollection<string> Users { get; } = new() { "操作员 A", "操作员 B", "班组长", "管理员" };
         private string _currentUser = "操作员 A";
@@ -300,7 +312,7 @@ namespace NoCodeMotion.ViewModels
         /// 并排空日志与 UI 动作队列。运行线程本身绝不调用 Dispatcher，界面刷新完全由本定时器在 UI 线程完成。</summary>
         private readonly DispatcherTimer _uiTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
         /// <summary>运行线程 → UI 的日志队列（线程安全，定时器在 UI 线程排空）。</summary>
-        private readonly ConcurrentQueue<string> _logQueue = new();
+        private readonly ConcurrentQueue<(string Msg, LogLevel Level)> _logQueue = new();
         /// <summary>运行线程 → UI 的动作队列（如 AdvanceProduction），定时器在 UI 线程执行。</summary>
         private readonly ConcurrentQueue<Action> _uiQueue = new();
         /// <summary>是否有运行在进行中（流程并发 / 工位顺序）。为 true 时定时器才把共享态推到 FlowItem.Status，
@@ -324,6 +336,11 @@ namespace NoCodeMotion.ViewModels
             SwitchUserCommand = new RelayCommand(p => { if (p is string u && !string.IsNullOrEmpty(u)) CurrentUser = u; });
             ManualCommand = new RelayCommand(_ => Mode = OpMode.Manual);
             AutoCommand = new RelayCommand(_ => Mode = OpMode.Auto);
+            ClearLogCommand = new RelayCommand(_ => ClearLog());
+            ExportLogCommand = new RelayCommand(_ => ExportLog(), _ => !IsLogEmpty);
+
+            // 日志集合变更时刷新 WarnCount/ErrorCount/IsLogEmpty（AddLog 插入与 ClearLog 清空都走这里）。
+            Log.CollectionChanged += (_, __) => RefreshLogCounts();
 
 
             // 预置一段历史采样，使折线图打开即有内容
@@ -354,9 +371,9 @@ namespace NoCodeMotion.ViewModels
         /// <summary>定时器回调（UI 线程）：推状态、刷新文本、排空队列。运行线程不在此做任何 UI 操作。</summary>
         private void UiTimerTick(object? sender, EventArgs e)
         {
-            // 1) 排空日志队列
-            while (_logQueue.TryDequeue(out var msg))
-                AddLog(LogLevel.Info, msg);
+            // 1) 排空日志队列（只把 警告/异常 交给 AddLog，普通信息不进面板）
+            while (_logQueue.TryDequeue(out var item))
+                AddLog(item.Level, item.Msg);
 
             // 2) 排空 UI 动作队列（onFlowDone 等）
             while (_uiQueue.TryDequeue(out var act))
@@ -488,7 +505,7 @@ namespace NoCodeMotion.ViewModels
             int gen = ++_runGen;
             FlowRunnerService.RunAllAsync(
                 ctrl,
-                log: msg => _logQueue.Enqueue(msg),
+                log: (msg, lvl) => _logQueue.Enqueue((msg, lvl)),
                 onStep: (idx, name, cur) => { },
                 onFlowDone: (idx, name) => _uiQueue.Enqueue(() => AdvanceProduction()),
                 onComplete: () => _uiQueue.Enqueue(() => FinalizeRun(gen)),
@@ -626,7 +643,7 @@ namespace NoCodeMotion.ViewModels
 
             FlowRunnerService.RunAllAsync(
                 ctrl,
-                log: msg => _logQueue.Enqueue(msg),
+                log: (msg, lvl) => _logQueue.Enqueue((msg, lvl)),
                 onStep: (idx, name, cur) => { },
                 onFlowDone: (idx, name) => { },
                 onComplete: () => _uiQueue.Enqueue(() => FinalizeReset(gen)),
@@ -981,8 +998,70 @@ namespace NoCodeMotion.ViewModels
         // ---------- 日志 ----------
         private void AddLog(LogLevel level, string message)
         {
+            // 异常日志面板只展示 警告(Warn) 与 异常(Error)；普通信息(Info)不进入面板，避免刷屏。
+            if (level == LogLevel.Info) return;
             Log.Insert(0, new LogEntry { Time = DateTime.Now, Level = level, Message = message });
             while (Log.Count > 200) Log.RemoveAt(Log.Count - 1);
+        }
+
+        /// <summary>清空异常日志（按钮：清空）。清空后 CollectionChanged 触发 RefreshLogCounts 同步重置计数与空态。</summary>
+        private void ClearLog()
+        {
+            if (Log.Count == 0) return;
+            Log.Clear();
+        }
+
+        /// <summary>
+        /// 导出异常日志到文件（按钮：导出）。把当前面板内的 警告/异常 写入
+        /// 「&lt;程序目录&gt;/Logs/异常日志_YYYYMMDD_HHMMSS.txt」，供操作员归档/上报。
+        /// 面板只含 Warn/Error（AddLog 已过滤 Info），故导出即异常报告。
+        /// </summary>
+        private void ExportLog()
+        {
+            if (Log.Count == 0) return;
+            try
+            {
+                var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "Logs");
+                System.IO.Directory.CreateDirectory(dir);
+                var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var path = System.IO.Path.Combine(dir, $"异常日志_{stamp}.txt");
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("NoCodeMotion 异常日志导出");
+                sb.AppendLine($"导出时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"异常(Error)：{ErrorCount}　警告(Warn)：{WarnCount}");
+                sb.AppendLine(new string('-', 60));
+                foreach (var e in Log)
+                    sb.AppendLine($"[{e.Time:HH:mm:ss}] [{LevelText(e.Level)}] {e.Message}");
+                System.IO.File.WriteAllText(path, sb.ToString(), System.Text.Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                StatusBarService.ReportException($"导出异常日志失败：{ex.Message}");
+            }
+        }
+
+        private static string LevelText(LogLevel level) => level switch
+        {
+            LogLevel.Warn => "警告",
+            LogLevel.Error => "异常",
+            _ => "信息"
+        };
+
+        /// <summary>重算 WarnCount/ErrorCount/IsLogEmpty 并触发 INPC。Log 容量上限 200，全量重算成本可忽略。</summary>
+        private void RefreshLogCounts()
+        {
+            int w = 0, e = 0;
+            for (int i = 0; i < Log.Count; i++)
+            {
+                var lvl = Log[i].Level;
+                if (lvl == LogLevel.Warn) w++;
+                else if (lvl == LogLevel.Error) e++;
+            }
+            WarnCount = w;
+            ErrorCount = e;
+            OnPropertyChanged(nameof(WarnCount));
+            OnPropertyChanged(nameof(ErrorCount));
+            OnPropertyChanged(nameof(IsLogEmpty));
         }
 
         public void EnsureDefaultSelection()
