@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
@@ -60,14 +61,21 @@ namespace NoCodeMotion.ViewModels
             set
             {
                 if (!SetField(ref _selectedTable, value)) return;
+                if (_simTable != null) _simTable.Points.CollectionChanged -= OnSimPointsChanged;
+                _simTable = value;
+                if (_simTable != null) _simTable.Points.CollectionChanged += OnSimPointsChanged;
                 _runIndex = -1;
                 SelectedPoint = null;
                 TimingRows.Clear();
+                RebuildSim3D();
                 OnPropertyChanged(nameof(CurrentPoints));
                 OnPropertyChanged(nameof(CanRun));
                 OnPropertyChanged(nameof(CurrentStation));
             }
         }
+
+        /// <summary>工位点位增减/编辑后重建 3D 场景。</summary>
+        private void OnSimPointsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => RebuildSim3D();
 
         public ObservableCollection<PointItem>? CurrentPoints => SelectedTable?.Points;
 
@@ -181,6 +189,45 @@ namespace NoCodeMotion.ViewModels
         /// <summary>采样点：每运行一个工位节拍采集一次（良率% / 节拍s / 累计产量）。</summary>
         public ObservableCollection<ChartSample> Samples { get; } = new();
 
+        // ---------- 运行轨迹 3D 仿真 ----------
+        /// <summary>3D 场景点位（原始机械坐标：X / Z(向上) / Y 已映射为 3D 的 X/Y/Z）。控件内部自动归一化缩放。</summary>
+        private Point3DCollection _opSimPoints = new();
+        public Point3DCollection OpSimPoints
+        {
+            get => _opSimPoints;
+            private set { _opSimPoints = value; OnPropertyChanged(nameof(OpSimPoints)); }
+        }
+
+        /// <summary>当前位置（红色头），由 33ms 仿真定时器插值驱动；手动单步时跳到该点。</summary>
+        private Point3D _opSimHead;
+        public Point3D OpSimHead
+        {
+            get => _opSimHead;
+            private set { _opSimHead = value; OnPropertyChanged(nameof(OpSimHead)); }
+        }
+
+        /// <summary>是否显示当前位置头。</summary>
+        private bool _opSimHeadVisible;
+        public bool OpSimHeadVisible
+        {
+            get => _opSimHeadVisible;
+            private set { _opSimHeadVisible = value; OnPropertyChanged(nameof(OpSimHeadVisible)); }
+        }
+
+        /// <summary>当前目标点位索引（橙色高亮）。</summary>
+        private int _opSimIndex = -1;
+        public int OpSimIndex
+        {
+            get => _opSimIndex;
+            private set { _opSimIndex = value; OnPropertyChanged(nameof(OpSimIndex)); }
+        }
+
+        /// <summary>仿真沿路径插值相位（单位：点位）。</summary>
+        private double _simPhase;
+        private DateTime _simLast = DateTime.Now;
+        private PointTable? _simTable;
+        private readonly DispatcherTimer _sim3DTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
+
         /// <summary>良率折线（0~100% 映射到绘图区）。</summary>
         public PointCollection YieldPoints { get; private set; } = new();
 
@@ -289,6 +336,10 @@ namespace NoCodeMotion.ViewModels
             // 流程线程不与界面交互，杜绝高频 Invoke 造成的卡顿。
             _uiTimer.Tick += UiTimerTick;
             _uiTimer.Start();
+
+            // 3D 仿真定时器：运行时沿点位路径循环插值移动当前位置头（仅 UI 线程，不触碰运行线程）。
+            _sim3DTimer.Tick += Sim3DTick;
+            _sim3DTimer.Start();
         }
 
         /// <summary>定时器回调（UI 线程）：推状态、刷新文本、排空队列。运行线程不在此做任何 UI 操作。</summary>
@@ -361,6 +412,7 @@ namespace NoCodeMotion.ViewModels
                         StepTo(idx);
                         RecordTiming(idx, table.Points[idx]);
                         AdvanceProduction();
+                        SetSimHeadToPoint(idx);
                     });
                 }) { IsBackground = true, Name = "OpStep" };
                 t.Start();
@@ -379,6 +431,8 @@ namespace NoCodeMotion.ViewModels
             _runStart = DateTime.Now;
             _runSw.Restart();
             _runIndex = 0;
+            _simPhase = 0;
+            _simLast = DateTime.Now;
             // 优先并发运行全部流程；没有流程时回退到工位顺序运行（兼容旧工程）
             if (ProjectStore.Data.Flows.Count > 0)
             {
@@ -471,6 +525,8 @@ namespace NoCodeMotion.ViewModels
             _runActive = false;
             FlowRunStore.ClearAll();
             ResetFlowStatuses();
+            _simPhase = 0;
+            if (SelectedTable != null && SelectedTable.Points.Count > 0) SetSimHeadToPoint(0);
             StatusText = "已停止。";
             AddLog(LogLevel.Warn, "运行已手动停止。");
         }
@@ -500,6 +556,8 @@ namespace NoCodeMotion.ViewModels
             _runIndex = -1;
             SelectedPoint = null;
             TimingRows.Clear();
+            _simPhase = 0;
+            if (SelectedTable != null && SelectedTable.Points.Count > 0) SetSimHeadToPoint(0);
             StatusText = "急停！所有运动已切断，请复位后重新启动。";
             AddLog(LogLevel.Error, wasRunning ? "急停触发！运行中工位已紧急切断。" : "急停触发！");
         }
@@ -522,6 +580,8 @@ namespace NoCodeMotion.ViewModels
             _runIndex = -1;
             SelectedPoint = null;
             TimingRows.Clear();
+            _simPhase = 0;
+            if (SelectedTable != null && SelectedTable.Points.Count > 0) SetSimHeadToPoint(0);
             TotalCount = 0;
             Yield = 99.0;
             CycleTime = 2.4;
@@ -821,6 +881,76 @@ namespace NoCodeMotion.ViewModels
         {
             OnPropertyChanged(nameof(YieldPoints));
             OnPropertyChanged(nameof(CyclePoints));
+        }
+
+        // ---------- 运行轨迹 3D 仿真 ----------
+        /// <summary>根据选中工位的点位重建 3D 场景数据（原始机械坐标 → X / Z(向上) / Y 映射为 3D 的 X/Y/Z）。</summary>
+        private void RebuildSim3D()
+        {
+            var col = new Point3DCollection();
+            var tbl = SelectedTable;
+            if (tbl?.Points != null)
+            {
+                foreach (var p in tbl.Points)
+                {
+                    double x = p.Positions.Count > 0 ? p.Positions[0].Position : 0;
+                    double yUp = p.Positions.Count > 2 ? p.Positions[2].Position : 0;
+                    double z = p.Positions.Count > 1 ? p.Positions[1].Position : 0;
+                    col.Add(new Point3D(x, yUp, z));
+                }
+            }
+            OpSimPoints = col;
+            _simPhase = 0;
+            if (col.Count > 0)
+            {
+                OpSimHead = col[0];
+                OpSimHeadVisible = true;
+                OpSimIndex = -1;
+            }
+            else
+            {
+                OpSimHeadVisible = false;
+                OpSimIndex = -1;
+            }
+        }
+
+        /// <summary>把当前位置头移动到指定点位索引（手动单步 / 自动逐点到达时调用）。</summary>
+        private void SetSimHeadToPoint(int idx)
+        {
+            var tbl = SelectedTable;
+            if (tbl == null || idx < 0 || idx >= tbl.Points.Count) return;
+            var p = tbl.Points[idx];
+            double x = p.Positions.Count > 0 ? p.Positions[0].Position : 0;
+            double yUp = p.Positions.Count > 2 ? p.Positions[2].Position : 0;
+            double z = p.Positions.Count > 1 ? p.Positions[1].Position : 0;
+            OpSimHead = new Point3D(x, yUp, z);
+            OpSimHeadVisible = true;
+            OpSimIndex = idx;
+        }
+
+        /// <summary>3D 仿真定时器（UI 线程，33ms）：运行时沿点位路径循环插值移动当前位置头，方便直观查看运行轨迹。</summary>
+        private void Sim3DTick(object? sender, EventArgs e)
+        {
+            if (OpSimPoints == null || OpSimPoints.Count < 2) return;
+            if (!IsRunning) return;
+            var now = DateTime.Now;
+            double dt = (now - _simLast).TotalSeconds;
+            _simLast = now;
+            if (dt > 0.5) dt = 0.033; // 标签页挂起等情况下的跳变保护
+            double speed = 0.5;        // 点位 / 秒（循环演示速度）
+            _simPhase += dt * speed;
+            if (_simPhase >= OpSimPoints.Count) _simPhase -= OpSimPoints.Count;
+
+            int i0 = (int)Math.Floor(_simPhase) % OpSimPoints.Count;
+            int i1 = (i0 + 1) % OpSimPoints.Count;
+            double f = _simPhase - Math.Floor(_simPhase);
+            var a = OpSimPoints[i0];
+            var b = OpSimPoints[i1];
+            OpSimHead = new Point3D(
+                a.X + (b.X - a.X) * f,
+                a.Y + (b.Y - a.Y) * f,
+                a.Z + (b.Z - a.Z) * f);
+            OpSimIndex = i0;
         }
 
         // ---------- 日志 ----------

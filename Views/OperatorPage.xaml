@@ -126,10 +126,35 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <!-- 3D 仿真：运行态状态圆点（运行时绿色，空闲灰色） -->
+        <Style x:Key="SimRunDot" TargetType="Ellipse">
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="Fill" Value="{StaticResource TextMutedBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                    <Setter Property="Fill" Value="{StaticResource SuccessBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 3D 仿真：运行态文字（运行时"仿真运行中"，空闲"待机"） -->
+        <Style x:Key="SimStatusTextStyle" TargetType="TextBlock">
+            <Setter Property="Text" Value="待机"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                    <Setter Property="Text" Value="仿真运行中"/>
+                    <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
 
-    <!-- 自适应 2 列布局：左列为「生产数据 + 控制 + 折线图」，右列为「时序偏差监控 + 异常日志」。
-         整页无外部滚动条；左列可内部滚动，右列两张卡各自占满/固定并内部滚动。 -->
+    <!-- 自适应 2 列布局：左列为「生产数据 + 控制 + 折线图 + 3D 仿真」，右列为「时序偏差监控 + 异常日志」。
+         整页无外部滚动条；左列紧凑排布，右列两张卡各自占满并内部滚动。 -->
     <Grid Background="{StaticResource CanvasBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -160,7 +185,7 @@
                 <ColumnDefinition Width="1.25*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 左列：生产数据 + 控制 + 折线图（可内部滚动） -->
+            <!-- 左列：生产数据 + 控制 + 折线图 + 3D 仿真（无滚动条，紧凑排布） -->
             <StackPanel Grid.Column="0" Margin="0,0,8,0">
 
                     <!-- 生产数据 KPI -->
@@ -236,6 +261,25 @@
                                 <Rectangle Width="14" Height="4" Fill="{StaticResource WarningBrush}" RadiusX="2" RadiusY="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="节拍 s" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 运行轨迹 3D 仿真 -->
+                    <TextBlock Text="运行轨迹 3D 仿真" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="12">
+                        <StackPanel>
+                            <DockPanel LastChildFill="False" Margin="0,0,0,8">
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                                    <Ellipse Style="{StaticResource SimRunDot}" Margin="0,0,8,0"/>
+                                    <TextBlock Text="3D 运行仿真" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource SimStatusTextStyle}" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <local:Sim3DView Height="200"
+                                             Points="{Binding OpSimPoints}"
+                                             Head="{Binding OpSimHead}"
+                                             HeadVisible="{Binding OpSimHeadVisible}"
+                                             CurrentIndex="{Binding OpSimIndex}"/>
                         </StackPanel>
                     </Border>
 
