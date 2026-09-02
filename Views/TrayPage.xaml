@@ -60,43 +60,65 @@
                     </Grid.ColumnDefinitions>
                         <!-- ============ 料盘参数 ============ -->
                         <Border Grid.Column="0" Style="{StaticResource AppleGroupCard}" Margin="0,0,12,0">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="料盘参数"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
-                                </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="行数"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Rows, UpdateSourceTrigger=PropertyChanged}"/>
-                                </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="列数"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Cols, UpdateSourceTrigger=PropertyChanged}"/>
-                                </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始X"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.StartX, UpdateSourceTrigger=PropertyChanged}"/>
-                                </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始Y"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.StartY, UpdateSourceTrigger=PropertyChanged}"/>
-                                </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距X"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PitchX, UpdateSourceTrigger=PropertyChanged}"/>
-                                </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距Y"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PitchY, UpdateSourceTrigger=PropertyChanged}"/>
-                                </DockPanel>
-                            </StackPanel>
+                            <DockPanel LastChildFill="True">
+                                <StackPanel DockPanel.Dock="Top">
+                                    <TextBlock Style="{StaticResource AppleSectionHeader}" Text="料盘参数"/>
+                                    <DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称"/>
+                                        <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </DockPanel>
+                                    <Rectangle Style="{StaticResource AppleHairline}"/>
+                                    <DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="行数"/>
+                                        <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingRows, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </DockPanel>
+                                    <Rectangle Style="{StaticResource AppleHairline}"/>
+                                    <DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="列数"/>
+                                        <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingCols, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </DockPanel>
+                                    <Rectangle Style="{StaticResource AppleHairline}"/>
+                                    <DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始X"/>
+                                        <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingStartX, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </DockPanel>
+                                    <Rectangle Style="{StaticResource AppleHairline}"/>
+                                    <DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始Y"/>
+                                        <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingStartY, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </DockPanel>
+                                    <Rectangle Style="{StaticResource AppleHairline}"/>
+                                    <DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距X"/>
+                                        <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingPitchX, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </DockPanel>
+                                    <Rectangle Style="{StaticResource AppleHairline}"/>
+                                    <DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距Y"/>
+                                        <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingPitchY, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </DockPanel>
+                                </StackPanel>
+
+                                <!-- 底部：参数修改确认按钮区（弹窗式）：按「应用参数生成点位」才真正生成 Cells。
+                                     没修改时按钮 IsEnabled=false 自动变灰。 -->
+                                <Border DockPanel.Dock="Bottom" Padding="12,10,12,12" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Content="放弃修改"
+                                                Command="{Binding ResetPendingCommand}"
+                                                IsEnabled="{Binding SelectedItem.HasPendingChanges}"
+                                                Style="{StaticResource TtPillGrayBtn}"
+                                                Margin="0,0,8,0"/>
+                                        <Button Grid.Column="1" Content="应用参数生成点位"
+                                                Command="{Binding ApplyCommand}"
+                                                IsEnabled="{Binding SelectedItem.HasPendingChanges}"
+                                                Style="{StaticResource TtPillBlueBtn}"/>
+                                    </Grid>
+                                </Border>
+                            </DockPanel>
                         </Border>
 
                         <!-- ============ 二维料盘 ============ -->
@@ -112,21 +134,14 @@
                                     <TextBlock Text="空" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
 
-                                <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Margin="12,0,12,10">
-                                    <ItemsControl ItemsSource="{Binding SelectedItem.Cells}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <UniformGrid Rows="{Binding SelectedItem.Rows}" Columns="{Binding SelectedItem.Cols}"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="models:TrayCell">
-                                                <ToggleButton Style="{StaticResource TrayCellToggle}"
-                                                              IsChecked="{Binding Occupied, Mode=TwoWay}"/>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Viewbox>
+                                <!-- 主体：高性能单图渲染。无论多少格子都只有 1 个 Image 元素（位图整图绘制），
+                                     数量多时由 ScrollViewer 出滚动条；点击按像素位置算行列切换 有料/空。 -->
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Margin="12,0,12,12" Background="Transparent">
+                                    <Image Stretch="None"
+                                           MouseLeftButtonDown="TrayImage_MouseLeftButtonDown"
+                                           Cursor="Hand"
+                                           SnapsToDevicePixels="True"/>
+                                </ScrollViewer>
                             </DockPanel>
                         </Border>
                 </Grid>

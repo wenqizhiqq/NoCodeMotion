@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterOwner"
         FontFamily="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif"
         SnapsToDevicePixels="True"

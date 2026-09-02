@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <!-- 允许 unsafe 代码块：用于 WriteableBitmap.BackBuffer 指针绘制（料盘高性能渲染） -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- AvalonEdit 6.3 针对 net6.0-windows 编译，net10 引用会触发框架回退提示，属正常兼容，抑制以保持 0 警告。 -->
     <NoWarn>NU1701</NoWarn>
   </PropertyGroup>
