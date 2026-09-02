@@ -27,6 +27,9 @@ namespace NoCodeMotion.ViewModels
         public volatile bool PauseRequested;
         public ManualResetEventSlim ResumeEvent = new(true);
 
+        /// <summary>「相机」步骤真实取帧后回调（byte[]=BGRA, w, h），供 3D 仿真抓拍预览订阅。</summary>
+        public Action<byte[], int, int>? OnCameraCapture;
+
         /// <summary>变量表：名称 -> 值（字符串，数值运算时再解析）。与 ProjectStore.Data.Variables 双向同步。</summary>
         public Dictionary<string, string> Vars = new(StringComparer.OrdinalIgnoreCase);
 
@@ -721,7 +724,23 @@ namespace NoCodeMotion.ViewModels
                         _log?.Invoke($"[系统] {setv}");
                         break;
                     case "相机":
-                        _log?.Invoke($"[相机] 流程运行器暂不支持相机步骤「{name}」，已跳过。");
+                        try
+                        {
+                            int camIdx = 0;
+                            if (int.TryParse(name, out var c)) camIdx = c;
+                            var bgra = VisionEngine.CaptureFrame(camIdx, out int w, out int h);
+                            if (bgra != null && w > 0 && h > 0)
+                            {
+                                _log?.Invoke($"[相机] 已取帧 {w}x{h}（相机步骤「{name}」）。");
+                                _ctrl.OnCameraCapture?.Invoke(bgra, w, h);
+                            }
+                            else
+                                _log?.Invoke($"[相机] 取帧失败：{name}");
+                        }
+                        catch (Exception ex)
+                        {
+                            _log?.Invoke($"[相机] 取帧异常：{ex.Message}");
+                        }
                         break;
                     case "延时":
                         int ms = ParseInt(setv, 0);

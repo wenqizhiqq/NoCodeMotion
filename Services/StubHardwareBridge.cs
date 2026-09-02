@@ -4,6 +4,7 @@
 #nullable disable
 using System.Threading;
 using NoCodeMotion.Models;
+using NoCodeMotion.Services;
 
 namespace NoCodeMotion.Services
 {
@@ -33,8 +34,11 @@ namespace NoCodeMotion.Services
             Write($"轴运动 → 名称={axis.Name} 轴号={axis.AxisNo} 单位={axis.Unit} 速度={axis.Speed}");
         public void SetAxisSpeed(AxisItem axis, double speed) =>
             Write($"轴设速 → 名称={axis.Name} 轴号={axis.AxisNo} 速度={speed}");
-        public void HomeAxis(AxisItem axis) =>
+        public void HomeAxis(AxisItem axis)
+        {
+            AxisRuntimeState.Set(axis.Name, 0);
             Write($"轴回零 → 名称={axis.Name} 轴号={axis.AxisNo} 模式={axis.HomeMode}");
+        }
         public void StopAxis(AxisItem axis) =>
             Write($"轴停止 → 名称={axis.Name} 轴号={axis.AxisNo}");
         public void WaitAxisDone(AxisItem axis)
@@ -44,10 +48,16 @@ namespace NoCodeMotion.Services
         }
         public void EnableAxis(AxisItem axis) =>
             Write($"轴使能 → 名称={axis.Name} 轴号={axis.AxisNo}");
-        public void MoveAxisRel(AxisItem axis, double distance) =>
+        public void MoveAxisRel(AxisItem axis, double distance)
+        {
+            AxisRuntimeState.Set(axis.Name, AxisRuntimeState.Get(axis.Name) + distance);
             Write($"轴相对移动 → 名称={axis.Name} 轴号={axis.AxisNo} 位移={distance}");
-        public void MoveAxisAbs(AxisItem axis, double position) =>
+        }
+        public void MoveAxisAbs(AxisItem axis, double position)
+        {
+            AxisRuntimeState.Set(axis.Name, position);
             Write($"轴绝对移动 → 名称={axis.Name} 轴号={axis.AxisNo} 目标={position}");
+        }
 
         // ---- IO ----
         public double ReadInput(IoItem io)

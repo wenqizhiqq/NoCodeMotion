@@ -316,7 +316,8 @@
                     <local:Sim3DView Points="{Binding OpSimPoints}"
                                      Head="{Binding OpSimHead}"
                                      HeadVisible="{Binding OpSimHeadVisible}"
-                                     CurrentIndex="{Binding OpSimIndex}"/>
+                                     CurrentIndex="{Binding OpSimIndex}"
+                                     CaptureImage="{Binding OpSimCapture}"/>
                 </DockPanel>
             </Border>
         </Grid>

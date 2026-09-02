@@ -749,6 +749,43 @@ namespace NoCodeMotion.Services.Vision
             return bytes;
         }
 
+        /// <summary>
+        /// 单帧采集：优先按相机索引抓帧；无相机/失败则回退合成测试图（带目标矩形）。
+        /// 返回 BGRA 字节（可直接转 WPF BitmapSource），并输出宽高。
+        /// 供流程「相机」步骤与 3D 仿真抓拍预览使用。
+        /// </summary>
+        public static byte[]? CaptureFrame(int cameraIndex, out int width, out int height)
+        {
+            width = 0; height = 0;
+            try
+            {
+                using var cap = new Cv.VideoCapture(cameraIndex);
+                var frame = new Cv.Mat();
+                if (cap.Read(frame) && !frame.Empty())
+                {
+                    width = frame.Width; height = frame.Height;
+                    var bgra = MatToBgra(frame);
+                    frame.Dispose();
+                    return bgra;
+                }
+                frame.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[VisionEngine] 相机 {cameraIndex} 采集失败：{ex.Message}（回退合成图）");
+            }
+            return SyntheticCapture(out width, out height);
+        }
+
+        private static byte[] SyntheticCapture(out int w, out int h)
+        {
+            w = 320; h = 240;
+            var m = new Cv.Mat(h, w, Cv.MatType.CV_8UC3, new Cv.Scalar(40, 44, 52));
+            Cv.Cv2.Rectangle(m, new Cv.Rect(120, 80, 80, 80), new Cv.Scalar(220, 180, 60), -1);
+            Cv.Cv2.PutText(m, "SIM CAPTURE", new Cv.Point(60, 30), Cv.HersheyFonts.HersheySimplex, 0.7, new Cv.Scalar(230, 230, 230), 1);
+            return MatToBgra(m);
+        }
+
         private static Cv.Mat EnsureBgra(Cv.Mat m)
         {
             var o = new Cv.Mat();

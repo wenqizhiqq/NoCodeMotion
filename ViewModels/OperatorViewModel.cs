@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 using NoCodeMotion.Models;
@@ -220,6 +221,14 @@ namespace NoCodeMotion.ViewModels
         {
             get => _opSimIndex;
             private set { _opSimIndex = value; OnPropertyChanged(nameof(OpSimIndex)); }
+        }
+
+        /// <summary>相机抓拍预览图（流程「相机」步骤真实取帧后写入，绑定到 Sim3DView.CaptureImage）。</summary>
+        private ImageSource? _opSimCapture;
+        public ImageSource? OpSimCapture
+        {
+            get => _opSimCapture;
+            private set { _opSimCapture = value; OnPropertyChanged(nameof(OpSimCapture)); }
         }
 
         /// <summary>仿真沿路径插值相位（单位：点位）。</summary>
@@ -465,6 +474,7 @@ namespace NoCodeMotion.ViewModels
 
             var ctrl = new FlowRunControl();
             ctrl.InitVars();
+            ctrl.OnCameraCapture = (b, w, h) => _uiQueue.Enqueue(() => SetCapture(b, w, h));
             _flowCtrl = ctrl;
 
             // 运行线程只写共享态 FlowRunStore，UI 由定时器拉取；日志/动作入队，定时器在 UI 线程排空。
@@ -603,6 +613,7 @@ namespace NoCodeMotion.ViewModels
             // 复位流程：每条后台 Thread 单次运行（不循环），状态经 FlowRunStore 由定时器刷新。
             var ctrl = new FlowRunControl();
             ctrl.InitVars();
+            ctrl.OnCameraCapture = (b, w, h) => _uiQueue.Enqueue(() => SetCapture(b, w, h));
             _flowCtrl = ctrl;
             FlowRunStore.ClearAll();
             _runActive = true;
@@ -926,6 +937,20 @@ namespace NoCodeMotion.ViewModels
             OpSimHead = new Point3D(x, yUp, z);
             OpSimHeadVisible = true;
             OpSimIndex = idx;
+        }
+
+        /// <summary>把相机抓拍到的 BGRA 帧字节组装为 WPF BitmapSource 并推到预览（在 UI 队列线程调用）。</summary>
+        private void SetCapture(byte[] bgra, int w, int h)
+        {
+            try
+            {
+                if (bgra == null || w <= 0 || h <= 0) return;
+                int stride = w * 4;
+                var bmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, bgra, stride);
+                bmp.Freeze();
+                OpSimCapture = bmp;
+            }
+            catch { }
         }
 
         /// <summary>3D 仿真定时器（UI 线程，33ms）：运行时沿点位路径循环插值移动当前位置头，方便直观查看运行轨迹。</summary>

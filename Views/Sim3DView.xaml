@@ -35,35 +35,33 @@
                    FontSize="10" Foreground="#94A3B8" HorizontalAlignment="Right"
                    VerticalAlignment="Bottom" Margin="6" IsHitTestVisible="False"/>
 
-        <!-- 紧凑图例：图标 + 文字，标注真实机台各部件 -->
+        <!-- 相机抓拍预览：流程走到「相机」步骤时由 OperatorViewModel 写入 CaptureImage -->
+        <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="6" Padding="4" IsHitTestVisible="False">
+            <StackPanel>
+                <TextBlock Text="相机抓拍" FontSize="10" Foreground="#475569" Margin="0,0,0,2"/>
+                <Image Source="{Binding CaptureImage, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:Sim3DView}}"
+                       Width="120" Height="90" Stretch="Uniform"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 紧凑图例：图标 + 文字，标注参数化机台各部件（由轴配置自动生成） -->
         <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="2,6,2,2">
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
                 <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#64748B" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="机台侧板/龙门" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
+                <TextBlock Text="龙门/导轨" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
                 <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#94A3B8" Margin="0,0,4,0" VerticalAlignment="Center"/>
                 <TextBlock Text="滑座/主轴" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
-                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#EC4899" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="限位感应器" FontSize="10.5" Foreground="#BE185D" VerticalAlignment="Center"/>
+                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#0EA5E9" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                <TextBlock Text="旋转转台" FontSize="10.5" Foreground="#0369A1" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
-                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#334155" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="控制柜" FontSize="10.5" Foreground="#334155" VerticalAlignment="Center"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
-                <Grid Margin="0,0,4,0" VerticalAlignment="Center">
-                    <Rectangle Width="3" Height="10" Fill="#22C55E"/>
-                    <Rectangle Width="3" Height="10" Fill="#FBBF24" Margin="3,0,3,0"/>
-                    <Rectangle Width="3" Height="10" Fill="#EF4444" Margin="6,0,0,0"/>
-                </Grid>
-                <TextBlock Text="警示灯塔" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
-                <Ellipse Width="9" Height="9" Fill="#22C55E" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="LED指示" FontSize="10.5" Foreground="#0F766E" VerticalAlignment="Center"/>
+                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#1E293B" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                <TextBlock Text="相机" FontSize="10.5" Foreground="#334155" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
                 <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#3B82F6" Margin="0,0,4,0" VerticalAlignment="Center"/>
