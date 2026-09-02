@@ -51,6 +51,16 @@ namespace NoCodeMotion.Views
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             => throw new NotSupportedException();
     }
+
+    /// <summary>把仿真当前目标点位的 0 基索引转为可读文本：≥0 → "点位{index+1}"，-1 → "—"。</summary>
+    public class SimIndexConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => value is int i && i >= 0 ? $"点位{i + 1}" : "—";
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
 }
 // ◇作者保留所有权利　请勿删除※​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​

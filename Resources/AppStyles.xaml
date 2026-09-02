@@ -102,6 +102,8 @@
     <Geometry x:Key="StopIcon">M6 6h12v12H6z</Geometry>
     <Geometry x:Key="PlayIcon">M8 5v14l11-7z</Geometry>
     <Geometry x:Key="PauseIcon">M6 19h4V5H6v14zm8-14v14h4V5h-4z</Geometry>
+    <!-- 循环播放：两段回到起点的箭头 -->
+    <Geometry x:Key="LoopIcon">M7 7h9V4l5 5-5 5V11H7c-1.66 0-3 1.34-3 3v1H2v-1c0-2.76 2.24-5 5-5zm10 10H8v3l-5-5 5-5v3h9c1.66 0 3-1.34 3-3v-1h2v1c0 2.76-2.24 5-5 5z</Geometry>
     <Geometry x:Key="PowerIcon">M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z</Geometry>
     <Geometry x:Key="SettingsIcon">M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.49-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z</Geometry>
     <Geometry x:Key="HomeIcon">M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z</Geometry>
@@ -110,6 +112,7 @@
 
     <!-- 共享转换器 -->
     <views:AxisHeaderMultiConverter x:Key="AxisHeaderMulti"/>
+    <views:SimIndexConverter x:Key="SimIndexConv"/>
     <views:BoolToZhConverter x:Key="BoolToZh"/>
     <views:StringFormatConverter x:Key="StringFormat"/>
     <views:FlowStatusLabelConverter x:Key="FlowStatusLabel"/>

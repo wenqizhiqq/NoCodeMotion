@@ -469,7 +469,130 @@
                             </ListBox>
                         </StackPanel>
                     </Border>
+
+            <!-- ===================== 右上角：轨迹仿真面板（始终显示） ===================== -->
+            <Border Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12"
+                    Width="252" Panel.ZIndex="20"
+                    Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}"
+                    BorderThickness="1" CornerRadius="12" Padding="12" Effect="{StaticResource SoftShadow}">
+                <StackPanel>
+                    <!-- 标题栏 -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6" VerticalAlignment="Center">
+                        <Path Data="{StaticResource PointIcon}" Width="16" Height="16" Stretch="Uniform"
+                              Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="轨迹仿真" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- 控制条（始终可见） -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                        <Button Command="{Binding SimPlayCommand}" Style="{StaticResource TtPillBlueBtn}" Width="34" Height="34" MinWidth="0" Padding="0" ToolTip="仿真：按点位顺序演示轨迹动画">
+                            <Path Data="{StaticResource PlayIcon}" Width="14" Height="14" Stretch="Uniform"
+                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        </Button>
+                        <Button Command="{Binding SimStopCommand}" Style="{StaticResource TtPillGrayBtn}" Width="34" Height="34" MinWidth="0" Padding="0" ToolTip="停止仿真">
+                            <Path Data="{StaticResource StopIcon}" Width="12" Height="12" Stretch="Uniform"
+                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        </Button>
+                        <Button Command="{Binding SimResetCommand}" Style="{StaticResource TtPillGrayBtn}" Width="34" Height="34" MinWidth="0" Padding="0" ToolTip="回到起点">
+                            <Path Data="{StaticResource RefreshIcon}" Width="14" Height="14" Stretch="Uniform"
+                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        </Button>
+                        <Button Command="{Binding SimLoopCommand}" Width="34" Height="34" MinWidth="0" Padding="0" Margin="4,0" ToolTip="循环播放">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource TtPillGrayBtn}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SimLoop}" Value="True">
+                                            <Setter Property="Background" Value="#E5F1FF"/>
+                                            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <Path Data="{StaticResource LoopIcon}" Width="14" Height="14" Stretch="Uniform"
+                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- 画布 + 速度 + 读数 -->
+                    <Border Background="{StaticResource CanvasBrush}" BorderBrush="{StaticResource LineBrush}"
+                                BorderThickness="1" CornerRadius="8" Height="180" Margin="0,6,0,0">
+                            <Viewbox Stretch="Uniform" Margin="6">
+                                <Canvas Width="100" Height="100">
+                                    <!-- 轨迹折线 -->
+                                    <Path Data="{Binding SimTrajectory}" Stroke="{StaticResource AccentBrush}"
+                                          StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round" Fill="Transparent"/>
+                                    <!-- 点位（高亮当前目标） -->
+                                    <ItemsControl ItemsSource="{Binding SimPoints}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><Canvas/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                                <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <Grid.RenderTransform>
+                                                        <TranslateTransform X="-3" Y="-3"/>
+                                                    </Grid.RenderTransform>
+                                                    <Ellipse Width="7" Height="7" Stroke="White" StrokeThickness="1">
+                                                        <Ellipse.Style>
+                                                            <Style TargetType="Ellipse">
+                                                                <Setter Property="Fill" Value="{StaticResource AccentBrush}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                        <Setter Property="Fill" Value="{StaticResource DangerBrush}"/>
+                                                                        <Setter Property="Width" Value="11"/>
+                                                                        <Setter Property="Height" Value="11"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Ellipse.Style>
+                                                    </Ellipse>
+                                                    <TextBlock Text="{Binding Index}" FontSize="5.5" FontWeight="Bold"
+                                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <!-- 运动标记 -->
+                                    <Ellipse Width="10" Height="10" Fill="{StaticResource DangerBrush}" Stroke="White" StrokeThickness="2"
+                                             Canvas.Left="{Binding SimMarkerX}" Canvas.Top="{Binding SimMarkerY}">
+                                        <Ellipse.RenderTransform>
+                                            <TranslateTransform X="-5" Y="-5"/>
+                                        </Ellipse.RenderTransform>
+                                    </Ellipse>
+                                </Canvas>
+                            </Viewbox>
+                        </Border>
+
+                        <!-- 速度 -->
+                    <DockPanel LastChildFill="True" Margin="0,8,0,2" VerticalAlignment="Center">
+                        <TextBlock DockPanel.Dock="Left" Text="速度" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding SimSpeed, StringFormat={}{0:0.00}x}" FontSize="12" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <Slider Minimum="0.25" Maximum="3" TickFrequency="0.25" Value="{Binding SimSpeed}"
+                                SmallChange="0.25" LargeChange="0.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <!-- 读数 -->
+                    <TextBlock FontSize="11.5" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0">
+                        <TextBlock.Text>
+                            <MultiBinding StringFormat="目标 {0}　X={1:0.##}　Y={2:0.##}">
+                                <Binding Path="SimActiveIndex" Converter="{StaticResource SimIndexConv}"/>
+                                <Binding Path="SimLiveX"/>
+                                <Binding Path="SimLiveY"/>
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
         </Grid>
-        <local:PageHintBar Grid.Row="1" Grid.ColumnSpan="2" OperationText="上方选轴，下方表格填写各轴目标坐标与速度；「新增工位 / 删除工位」管理；可导出导入。" PrecautionText="首点位建议留安全位；运行前空跑验证轨迹防止撞机；坐标单位与轴配置保持一致。"/>
+        <local:PageHintBar Grid.Row="1" Grid.ColumnSpan="2" OperationText="上方选轴，下方表格填写各轴目标坐标与速度；「新增工位 / 删除工位」管理；可导出导入。右上角「仿真」按点位顺序动画演示运动轨迹。" PrecautionText="首点位建议留安全位；运行前空跑验证轨迹防止撞机；坐标单位与轴配置保持一致。"/>
     </Grid>
 </UserControl>

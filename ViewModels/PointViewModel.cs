@@ -1,11 +1,16 @@
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
@@ -128,6 +133,12 @@ namespace NoCodeMotion.ViewModels
             CompileCommand = new RelayCommand(_ => Compile(), _ => SelectedItem != null);
             ImportDxfCommand = new RelayCommand(_ => ImportDxf(), _ => SelectedItem != null);
 
+            // 轨迹仿真命令
+            SimPlayCommand = new RelayCommand(_ => SimPlay(), _ => CanSimulate(null) && !IsSimulating);
+            SimStopCommand = new RelayCommand(_ => SimStop(), _ => IsSimulating);
+            SimResetCommand = new RelayCommand(_ => SimReset(), _ => HasTable);
+            SimLoopCommand = new RelayCommand(_ => SimLoop = !SimLoop, _ => HasTable);
+
             // 工位切换 → 重新载入 4 个轴名、刷新右侧表格
             PropertyChanged += OnSelfPropertyChanged;
 
@@ -183,10 +194,26 @@ namespace NoCodeMotion.ViewModels
         {
             if (e.PropertyName != nameof(SelectedItem)) return;
             LoadAxisNamesFromTable();
+            BindSimTable(SelectedItem);
             SelectedPoint = null;
             OnPropertyChanged(nameof(CurrentPoints));
             OnPropertyChanged(nameof(HasTable));
         }
+
+        // 切换工位时把点位集合的增删订阅到仿真重算；旧工位退订，避免悬空引用
+        private PointTable? _simBoundTable;
+        private void BindSimTable(PointTable? table)
+        {
+            if (ReferenceEquals(_simBoundTable, table)) return;
+            if (_simBoundTable != null)
+                _simBoundTable.Points.CollectionChanged -= OnSimPointsChanged;
+            _simBoundTable = table;
+            if (_simBoundTable != null)
+                _simBoundTable.Points.CollectionChanged += OnSimPointsChanged;
+            RebuildSim();
+        }
+
+        private void OnSimPointsChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildSim();
 
         // 切换工位时把该工位保存的 4 个轴名填进轴槽（此期间不回写，避免污染其它工位）
         private void LoadAxisNamesFromTable()
@@ -382,6 +409,296 @@ namespace NoCodeMotion.ViewModels
                 item.Positions[i].Position = AxisStates[i].CurrentPosition;
         }
 
+        // ===== 轨迹仿真（右上角面板）：按点位顺序在 2D 画布上演示运动动画 =====
+        // 用轴槽 0/1 作为 X/Y 坐标（轴名来自 AxisStates），自动拟合缩放；同时把插值结果
+        // 写回 4 个轴的 CurrentPosition，使「轴控制」卡片随动画实时联动。
+
+        private readonly ObservableCollection<SimPointVm> _simPoints = new();
+        private readonly List<double> _segDur = new();
+        private DispatcherTimer? _simTimer;
+        private int _simSeg;
+        private double _simT;
+
+        /// <summary>仿真点位集合（逻辑坐标 0..100，画布内 Viewbox 自适应缩放）。</summary>
+        public ObservableCollection<SimPointVm> SimPoints => _simPoints;
+
+        private Geometry? _simTrajectory;
+        /// <summary>连接各点位的轨迹折线（逻辑坐标）。</summary>
+        public Geometry? SimTrajectory
+        {
+            get => _simTrajectory;
+            private set => SetField(ref _simTrajectory, value);
+        }
+
+        private double _simMarkerX = 50;
+        private double _simMarkerY = 50;
+        /// <summary>动画标记当前位置（逻辑坐标 0..100）。</summary>
+        public double SimMarkerX
+        {
+            get => _simMarkerX;
+            private set => SetField(ref _simMarkerX, value);
+        }
+        public double SimMarkerY
+        {
+            get => _simMarkerY;
+            private set => SetField(ref _simMarkerY, value);
+        }
+
+        private double _simLiveX;
+        private double _simLiveY;
+        /// <summary>动画标记当前位置（轴 1/2 实际单位），用于下方数值读数。</summary>
+        public double SimLiveX
+        {
+            get => _simLiveX;
+            private set => SetField(ref _simLiveX, value);
+        }
+        public double SimLiveY
+        {
+            get => _simLiveY;
+            private set => SetField(ref _simLiveY, value);
+        }
+
+        private int _simActiveIndex = -1;
+        /// <summary>当前正在前往的目标点位序号（0 基），用于高亮与读数。</summary>
+        public int SimActiveIndex
+        {
+            get => _simActiveIndex;
+            private set => SetField(ref _simActiveIndex, value);
+        }
+
+        private bool _isSimulating;
+        public bool IsSimulating
+        {
+            get => _isSimulating;
+            private set
+            {
+                if (SetField(ref _isSimulating, value))
+                    RaiseSimCanExec();
+            }
+        }
+
+        private bool _simLoop;
+        /// <summary>是否循环播放（到达末点后回到起点继续）。</summary>
+        public bool SimLoop
+        {
+            get => _simLoop;
+            set => SetField(ref _simLoop, value);
+        }
+
+        private double _simSpeed = 1.0;
+        /// <summary>仿真速度倍率（0.25..3，越大越快）。</summary>
+        public double SimSpeed
+        {
+            get => _simSpeed;
+            set => SetField(ref _simSpeed, value);
+        }
+
+        public ICommand SimPlayCommand { get; }
+        public ICommand SimStopCommand { get; }
+        public ICommand SimResetCommand { get; }
+        public ICommand SimLoopCommand { get; }
+
+        private bool CanSimulate(object? _) => HasTable && CurrentPoints is { Count: >= 2 };
+
+        private void RaiseSimCanExec() => CommandManager.InvalidateRequerySuggested();
+
+        /// <summary>重算仿真点位与轨迹：从当前工位点位取轴 1/2 坐标，自动拟合到 0..100 逻辑空间。</summary>
+        private void RebuildSim()
+        {
+            StopTimer();
+            IsSimulating = false;
+            _simPoints.Clear();
+            _segDur.Clear();
+
+            var pts = CurrentPoints;
+            if (pts == null || pts.Count == 0)
+            {
+                SimTrajectory = null;
+                SimMarkerX = 50; SimMarkerY = 50;
+                SimActiveIndex = -1;
+                RaiseSimCanExec();
+                return;
+            }
+
+            double minX = double.MaxValue, maxX = double.MinValue;
+            double minY = double.MaxValue, maxY = double.MinValue;
+            var coords = new List<double[]>();
+            foreach (var p in pts)
+            {
+                var a = new double[4];
+                for (int i = 0; i < 4; i++)
+                    a[i] = (i < p.Positions.Count) ? p.Positions[i].Position : 0;
+                coords.Add(a);
+                if (a[0] < minX) minX = a[0]; if (a[0] > maxX) maxX = a[0];
+                if (a[1] < minY) minY = a[1]; if (a[1] > maxY) maxY = a[1];
+            }
+
+            const double pad = 10;
+            double denomX = (maxX - minX) == 0 ? 1 : (maxX - minX);
+            double denomY = (maxY - minY) == 0 ? 1 : (maxY - minY);
+            for (int i = 0; i < pts.Count; i++)
+            {
+                double lx = pad + (coords[i][0] - minX) / denomX * (100 - 2 * pad);
+                double ly = pad + (1 - (coords[i][1] - minY) / denomY) * (100 - 2 * pad); // 反转 Y：向上为更大
+                _simPoints.Add(new SimPointVm { Index = i + 1, X = lx, Y = ly, A = coords[i] });
+            }
+
+            if (_simPoints.Count >= 2)
+            {
+                var fig = new PathFigure { StartPoint = new Point(_simPoints[0].X, _simPoints[0].Y) };
+                var poly = new PolyLineSegment();
+                for ( int i = 1; i < _simPoints.Count; i++)
+                    poly.Points.Add(new Point(_simPoints[i].X, _simPoints[i].Y));
+                fig.Segments.Add(poly);
+                SimTrajectory = new PathGeometry { Figures = { fig } };
+
+                double totalLen = 0;
+                var lens = new List<double>();
+                for (int i = 0; i < _simPoints.Count - 1; i++)
+                {
+                    double dx = coords[i + 1][0] - coords[i][0];
+                    double dy = coords[i + 1][1] - coords[i][1];
+                    double dz = coords[i + 1][2] - coords[i][2];
+                    double dw = coords[i + 1][3] - coords[i][3];
+                    double d = Math.Sqrt(dx * dx + dy * dy + dz * dz + dw * dw);
+                    lens.Add(d);
+                    totalLen += d;
+                }
+                const double baseTotal = 6.0; // 基础总时长（秒），由 SimSpeed 实时缩放
+                for (int i = 0; i < lens.Count; i++)
+                {
+                    double dur = totalLen > 0 ? lens[i] / totalLen * baseTotal : baseTotal / lens.Count;
+                    _segDur.Add(Math.Max(0.3, dur));
+                }
+            }
+            else
+            {
+                SimTrajectory = null;
+            }
+
+            // 标记回到起点，并让 4 轴读数同步到起点
+            if (_simPoints.Count > 0)
+            {
+                var first = _simPoints[0];
+                SimMarkerX = first.X; SimMarkerY = first.Y;
+                SimLiveX = first.A[0]; SimLiveY = first.A[1];
+                for (int i = 0; i < AxisStates.Count && i < 4; i++)
+                    AxisStates[i].CurrentPosition = first.A[i];
+                SetActiveIndex(0);
+            }
+            else
+            {
+                SimActiveIndex = -1;
+            }
+            RaiseSimCanExec();
+        }
+
+        /// <summary>开始仿真：重算几何后启动定时器，逐段插值推进标记。</summary>
+        private void SimPlay()
+        {
+            if (!CanSimulate(null)) return;
+            StopTimer();
+            RebuildSim();
+            if (_simPoints.Count < 2)
+            {
+                StatusBarService.ReportException("当前工位点位不足 2 个，无法演示轨迹。");
+                return;
+            }
+            IsSimulating = true;
+            _simSeg = 0;
+            _simT = 0;
+            ApplySegmentToMarker(0, 0);
+            SetActiveIndex(0);
+            _simTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            _simTimer.Tick += SimTick;
+            _simTimer.Start();
+        }
+
+        private void SimStop()
+        {
+            StopTimer();
+            IsSimulating = false;
+        }
+
+        private void SimReset()
+        {
+            StopTimer();
+            IsSimulating = false;
+            RebuildSim();
+        }
+
+        private void SimTick(object? sender, EventArgs e)
+        {
+            if (_simPoints.Count < 2)
+            {
+                StopTimer();
+                IsSimulating = false;
+                return;
+            }
+            double dt = _simTimer?.Interval.TotalSeconds ?? 0.033;
+            _simT += dt * SimSpeed;
+            int n = _simPoints.Count;
+
+            while (_simSeg < n - 1 && _simT >= _segDur[_simSeg])
+            {
+                _simT -= _segDur[_simSeg];
+                _simSeg++;
+                if (_simSeg >= n - 1)
+                {
+                    if (SimLoop)
+                    {
+                        _simSeg = 0;
+                        _simT = 0;
+                    }
+                    else
+                    {
+                        ApplySegmentToMarker(n - 2, 1);
+                        SetActiveIndex(n - 1);
+                        StopTimer();
+                        IsSimulating = false;
+                        return;
+                    }
+                }
+            }
+
+            if (_simSeg >= n - 1) _simSeg = n - 2;
+            double dur = _segDur[_simSeg];
+            double p = dur > 0 ? Math.Min(1, _simT / dur) : 1;
+            ApplySegmentToMarker(_simSeg, p);
+            SetActiveIndex(_simSeg + (p >= 1 ? 1 : 0));
+        }
+
+        /// <summary>把第 seg 段、进度 p(0..1) 的插值位置写回标记与 4 轴当前位置。</summary>
+        private void ApplySegmentToMarker(int seg, double p)
+        {
+            if (seg < 0 || seg >= _simPoints.Count - 1) return;
+            var a = _simPoints[seg];
+            var b = _simPoints[seg + 1];
+            SimMarkerX = a.X + (b.X - a.X) * p;
+            SimMarkerY = a.Y + (b.Y - a.Y) * p;
+            SimLiveX = a.A[0] + (b.A[0] - a.A[0]) * p;
+            SimLiveY = a.A[1] + (b.A[1] - a.A[1]) * p;
+            for (int i = 0; i < AxisStates.Count && i < 4; i++)
+                AxisStates[i].CurrentPosition = a.A[i] + (b.A[i] - a.A[i]) * p;
+        }
+
+        private void SetActiveIndex(int idx)
+        {
+            for (int i = 0; i < _simPoints.Count; i++)
+                _simPoints[i].IsActive = i == idx;
+            SimActiveIndex = idx;
+        }
+
+        private void StopTimer()
+        {
+            if (_simTimer != null)
+            {
+                _simTimer.Stop();
+                _simTimer.Tick -= SimTick;
+                _simTimer = null;
+            }
+        }
+
         public void EnsureDefaultSelection()
         {
             if (SelectedItem == null && Items.Count > 0)
@@ -389,6 +706,43 @@ namespace NoCodeMotion.ViewModels
             if (SelectedPoint == null && CurrentPoints is { Count: > 0 } points)
                 SelectedPoint = points[0];
         }
+    }
+
+    /// <summary>仿真面板中的单个点位：逻辑坐标 (X,Y∈0..100) + 4 轴实际坐标 A，供轨迹画布与插值使用。</summary>
+    public class SimPointVm : INotifyPropertyChanged
+    {
+        public int Index { get; set; }
+
+        private double _x;
+        public double X
+        {
+            get => _x;
+            set { if (_x != value) { _x = value; OnChanged(); } }
+        }
+
+        private double _y;
+        public double Y
+        {
+            get => _y;
+            set { if (_y != value) { _y = value; OnChanged(); } }
+        }
+
+        /// <summary>轴 1..4 的实际坐标（按槽位顺序），插值演示时写回轴当前位置。</summary>
+        public double[] A { get; set; } = new double[4];
+
+        public string Name { get; set; } = string.Empty;
+
+        private bool _active;
+        public bool IsActive
+        {
+            get => _active;
+            set { if (_active != value) { _active = value; OnChanged(); } }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void OnChanged([CallerMemberName] string? p = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
     }
 
     /// <summary>单个轴槽的运行/配置状态。</summary>
