@@ -70,4 +70,9 @@
     <EmbeddedResource Include="Assets\Lua.xshd" />
   </ItemGroup>
 
+  <!-- 真实机台 3D 模型（WaveFront .obj，直接嵌入输出目录，运行时按路径加载） -->
+  <ItemGroup>
+    <Content Include="Models\**\*.obj" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

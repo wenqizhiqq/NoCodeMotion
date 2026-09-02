@@ -35,35 +35,27 @@
                    FontSize="10" Foreground="#94A3B8" HorizontalAlignment="Right"
                    VerticalAlignment="Bottom" Margin="6" IsHitTestVisible="False"/>
 
-        <!-- 紧凑图例：图标 + 文字，标注机台各部件 -->
+        <!-- 紧凑图例：图标 + 文字，标注真实机台各部件 -->
         <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="2,6,2,2">
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
-                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#475569" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="基台" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
                 <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#64748B" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="龙门架" FontSize="10.5" Foreground="#64748B" VerticalAlignment="Center"/>
+                <TextBlock Text="机台侧板/龙门" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
-                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#EAB308" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="X轴电机" FontSize="10.5" Foreground="#B45309" VerticalAlignment="Center"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
-                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#F97316" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="Y轴电机" FontSize="10.5" Foreground="#C2410C" VerticalAlignment="Center"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
-                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#14B8A6" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="Z轴电机" FontSize="10.5" Foreground="#0F766E" VerticalAlignment="Center"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
-                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#8B5CF6" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="工具头" FontSize="10.5" Foreground="#6D28D9" VerticalAlignment="Center"/>
+                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#94A3B8" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                <TextBlock Text="滑座/主轴" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
                 <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#EC4899" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                <TextBlock Text="感应器" FontSize="10.5" Foreground="#BE185D" VerticalAlignment="Center"/>
+                <TextBlock Text="限位感应器" FontSize="10.5" Foreground="#BE185D" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
+                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#334155" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                <TextBlock Text="控制柜" FontSize="10.5" Foreground="#334155" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
+                <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="#3B82F6" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                <TextBlock Text="工件" FontSize="10.5" Foreground="#1D4ED8" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,10,3" VerticalAlignment="Center">
                 <Rectangle Width="10" Height="3" RadiusX="1" RadiusY="1" Fill="#3B82F6" Margin="0,0,4,0" VerticalAlignment="Center"/>

@@ -2,6 +2,7 @@
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -12,8 +13,9 @@ namespace NoCodeMotion.Views
 {
     /// <summary>
     /// 运行轨迹 3D 仿真控件（纯 WPF Media3D，无第三方 3D 库）。
-    /// 渲染一台贴近实际的龙门式运动机台：基台 / 龙门架 / X·Y·Z 轴电机 / 工具头 / 感应器，
-    /// 运行时龙门架(X)、滑座(Z)、工具头(Y) 跟随轨迹实时运动，红色头标出当前位置。
+    /// 真实机台由下载的 WaveFront .obj 零件装配而成（龙门侧板 / 滑座 / 主轴 / 限位 / 控制柜等），
+    /// 通过自写 <see cref="ObjLoader"/> 解析并在共享 CAD 坐标系下整体归一化。
+    /// 运行时：滑座（X）/ 主轴组（Z、Y）跟随轨迹头实时运动，红色头标出当前位置。
     /// - Points：点位序列（轨迹路径，随机台工作空间映射）
     /// - Head：当前位置（运行时由 VM 插值驱动）
     /// - HeadVisible：是否显示当前位置头
@@ -23,23 +25,29 @@ namespace NoCodeMotion.Views
     public partial class Sim3DView : UserControl
     {
         // ===== 机台几何常数（场景单位） =====
-        private const double BedTop = -60;   // 基台台面高度
-        private const double BeamY = 50;     // 龙门横梁高度
+        private const double BedTop = -60;   // 基台台面高度（保留兼容）
         private const double FrameX = 40;    // 龙门立柱 X 位置 ±
         private const double SpanZ = 50;     // 横梁沿 Z 跨度 ±
         private const double NormHalf = 40;  // 点位归一化半幅
+        private const double WorldHalfX = 45;// 滑座 X 向运动半幅（场景单位）
+        private const double WorldHalfZ = 35;// 滑座 Z 向运动半幅
+        private const double WorldHalfY = 22;// 刀具 Y 向运动半幅
 
         // ===== 部件配色 =====
         private static readonly Color C_Bed = Color.FromRgb(0x47, 0x55, 0x69);     // 基台 深石
-        private static readonly Color C_Frame = Color.FromRgb(0x64, 0x74, 0x8B);   // 龙门架 石蓝
+        private static readonly Color C_Frame = Color.FromRgb(0x64, 0x74, 0x8B);   // 龙门架/侧板 石蓝
+        private static readonly Color C_FrameDark = Color.FromRgb(0x47, 0x55, 0x69);// 深石
+        private static readonly Color C_Carriage = Color.FromRgb(0x94, 0xA3, 0xB8);// 滑座 浅石
+        private static readonly Color C_Cabinet = Color.FromRgb(0x33, 0x3D, 0x4D); // 控制柜 深蓝灰
         private static readonly Color C_XMotor = Color.FromRgb(0xEA, 0xB3, 0x08);  // X 电机 黄
         private static readonly Color C_YMotor = Color.FromRgb(0xF9, 0x73, 0x16);  // Y 电机 橙
         private static readonly Color C_ZMotor = Color.FromRgb(0x14, 0xB8, 0xA6);  // Z 电机 青
         private static readonly Color C_Tool = Color.FromRgb(0x8B, 0x5C, 0xF6);    // 工具头 紫
         private static readonly Color C_Sensor = Color.FromRgb(0xEC, 0x48, 0x99);  // 感应器 粉
         private static readonly Color C_Traj = Color.FromRgb(0x3B, 0x82, 0xF6);    // 轨迹 蓝
-        private static readonly Color C_Point = Color.FromRgb(0x60, 0xA5, 0xFA);  // 点位 浅蓝
+        private static readonly Color C_Point = Color.FromRgb(0x60, 0xA5, 0xFA);   // 点位 浅蓝
         private static readonly Color C_Head = Color.FromRgb(0xEF, 0x44, 0x44);    // 当前位置 红
+        private static readonly Color C_Workpiece = Color.FromRgb(0x3B, 0x82, 0xF6);// 工件 蓝
 
         // ===== 依赖属性 =====
         public static readonly DependencyProperty PointsProperty =
@@ -85,7 +93,7 @@ namespace NoCodeMotion.Views
         // ===== 相机轨道参数 =====
         private double _theta = 0.7;
         private double _phi = 0.5;
-        private double _radius = 200;
+        private double _radius = 220;
         private bool _dragging;
         private Point _last;
 
@@ -98,16 +106,16 @@ namespace NoCodeMotion.Views
         private readonly MeshGeometry3D _cyl = BuildCylinder();
         private readonly MeshGeometry3D _cone = BuildCone();
         private readonly MeshGeometry3D _box = BuildBox();
-        private readonly Transform3D _toolRot =
-            new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1, 0, 0), 180)); // 工具头锥尖朝下
 
         // ===== 运行时引用 =====
         private readonly List<GeometryModel3D> _pointModels = new();
         private GeometryModel3D? _headModel;
-        private ModelVisual3D? _gantryVis;   // 龙门架（X 向平移）
-        private ModelVisual3D? _carriageVis; // 滑座（Z 向平移）
-        private GeometryModel3D? _toolModel; // 工具头（Y 向平移）
-        private GeometryModel3D? _zColModel; // Z 立柱（随工具头伸缩）
+        private ModelVisual3D? _machineGroup;   // 整台机台（全局归一化）
+        private ModelVisual3D? _carriageGroup;  // 滑座（X 向平移）
+        private ModelVisual3D? _routerGroup;    // 主轴/刀具组（Z、Y 向平移）
+        private Rect3D _machineBounds = Rect3D.Empty;
+        private double _globalScale = 1;
+        private bool _zUp;
 
         public Sim3DView()
         {
@@ -140,7 +148,7 @@ namespace NoCodeMotion.Views
             Vp.MouseWheel += (s, e) =>
             {
                 _radius *= (1 + e.Delta * 0.0008);
-                _radius = Math.Max(70, Math.Min(600, _radius));
+                _radius = Math.Max(90, Math.Min(700, _radius));
                 UpdateCamera();
             };
         }
@@ -151,10 +159,9 @@ namespace NoCodeMotion.Views
             Root.Children.Clear();
             _pointModels.Clear();
             _headModel = null;
-            _gantryVis = null;
-            _carriageVis = null;
-            _toolModel = null;
-            _zColModel = null;
+            _machineGroup = null;
+            _carriageGroup = null;
+            _routerGroup = null;
             _scale = 1;
             _center = new Point3D(0, 0, 0);
 
@@ -182,9 +189,9 @@ namespace NoCodeMotion.Views
             _center = ctr;
             _scale = 80.0 / maxDim;
 
-            // 地面网格（参考用，置于基台下方）
-            double groundY = BedTop - 8;
-            double span = 90;
+            // 地面网格（参考用）
+            double groundY = -82;
+            double span = 100;
             var plane = new MeshGeometry3D();
             plane.Positions.Add(new Point3D(-span, groundY, -span));
             plane.Positions.Add(new Point3D(span, groundY, -span));
@@ -194,31 +201,11 @@ namespace NoCodeMotion.Views
             plane.TriangleIndices.Add(0); plane.TriangleIndices.Add(2); plane.TriangleIndices.Add(3);
             AddModel(Root, plane, 1, 1, 1, new Point3D(0, 0, 0), Color.FromArgb(38, 226, 232, 240), null);
 
-            // ===== 机台：基台 + 感应器（固定） =====
-            AddModel(Root, _box, 150, 8, 120, new Point3D(0, BedTop - 4, 0), C_Bed);          // 基台
-            AddModel(Root, _box, 6, 6, 6, new Point3D(FrameX + 6, BedTop + 5, 0), C_Sensor);   // X 感应器(右)
-            AddModel(Root, _box, 6, 6, 6, new Point3D(-(FrameX + 6), BedTop + 5, 0), C_Sensor);// X 感应器(左)
+            // ===== 真实机台模型装配 =====
+            BuildMachine();
 
-            // ===== 龙门架（X 向平移） =====
-            _gantryVis = new ModelVisual3D();
-            Root.Children.Add(_gantryVis);
-            AddModel(_gantryVis, _box, 10, 110, 14, new Point3D(FrameX, -5, 0), C_Frame);   // 右立柱
-            AddModel(_gantryVis, _box, 10, 110, 14, new Point3D(-FrameX, -5, 0), C_Frame);  // 左立柱
-            AddModel(_gantryVis, _box, 12, 12, 2 * SpanZ + 16, new Point3D(0, BeamY, 0), C_Frame); // 横梁
-            AddModel(_gantryVis, _box, 16, 16, 16, new Point3D(FrameX, -5, SpanZ), C_XMotor);    // X 轴电机
-            AddModel(_gantryVis, _box, 6, 6, 6, new Point3D(0, BeamY, SpanZ + 10), C_Sensor);    // Y 感应器(横梁端)
-
-            // ===== 滑座（Z 向平移，挂在龙门架下） =====
-            _carriageVis = new ModelVisual3D();
-            _gantryVis.Children.Add(_carriageVis);
-            AddModel(_carriageVis, _box, 22, 10, 22, new Point3D(0, BeamY, 0), C_Frame);   // 滑座块
-            AddModel(_carriageVis, _box, 12, 12, 16, new Point3D(0, BeamY, 0), C_YMotor);   // Y 轴电机
-            AddModel(_carriageVis, _box, 12, 12, 12, new Point3D(0, BeamY - 12, 0), C_ZMotor); // Z 轴电机
-            AddModel(_carriageVis, _box, 6, 6, 6, new Point3D(0, BeamY - 26, 0), C_Sensor); // Z 感应器
-
-            // Z 立柱（随工具头伸缩）与工具头（动态）
-            _zColModel = AddModel(_carriageVis, _cyl, 4, 1, 4, new Point3D(0, 0, 0), C_Tool);
-            _toolModel = AddModel(_carriageVis, _cone, 7, 14, 7, new Point3D(0, 0, 0), C_Tool, _toolRot);
+            // 工件（简化蓝块，置于机台中部）
+            AddModel(Root, _box, 20, 8, 16, new Point3D(0, -50, 0), C_Workpiece);
 
             // ===== 轨迹 + 点位（映射到机台工作空间） =====
             var pts = new Point3D[raw.Count];
@@ -240,6 +227,69 @@ namespace NoCodeMotion.Views
             UpdateCurrent();
         }
 
+        // 装配真实机台：静态结构件 + 滑座组 + 主轴组，整体归一化
+        private void BuildMachine()
+        {
+            _machineGroup = new ModelVisual3D();
+            Root.Children.Add(_machineGroup);
+            _carriageGroup = new ModelVisual3D();
+            _routerGroup = new ModelVisual3D();
+            _carriageGroup.Children.Add(_routerGroup);
+
+            var baseDir = Path.Combine(AppContext.BaseDirectory, "Models");
+
+            // —— 静态结构件（直接挂 _machineGroup）——
+            AddObj(_machineGroup, Path.Combine(baseDir, @"side_plates\left\LEFT_PLATE.obj"), C_Frame);
+            AddObj(_machineGroup, Path.Combine(baseDir, @"side_plates\right\RIGHT_PLATE.obj"), C_Frame);
+            AddObj(_machineGroup, Path.Combine(baseDir, @"electronic_box_small\front_panel_electronic_box_small.obj"), C_Cabinet);
+            AddObj(_machineGroup, Path.Combine(baseDir, @"other\X_AXIS_ENDSTOP_LIMIT_SWITCH_THICK.obj"), C_Sensor);
+            AddObj(_machineGroup, Path.Combine(baseDir, @"other\Y_AXIS_ENDSTOP_LIMIT_SWITCH_LONG.obj"), C_Sensor);
+            AddObj(_machineGroup, Path.Combine(baseDir, @"other\RAILS_SUPPORT.obj"), C_Frame);
+            AddObj(_machineGroup, Path.Combine(baseDir, @"other\IDLER_BLOCK.obj"), C_Frame);
+            AddObj(_machineGroup, Path.Combine(baseDir, @"router\CABLE_CHAIN_MOUNT.obj"), C_FrameDark);
+
+            // —— 滑座组（随龙门 X 向移动）——
+            AddObj(_carriageGroup, Path.Combine(baseDir, @"router\CARRIAGE.obj"), C_Carriage);
+            AddObj(_carriageGroup, Path.Combine(baseDir, @"router\ROUTER_BRACKET.obj"), C_Frame);
+            AddObj(_carriageGroup, Path.Combine(baseDir, @"router\Z_MOTOR_MOUNT.obj"), C_ZMotor);
+
+            // —— 主轴/刀具组（随滑座 Z、工具 Y 移动）——
+            AddObj(_routerGroup, Path.Combine(baseDir, @"router\VERTICAL_SLIDER.obj"), C_YMotor);
+            AddObj(_routerGroup, Path.Combine(baseDir, @"router\VACUUM_FUNNEL.obj"), C_Tool);
+            AddObj(_routerGroup, Path.Combine(baseDir, @"router\VACUUM_HOSE_RING.obj"), C_Tool);
+
+            _machineGroup.Children.Add(_carriageGroup);
+
+            // 计算全局包围盒 → 居中 + 归一化 + Z-up 校正
+            if (_machineBounds.IsEmpty) return;
+            var b = _machineBounds;
+            var ctr = new Point3D(b.X + b.SizeX / 2, b.Y + b.SizeY / 2, b.Z + b.SizeZ / 2);
+            double maxDim = Math.Max(b.SizeX, Math.Max(b.SizeY, b.SizeZ));
+            if (maxDim < 1e-6) maxDim = 1;
+            _globalScale = 150.0 / maxDim;
+            _zUp = b.SizeZ > b.SizeY * 1.15; // CAD 大概率 Z-up，旋转到 WPF 的 Y-up
+
+            var tg = new Transform3DGroup();
+            tg.Children.Add(new TranslateTransform3D(-ctr.X, -ctr.Y, -ctr.Z)); // 先居中
+            tg.Children.Add(new ScaleTransform3D(_globalScale, _globalScale, _globalScale));
+            if (_zUp)
+                tg.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1, 0, 0), -90)));
+            _machineGroup.Transform = tg;
+        }
+
+        private void AddObj(ModelVisual3D parent, string path, Color color)
+        {
+            MeshGeometry3D? mesh = null;
+            try { mesh = ObjLoader.LoadFile(path); }
+            catch { return; }
+            if (mesh == null || mesh.Positions.Count == 0) return;
+            var mat = new DiffuseMaterial(new SolidColorBrush(color));
+            var gm = new GeometryModel3D(mesh, mat) { BackMaterial = mat };
+            parent.Children.Add(new ModelVisual3D { Content = gm });
+            var mb = mesh.Bounds;
+            _machineBounds = _machineBounds.IsEmpty ? mb : Rect3D.Union(_machineBounds, mb);
+        }
+
         // 归一化坐标 → 机台工作空间坐标
         private Point3D ToMachine(Point3D n) => new(
             n.X * (FrameX - 5) / NormHalf,
@@ -248,39 +298,42 @@ namespace NoCodeMotion.Views
 
         private void UpdateHead()
         {
-            if (_gantryVis == null) return;
+            if (_machineGroup == null) return;
             UpdatePose(ToSceneSafe(Head));
         }
 
-        // 根据归一化头坐标驱动龙门架/滑座/工具头/Z立柱 + 红头
-        private void UpdatePose(Point3D n)
+        // 根据归一化头坐标驱动滑座/主轴组 + 红头
+        private void UpdatePose(Point3D sceneSafe)
         {
-            if (_gantryVis == null || _carriageVis == null || _toolModel == null || _zColModel == null) return;
-            double gx = n.X * (FrameX - 5) / NormHalf;
-            double gz = n.Z * (SpanZ - 5) / NormHalf;
-            double gy = -30 + (n.Y / NormHalf) * 25;
+            if (_carriageGroup == null || _routerGroup == null) return;
+            // 归一化 n ≈ [-1,1]
+            double nX = Clamp(sceneSafe.X / NormHalf, -1.2, 1.2);
+            double nY = Clamp(sceneSafe.Y / NormHalf, -1.2, 1.2);
+            double nZ = Clamp(sceneSafe.Z / NormHalf, -1.2, 1.2);
+            double wx = nX * WorldHalfX;
+            double wz = nZ * WorldHalfZ;
+            double wy = nY * WorldHalfY;
 
-            _gantryVis.Transform = new TranslateTransform3D(gx, 0, 0);
-            _carriageVis.Transform = new TranslateTransform3D(0, 0, gz);
-
-            var tg = new Transform3DGroup();
-            tg.Children.Add(_toolRot);
-            tg.Children.Add(new ScaleTransform3D(7, 14, 7));
-            tg.Children.Add(new TranslateTransform3D(0, gy, 0));
-            _toolModel.Transform = tg;
-
-            double len = BeamY - gy;
-            double midY = (BeamY + gy) / 2;
-            var zg = new Transform3DGroup();
-            zg.Children.Add(new ScaleTransform3D(4, len, 4));
-            zg.Children.Add(new TranslateTransform3D(0, midY, 0));
-            _zColModel.Transform = zg;
+            Vector3D cNative, rNative;
+            if (_zUp)
+            {
+                cNative = new Vector3D(wx / _globalScale, -wz / _globalScale, 0);
+                rNative = new Vector3D(0, 0, wy / _globalScale);
+            }
+            else
+            {
+                cNative = new Vector3D(wx / _globalScale, 0, wz / _globalScale);
+                rNative = new Vector3D(0, wy / _globalScale, 0);
+            }
+            _carriageGroup.Transform = new TranslateTransform3D(cNative);
+            _routerGroup.Transform = new TranslateTransform3D(rNative);
 
             if (_headModel != null)
             {
+                var hp = ToMachine(sceneSafe);
                 var hg = new Transform3DGroup();
                 hg.Children.Add(new ScaleTransform3D(4.6, 4.6, 4.6));
-                hg.Children.Add(new TranslateTransform3D(gx, gy, gz));
+                hg.Children.Add(new TranslateTransform3D(hp.X, hp.Y, hp.Z));
                 _headModel.Transform = hg;
             }
         }
@@ -297,7 +350,8 @@ namespace NoCodeMotion.Views
         }
 
         // ===================== 几何辅助 =====================
-        // 在指定 parent 下添加一个模型，返回 GeometryModel3D 以便后续更新变换
+        private static double Clamp(double v, double lo, double hi) => v < lo ? lo : (v > hi ? hi : v);
+
         private GeometryModel3D AddModel(ModelVisual3D parent, MeshGeometry3D mesh, double sx, double sy, double sz,
             Point3D pos, Color color, Transform3D? rot = null)
         {

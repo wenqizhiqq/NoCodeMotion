@@ -184,14 +184,14 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 左列：上=生产数据/控制/趋势，下(左下角)=时序偏差监控+异常日志 -->
+            <!-- 左列：生产数据 + 控制 + 趋势 + 异常日志(填满剩余高度) -->
             <Grid Grid.Column="0" Margin="0,0,8,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- 左列上半：生产数据 + 控制 + 趋势 -->
+                <!-- 上半：生产数据 + 控制 + 趋势 -->
                 <StackPanel Grid.Row="0">
 
                     <!-- 生产数据 KPI -->
@@ -245,7 +245,7 @@
 
                     <!-- 折线图 -->
                     <TextBlock Text="生产趋势（良率% / 节拍s）" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
-                    <Border Style="{StaticResource CardBorderStyle}" Padding="12">
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="12" Height="272">
                         <StackPanel>
                             <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
                     <Canvas Width="640" Height="220" Background="{StaticResource SurfaceBrush}">
@@ -271,51 +271,20 @@
                     </Border>
                 </StackPanel>
 
-                <!-- 左列下半(左下角)：时序偏差监控 + 异常日志 -->
-                <Grid Grid.Row="1" Margin="0,12,0,0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                <!-- 时序偏差监控 -->
-                <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,0,0,8">
+                <!-- 下半(填满剩余高度)：异常日志(只保留日志) -->
+                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,12,0,0">
                     <DockPanel LastChildFill="True">
-                        <TextBlock DockPanel.Dock="Top" Text="时序偏差监控：实际触发时刻与预期时序标记比对，偏差 ≤ ±2ms 正常，≤ ±5ms 偏差，超出报警并写入异常日志；未配置标记显示「未配置」。"
-                                   FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                        <DataGrid ItemsSource="{Binding TimingRows}"
-                                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                                  IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="None"
-                                  BorderThickness="0" Background="Transparent" RowHeight="28" FontSize="12">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="步骤" Binding="{Binding Step}" Width="56"/>
-                                <DataGridTextColumn Header="点位" Binding="{Binding PointName}" Width="120"/>
-                                <DataGridTextColumn Header="预期" Binding="{Binding ExpectedText}" Width="90"/>
-                                <DataGridTextColumn Header="实际" Binding="{Binding ActualText}" Width="90"/>
-                                <DataGridTextColumn Header="偏差" Binding="{Binding DeviationText}" Width="90"/>
-                                <DataGridTemplateColumn Header="状态" Width="92">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Ellipse Style="{StaticResource TimingDotStyle}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource TimingStatusTextStyle}"/>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </DockPanel>
-                </Border>
-
-                <!-- 异常日志 -->
-                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="0,8,0,0">
-                    <DockPanel LastChildFill="True">
-                        <TextBlock DockPanel.Dock="Top" Text="异常日志" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                        <!-- 标题 -->
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                            <TextBlock DockPanel.Dock="Left" Text="异常日志" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            <Ellipse DockPanel.Dock="Right" Style="{StaticResource LogDotStyle}" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding Log.Count, StringFormat=共 {0} 条}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        </DockPanel>
+                        <!-- 异常日志列表(填满剩余空间) -->
                         <ListBox ItemsSource="{Binding Log}" BorderThickness="0" Background="Transparent">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="8,6">
+                                    <Grid Margin="6,4">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
@@ -332,7 +301,6 @@
                         </ListBox>
                     </DockPanel>
                 </Border>
-            </Grid>
             </Grid>
 
             <!-- 右列(占一半)：运行轨迹 3D 仿真，占满整列高度 -->
