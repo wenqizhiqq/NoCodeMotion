@@ -1,0 +1,66 @@
+=== GrayModelNative.dll ===
+  (not found)
+
+=== OpenCvSharpExtern.dll ===
+  (not found)
+
+=== opencv_world480.dll ===
+  D:\wqz\code\CvMatch\bin\Debug\net8.0-windows\opencv_world480.dll
+  D:\wqz\code\CvMatch\CvMatch.Wpf\bin\Debug\net8.0-windows\opencv_world480.dll
+  D:\wqz\code\CvMatch\MatchTest\bin\Debug\net8.0-windows\opencv_world480.dll
+  D:\wqz\code\CvMatch\opencv_world480.dll
+  D:\wqz\code\Fastest_Image_Pattern_Matching-DLL-main\Fastest_Image_Pattern_Matching-DLL-main\opencv_world480.dll
+  D:\wqz\code\Fastest_Image_Pattern_Matching-DLL-main\WpfDebugger\bin\Debug\net10.0-windows\opencv_world480.dll
+  D:\wqz\code\Fastest_Image_Pattern_Matching-DLL-main\WpfDebugger\bin\x64\Debug\net10.0-windows\opencv_world480.dll
+  D:\wqz\code\GrayMatch\ext\opencv\opencv\build\x64\vc16\bin\opencv_world480.dll
+  D:\wqz\code\GrayMatch\GrayMatch.Wpf\bin\Debug\net8.0-windows\opencv_world480.dll
+  D:\wqz\code\GrayMatch\GrayModelNative\benchmarks\run\opencv_world480.dll
+  D:\wqz\code\NCMBuildDiag2\bin\NoCodeMotion\debug\opencv_world480.dll
+  D:\wqz\code\NCMBuildSmart3Dd\bin\NoCodeMotion\debug\opencv_world480.dll
+  D:\wqz\code\NoCodeMotion\bin\Debug\net10.0-windows\opencv_world480.dll
+  D:\wqz\code\NoCodeMotion\_out\opencv_world480.dll
+  D:\wqz\code\NoCodeMotionArtifacts\bin\NoCodeMotion\debug\opencv_world480.dll
+  D:\wqz\code\NoCodeVision\bin\Debug\net10.0-windows\opencv_world480.dll
+  D:\wqz\code\NoCodeVision\Libs\opencv_world480.dll
+  D:\wqz\code\WenMapping\FastestMatch\opencv_world480.dll
+  D:\wqz\code\WenMapping\GrayscaleMatcher\bin\Release\net9.0-windows\opencv_world480.dll
+  D:\wqz\code\WenMapping\GrayscaleMatcher\Native\opencv_world480.dll
+
+=== opencv_videoio_ffmpeg4130_64.dll ===
+  D:\wqz\code\CvMatch\bin\Debug\net8.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\CvMatch\CvMatch.Wpf\bin\Debug\net8.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\CvMatch\MatchTest\bin\Debug\net8.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\CvMatch\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\NCMBuildDiag2\bin\NoCodeMotion\debug\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\NCMBuildSmart3Dd\bin\NoCodeMotion\debug\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\NoCodeMotion\bin\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\NoCodeMotion\_out\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\NoCodeMotionArtifacts\bin\NoCodeMotion\debug\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\AnnoTest\bin\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\bin\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\bin_20260831_092857\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\bin_20260831_093940\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\bin_20260831_094348\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\bin_20260831_095712\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\bin_20260831_101540\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\bin_20260831_101755\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\bin_20260831_103749\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\bin_20260831_110153\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+  D:\wqz\code\_projtrash\bin_20260831_114114\Debug\net10.0-windows\opencv_videoio_ffmpeg4130_64.dll
+
+=== vcomp140.dll ===
+  D:\wqz\code\GrayMatch\GrayMatch.Wpf\bin\Debug\net8.0-windows\vcomp140.dll
+  D:\wqz\code\GrayMatch\GrayModelNative\benchmarks\run\vcomp140.dll
+  D:\wqz\code\NCMBuildDiag2\bin\NoCodeMotion\debug\vcomp140.dll
+  D:\wqz\code\NCMBuildSmart3Dd\bin\NoCodeMotion\debug\vcomp140.dll
+  D:\wqz\code\NoCodeMotion\bin\Debug\net10.0-windows\runtimes\win-x64\native\vcomp140.dll
+  D:\wqz\code\NoCodeMotion\bin\Debug\net10.0-windows\vcomp140.dll
+  D:\wqz\code\NoCodeMotionArtifacts\bin\NoCodeMotion\debug\vcomp140.dll
+  C:\Users\admin\.nuget\packages\occtnet.wrapper\0.1.1\runtimes\win-x64\native\vcomp140.dll
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC\14.44.35112\onecore\x64\Microsoft.VC143.OpenMP\vcomp140.dll
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC\14.44.35112\onecore\x86\Microsoft.VC143.OPENMP\vcomp140.dll
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC\14.44.35112\x64\Microsoft.VC143.OpenMP\vcomp140.dll
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC\14.44.35112\x86\Microsoft.VC143.OPENMP\vcomp140.dll
+  C:\Windows\System32\vcomp140.dll
+
+DONE

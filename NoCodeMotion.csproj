@@ -19,33 +19,22 @@
     <Page Remove="artifacts\**" />
   </ItemGroup>
 
-  <!-- 复用 GrayMatch.Wpf 的旋转不变 NCC 匹配核心（与 GrayMatch 工程共用同一份源文件，单一事实来源）。
-       仅含纯算法/C# 部分（RotatedTemplateMatcher + MatchResult + DefectResult），不引入 WPF/WinForms 依赖。
+  <!-- 复用 GrayMatch 的旋转不变 NCC 匹配核心（纯算法/C#：RotatedTemplateMatcher + MatchResult + DefectResult，无 WPF/WinForms 依赖）。
+       副本已打包进项目本地 Vision\GrayMatch\，由 .NET SDK 默认 Compile 自动纳入（无需显式 Include，避免 NETSDK1022 重复项），IDE 在任意工作目录均可构建。
+       当 GrayMatch 主项目源文件演进时需手动同步本副本；保持作者签名。
+       作者：温启志◆编写◇微信﹕187◆1936◇1399 -->
+
+  <!-- 原生匹配 DLL（x64）与其 OpenMP 运行时（vcomp140），已全部打包进项目本地 Native\ 目录，
+       不再依赖父级 GrayMatch/CvMatch 仓库位置，IDE 在任意工作目录均可 build/run。
+       GrayModelNative 由 C++ 编译，其产物 GrayModelNative.dll 已置于 Native\；
+       使用 OpenMP 并行，运行时必须随附 vcomp140.dll（见下方复制项），否则 P/Invoke 加载失败。
        作者：温启志◆编写◇微信﹕187◆1936◇1399 -->
   <ItemGroup>
-    <Compile Include="..\GrayMatch\GrayMatch\RotatedTemplateMatcher.cs" Link="Vision\GrayMatch\RotatedTemplateMatcher.cs" />
-    <Compile Include="..\GrayMatch\GrayMatch\MatchResult.cs" Link="Vision\GrayMatch\MatchResult.cs" />
-    <Compile Include="..\GrayMatch\GrayMatch\DefectResult.cs" Link="Vision\GrayMatch\DefectResult.cs" />
+    <None Include="Native\GrayModelNative.dll" Link="GrayModelNative.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\vcomp140.dll" Link="vcomp140.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- 原生匹配 DLL（x64）与其 OpenMP 运行时（vcomp140）。GrayModelNative 由 C++ 编译，
-       使用 OpenMP 并行，运行时必须随附 vcomp140.dll，否则 P/Invoke 加载失败。 -->
-  <ItemGroup>
-    <None Include="..\GrayMatch\GrayModelNative\build-ninja9\GrayModelNative.dll" Link="GrayModelNative.dll" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <Target Name="CopyGrayMatchNativeDeps" AfterTargets="Build">
-    <PropertyGroup>
-      <_VsRedistRoot Condition="Exists('C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC')">C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC</_VsRedistRoot>
-      <_VsRedistRoot Condition="'$(_VsRedistRoot)' == '' AND Exists('C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Redist\MSVC')">C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Redist\MSVC</_VsRedistRoot>
-      <_VsRedistRoot Condition="'$(_VsRedistRoot)' == '' AND Exists('C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC')">C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC</_VsRedistRoot>
-      <_VsRedistRoot Condition="'$(_VsRedistRoot)' == '' AND Exists('C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Redist\MSVC')">C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Redist\MSVC</_VsRedistRoot>
-    </PropertyGroup>
-    <ItemGroup>
-      <_VcompDll Include="$(_VsRedistRoot)\*\x64\Microsoft.VC143.OpenMP\vcomp140.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_VcompDll)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('%(Identity)')" />
-  </Target>
+  <!-- vcomp140.dll 现已随 GrayModelNative 一起置于 Native\，不再从 VS Redist 复制（见上方 None 项）。 -->
 
   <ItemGroup>
     <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
@@ -56,15 +45,15 @@
     <PackageReference Include="NModbus" Version="3.0.83" />
     <PackageReference Include="NModbus.Serial" Version="3.0.83" />
     <PackageReference Include="System.IO.Ports" Version="10.0.11" />
-    <!-- OpenCV：复用 CvMatch 已验证的 OpenCvSharp4 4.13 + 原生运行时（从 CvMatch 目录复制，保证与原生 DLL 版本匹配） -->
+    <!-- OpenCV：OpenCvSharp4 4.13 仅含托管 OpenCvSharp.dll，原生运行时（OpenCvSharpExtern/opencv_world480/ffmpeg）统一由项目本地 Native\ 目录提供，版本已对齐。 -->
     <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 复制 CvMatch 目录下的 OpenCV 原生运行时到 NoCodeMotion 输出目录（OpenCvSharp4 不自带原生 DLL，由运行时包提供；此处直接复用 CvMatch 已验证版本） -->
-    <None Include="..\CvMatch\OpenCvSharpExtern.dll" Link="OpenCvSharpExtern.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\CvMatch\opencv_world480.dll" Link="opencv_world480.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\CvMatch\opencv_videoio_ffmpeg4130_64.dll" Link="opencv_videoio_ffmpeg4130_64.dll" CopyToOutputDirectory="PreserveNewest" />
+    <!-- OpenCV 原生运行时已全部打包进项目本地 Native\ 目录（OpenCvSharpExtern + opencv_world480 + ffmpeg），不再依赖 CvMatch 仓库位置。 -->
+    <None Include="Native\OpenCvSharpExtern.dll" Link="OpenCvSharpExtern.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\opencv_world480.dll" Link="opencv_world480.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\opencv_videoio_ffmpeg4130_64.dll" Link="opencv_videoio_ffmpeg4130_64.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

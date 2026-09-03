@@ -1,0 +1,24 @@
+OUTDIR=D:\wqz\code\NoCodeMotion\build_verify\bin\NoCodeMotion\debug
+EXISTS_DIR=True
+OK   GrayModelNative.dll  97280 bytes
+OK   OpenCvSharpExtern.dll  68575744 bytes
+OK   opencv_world480.dll  63153664 bytes
+OK   opencv_videoio_ffmpeg4130_64.dll  28578304 bytes
+OK   vcomp140.dll  213064 bytes
+OTHER_DLLS=16
+  ClosedXML.Parser.dll
+  ClosedXML.dll
+  DocumentFormat.OpenXml.Framework.dll
+  DocumentFormat.OpenXml.dll
+  ExcelNumberFormat.dll
+  HandyControl.dll
+  ICSharpCode.AvalonEdit.dll
+  MoonSharp.Interpreter.dll
+  NModbus.Serial.dll
+  NModbus.dll
+  NoCodeMotion.dll
+  OcctNet.Wrapper.dll
+  OpenCvSharp.dll
+  RBush.dll
+  SixLabors.Fonts.dll
+  System.IO.Ports.dll

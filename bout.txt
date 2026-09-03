@@ -1,0 +1,39 @@
+D:\wqz\code\NoCodeMotion\Services\Vision\VisionEngine.cs(144,101): warning CS8601: 可能的 null 引用赋值。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(89,51): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "LineChanged" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(90,46): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "RunEnded" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(521,16): warning CS8618: 在退出构造函数时，不可为 null 的 字段 "_lastCurrent" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 字段 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(536,32): warning CS8625: 无法将 null 字面量转换为非 null 的引用类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(180,79): warning CS8604: “FlowExecutor.FlowExecutor(FlowItem flow, int index, List<FlowStep> steps, FlowRunControl ctrl, Action<string, LogLevel> log, Action<int, string, string> onStep)”中的形参“log”可能传入 null 引用实参。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(700,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(711,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(270,47): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(271,52): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(290,74): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(340,48): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(802,30): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(803,53): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(804,38): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: 字段“OperatorViewModel._timingClockMs”已被赋值，但从未使用过它的值 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+
+已成功生成。
+
+D:\wqz\code\NoCodeMotion\Services\Vision\VisionEngine.cs(144,101): warning CS8601: 可能的 null 引用赋值。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(89,51): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "LineChanged" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(90,46): warning CS8618: 在退出构造函数时，不可为 null 的 事件 "RunEnded" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 事件 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(521,16): warning CS8618: 在退出构造函数时，不可为 null 的 字段 "_lastCurrent" 必须包含非 null 值。请考虑添加 "required" 修饰符或将该 字段 声明为可为 null。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(536,32): warning CS8625: 无法将 null 字面量转换为非 null 的引用类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(180,79): warning CS8604: “FlowExecutor.FlowExecutor(FlowItem flow, int index, List<FlowStep> steps, FlowRunControl ctrl, Action<string, LogLevel> log, Action<int, string, string> onStep)”中的形参“log”可能传入 null 引用实参。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(700,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(711,13): warning CS8602: 解引用可能出现空引用。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(270,47): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(271,52): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(290,74): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(340,48): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(802,30): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(803,53): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(804,38): warning CS8600: 将 null 文本或可能的 null 值转换为不可为 null 类型。 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: 字段“OperatorViewModel._timingClockMs”已被赋值，但从未使用过它的值 [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+    16 个警告
+    0 个错误
+
+已用时间 00:00:05.22

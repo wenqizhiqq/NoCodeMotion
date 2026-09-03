@@ -1,0 +1,11 @@
+COPIED opencv_world480.dll <- D:\wqz\code\CvMatch\opencv_world480.dll (63153664 bytes)
+COPIED opencv_videoio_ffmpeg4130_64.dll <- D:\wqz\code\CvMatch\opencv_videoio_ffmpeg4130_64.dll (28578304 bytes)
+COPIED vcomp140.dll <- C:\Windows\System32\vcomp140.dll (213064 bytes)
+COPIED GrayModelNative.dll <- D:\wqz\code\GrayMatch\GrayModelNative\build-ninja9\GrayModelNative.dll
+COPIED OpenCvSharpExtern.dll <- D:\wqz\code\CvMatch\OpenCvSharpExtern.dll
+--- Native\ contents ---
+  GrayModelNative.dll  97280 bytes
+  OpenCvSharpExtern.dll  68575744 bytes
+  opencv_videoio_ffmpeg4130_64.dll  28578304 bytes
+  opencv_world480.dll  63153664 bytes
+  vcomp140.dll  213064 bytes
