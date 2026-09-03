@@ -2,7 +2,8 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:NoCodeMotion"
                     xmlns:views="clr-namespace:NoCodeMotion.Views"
-                    xmlns:svc="clr-namespace:NoCodeMotion.Services">
+                    xmlns:svc="clr-namespace:NoCodeMotion.Services"
+                    xmlns:b="clr-namespace:NoCodeMotion.Behaviors">
 
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/HandyControl;Component/Themes/SkinDefault.xaml"/>
@@ -239,16 +240,20 @@
                             CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtPillBlueBtn}" Content="+" Width="46"/>
                 </StackPanel>
 
-                <!-- JOG：速度输入 + −/+ 同行 -->
+                <!-- JOG：速度输入 + −/+ 同行（按住连续运动，松开停止） -->
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="JOG" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Height="26" Width="56" Margin="0,0,4,0">
                         <TextBox Text="{Binding JogStep, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" CaretBrush="{StaticResource AccentBrush}" SelectionBrush="{StaticResource AccentSoftBrush}" FocusVisualStyle="{x:Null}"/>
                     </Border>
-                    <Button Command="{Binding DataContext.JogCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtPillOrangeBtn}" Content="−" Width="46" Margin="0,0,4,0"/>
-                    <Button Command="{Binding DataContext.JogCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtPillBlueBtn}" Content="+" Width="46"/>
+                    <Button b:JogHoldBehavior.StartCommand="{Binding DataContext.JogStartCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            b:JogHoldBehavior.StartParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}"
+                            b:JogHoldBehavior.StopCommand="{Binding DataContext.JogStopCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            Style="{DynamicResource TtPillOrangeBtn}" Content="−" Width="46" Margin="0,0,4,0" ToolTip="按住连续运动，松开停止"/>
+                    <Button b:JogHoldBehavior.StartCommand="{Binding DataContext.JogStartCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            b:JogHoldBehavior.StartParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}"
+                            b:JogHoldBehavior.StopCommand="{Binding DataContext.JogStopCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            Style="{DynamicResource TtPillBlueBtn}" Content="+" Width="46" ToolTip="按住连续运动，松开停止"/>
                 </StackPanel>
             </StackPanel>
         </Border>

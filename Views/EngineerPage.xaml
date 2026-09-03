@@ -139,7 +139,20 @@
                             </ItemsControl.ItemsPanel>
                         </ItemsControl>
                     </ScrollViewer>
-                                    </DockPanel>
+                    <TextBlock DockPanel.Dock="Bottom" FontSize="12" Margin="6,8,6,0" TextWrapping="Wrap" Foreground="{StaticResource AccentBrush}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="{Binding JogHint}"/>
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding JogHint}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                                </DockPanel>
             </Border>
 
             <!-- ③ 气缸控制 -->

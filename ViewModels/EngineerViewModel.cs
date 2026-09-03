@@ -6,6 +6,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows.Input;
+using System.Windows.Threading;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 using NoCodeMotion.Views;
@@ -29,10 +30,24 @@ namespace NoCodeMotion.ViewModels
         /// <summary>点位表 4 个轴槽的列头（与 AxisStates 解耦），按当前工位的 PointTable.AxisNames 加载。</summary>
         public ObservableCollection<EngineerAxisState> PointAxisStates { get; } = new();
 
+        // ===== JOG 按住连续运动状态 =====
+        private int _jogAxis = -1;
+        private int _jogDir;
+        private DispatcherTimer? _jogTimer;
+        private string _jogHint = string.Empty;
+
+        /// <summary>JOG 连续运动提示（空表示空闲）。</summary>
+        public string JogHint
+        {
+            get => _jogHint;
+            private set => SetField(ref _jogHint, value);
+        }
+
         public ICommand EnableCommand { get; }
         public ICommand HomeCommand { get; }
         public ICommand InchCommand { get; }
-        public ICommand JogCommand { get; }
+        public ICommand JogStartCommand { get; }
+        public ICommand JogStopCommand { get; }
 
         // ===== ② IO 控制 =====
         /// <summary>输入 IO（只读，展示当前状态值）。</summary>
@@ -76,7 +91,8 @@ namespace NoCodeMotion.ViewModels
             EnableCommand = new RelayCommand(ToggleEnable);
             HomeCommand = new RelayCommand(Home);
             InchCommand = new RelayCommand(p => Move(p, false));
-            JogCommand = new RelayCommand(p => Move(p, true));
+            JogStartCommand = new RelayCommand(JogStart);
+            JogStopCommand = new RelayCommand(_ => JogStop());
 
             // ② IO 控制：直接引用全局数据，输入只读、输出可切
             Inputs = ProjectStore.Data.Inputs;
@@ -136,6 +152,55 @@ namespace NoCodeMotion.ViewModels
             int dir = int.Parse(parts[1]);
             double step = jog ? AxisStates[i].JogStep : AxisStates[i].InchStep;
             AxisStates[i].CurrentPosition += dir * step;
+        }
+
+        // ===== JOG 按住连续运动（仿真：定时器按 JogStep 持续累加当前位置；松开发停止命令）=====
+        private void JogStart(object? p)
+        {
+            if (p is not string s) return;
+            var parts = s.Split(',');
+            if (parts.Length < 2) return;
+            if (!int.TryParse(parts[0], out int i) || !int.TryParse(parts[1], out int dir)) return;
+            if (i < 0 || i >= AxisStates.Count) return;
+            _jogAxis = i;
+            _jogDir = dir;
+            StartJogTimer();
+            var name = string.IsNullOrWhiteSpace(AxisStates[i].AxisName) ? $"轴{i + 1}" : AxisStates[i].AxisName;
+            JogHint = $"● JOG {name} 连续运动中（{(dir > 0 ? "正向 +" : "反向 −")}），松开鼠标停止";
+        }
+
+        private void JogStop()
+        {
+            if (_jogAxis < 0) return;
+            StopJogTimer();
+            JogHint = "JOG 已停止";
+        }
+
+        private void StartJogTimer()
+        {
+            StopJogTimer();
+            _jogTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
+            _jogTimer.Tick += JogTick;
+            _jogTimer.Start();
+        }
+
+        private void JogTick(object? _, EventArgs __)
+        {
+            if (_jogAxis < 0 || _jogAxis >= AxisStates.Count) return;
+            var st = AxisStates[_jogAxis];
+            st.CurrentPosition += _jogDir * st.JogStep;
+        }
+
+        private void StopJogTimer()
+        {
+            if (_jogTimer != null)
+            {
+                _jogTimer.Stop();
+                _jogTimer.Tick -= JogTick;
+                _jogTimer = null;
+            }
+            _jogAxis = -1;
+            _jogDir = 0;
         }
 
         // ===== ② IO 输出切换 =====

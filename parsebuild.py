@@ -1,9 +1,8 @@
-import sys
+import io
 p = r'D:\wqz\code\NoCodeMotion\bout.txt'
 out = r'D:\wqz\code\NoCodeMotion\parseout.txt'
 with open(p, 'rb') as f:
     data = f.read()
-# keep printable + tab/newline/cr, drop ANSI and other control bytes
 data = bytes(b for b in data if b >= 32 or b in (9, 10, 13))
 txt = data.decode('utf-8', 'replace')
 lines = txt.splitlines()
@@ -14,8 +13,5 @@ with open(out, 'w', encoding='utf-8') as o:
     for l in errs[:60]:
         o.write(l + '\n')
     o.write('warning lines: %d\n' % len(warns))
-    for l in warns[:60]:
-        o.write(l + '\n')
-    o.write('--- tail ---\n')
-    for l in lines[-20:]:
+    for l in warns[:10]:
         o.write(l + '\n')
