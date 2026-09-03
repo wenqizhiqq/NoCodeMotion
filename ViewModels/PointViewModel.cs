@@ -31,22 +31,6 @@ namespace NoCodeMotion.ViewModels
 
         private bool _loadingAxisNames;
         private PointItem? _selectedPoint;
-        private double _inchStep = 1.0;
-        private double _jogStep = 10.0;
-
-        /// <summary>寸动步长（每次寸动移动的单位）。</summary>
-        public double InchStep
-        {
-            get => _inchStep;
-            set => SetField(ref _inchStep, value);
-        }
-
-        /// <summary>JOG 步长（每次 JOG 移动的单位，通常大于寸动）。</summary>
-        public double JogStep
-        {
-            get => _jogStep;
-            set => SetField(ref _jogStep, value);
-        }
 
         /// <summary>当前工位下的点位行集合，供右侧表格绑定；未选工位时为 null。</summary>
         public ObservableCollection<PointItem>? CurrentPoints => SelectedItem?.Points;
@@ -377,7 +361,7 @@ namespace NoCodeMotion.ViewModels
             var parts = ((string)p!).Split(',');
             int i = int.Parse(parts[0]);
             int dir = int.Parse(parts[1]);
-            double step = jog ? JogStep : InchStep;
+            double step = jog ? AxisStates[i].JogStep : AxisStates[i].InchStep;
             AxisStates[i].CurrentPosition += dir * step;
         }
 
@@ -754,6 +738,8 @@ namespace NoCodeMotion.ViewModels
         private bool _enabled;
         private bool _homed;
         private double _current;
+        private double _inchStep = 1.0;
+        private double _jogStep = 10.0;
 
         public AxisState(int index) => Index = index;
 
@@ -781,6 +767,20 @@ namespace NoCodeMotion.ViewModels
         {
             get => _current;
             set => SetField(ref _current, value);
+        }
+
+        /// <summary>该轴的寸动距离（每次寸动移动的单位）。</summary>
+        public double InchStep
+        {
+            get => _inchStep;
+            set => SetField(ref _inchStep, value);
+        }
+
+        /// <summary>该轴的 JOG 速度（每次 JOG 移动的单位，通常大于寸动）。</summary>
+        public double JogStep
+        {
+            get => _jogStep;
+            set => SetField(ref _jogStep, value);
         }
     }
 }

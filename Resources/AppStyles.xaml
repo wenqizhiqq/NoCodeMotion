@@ -188,7 +188,7 @@
     </Style>
 
     <DataTemplate x:Key="AxisCardTemplate">
-        <Border Style="{DynamicResource CardBorderStyle}" Margin="4" Padding="8" Width="196">
+        <Border Style="{DynamicResource CardBorderStyle}" Margin="4" Padding="8" Width="264">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
                     <Path Data="{StaticResource PointIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
@@ -220,14 +220,26 @@
                     <Button Command="{Binding DataContext.HomeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding Index}" Style="{DynamicResource TtPillGrayBtn}" Content="回原"/>
                 </UniformGrid>
-                <TextBlock Text="寸动（每次移动寸动步长）" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4"/>
+                <DockPanel LastChildFill="True" Margin="0,0,0,4">
+                    <TextBlock DockPanel.Dock="Left" Text="寸动距离" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Height="26">
+                        <TextBox Text="{Binding InchStep, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" CaretBrush="{StaticResource AccentBrush}" SelectionBrush="{StaticResource AccentSoftBrush}" FocusVisualStyle="{x:Null}"/>
+                    </Border>
+                </DockPanel>
+                <TextBlock Text="寸动（每次移动寸动距离）" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4"/>
                 <UniformGrid Columns="2" Margin="0,0,0,5">
                     <Button Command="{Binding DataContext.InchCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtPillOrangeBtn}" Content="− 减"/>
                     <Button Command="{Binding DataContext.InchCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtPillBlueBtn}" Content="+ 加"/>
                 </UniformGrid>
-                <TextBlock Text="JOG（每次移动 JOG 步长）" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4"/>
+                <DockPanel LastChildFill="True" Margin="0,0,0,4">
+                    <TextBlock DockPanel.Dock="Left" Text="JOG 速度" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Height="26">
+                        <TextBox Text="{Binding JogStep, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" CaretBrush="{StaticResource AccentBrush}" SelectionBrush="{StaticResource AccentSoftBrush}" FocusVisualStyle="{x:Null}"/>
+                    </Border>
+                </DockPanel>
+                <TextBlock Text="JOG（每次移动 JOG 速度）" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4"/>
                 <UniformGrid Columns="2">
                     <Button Command="{Binding DataContext.JogCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtPillOrangeBtn}" Content="− 减"/>
