@@ -57,3 +57,15 @@
 - EditorPage 宿主的子页（轴/IO/气缸/控制器/点位/通讯/料盘/相机/变量/流程）：在 `EditorPage` 根 Grid 第 3 行放 `PageHintBar`，绑定 `EditorPage.HintOperation`/`HintPrecaution`；各子页在 `<local:EditorPage>` 上设本页文案。
 - 独立根页面（Io/Point/Variable/Operator/Engineer/OperatorManual/VisualFlow/LuaEditor/ProjectManager）：根 `<Grid>` 加末尾 `Auto` 行 + `<local:PageHintBar Grid.Row=最后行 [Grid.ColumnSpan=列数]>`。
 - 文案默认由 AI 按页面功能撰写（操作 + 注意事项），用户截图微调。新增页面时务必同步加底栏，保持全局一致。
+
+## CAD（STP/STEP/IGES BREP）导入到 WPF 3D：用 OcctNet.Wrapper（2026-09-03）
+- **永远不要用 AssimpNet 处理 Creo/UG/SolidWorks 真实 BREP**：Assimp 4.1.0 会按扩展名把 `.stp` 误判为 IFC 撞 `Unrecognized file schema`；即使改 `.p21` 强制 STEP reader，对真实 BREP 也产出 **0 三角面**（它的 BREP 三角化器太弱）。
+- **正确选择：`<PackageReference Include="OcctNet.Wrapper" Version="0.1.1" />`** — 封装 OpenCASCADE 7.9.3，自带 `runtimes/win-x64/native/` 下 51 个 `Occt*`/`TK*` 原生 DLL（MSBuild 自动拷到输出），net 8/10 兼容。
+- **API 要点**：`using var shape = OcctShape.ImportStep(path); var mesh = shape.Triangulate(linearDeflection:1.0);` —— `OcctMesh` **不是 IDisposable**（没 `Dispose`，别加 try/finally mesh.Dispose()`）。读 `mesh.Vertices[i].X/.Y/.Z`、`mesh.TriangleIndices[i]`、`mesh.Vertices.Count`、`mesh.TriangleCount`。重要：读完所有数据到 WPF `MeshGeometry3D`/`Point3D[]` 后 `using` 会自动释放 `shape`（同时释放 mesh 内存），所以务必先把数据拷走。
+- **坐标转换**：CAD STEP 是 **Z-up**，WPF `Viewport3D` 是 **Y-up**。烘培顶点：`var p = new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1,0,0), -90)).Value.Transform(new Point3D(v.X,v.Y,v.Z));`（绕 X 轴 -90°）。多数工业 CAD 组件放完旋转后中孔/基座方向与相机视角一致。
+- **平滑顶点法线**：OCCT 的 `Triangulate` 不直接给法线；按三角形累加 `Vector3D.CrossProduct(p[b]-p[a], p[c]-p[a])`，归一化累加到三个顶点法线，再归一化每个顶点法线（fallback `(0,1,0)` 避免零向量）。否则渲染出来是平面着色 + 缺面 = 黑块。
+- **双面避免黑面**：`GeometryModel3D(mg, mat){ BackMaterial = mat }`（BREP 三角化法线方向偶发不一致）。
+- **大模型性能**：46 万三角面一次性烘焙到**单一** `MeshGeometry3D`（不要每子节点一网格），`Freeze()` 后跨线程共享。WPF retained-mode 吃得下，但要避免再叠透明/反射多层。
+- **CSPROJ 缩进敏感**（`NoCodeMotion.csproj` 行 74-77）：Edit 加 `<ItemGroup><Content Include="*.stp" .../></ItemGroup>` 时必须匹配原 8 空格缩进，否则 Edit 报 whitespace mismatch。
+- **加载流程**：UI 线程 `Task.Run` 后台做导入+三角化 → `group.Freeze()` → `Dispatcher.Invoke` 装到场景 + `BuildScene()` + `UpdateCamera()`；异常 catch 后 `SetStpStatus("STP 解析失败："+ex.Message)`。默认开 `Loaded` 自动载入 `Models/CAD/*.stp`。
+- **WPF PrintWindow 抓不到硬件加速客户端区**（DWM 标题栏能抓到，DirectComposition 合成层空白）——所以**运行中窗口截图验证不靠谱**。验证渲染用独立 `RenderTargetBitmap` 探针项目（参考 `D:\StpRenderProbe`）：复用完全相同的 `OcctShape`+`Triangulate`+Z-up→Y-up 路径 + 同样的相机公式（`theta=0.7, phi=0.5, r=2.6·boundsRadius`）→ `RenderTargetBitmap.Render(vp)` → `PngBitmapEncoder` 保存 PNG。

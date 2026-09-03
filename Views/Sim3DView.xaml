@@ -29,14 +29,23 @@
             <ModelVisual3D x:Name="Root"/>
         </Viewport3D>
 
-        <!-- 智能跟随工具条：自动对准运动轴 / 复位视角 -->
+        <!-- 智能跟随工具条：自动对准运动轴 / 复位视角 / 打开 STP -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6" IsHitTestVisible="True">
             <CheckBox x:Name="ChkFollow" Content="智能跟随" IsChecked="True" Margin="0,0,8,0"
                       Foreground="#334155" FontSize="11" VerticalAlignment="Center"
                       Checked="ChkFollow_Changed" Unchecked="ChkFollow_Changed"/>
             <Button x:Name="BtnResetView" Content="复位视角" Style="{StaticResource TtPillBlueBtn}"
-                    FontSize="11" MinWidth="0" Padding="10,3" Click="BtnResetView_Click"/>
+                    FontSize="11" MinWidth="0" Padding="10,3" Margin="0,0,6,0" Click="BtnResetView_Click"/>
+            <Button x:Name="BtnOpenStp" Content="打开STP" Style="{StaticResource TtPillBlueBtn}"
+                    FontSize="11" MinWidth="0" Padding="10,3" Margin="0,0,6,0" Click="BtnOpenStp_Click"/>
+            <Button x:Name="BtnClearStp" Content="清除" Style="{StaticResource TtPillGrayBtn}"
+                    FontSize="11" MinWidth="0" Padding="10,3" Click="BtnClearStp_Click"/>
         </StackPanel>
+
+        <!-- STP 加载状态（打开/解析/三角面数/失败原因） -->
+        <TextBlock x:Name="TxtStpStatus" Text="" FontSize="10.5" Foreground="#0F172A"
+                   HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="6,0,0,22"
+                   TextWrapping="Wrap" MaxWidth="320" IsHitTestVisible="False"/>
 
         <TextBlock x:Name="EmptyHint" Text="该工位暂无点位，无法仿真"
                    FontSize="12" Foreground="#94A3B8" HorizontalAlignment="Center"

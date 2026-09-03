@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -176,6 +177,13 @@ namespace NoCodeMotion.Views
         private bool _focusIsError;
         private double _pulse;                              // 高亮脉冲相位
 
+        // ===== STP / STEP CAD 模型（由“打开STP”按钮导入，独立于参数化机台） =====
+        private bool _cadMode;                              // 是否处于 CAD 显示模式（隐藏参数化机台）
+        private ModelVisual3D? _stpModel;                  // 缓存的 CAD 可视节点
+        private Model3DGroup? _stpContent;                  // 冻结后的 CAD 模型（跨线程安全）
+        private Point3D _stpCenter;                        // CAD 包围盒中心（WPF 空间，已 Z-up→Y-up）
+        private double _stpRadius;                         // CAD 包围球半径
+
         public Sim3DView()
         {
             InitializeComponent();
@@ -237,6 +245,20 @@ namespace NoCodeMotion.Views
 
             BuildScene();
             _timer.Start();
+
+            // 自动载入内置示例机器人 STP（位于输出目录 Models\CAD\ 下），让操作员仿真页默认展示真实 3D 模型；
+            // 用 Loaded 触发一次即可，避免在构造时控件尚未就绪。用户也可用「打开STP」加载其它模型。
+            Loaded += (s, e) => TryAutoLoadDefaultCad();
+        }
+
+        private bool _autoCadTried;
+        private void TryAutoLoadDefaultCad()
+        {
+            if (_autoCadTried) return;
+            _autoCadTried = true;
+            var def = System.IO.Path.Combine(AppContext.BaseDirectory, "Models", "CAD", "IR-R10-140S-INT-3D-3D.stp");
+            if (System.IO.File.Exists(def))
+                LoadStepFile(def);
         }
 
         // ===================== 场景构建 =====================
@@ -264,50 +286,62 @@ namespace NoCodeMotion.Views
             _dispRot = 0;
 
             var raw = Points;
-            EmptyHint.Visibility = (raw == null || raw.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
 
-            // 参数化机台：始终根据轴配置 + 流程内容生成（即使暂无点位也展示机台）
-            BuildMachine();
-
-            // 轨迹 + 点位（来自点位表 / 流程点位步骤）—— raw 可能为 null，必须空保护
-            if (raw != null && raw.Count > 0)
+            if (_cadMode && _stpContent != null)
             {
-                // 计算包围盒 → 归一化到 80 尺度并居中
-                double minX = double.MaxValue, maxX = double.MinValue;
-                double minY = double.MaxValue, maxY = double.MinValue;
-                double minZ = double.MaxValue, maxZ = double.MinValue;
-                foreach (var p in raw)
-                {
-                    if (p.X < minX) minX = p.X; if (p.X > maxX) maxX = p.X;
-                    if (p.Y < minY) minY = p.Y; if (p.Y > maxY) maxY = p.Y;
-                    if (p.Z < minZ) minZ = p.Z; if (p.Z > maxZ) maxZ = p.Z;
-                }
-                var ctr = new Point3D((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
-                double maxDim = Math.Max(maxX - minX, Math.Max(maxY - minY, maxZ - minZ));
-                if (maxDim < 1e-6) maxDim = 1;
-                _center = ctr;
-                _scale = 80.0 / maxDim;
-
-                var plane = new MeshGeometry3D();
-                double groundY = -52, span = 110;
-                plane.Positions.Add(new Point3D(-span, groundY, -span));
-                plane.Positions.Add(new Point3D(span, groundY, -span));
-                plane.Positions.Add(new Point3D(span, groundY, span));
-                plane.Positions.Add(new Point3D(-span, groundY, span));
-                plane.TriangleIndices.Add(0); plane.TriangleIndices.Add(1); plane.TriangleIndices.Add(2);
-                plane.TriangleIndices.Add(0); plane.TriangleIndices.Add(2); plane.TriangleIndices.Add(3);
-                AddModel(Root, plane, 1, 1, 1, new Point3D(0, 0, 0), MatKind.Bed);
-
-                var pts = new Point3D[raw.Count];
-                for (int i = 0; i < raw.Count; i++) pts[i] = ToMachine(ToSceneSafe(raw[i]));
-                for (int i = 0; i < pts.Length - 1; i++)
-                    AddSegment(pts[i], pts[i + 1], 1.2, MatKind.Traj);
-                for (int i = 0; i < pts.Length; i++)
-                    _pointModels.Add(AddModel(Root, _sphere, 3.2, 3.2, 3.2, pts[i], MatKind.Point));
+                // CAD 显示模式：只显示导入的 STP 模型，隐藏参数化机台、轨迹与点位
+                EmptyHint.Visibility = Visibility.Collapsed;
+                _machineGroup = null;
+                _stpModel = new ModelVisual3D { Content = _stpContent };
+                Root.Children.Add(_stpModel);
             }
+            else
+            {
+                EmptyHint.Visibility = (raw == null || raw.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
 
-            if (HeadVisible)
-                _headModel = AddModel(Root, _sphere, 4.6, 4.6, 4.6, new Point3D(0, 0, 0), MatKind.Head);
+                // 参数化机台：始终根据轴配置 + 流程内容生成（即使暂无点位也展示机台）
+                BuildMachine();
+
+                // 轨迹 + 点位（来自点位表 / 流程点位步骤）—— raw 可能为 null，必须空保护
+                if (raw != null && raw.Count > 0)
+                {
+                    // 计算包围盒 → 归一化到 80 尺度并居中
+                    double minX = double.MaxValue, maxX = double.MinValue;
+                    double minY = double.MaxValue, maxY = double.MinValue;
+                    double minZ = double.MaxValue, maxZ = double.MinValue;
+                    foreach (var p in raw)
+                    {
+                        if (p.X < minX) minX = p.X; if (p.X > maxX) maxX = p.X;
+                        if (p.Y < minY) minY = p.Y; if (p.Y > maxY) maxY = p.Y;
+                        if (p.Z < minZ) minZ = p.Z; if (p.Z > maxZ) maxZ = p.Z;
+                    }
+                    var ctr = new Point3D((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+                    double maxDim = Math.Max(maxX - minX, Math.Max(maxY - minY, maxZ - minZ));
+                    if (maxDim < 1e-6) maxDim = 1;
+                    _center = ctr;
+                    _scale = 80.0 / maxDim;
+
+                    var plane = new MeshGeometry3D();
+                    double groundY = -52, span = 110;
+                    plane.Positions.Add(new Point3D(-span, groundY, -span));
+                    plane.Positions.Add(new Point3D(span, groundY, -span));
+                    plane.Positions.Add(new Point3D(span, groundY, span));
+                    plane.Positions.Add(new Point3D(-span, groundY, span));
+                    plane.TriangleIndices.Add(0); plane.TriangleIndices.Add(1); plane.TriangleIndices.Add(2);
+                    plane.TriangleIndices.Add(0); plane.TriangleIndices.Add(2); plane.TriangleIndices.Add(3);
+                    AddModel(Root, plane, 1, 1, 1, new Point3D(0, 0, 0), MatKind.Bed);
+
+                    var pts = new Point3D[raw.Count];
+                    for (int i = 0; i < raw.Count; i++) pts[i] = ToMachine(ToSceneSafe(raw[i]));
+                    for (int i = 0; i < pts.Length - 1; i++)
+                        AddSegment(pts[i], pts[i + 1], 1.2, MatKind.Traj);
+                    for (int i = 0; i < pts.Length; i++)
+                        _pointModels.Add(AddModel(Root, _sphere, 3.2, 3.2, 3.2, pts[i], MatKind.Point));
+                }
+
+                if (HeadVisible)
+                    _headModel = AddModel(Root, _sphere, 4.6, 4.6, 4.6, new Point3D(0, 0, 0), MatKind.Head);
+            }
 
             UpdatePoseFromRuntime();
             UpdateCurrent();
@@ -648,9 +682,162 @@ namespace NoCodeMotion.Views
         // 工具条：复位视角到默认轨道
         private void BtnResetView_Click(object sender, RoutedEventArgs e)
         {
-            _theta = 0.7; _phi = 0.5; _radius = 240;
-            _orbitCenter = _orbitCenterTarget = new Point3D(0, 6, 0);
+            if (_cadMode && _stpContent != null)
+            {
+                // CAD 模式：复位到模型最佳取景
+                _theta = 0.7; _phi = 0.5; _radius = Math.Max(_stpRadius * 2.6, 120);
+                _orbitCenter = _orbitCenterTarget = _stpCenter;
+            }
+            else
+            {
+                _theta = 0.7; _phi = 0.5; _radius = 240;
+                _orbitCenter = _orbitCenterTarget = new Point3D(0, 6, 0);
+            }
             UpdateCamera();
+        }
+
+        // ===================== STP / STEP 导入 =====================
+        // 通过 OcctNet.Wrapper（封装 OpenCASCADE 7.9 原生库）把 STEP/IGES BREP 三角化为 WPF 网格。
+        // 这是能正确处理 Creo/UG/SolidWorks 等真实 BREP 的可靠路径（Assimp 的 BREP 三角化器对该类文件产出 0 面）。
+
+        /// <summary>Z-up（多数 CAD）→ Y-up（WPF 视口）的旋转，仅旋转不平移。</summary>
+        private static readonly Matrix3D _zUpToYUp =
+            new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1, 0, 0), -90)).Value;
+
+        /// <summary>打开 STP/STEP 文件对话框并异步加载模型。</summary>
+        private void BtnOpenStp_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "STEP 模型 (*.stp;*.step)|*.stp;*.step|所有文件 (*.*)|*.*",
+                Title = "打开 STP / STEP 模型"
+            };
+            bool? ok = null;
+            try { ok = dlg.ShowDialog(); }
+            catch (Exception ex)
+            {
+                SetStpStatus("无法打开文件对话框（可能被安全软件拦截）：" + ex.Message);
+                return;
+            }
+            if (ok == true) LoadStepFile(dlg.FileName);
+        }
+
+        /// <summary>清除已加载的 CAD 模型，恢复参数化机台。</summary>
+        private void BtnClearStp_Click(object sender, RoutedEventArgs e)
+        {
+            _cadMode = false;
+            _stpContent = null;
+            _stpModel = null;
+            _followEnabled = true;
+            if (ChkFollow != null) ChkFollow.IsChecked = true;
+            BuildScene();
+            UpdateCamera();
+            SetStpStatus("已清除模型，恢复参数化机台");
+        }
+
+        /// <summary>异步解析 STP 文件并切换到 CAD 显示模式（后台线程做重三角化，UI 线程只负责装配冻结模型）。</summary>
+        public void LoadStepFile(string path)
+        {
+            SetStpStatus("正在解析 STP…");
+            Task.Run(() =>
+            {
+                try
+                {
+                    BuildStepModel(path, out var group, out var center, out var radius, out long tris);
+                    group.Freeze(); // 跨线程安全，便于在 UI 线程使用
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        _stpContent = group;
+                        _stpCenter = center;
+                        _stpRadius = radius;
+                        _cadMode = true;
+                        _orbitCenter = _orbitCenterTarget = center;
+                        _radius = Math.Max(radius * 2.6, 120);
+                        _followEnabled = false;
+                        if (ChkFollow != null) ChkFollow.IsChecked = false;
+                        BuildScene();   // 进入 CAD 模式：隐藏参数化机台，显示导入模型
+                        UpdateCamera();
+                        SetStpStatus($"已加载 {System.IO.Path.GetFileName(path)} · {tris:N0} 三角面");
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.Invoke(() => SetStpStatus("STP 解析失败：" + ex.Message));
+                }
+            });
+        }
+
+        // 用 OpenCASCADE 把 STEP/IGES 读入并三角化，烘培为世界坐标（含 Z-up→Y-up）后转为单一 WPF 网格，
+        // 同时计算平滑顶点法线与包围盒。单次调用在后台线程完成，返回可冻结的 Model3DGroup。
+        private static void BuildStepModel(string path, out Model3DGroup group, out Point3D center, out double radius, out long totalTris)
+        {
+            group = new Model3DGroup();
+            using var shape = OcctNet.Wrapper.OcctShape.ImportStep(path);
+            var mesh = shape.Triangulate(linearDeflection: 1.0);
+                int vc = mesh.Vertices.Count;
+                int ic = mesh.TriangleIndices.Count;
+                totalTris = ic / 3;
+
+                var min = new Point3D(double.MaxValue, double.MaxValue, double.MaxValue);
+                var max = new Point3D(double.MinValue, double.MinValue, double.MinValue);
+                var positions = new Point3D[vc];
+                for (int i = 0; i < vc; i++)
+                {
+                    var v = mesh.Vertices[i];
+                    var p = _zUpToYUp.Transform(new Point3D(v.X, v.Y, v.Z)); // 烘培 Z-up→Y-up
+                    positions[i] = p;
+                    if (p.X < min.X) min.X = p.X; if (p.X > max.X) max.X = p.X;
+                    if (p.Y < min.Y) min.Y = p.Y; if (p.Y > max.Y) max.Y = p.Y;
+                    if (p.Z < min.Z) min.Z = p.Z; if (p.Z > max.Z) max.Z = p.Z;
+                }
+
+                var mg = new MeshGeometry3D();
+                for (int i = 0; i < vc; i++) mg.Positions.Add(positions[i]);
+                for (int i = 0; i < ic; i++) mg.TriangleIndices.Add(mesh.TriangleIndices[i]);
+
+                // 由三角形累积平滑顶点法线（OCCT 三角化不直接给法线）
+                var norms = new Vector3D[vc];
+                for (int t = 0; t < ic; t += 3)
+                {
+                    int a = mesh.TriangleIndices[t], b = mesh.TriangleIndices[t + 1], c = mesh.TriangleIndices[t + 2];
+                    var n = Vector3D.CrossProduct(positions[b] - positions[a], positions[c] - positions[a]);
+                    if (n.Length > 1e-9)
+                    {
+                        n.Normalize();
+                        norms[a] += n; norms[b] += n; norms[c] += n;
+                    }
+                }
+                for (int i = 0; i < vc; i++)
+                {
+                    var nv = norms[i];
+                    if (nv.Length > 1e-9) nv.Normalize(); else nv = new Vector3D(0, 1, 0);
+                    mg.Normals.Add(nv);
+                }
+
+                var mat = MakeStepMaterial();
+                var gm = new GeometryModel3D(mg, mat) { BackMaterial = mat };
+                group.Children.Add(gm);
+
+                var size = new Vector3D(max.X - min.X, max.Y - min.Y, max.Z - min.Z);
+                center = new Point3D(min.X + size.X / 2, min.Y + size.Y / 2, min.Z + size.Z / 2);
+                radius = 0.5 * Math.Sqrt(size.X * size.X + size.Y * size.Y + size.Z * size.Z);
+                if (!double.IsFinite(radius) || radius < 1e-3) radius = 100;
+        }
+
+        // CAD 材质：浅钢蓝金属感；双面可见避免黑面（BREP 三角化法线方向偶发不一致）。
+        private static Material MakeStepMaterial()
+        {
+            var brush = new SolidColorBrush(Color.FromRgb(0xB8, 0xC2, 0xCE));
+            var grp = new MaterialGroup();
+            grp.Children.Add(new DiffuseMaterial(brush));
+            grp.Children.Add(new SpecularMaterial(new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)), 18));
+            return grp;
+        }
+
+        private void SetStpStatus(string text)
+        {
+            if (TxtStpStatus != null) TxtStpStatus.Text = text;
         }
 
         private void PlaceHead(double x, double yUp, double z)

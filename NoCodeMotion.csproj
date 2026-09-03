@@ -52,6 +52,7 @@
     <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="HandyControl" Version="3.5.1" />
     <PackageReference Include="MoonSharp" Version="2.0.0" />
+    <PackageReference Include="OcctNet.Wrapper" Version="0.1.1" />
     <PackageReference Include="NModbus" Version="3.0.83" />
     <PackageReference Include="NModbus.Serial" Version="3.0.83" />
     <PackageReference Include="System.IO.Ports" Version="10.0.11" />
@@ -73,6 +74,11 @@
   <!-- 真实机台 3D 模型（WaveFront .obj，直接嵌入输出目录，运行时按路径加载） -->
   <ItemGroup>
     <Content Include="Models\**\*.obj" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- 内置示例机器人 STP（Creo BREP），随输出目录提供，操作员仿真页自动载入显示 -->
+  <ItemGroup>
+    <Content Include="IR-R10-140S-INT-3D-3D.stp" Link="Models\CAD\IR-R10-140S-INT-3D-3D.stp" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
