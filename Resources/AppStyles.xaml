@@ -190,62 +190,66 @@
     <DataTemplate x:Key="AxisCardTemplate">
         <Border Style="{DynamicResource CardBorderStyle}" Margin="4" Padding="8" Width="264">
             <StackPanel>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
-                    <Path Data="{StaticResource PointIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                    <TextBlock FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center">
-                        <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
-                            <Binding Path="AxisName"/><Binding Source=""/></MultiBinding></TextBlock.Text>
+                <!-- 头部：轴名 + 使能/回原 状态（右对齐） -->
+                <Grid Margin="0,0,0,4">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <Path Data="{StaticResource PointIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center">
+                            <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
+                                <Binding Path="AxisName"/><Binding Source=""/></MultiBinding></TextBlock.Text>
+                        </TextBlock>
+                    </StackPanel>
+                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextMutedBrush}">
+                        <Run Text="使能 "/>
+                        <Run Text="{Binding Enabled, Converter={StaticResource BoolToZh}}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <Run Text="  回原 "/>
+                        <Run Text="{Binding Homed, Converter={StaticResource BoolToZh}}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                     </TextBlock>
-                </StackPanel>
-                <DockPanel LastChildFill="True" Margin="0,0,0,5">
-                    <TextBlock DockPanel.Dock="Left" Text="选择轴" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                </Grid>
+
+                <!-- 选择轴 + 当前位置（同行，combo 占中间）位置） -->
+                <DockPanel LastChildFill="True" Margin="0,0,0,4">
+                    <TextBlock DockPanel.Dock="Left" Text="选择轴" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" FontWeight="SemiBold">
+                        <Run Text="位置 "/>
+                        <Run Text="{Binding CurrentPosition, Mode=OneWay, StringFormat={}{0}}"/>
+                    </TextBlock>
                     <ComboBox ItemsSource="{x:Static svc:Catalog.AxisNames}"
                               SelectedItem="{Binding AxisName, Mode=TwoWay}"
                               Style="{DynamicResource CellComboStyle}"/>
                 </DockPanel>
-                <DockPanel LastChildFill="True" Margin="0,0,0,5">
-                    <TextBlock DockPanel.Dock="Left" Text="当前位置" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                    <TextBlock Text="{Binding CurrentPosition, StringFormat={}{0}}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                               Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
-                </DockPanel>
-                <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,5">
-                    <Run Text="使能 "/>
-                    <Run Text="{Binding Enabled, Converter={StaticResource BoolToZh}}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <Run Text="    回原 "/>
-                    <Run Text="{Binding Homed, Converter={StaticResource BoolToZh}}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                </TextBlock>
-                <UniformGrid Columns="2" Margin="0,0,0,5">
+
+                <!-- 使能 / 回原 按钮 -->
+                <UniformGrid Columns="2" Margin="0,0,0,4">
                     <Button Command="{Binding DataContext.EnableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index}" Style="{DynamicResource TtPillBlueBtn}" Content="使能"/>
+                            CommandParameter="{Binding Index}" Style="{DynamicResource TtPillBlueBtn}" Content="使能" Margin="0,0,2,0"/>
                     <Button Command="{Binding DataContext.HomeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index}" Style="{DynamicResource TtPillGrayBtn}" Content="回原"/>
+                            CommandParameter="{Binding Index}" Style="{DynamicResource TtPillGrayBtn}" Content="回原" Margin="2,0,0,0"/>
                 </UniformGrid>
-                <DockPanel LastChildFill="True" Margin="0,0,0,4">
-                    <TextBlock DockPanel.Dock="Left" Text="寸动距离" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Height="26">
+
+                <!-- 寸动：距离输入 + −/+ 同行 -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="寸动" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Height="26" Width="56" Margin="0,0,4,0">
                         <TextBox Text="{Binding InchStep, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" CaretBrush="{StaticResource AccentBrush}" SelectionBrush="{StaticResource AccentSoftBrush}" FocusVisualStyle="{x:Null}"/>
                     </Border>
-                </DockPanel>
-                <TextBlock Text="寸动（每次移动寸动距离）" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4"/>
-                <UniformGrid Columns="2" Margin="0,0,0,5">
                     <Button Command="{Binding DataContext.InchCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtPillOrangeBtn}" Content="− 减"/>
+                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtPillOrangeBtn}" Content="−" Width="46" Margin="0,0,4,0"/>
                     <Button Command="{Binding DataContext.InchCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtPillBlueBtn}" Content="+ 加"/>
-                </UniformGrid>
-                <DockPanel LastChildFill="True" Margin="0,0,0,4">
-                    <TextBlock DockPanel.Dock="Left" Text="JOG 速度" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Height="26">
+                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtPillBlueBtn}" Content="+" Width="46"/>
+                </StackPanel>
+
+                <!-- JOG：速度输入 + −/+ 同行 -->
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="JOG" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Height="26" Width="56" Margin="0,0,4,0">
                         <TextBox Text="{Binding JogStep, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" CaretBrush="{StaticResource AccentBrush}" SelectionBrush="{StaticResource AccentSoftBrush}" FocusVisualStyle="{x:Null}"/>
                     </Border>
-                </DockPanel>
-                <TextBlock Text="JOG（每次移动 JOG 速度）" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4"/>
-                <UniformGrid Columns="2">
                     <Button Command="{Binding DataContext.JogCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtPillOrangeBtn}" Content="− 减"/>
+                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},-1'}" Style="{DynamicResource TtPillOrangeBtn}" Content="−" Width="46" Margin="0,0,4,0"/>
                     <Button Command="{Binding DataContext.JogCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtPillBlueBtn}" Content="+ 加"/>
-                </UniformGrid>
+                            CommandParameter="{Binding Index, Converter={StaticResource StringFormat}, ConverterParameter='{}{0},+1'}" Style="{DynamicResource TtPillBlueBtn}" Content="+" Width="46"/>
+                </StackPanel>
             </StackPanel>
         </Border>
     </DataTemplate>
