@@ -36,6 +36,12 @@ public partial class NodeGraphPage : UserControl
     private NgKind? _dragKind;
     private Point _dragStartPoint;
 
+    // 空白画布拖拽平移
+    private bool _panning;
+    private Point _panStart;
+    private double _scrollStartX;
+    private double _scrollStartY;
+
     public NodeGraphPage()
     {
         InitializeComponent();
@@ -115,8 +121,14 @@ public partial class NodeGraphPage : UserControl
         // 5) 节点其它区域 → 选中
         var anyNode = FindNodeVm(dep);
         if (anyNode != null) { _vm.SelectedNode = anyNode; return; }
-        // 6) 空白 → 取消选中
+        // 6) 空白 → 取消选中，并开始按住拖拽平移画布
         _vm.SelectedNode = null;
+        _panning = true;
+        _panStart = e.GetPosition(CanvasScroller);
+        _scrollStartX = CanvasScroller.ContentHorizontalOffset;
+        _scrollStartY = CanvasScroller.ContentVerticalOffset;
+        DesignerCanvas.CaptureMouse();
+        e.Handled = true;
     }
 
     private void DesignerCanvas_PreviewMouseMove(object sender, MouseEventArgs e)
@@ -131,6 +143,13 @@ public partial class NodeGraphPage : UserControl
         else if (_linkSrc != null)
         {
             UpdateTempLine(e.GetPosition(DesignerCanvas));
+            e.Handled = true;
+        }
+        else if (_panning)
+        {
+            var cur = e.GetPosition(CanvasScroller);
+            CanvasScroller.ScrollToHorizontalOffset(_scrollStartX - (cur.X - _panStart.X));
+            CanvasScroller.ScrollToVerticalOffset(_scrollStartY - (cur.Y - _panStart.Y));
             e.Handled = true;
         }
     }
@@ -156,6 +175,12 @@ public partial class NodeGraphPage : UserControl
                     _vm.Connect(_linkSrc.Id, _linkPort!, tgt.Id);
             }
             EndLink();
+            e.Handled = true;
+        }
+        else if (_panning)
+        {
+            _panning = false;
+            if (DesignerCanvas.IsMouseCaptured) DesignerCanvas.ReleaseMouseCapture();
             e.Handled = true;
         }
     }
@@ -236,15 +261,20 @@ public partial class NodeGraphPage : UserControl
         e.Handled = true;
     }
 
-    // 滚轮缩放：限制在 0.3~2.5 倍；缩放施加在画布 LayoutTransform 上，节点/连线坐标保持逻辑一致。
+    // 滚轮缩放：限制在 0.3~2.5 倍；以光标位置为锚点缩放（缩放后光标下的逻辑点保持不动）。
     private void DesignerCanvas_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        double old = _zoom;
         double factor = e.Delta > 0 ? 1.1 : 1.0 / 1.1;
-        double nz = Math.Max(0.3, Math.Min(2.5, _zoom * factor));
-        if (nz != _zoom)
+        double nz = Math.Max(0.3, Math.Min(2.5, old * factor));
+        if (nz != old)
         {
+            var m = e.GetPosition(CanvasScroller);
             _zoom = nz;
-            _scale.ScaleX = _scale.ScaleY = _zoom;
+            _scale.ScaleX = _scale.ScaleY = nz;
+            double ratio = nz / old;
+            CanvasScroller.ScrollToHorizontalOffset((CanvasScroller.ContentHorizontalOffset + m.X) * ratio - m.X);
+            CanvasScroller.ScrollToVerticalOffset((CanvasScroller.ContentVerticalOffset + m.Y) * ratio - m.Y);
         }
         e.Handled = true;
     }
