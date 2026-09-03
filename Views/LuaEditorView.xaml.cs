@@ -62,6 +62,9 @@ namespace NoCodeMotion.Views
         private bool _settingText;
         // 当前会话是否由 Operator 运行器驱动（而非用户手动 F5/F10）。用于区分广播来源，避免抢占手动调试。
         private bool _operatorDriven;
+        // 诊断区当前是否正驻留一条"错误"（语法错误或运行异常）。若为 true，周期性的 CheckSyntaxNow 在
+        // 语法通过时不再把诊断区刷成"语法正确"，避免把用户要看到的运动异常红字冲掉——直到本次运行成功才复位。
+        private bool _diagErrorActive;
 
         public LuaEditorView()
         {
@@ -700,6 +703,17 @@ namespace NoCodeMotion.Views
                 AppendLog($"✔ {info.Message}（耗时 {info.ElapsedMs} ms）", LogKind.Success);
             }
 
+            // 运行成功结束（非错误）：诊断区此前可能驻留上一次运行异常 / 语法错误红字，
+            // 此刻运行已成功，把诊断区复位为"语法正确"，并清掉错误行高亮。
+            // （运行异常分支 info.IsError 不在此复位，红字保持显示，直到用户重新运行成功。）
+            if (!info.IsError)
+            {
+                _diagErrorActive = false;
+                _errorLineRenderer.Line = 0;
+                TxtDiagnostics.Text = "语法正确";
+                TxtDiagnostics.Foreground = BrushInfo;
+            }
+
             RefreshVarIndex(new List<VarInfo>(), info.Globals);
             SetSessionState(SessionState.Idle);
             // 结束时刷新最终每行耗时，并停止运行期轮询
@@ -1114,8 +1128,24 @@ namespace NoCodeMotion.Views
             if (_log.Count > 2000) _log.RemoveAt(0);
             OutputList.ScrollIntoView(_log[_log.Count - 1]);
 
-            // 编辑器底部的 print 输出回显（仅最新一行）
-            if (kind == LogKind.Output) TxtPrint.Text = text ?? string.Empty;
+            // 编辑器底部 print 回显区：仅响应 Lua print() 输出（LogKind.Output）。
+            // Lua 运行异常 / 语法错误不会写到这里，而是写到上方的「诊断」区（TxtDiagnostics），
+            // 与用户预期保持一致——print 只回显用户主动 print 的内容。
+            if (kind == LogKind.Output)
+            {
+                TxtPrint.Text = text ?? string.Empty;
+                TxtPrint.Foreground = BrushInfo;
+                TxtPrint.ToolTip = null;
+            }
+            else if (kind == LogKind.Error)
+            {
+                // Lua 运行时 / 语法异常：写到「诊断」区，红字 + ToolTip 看完整消息。
+                // 标记错误驻留，阻止周期语法检查把这条异常刷没。
+                _diagErrorActive = true;
+                TxtDiagnostics.Text = "✖ " + (text ?? string.Empty);
+                TxtDiagnostics.Foreground = BrushError;
+                TxtDiagnostics.ToolTip = text ?? string.Empty;
+            }
         }
 
         private void UpdateCaretStatus() =>
@@ -1135,6 +1165,9 @@ namespace NoCodeMotion.Views
             var (ok, line, msg) = LuaDebugSession.CheckSyntax(Editor.Text);
             if (ok)
             {
+                // 语法通过：若诊断区正驻留一条错误（运行异常 / 上次语法错误），不要把它刷成"语法正确"，
+                // 否则用户运行报错后红字一闪就没了。错误保持显示，直到本次运行成功才复位。
+                if (_diagErrorActive) return;
                 _errorLineRenderer.Line = 0;
                 TxtDiagnostics.Text = "语法正确";
                 TxtDiagnostics.Foreground = BrushInfo;
@@ -1142,6 +1175,7 @@ namespace NoCodeMotion.Views
             else
             {
                 _errorLineRenderer.Line = line;
+                _diagErrorActive = true;
                 TxtDiagnostics.Text = msg;
                 TxtDiagnostics.Foreground = BrushError;
             }
