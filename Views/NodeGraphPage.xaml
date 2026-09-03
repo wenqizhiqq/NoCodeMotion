@@ -18,6 +18,19 @@
                 <Polygon Points="{Binding ArrowPoints}" Fill="{Binding Brush}"/>
             </Grid>
         </DataTemplate>
+
+        <!-- 画布网格背景（随缩放一起变换）-->
+        <DrawingBrush x:Key="NodeGridBrush" Viewport="0,0,24,24" TileMode="Tile" ViewportUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M0,0 L24,0 M0,0 L0,24">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#E9EDF2" Thickness="1"/>
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
     </UserControl.Resources>
 
     <Grid Background="{StaticResource CanvasBrush}">
@@ -31,28 +44,39 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 左：工具箱（视觉 / 运控 / 通讯 分组，点击添加到画布）-->
-        <Border Grid.Column="0" Grid.Row="0" Margin="10" Style="{StaticResource CardBorderStyle}">
+        <!-- 左：工具箱（视觉 / 运控 / 通讯 分组，拖到画布或点击添加）-->
+        <Border Grid.Column="0" Grid.Row="0" Margin="10" Style="{StaticResource CardBorderStyle}" ClipToBounds="True">
             <DockPanel LastChildFill="True">
                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource AppleSectionHeader}" Text="节点工具箱"/>
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBlock DockPanel.Dock="Top" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}"
+                           Margin="0,0,0,4" Text="拖到画布或点击添加"/>
+                <ScrollViewer VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl ItemsSource="{Binding ToolboxGroups}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Margin="0,6,0,6">
-                                    <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{StaticResource AccentDarkBrush}" Margin="2,4,0,4"/>
+                                <StackPanel Margin="0,4,0,2">
+                                    <TextBlock Text="{Binding Title}" FontSize="10.5" FontWeight="SemiBold"
+                                               Foreground="{StaticResource AccentDarkBrush}" Margin="2,2,0,2"/>
                                     <ItemsControl ItemsSource="{Binding Items}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" Width="172"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Button Command="{Binding DataContext.AddNodeCommand, RelativeSource={RelativeSource AncestorType=local:NodeGraphPage}}"
                                                         CommandParameter="{Binding Kind}"
+                                                        PreviewMouseLeftButtonDown="ToolItem_PreviewMouseDown"
+                                                        PreviewMouseMove="ToolItem_PreviewMouseMove"
+                                                        PreviewMouseUp="ToolItem_PreviewMouseUp"
                                                         Style="{StaticResource ToolButtonStyle}"
-                                                        Margin="0,0,0,6" HorizontalContentAlignment="Left">
+                                                        Height="24" Margin="2" Padding="4,2"
+                                                        HorizontalContentAlignment="Left" ToolTip="{Binding Title}">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                        <Ellipse Width="8" Height="8" Margin="0,0,4,0" VerticalAlignment="Center"
                                                                  Fill="{Binding Color, Converter={StaticResource NgStringToBrush}}"/>
-                                                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Title}" FontSize="10.5" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </Button>
                                             </DataTemplate>
@@ -66,40 +90,46 @@
             </DockPanel>
         </Border>
 
-        <!-- 中：画布 -->
+        <!-- 中：画布（ScrollViewer 提供滚动条；滚轮缩放；AllowDrop 接收工具箱拖入）-->
         <Border Grid.Column="1" Grid.Row="0" Margin="0,10,0,10" Style="{StaticResource CardBorderStyle}">
-            <Canvas x:Name="DesignerCanvas"
-                    Background="#FAFBFC"
-                    PreviewMouseLeftButtonDown="DesignerCanvas_PreviewMouseLeftButtonDown"
-                    PreviewMouseMove="DesignerCanvas_PreviewMouseMove"
-                    PreviewMouseLeftButtonUp="DesignerCanvas_PreviewMouseLeftButtonUp">
-                <!-- 连线层（在节点之下）-->
-                <ItemsControl ItemsSource="{Binding Connections}" ItemTemplate="{StaticResource ConnectionTemplate}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate><Canvas IsItemsHost="True"/></ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
-                <!-- 连线拖拽临时线 -->
-                <Path x:Name="TempLine" Stroke="Gray" StrokeThickness="2" StrokeDashArray="4 3"
-                      Visibility="Collapsed" IsHitTestVisible="False"/>
-                <!-- 节点层（在连线之上）-->
-                <ItemsControl ItemsSource="{Binding Nodes}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate><Canvas IsItemsHost="True"/></ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemContainerStyle>
-                        <Style TargetType="ContentPresenter">
-                            <Setter Property="Canvas.Left" Value="{Binding X}"/>
-                            <Setter Property="Canvas.Top" Value="{Binding Y}"/>
-                        </Style>
-                    </ItemsControl.ItemContainerStyle>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <local:NodeGraphNodeView/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </Canvas>
+            <ScrollViewer x:Name="CanvasScroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <Canvas x:Name="DesignerCanvas"
+                        Width="4000" Height="3000"
+                        Background="{StaticResource NodeGridBrush}"
+                        AllowDrop="True"
+                        PreviewMouseLeftButtonDown="DesignerCanvas_PreviewMouseLeftButtonDown"
+                        PreviewMouseMove="DesignerCanvas_PreviewMouseMove"
+                        PreviewMouseLeftButtonUp="DesignerCanvas_PreviewMouseLeftButtonUp"
+                        PreviewMouseWheel="DesignerCanvas_PreviewMouseWheel"
+                        Drop="DesignerCanvas_Drop">
+                    <!-- 连线层（在节点之下）-->
+                    <ItemsControl ItemsSource="{Binding Connections}" ItemTemplate="{StaticResource ConnectionTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><Canvas IsItemsHost="True"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                    <!-- 连线拖拽临时线 -->
+                    <Path x:Name="TempLine" Stroke="Gray" StrokeThickness="2" StrokeDashArray="4 3"
+                          Visibility="Collapsed" IsHitTestVisible="False"/>
+                    <!-- 节点层（在连线之上）-->
+                    <ItemsControl ItemsSource="{Binding Nodes}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><Canvas IsItemsHost="True"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <local:NodeGraphNodeView/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Canvas>
+            </ScrollViewer>
         </Border>
 
         <!-- 右：属性面板 -->
@@ -150,7 +180,7 @@
         </Border>
 
         <local:PageHintBar Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1"
-            OperationText="左栏点击节点添加到画布；拖动标题栏移动节点；从输出端口拖到另一节点输入端口连线；右侧编辑属性；选中后点「删除所选」移除。"
+            OperationText="从左侧工具箱拖拽节点到画布（或点击添加）；拖动节点标题栏移动位置；滚轮缩放；用滚动条平移画布；从输出端口拖到另一节点输入端口连线；右侧编辑属性；选中后点「删除所选」移除。"
             PrecautionText="节点图仅做编辑与保存，暂不参与运行；连线避免形成环路导致后续执行死循环。保存随工程自动写入 xlsx。"/>
     </Grid>
 </UserControl>

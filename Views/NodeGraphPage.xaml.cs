@@ -30,10 +30,17 @@ public partial class NodeGraphPage : UserControl
     private NodeGraphNodeViewModel? _linkSrc;
     private string? _linkPort;
 
+    // 缩放（滚轮）与工具箱拖拽状态
+    private double _zoom = 1.0;
+    private readonly ScaleTransform _scale = new ScaleTransform(1, 1);
+    private NgKind? _dragKind;
+    private Point _dragStartPoint;
+
     public NodeGraphPage()
     {
         InitializeComponent();
         DataContext = _vm;
+        DesignerCanvas.LayoutTransform = _scale;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }
@@ -180,6 +187,66 @@ public partial class NodeGraphPage : UserControl
         TempLine.Visibility = Visibility.Collapsed;
         TempLine.Data = null;
         if (DesignerCanvas.IsMouseCaptured) DesignerCanvas.ReleaseMouseCapture();
+    }
+
+    // ===================== 工具箱拖拽 / 缩放 / 滚动 =====================
+
+    // 从工具箱拖出节点：按下记录类型并捕获鼠标，移动超过阈值即发起 DragDrop。
+    private void ToolItem_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is NgNodeDef def && fe is UIElement ui)
+        {
+            _dragKind = def.Kind;
+            _dragStartPoint = e.GetPosition(this);
+            ui.CaptureMouse();
+        }
+    }
+
+    private void ToolItem_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_dragKind == null) return;
+        var ui = sender as UIElement;
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            ui?.ReleaseMouseCapture();
+            _dragKind = null;
+            return;
+        }
+        var cur = e.GetPosition(this);
+        if (Math.Abs(cur.X - _dragStartPoint.X) < 4 && Math.Abs(cur.Y - _dragStartPoint.Y) < 4) return;
+        var kind = _dragKind.Value;
+        _dragKind = null;
+        ui?.ReleaseMouseCapture();
+        DragDrop.DoDragDrop(ui ?? this, new DataObject("NgKind", kind), DragDropEffects.Copy);
+    }
+
+    private void ToolItem_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is UIElement ui) ui.ReleaseMouseCapture();
+        _dragKind = null;
+    }
+
+    // 在画布上放下工具箱拖来的节点：落点即为节点中心（逻辑坐标，随缩放自动一致）。
+    private void DesignerCanvas_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent("NgKind")) return;
+        var kind = (NgKind)e.Data.GetData("NgKind");
+        var p = e.GetPosition(DesignerCanvas);
+        _vm.AddNode(kind, p.X - NgGeometry.NodeWidth / 2, Math.Max(0, p.Y - NgGeometry.HeaderHeight / 2));
+        e.Handled = true;
+    }
+
+    // 滚轮缩放：限制在 0.3~2.5 倍；缩放施加在画布 LayoutTransform 上，节点/连线坐标保持逻辑一致。
+    private void DesignerCanvas_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        double factor = e.Delta > 0 ? 1.1 : 1.0 / 1.1;
+        double nz = Math.Max(0.3, Math.Min(2.5, _zoom * factor));
+        if (nz != _zoom)
+        {
+            _zoom = nz;
+            _scale.ScaleX = _scale.ScaleY = _zoom;
+        }
+        e.Handled = true;
     }
 
     private void UpdateTempLine(Point cursor)
