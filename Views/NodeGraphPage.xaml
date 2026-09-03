@@ -1,0 +1,156 @@
+<!-- ◆温启志◆编写◇微信﹕187◆1936◇1399 -->
+<UserControl x:Class="NoCodeMotion.Views.NodeGraphPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1100">
+    <UserControl.Resources>
+        <local:NgInverseBoolToVis x:Key="BoolToVisNeg"/>
+        <local:NgStringToBrush x:Key="NgStringToBrush"/>
+
+        <!-- 连线模板：透明粗线用于命中（Tag=CONN），其上叠贝塞尔曲线 + 箭头 -->
+        <DataTemplate x:Key="ConnectionTemplate">
+            <Grid>
+                <Path Data="{Binding PathGeometry}" Stroke="Transparent" StrokeThickness="12" Tag="CONN" IsHitTestVisible="True"/>
+                <Path Data="{Binding PathGeometry}" Stroke="{Binding Brush}" StrokeThickness="2.2"/>
+                <Polygon Points="{Binding ArrowPoints}" Fill="{Binding Brush}"/>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource CanvasBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="250"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 左：工具箱（视觉 / 运控 / 通讯 分组，点击添加到画布）-->
+        <Border Grid.Column="0" Grid.Row="0" Margin="10" Style="{StaticResource CardBorderStyle}">
+            <DockPanel LastChildFill="True">
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource AppleSectionHeader}" Text="节点工具箱"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding ToolboxGroups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,6,0,6">
+                                    <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{StaticResource AccentDarkBrush}" Margin="2,4,0,4"/>
+                                    <ItemsControl ItemsSource="{Binding Items}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Command="{Binding DataContext.AddNodeCommand, RelativeSource={RelativeSource AncestorType=local:NodeGraphPage}}"
+                                                        CommandParameter="{Binding Kind}"
+                                                        Style="{StaticResource ToolButtonStyle}"
+                                                        Margin="0,0,0,6" HorizontalContentAlignment="Left">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                                 Fill="{Binding Color, Converter={StaticResource NgStringToBrush}}"/>
+                                                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- 中：画布 -->
+        <Border Grid.Column="1" Grid.Row="0" Margin="0,10,0,10" Style="{StaticResource CardBorderStyle}">
+            <Canvas x:Name="DesignerCanvas"
+                    Background="#FAFBFC"
+                    PreviewMouseLeftButtonDown="DesignerCanvas_PreviewMouseLeftButtonDown"
+                    PreviewMouseMove="DesignerCanvas_PreviewMouseMove"
+                    PreviewMouseLeftButtonUp="DesignerCanvas_PreviewMouseLeftButtonUp">
+                <!-- 连线层（在节点之下）-->
+                <ItemsControl ItemsSource="{Binding Connections}" ItemTemplate="{StaticResource ConnectionTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><Canvas IsItemsHost="True"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <!-- 连线拖拽临时线 -->
+                <Path x:Name="TempLine" Stroke="Gray" StrokeThickness="2" StrokeDashArray="4 3"
+                      Visibility="Collapsed" IsHitTestVisible="False"/>
+                <!-- 节点层（在连线之上）-->
+                <ItemsControl ItemsSource="{Binding Nodes}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><Canvas IsItemsHost="True"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                            <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <local:NodeGraphNodeView/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Canvas>
+        </Border>
+
+        <!-- 右：属性面板 -->
+        <Border Grid.Column="2" Grid.Row="0" Margin="0,10,10,10" Style="{StaticResource CardBorderStyle}">
+            <DockPanel LastChildFill="True" Margin="10">
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource AppleSectionHeader}" Text="属性"/>
+                <Button DockPanel.Dock="Bottom" Command="{Binding DeleteCommand}"
+                        Style="{StaticResource TtDeleteBtn}" Content="删除所选" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="{Binding SelectedNode.Title}" FontWeight="Bold" FontSize="14"
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{Binding SelectedNode.DomainText}" FontSize="11" Margin="0,0,0,6"
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <Rectangle Style="{StaticResource AppleHairline}" Margin="0,0,0,6"/>
+                        <ItemsControl ItemsSource="{Binding SelectedNode.Props}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="{Binding Name}" Width="72"/>
+                                        <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding OptionsList}"
+                                                  SelectedItem="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                                                  Visibility="{Binding HasOptions, Converter={StaticResource BoolToVis}}"
+                                                  Style="{StaticResource CellComboStyle}"/>
+                                        <TextBox DockPanel.Dock="Right" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                                                 Visibility="{Binding HasOptions, Converter={StaticResource BoolToVisNeg}}"
+                                                 Style="{StaticResource AppleTextField}"/>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="（选中节点或连线后在此编辑 / 删除）" FontSize="11" Margin="0,10,0,0"
+                                   Foreground="{StaticResource TextSecondaryBrush}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasSelection}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <local:PageHintBar Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1"
+            OperationText="左栏点击节点添加到画布；拖动标题栏移动节点；从输出端口拖到另一节点输入端口连线；右侧编辑属性；选中后点「删除所选」移除。"
+            PrecautionText="节点图仅做编辑与保存，暂不参与运行；连线避免形成环路导致后续执行死循环。保存随工程自动写入 xlsx。"/>
+    </Grid>
+</UserControl>

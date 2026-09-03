@@ -14,7 +14,9 @@ namespace NoCodeMotion.Models
         /// <summary>Lua 脚本流程：执行 Lua 源码。</summary>
         Lua = 1,
         /// <summary>视觉流程：相机 / 视觉算子 / 模板匹配 等节点（图形式编辑，先保留 Kind 入口，编辑区占位）。</summary>
-        Vision = 2
+        Vision = 2,
+        /// <summary>节点图流程：视觉 / 运控 / 通讯 三类节点自由连线的图形化流程（可编辑 + 保存到工程）。</summary>
+        NodeGraph = 3
     }
 
     /// <summary>流程角色：主流程（常规运行）/ 复位流程（设备上电或急停复位后先执行）。</summary>
@@ -67,6 +69,14 @@ namespace NoCodeMotion.Models
         {
             get => _luaSource;
             set => SetField(ref _luaSource, value);
+        }
+
+        private string _graphJson = string.Empty;
+        /// <summary>节点图流程的序列化 JSON（仅 Kind==NodeGraph 时使用），存整个 NgDoc（节点 + 连线）。</summary>
+        public string GraphJson
+        {
+            get => _graphJson;
+            set => SetField(ref _graphJson, value);
         }
 
         private FlowRole _role = FlowRole.Main;

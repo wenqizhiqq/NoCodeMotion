@@ -173,6 +173,13 @@
                         <TextBlock Text="添加视觉" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
+                <!-- 添加节点图流程（Kind=NodeGraph）：节点+连线图标 + 紫色 -->
+                <Button Command="{Binding AddNodeGraphFlowCommand}" Style="{StaticResource ToolButtonStyle}" Margin="0,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource NodeGraphIconGeometry}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="#8E44AD"/>
+                        <TextBlock Text="添加节点图" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
                 <!-- 清空全部流程（弹窗二次确认，避免误删）。破坏性操作统一红色 -->
                 <Button Command="{Binding DeleteAllCommand}" Style="{StaticResource TtDeleteBtn}" Margin="8,0,0,0"
                         ToolTip="删除全部流程（弹窗确认）">
@@ -500,6 +507,10 @@
                          改用 FlowPage 自身的 VisionContent 依赖属性 + RelativeSource 绑定承载视觉页，彻底避开 NameScope 冲突。 ============ -->
                     <ContentControl Visibility="{Binding IsKindVision, Converter={StaticResource BoolToVis}}"
                                     Content="{Binding VisionContent, RelativeSource={RelativeSource AncestorType=local:FlowPage}}"/>
+
+                    <!-- ============ 节点图流程编辑器（延迟实例化：仅当选中节点图流程才创建 NodeGraphPage）============ -->
+                    <ContentControl Visibility="{Binding IsKindNodeGraph, Converter={StaticResource BoolToVis}}"
+                                    Content="{Binding NodeGraphContent, RelativeSource={RelativeSource AncestorType=local:FlowPage}}"/>
 
                 </Grid>
             </Grid>

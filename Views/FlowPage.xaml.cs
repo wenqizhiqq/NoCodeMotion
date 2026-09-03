@@ -34,14 +34,29 @@ namespace NoCodeMotion.Views
             set => SetValue(VisionContentProperty, value);
         }
 
+        /// <summary>运行时承载节点图流程页（或异常提示文本）。镜像 VisionContent 的延迟实例化模式。</summary>
+        public static readonly DependencyProperty NodeGraphContentProperty =
+            DependencyProperty.Register(
+                nameof(NodeGraphContent),
+                typeof(UIElement),
+                typeof(FlowPage),
+                new PropertyMetadata(null));
+
+        public UIElement? NodeGraphContent
+        {
+            get => (UIElement?)GetValue(NodeGraphContentProperty);
+            set => SetValue(NodeGraphContentProperty, value);
+        }
+
         public FlowPage()
         {
             InitializeComponent();
             var vm = new FlowViewModel();
             DataContext = vm;
             vm.PropertyChanged += OnVmPropertyChanged;
-            // 入场时若当前选中项已是视觉流程，立即建好视觉页。
+            // 入场时若当前选中项已是视觉/节点图流程，立即建好对应页。
             if (vm.IsKindVision) EnsureVision();
+            if (vm.IsKindNodeGraph) EnsureNodeGraph();
         }
 
         private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -50,6 +65,11 @@ namespace NoCodeMotion.Views
                 && ((FlowViewModel)DataContext).IsKindVision)
             {
                 EnsureVision();
+            }
+            else if (e.PropertyName == nameof(FlowViewModel.IsKindNodeGraph)
+                && ((FlowViewModel)DataContext).IsKindNodeGraph)
+            {
+                EnsureNodeGraph();
             }
         }
 
@@ -70,6 +90,29 @@ namespace NoCodeMotion.Views
                 VisionContent = new TextBlock
                 {
                     Text = "视觉流程页加载失败：" + ex.Message,
+                    Foreground = System.Windows.Media.Brushes.OrangeRed,
+                    Margin = new Thickness(16),
+                    TextWrapping = TextWrapping.Wrap
+                };
+            }
+        }
+
+        /// <summary>
+        /// 延迟创建节点图流程页。已创建则直接返回。若其加载抛异常，显示提示文本而非崩溃整页。
+        /// 节点图页通过 NodeGraphContent 依赖属性承载（绑定到 XAML 中 Border.Child），不依赖任何 x:Name，避免 MC3093。
+        /// </summary>
+        private void EnsureNodeGraph()
+        {
+            if (NodeGraphContent != null) return;
+            try
+            {
+                NodeGraphContent = new NodeGraphPage();
+            }
+            catch (Exception ex)
+            {
+                NodeGraphContent = new TextBlock
+                {
+                    Text = "节点图流程页加载失败：" + ex.Message,
                     Foreground = System.Windows.Media.Brushes.OrangeRed,
                     Margin = new Thickness(16),
                     TextWrapping = TextWrapping.Wrap

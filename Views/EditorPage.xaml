@@ -103,6 +103,11 @@
                                         <Setter Property="Data" Value="{StaticResource VisionIconGeometry}"/>
                                         <Setter Property="Fill" Value="#10B981"/>
                                     </DataTrigger>
+                                    <DataTrigger Binding="{Binding Kind}" Value="{x:Static models:FlowKind.NodeGraph}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Setter Property="Data" Value="{StaticResource NodeGraphIconGeometry}"/>
+                                        <Setter Property="Fill" Value="#8E44AD"/>
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Path.Style>

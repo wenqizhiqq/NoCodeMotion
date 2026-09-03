@@ -1,0 +1,83 @@
+<!-- ◆温启志◆编写◇微信﹕187◆1936◇1399 -->
+<UserControl x:Class="NoCodeMotion.Views.NodeGraphNodeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" d:DesignHeight="120" d:DesignWidth="186">
+    <UserControl.Resources>
+        <local:NgStringToBrush x:Key="NgStringToBrush"/>
+    </UserControl.Resources>
+
+    <!-- 根 Border：Tag=NODE（点击选中）；整卡宽度=节点几何宽度 186 -->
+    <Border x:Name="Root" Width="186" CornerRadius="8" Background="White" BorderThickness="1.4" Tag="NODE"
+            SnapsToDevicePixels="True">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="BorderBrush" Value="#2C3E50"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                        <Setter Property="BorderBrush" Value="#2563EB"/>
+                        <Setter Property="BorderThickness" Value="2.6"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 标题栏：Tag=NODE_HEADER（拖拽手柄）；左侧输入端口溢出 -->
+            <Border Grid.Row="0" Height="30" CornerRadius="8,8,0,0" Tag="NODE_HEADER"
+                    Background="{Binding Color, Converter={StaticResource NgStringToBrush}}">
+                <Grid>
+                    <Ellipse Tag="IN" Width="12" Height="12" Stroke="White" StrokeThickness="1.5"
+                             Fill="{Binding Color, Converter={StaticResource NgStringToBrush}}"
+                             HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-6,0,0,0" Cursor="Hand"/>
+                    <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+            <!-- 主体：先输出端口（紧接标题栏、行高固定 22，使连线端点对齐），后属性摘要 -->
+            <StackPanel Grid.Row="1" Margin="6">
+                <!-- 输出端口（分支）-->
+                <ItemsControl ItemsSource="{Binding Outputs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Height="22">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding}" Foreground="#64748B" FontSize="10.5"
+                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
+                                <Ellipse Grid.Column="1" Tag="OUT" Width="11" Height="11" Stroke="White" StrokeThickness="1.5"
+                                         Cursor="Cross" VerticalAlignment="Center" Margin="0,0,-6,0"
+                                         Fill="{Binding DataContext.Color, RelativeSource={RelativeSource AncestorType=local:NodeGraphNodeView}, Converter={StaticResource NgStringToBrush}}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- 属性摘要 -->
+                <ItemsControl ItemsSource="{Binding Props}" Margin="0,2,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <TextBlock Text="{Binding Name}" Foreground="#64748B" FontSize="10.5"/>
+                                <TextBlock Text=":" Foreground="#64748B" FontSize="10.5" Margin="2,0"/>
+                                <TextBlock Text="{Binding Value}" Foreground="#0F172A" FontSize="10.5" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

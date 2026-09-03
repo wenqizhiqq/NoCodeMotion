@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using System.Globalization;
 using NoCodeMotion.Models;
+using NoCodeMotion.Models.NodeGraph;
 using NoCodeMotion.Services;
 
 namespace NoCodeMotion.ViewModels
@@ -114,12 +115,15 @@ namespace NoCodeMotion.ViewModels
         public ICommand AddScriptFlowCommand { get; }
         /// <summary>添加视觉流程（Kind=Vision）：相机器视觉 / 模板匹配 等图形节点编辑流（编辑区暂为占位）。</summary>
         public ICommand AddVisionFlowCommand { get; }
+        /// <summary>添加节点图流程（Kind=NodeGraph）：视觉 / 运控 / 通讯 三类节点自由连线的图形化流程编辑器。</summary>
+        public ICommand AddNodeGraphFlowCommand { get; }
         /// <summary>「清空」：删除全部流程，弹窗 ConfirmDialog 二次确认（避免误删）。</summary>
         public ICommand DeleteAllCommand { get; }
 
         public bool IsKindTable => SelectedItem?.Kind == FlowKind.Table;
         public bool IsKindLua => SelectedItem?.Kind == FlowKind.Lua;
         public bool IsKindVision => SelectedItem?.Kind == FlowKind.Vision;
+        public bool IsKindNodeGraph => SelectedItem?.Kind == FlowKind.NodeGraph;
 
         /// <summary>流程页顶部按钮文案用「修改」（而非基类默认的「重命名」），点击弹出可同时改名称与主流程/复位流程的对话框。</summary>
         public override string RenameButtonText => "修改";
@@ -151,6 +155,7 @@ namespace NoCodeMotion.ViewModels
             AddTableFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Table));
             AddScriptFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Lua));
             AddVisionFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Vision));
+            AddNodeGraphFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.NodeGraph));
             DeleteAllCommand = new RelayCommand(_ => DeleteAll(), _ => Items != null && Items.Count > 0);
 
             _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
@@ -180,6 +185,7 @@ namespace NoCodeMotion.ViewModels
                 OnPropertyChanged(nameof(IsKindTable));
                 OnPropertyChanged(nameof(IsKindLua));
                 OnPropertyChanged(nameof(IsKindVision));
+                OnPropertyChanged(nameof(IsKindNodeGraph));
                 Stop();
             }
         }
@@ -222,6 +228,9 @@ namespace NoCodeMotion.ViewModels
                     // 脚本流程：Lua 源码随所选模板变化（通讯/分拣/MES/文件处理 各有示例脚本）
                     if (kind == FlowKind.Lua)
                         SelectedItem.LuaSource = Services.LuaTemplates.Get(dlg.SelectedTemplate);
+                    // 节点图流程：GraphJson 随所选模板变化（以 JSON 形式写入整张节点图）
+                    else if (kind == FlowKind.NodeGraph)
+                        SelectedItem.GraphJson = NoCodeMotion.Models.NodeGraph.NgTemplates.Build(dlg.SelectedTemplate);
                 }
             }
             finally { _nextAddKind = FlowKind.Table; }
@@ -291,6 +300,7 @@ namespace NoCodeMotion.ViewModels
             FlowKind.Table => new() { "空项目", "点胶机", "XYZ", "探针台", "平移机" },
             FlowKind.Lua   => new() { "空项目", "通讯", "分拣", "MES", "文件处理" },
             FlowKind.Vision => new() { "空项目", "缺陷检测", "测量", "对位", "标定" },
+            FlowKind.NodeGraph => new() { "空项目", "通用流程", "设备启动" },
             _ => new() { "空项目" }
         };
 
@@ -426,6 +436,24 @@ namespace NoCodeMotion.ViewModels
                 },
                 _ => new()
             },
+            FlowKind.NodeGraph => template switch
+            {
+                "通用流程" => new()
+                {
+                    new StepDef("开始", "", "", "", "", "3000", "开始"),
+                    new StepDef("轴运动", "", "", "", "", "3000", "轴运动"),
+                    new StepDef("结束", "", "", "", "", "3000", "结束"),
+                },
+                "设备启动" => new()
+                {
+                    new StepDef("开始", "", "", "", "", "3000", "开始"),
+                    new StepDef("回零", "", "", "", "", "3000", "回零"),
+                    new StepDef("等待输入", "", "", "", "", "3000", "等待输入"),
+                    new StepDef("延时", "", "", "", "", "3000", "延时"),
+                    new StepDef("结束", "", "", "", "", "3000", "结束"),
+                },
+                _ => new()
+            },
             _ => new()
         };
     }
@@ -441,7 +469,7 @@ namespace NoCodeMotion.ViewModels
                 foreach (var d in defs)
                     item.VisualSteps.Add(new VisualFlowStep { Name = d.Name, StepType = d.Name, Enabled = true });
             }
-            else
+            else if (kind == FlowKind.Table || kind == FlowKind.Lua)
             {
                 // 运控/脚本步骤：带上模板预设的可执行参数，落盘后即可直接运行
                 foreach (var d in defs)
@@ -455,6 +483,7 @@ namespace NoCodeMotion.ViewModels
                         Timeout = d.Timeout
                     });
             }
+            // 节点图流程（NodeGraph）：步骤不走 Steps，全部信息存于 GraphJson，此处不生成 FlowStep
         }
 
         private void RaiseRunState()
@@ -918,6 +947,7 @@ namespace NoCodeMotion.ViewModels
             FlowKind.Table => "运控流程",
             FlowKind.Lua => "脚本流程",
             FlowKind.Vision => "视觉流程",
+            FlowKind.NodeGraph => "节点图流程",
             _ => "流程"
         };
 
@@ -931,6 +961,7 @@ namespace NoCodeMotion.ViewModels
                 OnPropertyChanged(nameof(IsKindTable));
                 OnPropertyChanged(nameof(IsKindLua));
                 OnPropertyChanged(nameof(IsKindVision));
+                OnPropertyChanged(nameof(IsKindNodeGraph));
             }
         }
 

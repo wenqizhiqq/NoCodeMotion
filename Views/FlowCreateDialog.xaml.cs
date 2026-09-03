@@ -39,6 +39,7 @@ namespace NoCodeMotion.Views
                 FlowKind.Table => "新建运控流程",   // 表格流程已更名为"运控"（运动控制）
                 FlowKind.Lua => "新建脚本流程",
                 FlowKind.Vision => "新建视觉流程",
+                FlowKind.NodeGraph => "新建节点图流程",
                 _ => "新建流程"
             };
             HeaderText.Text = Title;

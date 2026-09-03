@@ -925,6 +925,7 @@ namespace NoCodeMotion.Services
             dt.Columns.Add("类型标记", typeof(string));
             dt.Columns.Add("角色", typeof(string));
             dt.Columns.Add("Lua源码", typeof(string));
+            dt.Columns.Add("节点图JSON", typeof(string));
             dt.Columns.Add("状态", typeof(string));
             // FlowStep 标量
             dt.Columns.Add("逻辑", typeof(string));
@@ -984,6 +985,7 @@ namespace NoCodeMotion.Services
                 SetStr(r1, "类型标记", flObj, "Kind");
                 SetStr(r1, "角色", flObj, "Role");
                 SetStr(r1, "Lua源码", flObj, "LuaSource");
+                SetStr(r1, "节点图JSON", flObj, "GraphJson");
                 SetStr(r1, "状态", flObj, "Status");
                 dt.Rows.Add(r1);
 
@@ -1079,6 +1081,7 @@ namespace NoCodeMotion.Services
                 TrySet(fl, "Kind", r["类型标记"]?.ToString(), typeof(FlowKind));
                 TrySet(fl, "Role", r["角色"]?.ToString(), typeof(FlowRole));
                 TrySet(fl, "LuaSource", r["Lua源码"]?.ToString());
+                TrySet(fl, "GraphJson", r["节点图JSON"]?.ToString());
                 TrySet(fl, "Status", r["状态"]?.ToString(), typeof(FlowStatus));
                 add.Invoke(flColl, new object[] { fl });
                 byName[n] = fl;
