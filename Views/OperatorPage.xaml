@@ -340,7 +340,8 @@
                                      Head="{Binding OpSimHead}"
                                      HeadVisible="{Binding OpSimHeadVisible}"
                                      CurrentIndex="{Binding OpSimIndex}"
-                                     CaptureImage="{Binding OpSimCapture}"/>
+                                     CaptureImage="{Binding OpSimCapture}"
+                                     FocusAxisName="{Binding OpFocusAxis}"/>
                 </DockPanel>
             </Border>
         </Grid>

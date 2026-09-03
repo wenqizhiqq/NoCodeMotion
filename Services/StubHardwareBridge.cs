@@ -2,6 +2,7 @@
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 #nullable disable
+using System.Collections.Generic;
 using System.Threading;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
@@ -60,18 +61,28 @@ namespace NoCodeMotion.Services
         }
 
         // ---- IO ----
+        private readonly Dictionary<string, int> _ioState = new Dictionary<string, int>();
+
         public double ReadInput(IoItem io)
         {
-            Write($"读输入 → 名称={io.Name} 卡类={io.CardType} 卡号={io.CardNo} 模块={io.ModuleNo} 序号={io.Sequence}");
-            return io.Value;
+            if (!_ioState.TryGetValue(io.Name, out int v))
+            {
+                v = (int)io.Value;
+                _ioState[io.Name] = v;
+            }
+            Write($"读输入 → 名称={io.Name} 卡类={io.CardType} 卡号={io.CardNo} 模块={io.ModuleNo} 序号={io.Sequence} 当前={v}");
+            return v;
         }
         public void WaitInput(IoItem io, int value)
         {
             Write($"等待输入 → 名称={io.Name} 卡号={io.CardNo} 模块={io.ModuleNo} 序号={io.Sequence} 目标={value}");
             Simulate();
         }
-        public void WriteOutput(IoItem io, int value) =>
+        public void WriteOutput(IoItem io, int value)
+        {
+            _ioState[io.Name] = value;
             Write($"写输出 → 名称={io.Name} 卡类={io.CardType} 卡号={io.CardNo} 模块={io.ModuleNo} 序号={io.Sequence} 值={value}");
+        }
         public void ToggleOutput(IoItem io) =>
             Write($"输出取反 → 名称={io.Name} 卡号={io.CardNo} 模块={io.ModuleNo} 序号={io.Sequence}");
 

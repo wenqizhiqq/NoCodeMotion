@@ -48,6 +48,32 @@ namespace NoCodeMotion.Views
         private static readonly Color C_LabelText = Color.FromRgb(0x1E, 0x29, 0x3B);
 
         // ===== 依赖属性 =====
+        /// <summary>智能跟随开关：哪个轴在动相机就平滑对准该轴（工具条 CheckBox / 外部可设）。</summary>
+        public static readonly DependencyProperty FollowEnabledProperty =
+            DependencyProperty.Register(nameof(FollowEnabled), typeof(bool), typeof(Sim3DView),
+                new PropertyMetadata(true, (o, e) => ((Sim3DView)o)._followEnabled = (bool)e.NewValue));
+        public bool FollowEnabled
+        {
+            get => (bool)GetValue(FollowEnabledProperty);
+            set => SetValue(FollowEnabledProperty, value);
+        }
+
+        /// <summary>异常焦点轴：运行异常时由 OperatorViewModel 解析轴名后设置，相机锁定并飞到该轴红高亮；设为空即恢复跟随。</summary>
+        public static readonly DependencyProperty FocusAxisNameProperty =
+            DependencyProperty.Register(nameof(FocusAxisName), typeof(string), typeof(Sim3DView),
+                new PropertyMetadata(null, (o, e) =>
+                {
+                    var v = (Sim3DView)o;
+                    var n = e.NewValue as string;
+                    if (string.IsNullOrEmpty(n)) v.ClearFocus();
+                    else v.FocusAxis(n, true);
+                }));
+        public string? FocusAxisName
+        {
+            get => (string?)GetValue(FocusAxisNameProperty);
+            set => SetValue(FocusAxisNameProperty, value);
+        }
+
         public static readonly DependencyProperty PointsProperty =
             DependencyProperty.Register(nameof(Points), typeof(Point3DCollection), typeof(Sim3DView),
                 new PropertyMetadata(null, (o, e) => ((Sim3DView)o).BuildScene()));
@@ -133,6 +159,23 @@ namespace NoCodeMotion.Views
 
         private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(33) };
 
+        // ===== 智能跟随 / 运动高亮 / 平滑插值 =====
+        private Point3D _orbitCenter = new(0, 6, 0);        // 相机轨道中心（Look 目标），自动跟随时平滑移动
+        private Point3D _orbitCenterTarget = new(0, 6, 0);
+        private bool _followEnabled = true;                 // 智能跟随开关（手动拖拽时临时关闭）
+        private DispatcherTimer? _followResumeTimer;
+        private readonly Dictionary<string, double> _prevAxis = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, double> _axisSpeed = new(StringComparer.OrdinalIgnoreCase);
+        private double _dispX, _dispY, _dispZ;              // 直线轴平滑显示位移（避免跳变更顺滑）
+        private double _dispRot;                            // 首个旋转轴平滑角度
+        private readonly Dictionary<char, ModelVisual3D> _highlightHosts = new();  // 轴角色 -> 发光外壳宿主
+        private readonly Dictionary<char, GeometryModel3D> _highlightModels = new();
+        private readonly SolidColorBrush _hlBrushActive = new(Color.FromRgb(0xFB, 0x92, 0x3C)); // 运动中：橙
+        private readonly SolidColorBrush _hlBrushError = new(Color.FromRgb(0xEF, 0x44, 0x44));  // 异常：红
+        private string? _focusAxisName;                     // 异常锁定焦点轴名（优先于自动跟随）
+        private bool _focusIsError;
+        private double _pulse;                              // 高亮脉冲相位
+
         public Sim3DView()
         {
             InitializeComponent();
@@ -143,6 +186,9 @@ namespace NoCodeMotion.Views
                 Vp.CaptureMouse();
                 _dragging = true;
                 _last = e.GetPosition(Vp);
+                // 用户手动接管视角：暂停智能跟随，松开 2.5s 后自动恢复（异常锁定时不恢复）
+                _followEnabled = false;
+                _followResumeTimer?.Stop();
             };
             Vp.MouseMove += (s, e) =>
             {
@@ -161,6 +207,14 @@ namespace NoCodeMotion.Views
             {
                 _dragging = false;
                 Vp.ReleaseMouseCapture();
+                // 2.5s 后恢复智能跟随（除非正处于异常锁定视角）
+                if (_focusAxisName == null)
+                {
+                    _followResumeTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2500) };
+                    _followResumeTimer.Tick += (s2, e2) => { _followResumeTimer!.Stop(); if (_focusAxisName == null) _followEnabled = true; };
+                    _followResumeTimer.Stop();
+                    _followResumeTimer.Start();
+                }
             };
             Vp.MouseWheel += (s, e) =>
             {
@@ -194,6 +248,8 @@ namespace NoCodeMotion.Views
             _machineGroup = null;
             _linearGroups.Clear();
             _rotaryTops.Clear();
+            _highlightHosts.Clear();
+            _highlightModels.Clear();
             _workpieceParent = null;
             _deepestLinear = null;
             _axialX = _axialYdepth = _axialZup = null;
@@ -202,6 +258,10 @@ namespace NoCodeMotion.Views
             _usesCamera = _usesCylinder = false;
             _scale = 1;
             _center = new Point3D(0, 0, 0);
+            _prevAxis.Clear();
+            _axisSpeed.Clear();
+            _dispX = _dispY = _dispZ = 0;
+            _dispRot = 0;
 
             var raw = Points;
             EmptyHint.Visibility = (raw == null || raw.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
@@ -269,9 +329,9 @@ namespace NoCodeMotion.Views
 
             // 直线轴：嵌套组 X ⊃ D(depth) ⊃ U(up)
             ModelVisual3D parent = _machineGroup;
-            if (_axialX != null) { var g = new ModelVisual3D(); parent.Children.Add(g); _linearGroups['X'] = g; AddGantryStructure(g); parent = g; }
-            if (_axialYdepth != null) { var g = new ModelVisual3D(); parent.Children.Add(g); _linearGroups['D'] = g; AddBridgeStructure(g); parent = g; }
-            if (_axialZup != null) { var g = new ModelVisual3D(); parent.Children.Add(g); _linearGroups['U'] = g; AddSpindleStructure(g); parent = g; _deepestLinear = parent; }
+            if (_axialX != null) { var g = new ModelVisual3D(); parent.Children.Add(g); _linearGroups['X'] = g; AddGantryStructure(g); AddHighlight(g, 'X', 11, 58, 76, new Point3D(0, 16, 0)); parent = g; }
+            if (_axialYdepth != null) { var g = new ModelVisual3D(); parent.Children.Add(g); _linearGroups['D'] = g; AddBridgeStructure(g); AddHighlight(g, 'D', 116, 16, 18, new Point3D(0, 38, 0)); parent = g; }
+            if (_axialZup != null) { var g = new ModelVisual3D(); parent.Children.Add(g); _linearGroups['U'] = g; AddSpindleStructure(g); AddHighlight(g, 'U', 18, 32, 18, new Point3D(0, 8, 0)); parent = g; _deepestLinear = parent; }
 
             // 旋转轴：床面转台
             foreach (var r in _rotaryInfos)
@@ -284,6 +344,7 @@ namespace NoCodeMotion.Views
                 AddModel(top, _cyl, 16, 4, 16, new Point3D(0, -6, 0), MatKind.Rotary);
                 _rotaryTops[r.Role] = top;
                 if (_workpieceParent == null) _workpieceParent = top; // 工件随第一个旋转轴转
+                AddHighlight(baseC, r.Role, 22, 8, 22, new Point3D(0, -6, 0));
             }
 
             // 工件（蓝金属块）：放在旋转台上（若有），否则床面
@@ -423,18 +484,27 @@ namespace NoCodeMotion.Views
             return Math.Max(-1, Math.Min(1, t));
         }
 
-        // 每帧：用 AxisRuntimeState 驱动机台各轴组 + 当前位置头
+        // 每帧：用 AxisRuntimeState 驱动机台各轴组 + 当前位置头（含平滑、运动检测、智能跟随、高亮）
         private void UpdatePoseFromRuntime()
         {
             if (_machineGroup == null) return;
 
-            double x = _axialX != null ? NormPos(_axialX) * WorkX : 0;
-            double z = _axialYdepth != null ? NormPos(_axialYdepth) * WorkZ : 0;
-            double yUp = (_axialZup != null ? NormPos(_axialZup) * WorkY : 0) + BaseY;
+            // 目标轴位置（归一化 → 工作空间）
+            double tx = _axialX != null ? NormPos(_axialX) * WorkX : 0;
+            double tz = _axialYdepth != null ? NormPos(_axialYdepth) * WorkZ : 0;
+            double tyUp = (_axialZup != null ? NormPos(_axialZup) * WorkY : 0) + BaseY;
+            double trot = _rotaryInfos.Count > 0 ? AxisRuntimeState.Get(_rotaryInfos[0].Name) : 0;
 
-            if (_linearGroups.TryGetValue('X', out var gx)) gx.Transform = new TranslateTransform3D(x, 0, 0);
-            if (_linearGroups.TryGetValue('D', out var gd)) gd.Transform = new TranslateTransform3D(0, 0, z);
-            if (_linearGroups.TryGetValue('U', out var gu)) gu.Transform = new TranslateTransform3D(0, yUp, 0);
+            // 平滑插值（低通），动画更顺滑、避免跳变
+            const double k = 0.2;
+            _dispX += (tx - _dispX) * k;
+            _dispZ += (tz - _dispZ) * k;
+            _dispY += (tyUp - _dispY) * k;
+            _dispRot += (trot - _dispRot) * k;
+
+            if (_linearGroups.TryGetValue('X', out var gx)) gx.Transform = new TranslateTransform3D(_dispX, 0, 0);
+            if (_linearGroups.TryGetValue('D', out var gd)) gd.Transform = new TranslateTransform3D(0, 0, _dispZ);
+            if (_linearGroups.TryGetValue('U', out var gu)) gu.Transform = new TranslateTransform3D(0, _dispY, 0);
 
             foreach (var r in _rotaryInfos)
             {
@@ -443,12 +513,144 @@ namespace NoCodeMotion.Views
                     var axisVec = r.Role == 'A' ? new Vector3D(0, 1, 0)
                                 : r.Role == 'B' ? new Vector3D(1, 0, 0)
                                 : new Vector3D(0, 0, 1);
-                    double deg = AxisRuntimeState.Get(r.Name); // 旋转轴单位 °，直接作角度
-                    top.Transform = new RotateTransform3D(new AxisAngleRotation3D(axisVec, deg));
+                    top.Transform = new RotateTransform3D(new AxisAngleRotation3D(axisVec, _dispRot));
                 }
             }
 
-            PlaceHead(x, yUp, z);
+            PlaceHead(_dispX, _dispY, _dispZ);
+
+            UpdateSmartFocus();
+        }
+
+        // 智能跟随：检测运动最快的轴 → 相机平滑对准它；异常锁定轴优先并红高亮
+        private void UpdateSmartFocus()
+        {
+            _pulse += 0.18;
+            double s = 0.5 + 0.5 * Math.Sin(_pulse);
+
+            // 各轴归一化值 + 每帧速度
+            var axes = new List<(char role, double norm)>();
+            if (_axialX != null) axes.Add(('X', NormPos(_axialX)));
+            if (_axialYdepth != null) axes.Add(('D', NormPos(_axialYdepth)));
+            if (_axialZup != null) axes.Add(('U', NormPos(_axialZup)));
+            foreach (var r in _rotaryInfos) axes.Add((r.Role, AxisRuntimeState.Get(r.Name) / 180.0));
+
+            char activeRole = '\0';
+            double maxSpeed = 0;
+            foreach (var (role, norm) in axes)
+            {
+                string key = role.ToString();
+                double prev = _prevAxis.TryGetValue(key, out var p) ? p : norm;
+                double speed = Math.Abs(norm - prev);
+                _prevAxis[key] = norm;
+                _axisSpeed[key] = speed;
+                if (speed > maxSpeed) { maxSpeed = speed; activeRole = role; }
+            }
+
+            if (_focusAxisName != null)
+            {
+                char fr = RoleOfAxis(_focusAxisName);
+                _orbitCenterTarget = FocusPointFor(fr);
+                SetHighlight(fr, true, s);
+                HideOtherHighlights(fr);
+                SmoothOrbit();
+                return;
+            }
+
+            if (_followEnabled && !_dragging && maxSpeed > 0.0009 && activeRole != '\0')
+            {
+                _orbitCenterTarget = FocusPointFor(activeRole);
+                SetHighlight(activeRole, false, s);
+                HideOtherHighlights(activeRole);
+            }
+            else
+            {
+                FadeAllHighlights();
+            }
+            SmoothOrbit();
+        }
+
+        private Point3D FocusPointFor(char role)
+        {
+            return role switch
+            {
+                'X' => new Point3D(_dispX, 30, 0),
+                'D' => new Point3D(_dispX, 30, _dispZ),
+                'U' => new Point3D(_dispX, 30 + _dispY, _dispZ),
+                _ => new Point3D(0, 2, 0) // 旋转轴转台中心
+            };
+        }
+
+        private char RoleOfAxis(string name)
+        {
+            foreach (var a in _linearInfos)
+                if (string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase)) return a.Scene;
+            foreach (var r in _rotaryInfos)
+                if (string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase)) return r.Role;
+            char c = PickLinearRole(name);
+            return c != 'L' ? c : PickRotaryRole(name);
+        }
+
+        private void SetHighlight(char role, bool isError, double s)
+        {
+            if (!_highlightModels.TryGetValue(role, out var gm)) return;
+            if (gm.Material is not DiffuseMaterial mat) return;
+            mat.Brush = isError ? _hlBrushError : _hlBrushActive;
+            // DiffuseMaterial 无 Opacity，靠 SolidColorBrush.Opacity 做呼吸脉冲
+            (isError ? _hlBrushError : _hlBrushActive).Opacity = 0.25 + 0.55 * s;
+            if (_highlightHosts.TryGetValue(role, out var host)) host.Content = gm;
+        }
+
+        private void HideOtherHighlights(char role)
+        {
+            foreach (var kv in _highlightHosts)
+                if (kv.Key != role) kv.Value.Content = null;
+        }
+
+        private void FadeAllHighlights()
+        {
+            foreach (var kv in _highlightHosts) kv.Value.Content = null;
+        }
+
+        private void SmoothOrbit()
+        {
+            _orbitCenter.X += (_orbitCenterTarget.X - _orbitCenter.X) * 0.08;
+            _orbitCenter.Y += (_orbitCenterTarget.Y - _orbitCenter.Y) * 0.08;
+            _orbitCenter.Z += (_orbitCenterTarget.Z - _orbitCenter.Z) * 0.08;
+        }
+
+        /// <summary>外部（运行异常）调用：把相机锁定并飞到指定轴，红高亮脉冲。</summary>
+        public void FocusAxis(string name, bool isError = true)
+        {
+            _focusAxisName = name;
+            _focusIsError = isError;
+            _followEnabled = false;
+            _followResumeTimer?.Stop();
+        }
+
+        /// <summary>清除异常视角锁定，恢复正常智能跟随。</summary>
+        public void ClearFocus()
+        {
+            _focusAxisName = null;
+            _focusIsError = false;
+            if (!_dragging) _followEnabled = true;
+        }
+
+        // 工具条：智能跟随开关
+        private void ChkFollow_Changed(object sender, RoutedEventArgs e)
+        {
+            if (ChkFollow == null) return;
+            _followEnabled = ChkFollow.IsChecked == true;
+            if (_followEnabled && _focusAxisName != null) ClearFocus();
+            _followResumeTimer?.Stop();
+        }
+
+        // 工具条：复位视角到默认轨道
+        private void BtnResetView_Click(object sender, RoutedEventArgs e)
+        {
+            _theta = 0.7; _phi = 0.5; _radius = 240;
+            _orbitCenter = _orbitCenterTarget = new Point3D(0, 6, 0);
+            UpdateCamera();
         }
 
         private void PlaceHead(double x, double yUp, double z)
@@ -546,6 +748,26 @@ namespace NoCodeMotion.Views
             return gm;
         }
 
+        // 发光高亮外壳：包住对应轴部件，默认隐藏。运动时显橙并脉冲，异常时显红并强脉冲。
+        // 返回宿主 ModelVisual3D 以便切换可见性；同时存 GeometryModel3D 以便换材质。
+        private ModelVisual3D AddHighlight(ModelVisual3D parent, char role, double sx, double sy, double sz, Point3D pos)
+        {
+            var mat = new DiffuseMaterial(_hlBrushActive);
+            var gm = new GeometryModel3D(_box, mat) { BackMaterial = mat };
+            var host = new ModelVisual3D
+            {
+                Content = gm,
+                Transform = new Transform3DGroup
+                {
+                    Children = { new ScaleTransform3D(sx, sy, sz), new TranslateTransform3D(pos.X, pos.Y, pos.Z) }
+                }
+            };
+            parent.Children.Add(host);
+            _highlightHosts[role] = host;
+            _highlightModels[role] = gm;
+            return host;
+        }
+
         private void AddSegment(Point3D a, Point3D b, double radius, MatKind kind)
         {
             Vector3D dir = b - a;
@@ -568,11 +790,11 @@ namespace NoCodeMotion.Views
         {
             double r = _radius;
             var pos = new Point3D(
-                r * Math.Cos(_phi) * Math.Cos(_theta),
-                r * Math.Sin(_phi),
-                r * Math.Cos(_phi) * Math.Sin(_theta));
+                _orbitCenter.X + r * Math.Cos(_phi) * Math.Cos(_theta),
+                _orbitCenter.Y + r * Math.Sin(_phi),
+                _orbitCenter.Z + r * Math.Cos(_phi) * Math.Sin(_theta));
             Cam.Position = pos;
-            Cam.LookDirection = new Vector3D(-pos.X, -pos.Y, -pos.Z);
+            Cam.LookDirection = new Vector3D(_orbitCenter.X - pos.X, _orbitCenter.Y - pos.Y, _orbitCenter.Z - pos.Z);
             Cam.UpDirection = new Vector3D(0, 1, 0);
         }
 

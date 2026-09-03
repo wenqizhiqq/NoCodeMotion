@@ -29,6 +29,15 @@
             <ModelVisual3D x:Name="Root"/>
         </Viewport3D>
 
+        <!-- 智能跟随工具条：自动对准运动轴 / 复位视角 -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6" IsHitTestVisible="True">
+            <CheckBox x:Name="ChkFollow" Content="智能跟随" IsChecked="True" Margin="0,0,8,0"
+                      Foreground="#334155" FontSize="11" VerticalAlignment="Center"
+                      Checked="ChkFollow_Changed" Unchecked="ChkFollow_Changed"/>
+            <Button x:Name="BtnResetView" Content="复位视角" Style="{StaticResource TtPillBlueBtn}"
+                    FontSize="11" MinWidth="0" Padding="10,3" Click="BtnResetView_Click"/>
+        </StackPanel>
+
         <TextBlock x:Name="EmptyHint" Text="该工位暂无点位，无法仿真"
                    FontSize="12" Foreground="#94A3B8" HorizontalAlignment="Center"
                    VerticalAlignment="Center" Visibility="Collapsed"/>

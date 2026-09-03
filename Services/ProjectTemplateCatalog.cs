@@ -617,6 +617,9 @@ namespace NoCodeMotion.Services
                 d.Cylinders.Add(Cyl("夹紧", "Y1", "X2", "X3"));
                 d.Cylinders.Add(Cyl("打螺丝", "Y2", "X4", "X5"));
                 d.Cylinders.Add(Cyl("顶升", "Y3", "X6", "X7"));
+                // 提供 X/Y 两轴，使内置「脚本流程」Lua 示例（演示 Axis.MoveAbs 轴联动）可直接跑通
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 200, 100, 100));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 200, 100, 100));
                 d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
                 d.Comms.Add(Comm("压力传感器", "ModbusTCP", "192.168.1.30", 502));
                 AddVars(d, ("计数", "0"), ("总数", "0"));

@@ -98,6 +98,8 @@ namespace NoCodeMotion.ViewModels
                 OnPropertyChanged(nameof(CanPause));
                 OnPropertyChanged(nameof(CanEStop));
                 StatusBarService.SetRunState(IsRunning, EStopped);
+                // 运行结束 / 停止：解除异常视角锁定，3D 仿真恢复智能跟随
+                if (!value) OpFocusAxis = null;
             }
         }
 
@@ -233,6 +235,17 @@ namespace NoCodeMotion.ViewModels
         {
             get => _opSimCapture;
             private set { _opSimCapture = value; OnPropertyChanged(nameof(OpSimCapture)); }
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex _axisNameRe =
+            new("[XYUZRABCxyuzrabc]\\s*轴", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>异常焦点轴名：异常/警告日志里解析出轴名后设置，驱动 3D 视角飞到该轴并红高亮；运行结束/停止时清空。</summary>
+        private string? _opFocusAxis;
+        public string? OpFocusAxis
+        {
+            get => _opFocusAxis;
+            set => SetField(ref _opFocusAxis, value);
         }
 
         /// <summary>仿真沿路径插值相位（单位：点位）。</summary>
@@ -1002,6 +1015,12 @@ namespace NoCodeMotion.ViewModels
             if (level == LogLevel.Info) return;
             Log.Insert(0, new LogEntry { Time = DateTime.Now, Level = level, Message = message });
             while (Log.Count > 200) Log.RemoveAt(Log.Count - 1);
+            // 异常 / 警告：尝试从文本解析出轴名，驱动 3D 仿真视角飞到该轴并红高亮
+            if (level == LogLevel.Error || level == LogLevel.Warn)
+            {
+                var m = _axisNameRe.Match(message ?? string.Empty);
+                if (m.Success) OpFocusAxis = m.Value.ToUpper().Replace(" ", "");
+            }
         }
 
         /// <summary>清空异常日志（按钮：清空）。清空后 CollectionChanged 触发 RefreshLogCounts 同步重置计数与空态。</summary>
