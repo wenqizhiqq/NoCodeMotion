@@ -1,0 +1,71 @@
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(89,51): warning CS8618: f)1  Qp/prVHri|\	{Y null (?\m)["k "LineChanged" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU \m)["k oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(90,46): warning CS8618: f)1  Qp/prVHri|\	{Y null (?\m)["k "RunEnded" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU \m)["k oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(180,79): warning CS8604: %mlowExecutor.FlowExecutor(FlowItem flow, int index, List<FlowStep> steps, FlowRunControl ctrl, Action<string, LogLevel> log, Action<int, string, string> onStep)%oQ(R0YP nog%or_sb6}O?null [fde9pp,_?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(270,47): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(271,52): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(290,74): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(340,48): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(521,16): warning CS8618: f)1  Qp/prVHri|\	{Y null (?pAi "_lastCurrent" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU pAi oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(536,32): warning CS8625: ÓrvxOp?null pEipo_Fmmȕ?null (R)}"'1h([ ?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(802,30): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(803,53): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(804,38): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(700,13): warning CS8602: YtE)}"%1r_sɅVnb%[fde?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(711,13): warning CS8602: YtE)}"%1r_sɅVnb%[fde?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\Services\Vision\VisionEngine.cs(144,101): warning CS8601: YXQ(?null [fdet*[ :{ ?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: pAi%mperatorViewModel._timingClockMs%oQttyJwx}cmU|ȓCZ"(1C~9pQkJ?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(89,51): warning CS8618: f)1  Qp/prVHri|\	{Y null (?\m)["k "LineChanged" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU \m)["k oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(90,46): warning CS8618: f)1  Qp/prVHri|\	{Y null (?\m)["k "RunEnded" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU \m)["k oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(180,79): warning CS8604: %mlowExecutor.FlowExecutor(FlowItem flow, int index, List<FlowStep> steps, FlowRunControl ctrl, Action<string, LogLevel> log, Action<int, string, string> onStep)%oQ(R0YP nog%or_sb6}O?null [fde9pp,_?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\Services\Vision\VisionEngine.cs(144,101): warning CS8601: YXQ(?null [fdet*[ :{ ?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(521,16): warning CS8618: f)1  Qp/prVHri|\	{Y null (?pAi "_lastCurrent" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU pAi oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(536,32): warning CS8625: ÓrvxOp?null pEipo_Fmmȕ?null (R)}"'1h([ ?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(802,30): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(803,53): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(804,38): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(270,47): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(271,52): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(290,74): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(340,48): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(700,13): warning CS8602: YtE)}"%1r_sɅVnb%[fde?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(711,13): warning CS8602: YtE)}"%1r_sɅVnb%[fde?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: pAi%mperatorViewModel._timingClockMs%oQttyJwx}cmU|ȓCZ"(1C~9pQkJ?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+
+[SWTqSe)a ?
+
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(89,51): warning CS8618: f)1  Qp/prVHri|\	{Y null (?\m)["k "LineChanged" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU \m)["k oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(90,46): warning CS8618: f)1  Qp/prVHri|\	{Y null (?\m)["k "RunEnded" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU \m)["k oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(180,79): warning CS8604: %mlowExecutor.FlowExecutor(FlowItem flow, int index, List<FlowStep> steps, FlowRunControl ctrl, Action<string, LogLevel> log, Action<int, string, string> onStep)%oQ(R0YP nog%or_sb6}O?null [fde9pp,_?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(270,47): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(271,52): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(290,74): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(340,48): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(521,16): warning CS8618: f)1  Qp/prVHri|\	{Y null (?pAi "_lastCurrent" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU pAi oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(536,32): warning CS8625: ÓrvxOp?null pEipo_Fmmȕ?null (R)}"'1h([ ?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(802,30): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(803,53): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(804,38): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(700,13): warning CS8602: YtE)}"%1r_sɅVnb%[fde?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(711,13): warning CS8602: YtE)}"%1r_sɅVnb%[fde?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\Services\Vision\VisionEngine.cs(144,101): warning CS8601: YXQ(?null [fdet*[ :{ ?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: pAi%mperatorViewModel._timingClockMs%oQttyJwx}cmU|ȓCZ"(1C~9pQkJ?[D:\wqz\code\NoCodeMotion\NoCodeMotion_b5p3ii3h_wpftmp.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(89,51): warning CS8618: f)1  Qp/prVHri|\	{Y null (?\m)["k "LineChanged" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU \m)["k oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(90,46): warning CS8618: f)1  Qp/prVHri|\	{Y null (?\m)["k "RunEnded" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU \m)["k oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(180,79): warning CS8604: %mlowExecutor.FlowExecutor(FlowItem flow, int index, List<FlowStep> steps, FlowRunControl ctrl, Action<string, LogLevel> log, Action<int, string, string> onStep)%oQ(R0YP nog%or_sb6}O?null [fde9pp,_?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\Services\Vision\VisionEngine.cs(144,101): warning CS8601: YXQ(?null [fdet*[ :{ ?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(521,16): warning CS8618: f)1  Qp/prVHri|\	{Y null (?pAi "_lastCurrent" GtT0VmT`ȕ?null J:{ PpQj#ZY "required" m0~=WOpU pAi oHrimTr_m?null?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(536,32): warning CS8625: ÓrvxOp?null pEipo_Fmmȕ?null (R)}"'1h([ ?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(802,30): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(803,53): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(804,38): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(270,47): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(271,52): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(290,74): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(340,48): warning CS8600: Op?null Vpn'hr_sLuk null JpFmmm]r_m?null ~7p?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(700,13): warning CS8602: YtE)}"%1r_sɅVnb%[fde?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(711,13): warning CS8602: YtE)}"%1r_sɅVnb%[fde?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: pAi%mperatorViewModel._timingClockMs%oQttyJwx}cmU|ȓCZ"(1C~9pQkJ?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+    32 mG[?
+    0 mHJet?
+
+[,deÓXh 00:00:07.22

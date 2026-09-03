@@ -3,6 +3,7 @@
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 #nullable disable
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -59,6 +60,17 @@ namespace NoCodeMotion.Services
         private readonly AutoResetEvent _resumeEvent = new AutoResetEvent(false);
         private readonly HashSet<int> _breakpoints = new HashSet<int>();
 
+        // —— 输出节流批处理 ——
+        // 高频 print / 硬件日志会触发每毫秒上万次 Log?.Invoke，每次都进 Dispatcher 队列 + ObservableCollection.Add，
+        // 1 秒内 WPF 消息队列就爆掉（表现为 UI 假死 + 内存 6.5GB+）。这里把 Output 类（print）合批：
+        // 脚本线程入 ConcurrentQueue，System.Threading.Timer 每 120ms 一次性派发整批到 UI（线程池驱动，不依赖 UI Dispatcher）。
+        // 上限 LOG_BATCH_HARD_CAP 防一次性过大（罕见脚本灾难）。
+        private readonly ConcurrentQueue<(string text, LogKind kind)> _logBatch = new ConcurrentQueue<(string, LogKind)>();
+        private readonly System.Threading.Timer _logFlushTimer;
+        private int _logFlushRunning;  // 0=未在跑；1=已启动 timer（Interlocked 切换）
+        private const int LOG_BATCH_PER_TICK = 256;     // 一次 Tick 最多派发条数
+        private const int LOG_BATCH_HARD_CAP = 4096;    // 队列上限（防 OOM/无限滞留）
+
         private Script _script;
         private SourceCode _sourceCode;
         private DebugService _debugService;
@@ -86,6 +98,13 @@ namespace NoCodeMotion.Services
         /// <summary>输出（print / 运行信息 / 错误）。在后台线程触发。</summary>
         public event Action<string, LogKind> Log;
 
+        /// <summary>
+        /// 输出节流批处理后的事件：UI 端建议订阅这个代替 Log，避免高频 print 把 Dispatcher 队列 + ObservableCollection 加爆。
+        /// 仅 Output 类日志（print / 硬件日志）走此批处理；Info/Error/Success 仍走 Log（频次低）。
+        /// 回调时机：LuaDebugSession 内部 System.Threading.Timer 每 120ms 一次性派发整批（线程池线程回调；订阅者需自行 BeginInvoke 到 UI）。
+        /// </summary>
+        public event Action<IReadOnlyList<(string text, LogKind kind)>> LogBatch;
+
         /// <summary>脚本挂起。在后台线程触发，UI 需自行 Dispatcher 切换。</summary>
         public event Action<PauseInfo> Paused;
 
@@ -97,6 +116,73 @@ namespace NoCodeMotion.Services
         public SessionState State { get; private set; } = SessionState.Idle;
 
         public bool IsBusy => State != SessionState.Idle;
+
+        public LuaDebugSession()
+        {
+            // 日志 flush 用 System.Threading.Timer（线程池驱动，不依赖 UI Dispatcher）：
+            // 无论本会话在 UI 线程（Lua 编辑器）还是后台线程（FlowRunnerService 运行器）构造，timer 都能正常 tick；
+            // 订阅者 OnSessionLogBatch 自行 Dispatcher.BeginInvoke 到 UI。
+            _logFlushTimer = new System.Threading.Timer(OnLogFlushTick, null, Timeout.Infinite, Timeout.Infinite);
+        }
+
+        #region 输出节流批处理
+
+        /// <summary>把日志分两类处理：Output 高频走批处理；Info/Error/Success 仍走 Log event 同步触发。</summary>
+        private void EnqueueLog(string text, LogKind kind)
+        {
+            text = text ?? string.Empty;
+            if (kind == LogKind.Output)
+            {
+                _logBatch.Enqueue((text, kind));
+                // 极端情况下（脚本每毫秒上万条 print）排队；超过上限时截断最早条目，
+                // 避免队列无限增长把内存吃光（典型症状 6.5GB+ 内存涨到位）。
+                while (_logBatch.Count > LOG_BATCH_HARD_CAP)
+                {
+                    _logBatch.TryDequeue(out _);
+                }
+                EnsureLogFlushTimer();
+            }
+            else
+            {
+                Log?.Invoke(text, kind);
+            }
+        }
+
+        private void EnsureLogFlushTimer()
+        {
+            if (Interlocked.CompareExchange(ref _logFlushRunning, 1, 0) != 0) return;
+            try { _logFlushTimer.Change(0, 120); }
+            catch
+            {
+                Interlocked.Exchange(ref _logFlushRunning, 0);
+            }
+        }
+
+        private void OnLogFlushTick(object state)
+        {
+            if (_logBatch.IsEmpty)
+            {
+                _logFlushTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                Interlocked.Exchange(ref _logFlushRunning, 0);
+                return;
+            }
+
+            var batch = new List<(string, LogKind)>(LOG_BATCH_PER_TICK);
+            while (batch.Count < LOG_BATCH_PER_TICK && _logBatch.TryDequeue(out var item))
+            {
+                batch.Add(item);
+            }
+            if (batch.Count > 0)
+            {
+                try { LogBatch?.Invoke(batch); }
+                catch
+                {
+                    // 订阅者异常不要阻塞后续 tick
+                }
+            }
+        }
+
+        #endregion
 
         #region 生命周期控制
 
@@ -134,16 +220,16 @@ namespace NoCodeMotion.Services
             try
             {
                 _script = new Script(CoreModules.Preset_Complete);
-                _script.Options.DebugPrint = s => Log?.Invoke(s, LogKind.Output);
+                _script.Options.DebugPrint = s => EnqueueLog(s, LogKind.Output);
 
                 // 硬件装配：首次运行脚本时按环境自动选择（有 LTDMC.dll → 雷赛控制卡 + 真实通讯，
                 // 否则仿真桩），并把硬件层日志接到输出面板。
-                Hardware.HardwareLog.Sink = s => Log?.Invoke(s, LogKind.Output);
+                Hardware.HardwareLog.Sink = s => EnqueueLog(s, LogKind.Output);
                 Hardware.HardwareSetup.EnsureInitialized();
 
                 // 预留硬件接口：把轴/IO/气缸/通讯/料盘的运动控制函数注册成 Lua 全局函数。
                 // 名称解析与 Lua 绑定在 HardwareApi 里完成，真正的设备对接在 IHardwareBridge。
-                HardwareApi.Register(_script, new HardwareApi(HardwareBridge.Current, s => Log?.Invoke(s, LogKind.Output)));
+                HardwareApi.Register(_script, new HardwareApi(HardwareBridge.Current, s => EnqueueLog(s, LogKind.Output)));
 
                 _baselineGlobals = new HashSet<string>(
                     _script.Globals.Pairs.Select(p => p.Key.CastToString() ?? string.Empty));
@@ -209,7 +295,33 @@ namespace NoCodeMotion.Services
                 _running = false;
                 State = SessionState.Idle;
                 _pauseRequested = false;
+
+                // 脚本结束前：把还在队列里的 print / 硬件日志一次性 flush 出去（再停 timer），
+                // 保证用户能在输出面板看到最后一段 print 的真实内容，不会有"运行结束但输出空一段"的奇怪感觉。
+                FlushLogBatchImmediate();
+
                 Ended?.Invoke(info);
+            }
+        }
+
+        private void FlushLogBatchImmediate()
+        {
+            try
+            {
+                _logFlushTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+            catch { /* timer 已经停了 */ }
+            Interlocked.Exchange(ref _logFlushRunning, 0);
+
+            if (_logBatch.IsEmpty) return;
+
+            var batch = new List<(string, LogKind)>(LOG_BATCH_PER_TICK);
+            while (batch.Count < LOG_BATCH_HARD_CAP && _logBatch.TryDequeue(out var item))
+                batch.Add(item);
+            if (batch.Count > 0)
+            {
+                try { LogBatch?.Invoke(batch); }
+                catch { /* 见 OnLogFlushTick */ }
             }
         }
 
@@ -254,6 +366,8 @@ namespace NoCodeMotion.Services
             _stopRequested = true;
             _pauseRequested = true;
             _resumeEvent.Set();
+            // 主动停止时也把已入队的日志冲出去，用户能在输出面板看到停止时刻的实际输出。
+            FlushLogBatchImmediate();
         }
 
         #endregion

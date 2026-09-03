@@ -622,7 +622,8 @@ namespace NoCodeMotion.Views
             _operatorDriven = operatorDriven;
 
             _session = new LuaDebugSession();
-            _session.Log += OnSessionLog;
+            _session.Log += OnSessionLog;          // Info/Error/Success 仍走这里（频次低）
+            _session.LogBatch += OnSessionLogBatch; // Output（print/硬件日志）频次高，统一节流批处理
             _session.Paused += OnSessionPaused;
             _session.Ended += OnSessionEnded;
             // 编辑器自身的会话：直接在 UI 线程高亮当前行，不走 LuaRunMonitor 公共广播通道，
@@ -650,6 +651,60 @@ namespace NoCodeMotion.Views
 
         private void OnSessionLog(string text, LogKind kind) =>
             Dispatcher.BeginInvoke(new Action(() => AppendLog(text, kind)));
+
+        /// <summary>Output 类日志（print/硬件日志）节流批处理入口：在 LuaDebugSession 的脚本线程上每 120ms 调一次，
+        /// 一次性 BeginInvoke 到 UI（Background 优先级）。OnSessionLog 已经把 Info/Error/Success 走单条；
+        /// 这里只服务高频 Output，避免每毫秒 BeginInvoke 队列撑爆导致 UI 假死。</summary>
+        private void OnSessionLogBatch(IReadOnlyList<(string text, LogKind kind)> batch) =>
+            Dispatcher.BeginInvoke(new Action(() => AppendLogBatch(batch)), DispatcherPriority.Background);
+
+        /// <summary>把 LuaDebugSession 节流批处理后的整批日志一次性追加到输出面板。</summary>
+        private void AppendLogBatch(IReadOnlyList<(string text, LogKind kind)> batch)
+        {
+            if (batch == null || batch.Count == 0) return;
+
+            // 1) 一次性插入所有条目（变量集中在 1 个 List<LogEntry> 内 for-each，比每条 ObservableCollection.Add + 命中虚拟化路径重排省一个数量级）
+            int lastIndex = _log.Count - 1;
+            for (int i = 0; i < batch.Count; i++)
+            {
+                var (text, kind) = batch[i];
+                Brush brush = kind switch
+                {
+                    LogKind.Error => BrushError,
+                    LogKind.Success => BrushSuccess,
+                    LogKind.Info => BrushInfo,
+                    _ => BrushOutput
+                };
+                _log.Add(new LogEntry { Text = text ?? string.Empty, Brush = brush });
+                lastIndex = _log.Count - 1;
+
+                // print 回显 / 错误诊断：只刷最后一次最新值，避免重复赋值造成 WPF 文本属性无效刷新
+                if (kind == LogKind.Output)
+                {
+                    TxtPrint.Text = text ?? string.Empty;
+                    TxtPrint.Foreground = BrushInfo;
+                }
+                else if (kind == LogKind.Error)
+                {
+                    _diagErrorActive = true;
+                    TxtDiagnostics.Text = "✖ " + (text ?? string.Empty);
+                    TxtDiagnostics.Foreground = BrushError;
+                    TxtDiagnostics.ToolTip = text ?? string.Empty;
+                }
+            }
+
+            // 2) 限长：批内 Add 完一次性截断到上限（2000），避免逐条 RemoveAt 触发多次 CollectionChanged
+            if (_log.Count > 2000)
+            {
+                int cut = _log.Count - 2000;
+                for (int i = 0; i < cut; i++) _log.RemoveAt(0);
+                lastIndex = _log.Count - 1;
+            }
+
+            // 3) 一次性滚动到底
+            if (lastIndex >= 0 && lastIndex < _log.Count)
+                OutputList.ScrollIntoView(_log[lastIndex]);
+        }
 
         private void OnSessionPaused(PauseInfo info) => Dispatcher.BeginInvoke(new Action(() =>
         {
@@ -749,6 +804,13 @@ namespace NoCodeMotion.Views
             _currentLineRenderer.Line = line;
             _bpMargin.SetCurrentLine(line);
             Editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
+
+            // 持续运行期：脚本每跨一行都会触发一次 HighlightLine。ScrollToLine + 移动光标是重活（重新生成 VisualLines +
+            // 触发 Caret.PositionChanged → InspectAtCaret），持续运行期每秒上百次会让 AvalonEdit 把消息泵拖垮，
+            // 这里仅"轻刷"——背景渲染层标高亮，到运行结束 / 暂停 / 单步时再由对应回调做一次性滚动 + 光标归位。
+            bool running = _session != null && _session.IsBusy && _session.State == SessionState.Running;
+            if (running) return;
+
             Editor.ScrollToLine(line);
             Editor.TextArea.Caret.Line = line;
             Editor.TextArea.Caret.Column = 1;
