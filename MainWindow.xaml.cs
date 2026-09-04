@@ -43,6 +43,7 @@ namespace NoCodeMotion
         {
             InitializeComponent();
             Instance = this;
+            LoadingService.StateChanged += OnLoadingStateChanged;
             ProjectManager.DataReloaded += OnProjectDataReloaded;
             StatusBarService.SetProject(ProjectManager.CurrentName ?? "未打开工程");
             StatusBarService.RefreshUser();
@@ -82,11 +83,33 @@ namespace NoCodeMotion
         {
             if (!_cache.TryGetValue(key, out var page))
             {
-                page = _pages[key]();
-                _cache[key] = page;
+                // 首次构造页面可能较重：先显示加载遮罩，并把构造推迟到下一帧，
+                // 让遮罩有机会渲染出来，避免「卡住却无任何提示」。
+                LoadingService.Show($"正在加载「{TitleFor(key)}」页面…");
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        var built = _pages[key]();
+                        _cache[key] = built;
+                        PageHost.Content = built;
+                        FinishNavigate(built, key, btn);
+                    }
+                    finally
+                    {
+                        LoadingService.Hide();
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+                return;
             }
-            PageHost.Content = page;
 
+            PageHost.Content = page;
+            FinishNavigate(page, key, btn);
+        }
+
+        /// <summary>页面装好后的公共收尾：默认选中项 + 导航高亮。</summary>
+        private void FinishNavigate(UserControl page, string key, Button? btn)
+        {
             // 切换页面后，若页面内尚无选中项，则默认选中第一项
             if (page.DataContext is IEnsureDefaultSelection eds)
                 eds.EnsureDefaultSelection();
@@ -103,6 +126,33 @@ namespace NoCodeMotion
                 _selectedNav.Background = (System.Windows.Media.Brush)FindResource("NavActiveBrush");
                 _selectedNav.Foreground = (System.Windows.Media.Brush)FindResource("AccentBrush");
             }
+        }
+
+        /// <summary>导航键对应的中文页签名，用于加载提示文案。</summary>
+        private static string TitleFor(string key) => key switch
+        {
+            "ProjectManager" => "项目管理",
+            "AxisController" => "控制器",
+            "Axis" => "轴",
+            "Io" => "IO",
+            "Cylinder" => "气缸",
+            "Point" => "点位表",
+            "Comm" => "通讯",
+            "Tray" => "料盘",
+            "Variable" => "变量",
+            "Flow" => "流程",
+            "Camera" => "相机",
+            "Engineer" => "工程师",
+            "Operator" => "操作员",
+            "Manual" => "说明书",
+            _ => key
+        };
+
+        /// <summary>加载遮罩可见性 / 文本随 LoadingService 状态切换。</summary>
+        private void OnLoadingStateChanged()
+        {
+            LoadingOverlay.Visibility = LoadingService.IsLoading ? Visibility.Visible : Visibility.Collapsed;
+            LoadingText.Text = LoadingService.Message;
         }
 
         /// <summary>导航栏「在线下发」开关：开启后配置页改值实时下发到设备（仅真实硬件桥生效）。</summary>

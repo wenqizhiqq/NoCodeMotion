@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using NoCodeMotion.Models;
 
 namespace NoCodeMotion.Services
@@ -118,6 +119,31 @@ namespace NoCodeMotion.Services
             LoadInto(fresh);
         }
 
+        /// <summary>
+        /// 新建工程（异步 + 加载遮罩）：在后台线程写出 xlsx，避免大模板阻塞 UI；
+        /// 写完后回到 UI 线程做原地载入并触发界面重建。供用户点击「新建」时调用。
+        /// </summary>
+        public static async Task NewProjectAsync(string name, ProjectTemplate? template)
+        {
+            LoadingService.Show($"正在创建工程「{name}」…");
+            try
+            {
+                var fresh = template != null ? template.Build() : new ProjectData();
+                fresh.EnsurePointTables();
+                fresh.CreatedAt = DateTime.Now;
+                CurrentName = name;
+                SaveLastProject(name);
+                // WriteFile（xlsx 写出）较重，放到后台线程
+                await Task.Run(() => WriteFile(name, fresh));
+                // LoadInto 必须在 UI 线程执行（会触发界面重建）
+                LoadInto(fresh);
+            }
+            finally
+            {
+                LoadingService.Hide();
+            }
+        }
+
         /// <summary>打开(读取)工程：从 name.xlsx 载入为当前数据（原地，不替换 Data 实例）。</summary>
         public static void OpenProject(string name)
         {
@@ -144,6 +170,46 @@ namespace NoCodeMotion.Services
             CurrentName = name;
             SaveLastProject(name);
             LoadInto(data);
+        }
+
+        /// <summary>
+        /// 打开(读取)工程（异步 + 加载遮罩）：在后台线程读取 xlsx，避免大工程阻塞 UI；
+        /// 读完后回到 UI 线程做原地载入并触发界面重建。供用户点击「打开」时调用。
+        /// </summary>
+        public static async Task OpenProjectAsync(string name)
+        {
+            LoadingService.Show($"正在打开工程「{name}」…");
+            try
+            {
+                var path = FileFor(name);
+                ProjectData data;
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        data = new ProjectData();
+                        XlsxProjectStore.ConfigureRoot(RootDir);
+                        await Task.Run(() => XlsxProjectStore.OpenProject(data, name));
+                    }
+                    catch
+                    {
+                        data = new ProjectData();
+                    }
+                }
+                else
+                {
+                    data = new ProjectData();
+                }
+                data.EnsurePointTables();
+                CurrentName = name;
+                SaveLastProject(name);
+                // LoadInto 必须在 UI 线程执行（会触发界面重建）
+                LoadInto(data);
+            }
+            finally
+            {
+                LoadingService.Hide();
+            }
         }
 
         /// <summary>保存当前工程（写入 name；默认保存到当前工程名）。</summary>

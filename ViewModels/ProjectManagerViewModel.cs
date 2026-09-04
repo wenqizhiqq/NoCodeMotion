@@ -4,6 +4,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using NoCodeMotion.Models;
@@ -64,8 +65,8 @@ namespace NoCodeMotion.ViewModels
 
         // ==================== 命令 ====================
 
-        public ICommand NewCommand => new RelayCommand(_ => New());
-        public ICommand OpenCommand => new RelayCommand(_ => Open(), _ => SelectedEntry != null);
+        public ICommand NewCommand => new RelayCommand(async _ => { await New(); });
+        public ICommand OpenCommand => new RelayCommand(async _ => { await Open(); }, _ => SelectedEntry != null);
         public ICommand SaveCommand => new RelayCommand(_ => Save());
         public ICommand DeleteCommand => new RelayCommand(_ => Delete(), _ => SelectedEntry != null);
         public ICommand RenameCommand => new RelayCommand(_ => Rename(), _ => SelectedEntry != null);
@@ -74,7 +75,7 @@ namespace NoCodeMotion.ViewModels
         public ICommand SaveRemarkCommand => new RelayCommand(_ => SaveRemark(), _ => SelectedEntry != null);
         public ICommand SaveRequirementsCommand => new RelayCommand(_ => SaveRequirements(), _ => SelectedEntry != null);
         public ICommand CopyPromptCommand => new RelayCommand(_ => CopyPrompt(), _ => SelectedEntry != null);
-        public ICommand PasteGenerateCommand => new RelayCommand(_ => PasteGenerate());
+        public ICommand PasteGenerateCommand => new RelayCommand(async _ => { await PasteGenerate(); });
 
         public ProjectManagerViewModel()
         {
@@ -136,7 +137,7 @@ namespace NoCodeMotion.ViewModels
         }
 
         /// <summary>【粘贴生成】读取剪贴板里的 AI 返回 JSON 并应用到当前工程。</summary>
-        private void PasteGenerate()
+        private async Task PasteGenerate()
         {
             string text;
             try
@@ -158,7 +159,7 @@ namespace NoCodeMotion.ViewModels
             var target = ProjectManager.CurrentName;
             if (string.IsNullOrEmpty(target) && SelectedEntry != null)
             {
-                ProjectManager.OpenProject(SelectedEntry.Name);
+                await ProjectManager.OpenProjectAsync(SelectedEntry.Name);
                 target = SelectedEntry.Name;
             }
             if (string.IsNullOrEmpty(target))
@@ -205,7 +206,7 @@ namespace NoCodeMotion.ViewModels
         /// <summary>备注单元格编辑结束后调用：把备注写回对应工程文件。</summary>
         public void PersistRemark(ProjectEntry entry) => ProjectManager.SetRemark(entry.Name, entry.Remark);
 
-        private void New()
+        private async Task New()
         {
             // 弹新弹窗：选模板 + 输入工程名。取消 / 无效输入直接退出。
             var dlg = new NewProjectDialog("工程" + (Projects.Count + 1));
@@ -215,19 +216,19 @@ namespace NoCodeMotion.ViewModels
             if (ProjectManager.Exists(name))
             {
                 // 同名已存在则直接打开，避免覆盖；用户想覆盖可手动删除后重建。
-                ProjectManager.OpenProject(name);
+                await ProjectManager.OpenProjectAsync(name);
             }
             else
             {
-                ProjectManager.NewProject(name, template);
+                await ProjectManager.NewProjectAsync(name, template);
             }
             // 新建/打开会触发界面重建，列表由重建后的页面重新刷新，此处无需额外 Refresh
         }
 
-        private void Open()
+        private async Task Open()
         {
             if (SelectedEntry == null) return;
-            ProjectManager.OpenProject(SelectedEntry.Name);
+            await ProjectManager.OpenProjectAsync(SelectedEntry.Name);
         }
 
         private void Save()

@@ -111,6 +111,23 @@
 
         <!-- 底部状态栏 -->
         <views:StatusBarView Grid.Row="2"/>
- 
+
+        <!-- 加载进度遮罩：切换/加载页面、打开/新建工程时显示（不确定进度条 + 提示） -->
+        <Grid x:Name="LoadingOverlay" Grid.RowSpan="4" Visibility="Collapsed"
+              Background="#66000000" Panel.ZIndex="999">
+            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="16"
+                    Padding="32,26" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Effect="{StaticResource SoftShadow}">
+                <StackPanel HorizontalAlignment="Center">
+                    <ProgressBar x:Name="LoadingBar" IsIndeterminate="True" Width="260" Height="8"
+                                 Foreground="{StaticResource AccentBrush}" Background="{StaticResource LineBrush}"
+                                 BorderThickness="0"/>
+                    <TextBlock x:Name="LoadingText" Text="加载中…" Margin="0,16,0,0"
+                               FontSize="14" Foreground="{StaticResource TextPrimaryBrush}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
     </Grid>
 </Window>
