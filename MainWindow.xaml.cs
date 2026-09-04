@@ -81,28 +81,12 @@ namespace NoCodeMotion
 
         private void Navigate(string key, Button? btn)
         {
+            // 页面切换即时完成，不显示加载遮罩（进度条仅用于打开/新建工程）。
             if (!_cache.TryGetValue(key, out var page))
             {
-                // 首次构造页面可能较重：先显示加载遮罩，并把构造推迟到下一帧，
-                // 让遮罩有机会渲染出来，避免「卡住却无任何提示」。
-                LoadingService.Show($"正在加载「{TitleFor(key)}」页面…");
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    try
-                    {
-                        var built = _pages[key]();
-                        _cache[key] = built;
-                        PageHost.Content = built;
-                        FinishNavigate(built, key, btn);
-                    }
-                    finally
-                    {
-                        LoadingService.Hide();
-                    }
-                }), System.Windows.Threading.DispatcherPriority.Background);
-                return;
+                page = _pages[key]();
+                _cache[key] = page;
             }
-
             PageHost.Content = page;
             FinishNavigate(page, key, btn);
         }
@@ -128,27 +112,7 @@ namespace NoCodeMotion
             }
         }
 
-        /// <summary>导航键对应的中文页签名，用于加载提示文案。</summary>
-        private static string TitleFor(string key) => key switch
-        {
-            "ProjectManager" => "项目管理",
-            "AxisController" => "控制器",
-            "Axis" => "轴",
-            "Io" => "IO",
-            "Cylinder" => "气缸",
-            "Point" => "点位表",
-            "Comm" => "通讯",
-            "Tray" => "料盘",
-            "Variable" => "变量",
-            "Flow" => "流程",
-            "Camera" => "相机",
-            "Engineer" => "工程师",
-            "Operator" => "操作员",
-            "Manual" => "说明书",
-            _ => key
-        };
-
-        /// <summary>加载遮罩可见性 / 文本随 LoadingService 状态切换。</summary>
+        /// <summary>加载遮罩可见性 / 文本随 LoadingService 状态切换（打开/新建工程时显示）。</summary>
         private void OnLoadingStateChanged()
         {
             LoadingOverlay.Visibility = LoadingService.IsLoading ? Visibility.Visible : Visibility.Collapsed;

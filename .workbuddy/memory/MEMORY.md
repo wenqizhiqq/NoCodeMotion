@@ -7,7 +7,7 @@
 ## 运行/构建
 - 操作员「启动」= 并发跑 `ProjectStore.Data.Flows` 每条 Flow 循环区（`FlowRunnerService.cs`+`OperatorViewModel.cs`）；解释器覆盖 循环/分支/等待/轴/IO/气缸/点位/modbus/变量/系统/相机(暂跳过)，变量支持 {name}；`EStop/Stop/Pause/Resume` 给 `_flowCtrl` 发信号。
 - 沙箱构建：**Bash 对 dotnet 一律 LOLBin 拦截**；用 **PowerShell + 绝对 `C:\Program Files\dotnet\dotnet.exe` 前台构建**（exit code 真实）。无头验证另开工程（ProjectReference 引用 NoCodeMotion.csproj，net10.0-windows+UseWPF），**不能放主工程目录内**（CS0017 双 Main）。Python venv+ctypes PrintWindow 可抓窗口。
-- 全局加载进度：`Services/LoadingService`（静态 depth 引用计数 + `Show/Hide/StateChanged`）；`MainWindow` 遮罩 `LoadingOverlay` 订阅它；页面首次构造用 `Dispatcher.BeginInvoke(Background)` 推到下一帧先显遮罩再构造；工程打开/新建走 `ProjectManager.OpenProjectAsync/NewProjectAsync`（xlsx 读/写放 `Task.Run`，`LoadInto` 回 UI 线程）。
+- 全局加载进度：`Services/LoadingService`（静态 depth 引用计数 + `Show/Hide/StateChanged`）；`MainWindow` 遮罩 `LoadingOverlay` 订阅它。**仅用于打开/新建工程**（用户明确：切换页面不需要进度条）；工程打开/新建走 `ProjectManager.OpenProjectAsync/NewProjectAsync`（xlsx 读/写放 `Task.Run`，`LoadInto` 回 UI 线程，页面重建发生在遮罩可见期间）。页面切换 `Navigate` 即时完成、不显遮罩。
 - .NET 10 `_wpftmp` CS0579：csproj 加 `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>`+`<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>`；`[assembly:ThemeInfo]` 留根 AssemblyInfo.cs。勿用 UseArtifactsOutput。
 
 ## 全局 UI 约定
