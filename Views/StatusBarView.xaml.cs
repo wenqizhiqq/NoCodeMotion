@@ -42,6 +42,9 @@ namespace NoCodeMotion.Views
         private void ClearException_Click(object sender, System.Windows.RoutedEventArgs e)
             => StatusBarService.ClearException();
 
+        private void ClearInfo_Click(object sender, MouseButtonEventArgs e)
+            => StatusBarService.ClearInfo();
+
         /// <summary>
         /// 点击错误胶囊 → 弹窗显示完整异常文本。
         /// 用 MouseLeftButtonUp 而非 Down，避免拖选文本（万一以后允许选）时被误触打开。

@@ -486,6 +486,9 @@
                                 <Button Grid.Column="4" Content="停止" Style="{StaticResource TtDeleteBtn}"
                                         Command="{Binding StopCommand}" IsEnabled="{Binding CanStop}"/>
 
+                                <Button Grid.Column="5" Content="步骤预览" Style="{StaticResource TtBaseBtn}"
+                                        Command="{Binding PreviewCommand}" Margin="0,0,8,0" ToolTip="用仿真引擎编译当前流程，弹窗列出展开后的实际执行顺序（分支/循环已展开）。"/>
+
                                 <TextBlock Grid.Column="6" Text="{Binding CurrentStepText}" VerticalAlignment="Center"
                                            HorizontalAlignment="Right" FontSize="12"
                                            Foreground="{StaticResource TextSecondaryBrush}"/>

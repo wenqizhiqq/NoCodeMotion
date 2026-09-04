@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using NoCodeMotion.Models;
+using NoCodeMotion.Models.NodeGraph;
 
 namespace NoCodeMotion.Services
 {
@@ -49,6 +50,8 @@ namespace NoCodeMotion.Services
             MultiProduct(),
             FullFeatured(),
             SimDemo(),
+            VisionSort(),
+            Dispensing(),
         };
 
         // ====================================================================
@@ -1698,6 +1701,265 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                     HomeAxis("Z"),
                     HomeAxis("R"),
                     SetIO("就绪", "1")));
+
+                // —— 节点图流程 1：视觉定位（相机取帧 + 气缸夹持，3D 仿真直接驱动）——
+                var ng = new NgDoc();
+                NgNode N(NgKind k, double x, double y, params (string name, string value)[] props)
+                {
+                    var def = NgNodeDefinitions.All[k];
+                    var n = new NgNode { Kind = k, X = x, Y = y };
+                    foreach (var pd in def.Props) n.Props.Add(new NgProp { Name = pd.Name, Value = pd.Default, Options = pd.Options });
+                    foreach (var (pn, pv) in props) { var p = n.Props.FirstOrDefault(z => z.Name == pn); if (p != null) p.Value = pv; }
+                    ng.Nodes.Add(n); return n;
+                }
+                void L(NgNode s, NgNode t) => ng.Connections.Add(new NgConnection { SourceId = s.Id, SourcePort = "Out", TargetId = t.Id });
+
+                var nStart = N(NgKind.Start, 60, 80);
+                var nX = N(NgKind.MoveAxis, 320, 40, ("轴", "X"), ("目标位置", "120"), ("速度", "100"));
+                var nY = N(NgKind.MoveAxis, 320, 180, ("轴", "Y"), ("目标位置", "80"), ("速度", "100"));
+                var nCam = N(NgKind.CamCapture, 600, 110, ("相机", "上视相机"));
+                var nCylO = N(NgKind.Cylinder, 600, 250, ("气缸", "夹爪"), ("动作", "伸出"));
+                var nZ = N(NgKind.MoveAxis, 880, 180, ("轴", "Z"), ("目标位置", "-30"), ("速度", "100"));
+                var nCylI = N(NgKind.Cylinder, 880, 320, ("气缸", "夹爪"), ("动作", "缩回"));
+                var nD = N(NgKind.Delay, 1120, 250, ("时间ms", "300"));
+                var nEnd = N(NgKind.End, 1360, 180);
+                L(nStart, nX); L(nX, nY); L(nY, nCam); L(nCam, nCylO); L(nCylO, nZ); L(nZ, nCylI); L(nCylI, nD); L(nD, nEnd);
+
+                d.Flows.Add(new FlowItem
+                {
+                    Name = "视觉定位(节点图)",
+                    Kind = FlowKind.NodeGraph,
+                    Role = FlowRole.Main,
+                    GraphJson = ng.ToJson()
+                });
+
+                // —— 节点图流程 2：阵列循环（条件分支 + 循环 + 变量运算，验证图执行器）——
+                var ng2 = new NgDoc();
+                NgNode N2(NgKind k, double x, double y, params (string name, string value)[] props)
+                {
+                    var def = NgNodeDefinitions.All[k];
+                    var n = new NgNode { Kind = k, X = x, Y = y };
+                    foreach (var pd in def.Props) n.Props.Add(new NgProp { Name = pd.Name, Value = pd.Default, Options = pd.Options });
+                    foreach (var (pn, pv) in props) { var p = n.Props.FirstOrDefault(z => z.Name == pn); if (p != null) p.Value = pv; }
+                    ng2.Nodes.Add(n); return n;
+                }
+                void L2(NgNode s, NgNode t, string port = "Out") => ng2.Connections.Add(new NgConnection { SourceId = s.Id, SourcePort = port, TargetId = t.Id });
+
+                var s2 = N2(NgKind.Start, 60, 80);
+                var init = N2(NgKind.VarSet, 320, 20, ("变量", "计数"), ("值", "0"));
+                var x0 = N2(NgKind.MoveAxis, 320, 160, ("轴", "X"), ("目标位置", "0"), ("速度", "100"));
+                var y0 = N2(NgKind.MoveAxis, 320, 300, ("轴", "Y"), ("目标位置", "0"), ("速度", "100"));
+                var dec = N2(NgKind.Decision, 600, 230, ("条件", "X >= 0"));
+                var loop = N2(NgKind.Loop, 860, 230, ("次数", "3"));
+                var inc = N2(NgKind.Compute, 1120, 160, ("变量", "计数"), ("表达式", "计数 + 1"));
+                var co = N2(NgKind.Cylinder, 1120, 300, ("气缸", "夹爪"), ("动作", "伸出"));
+                var d2 = N2(NgKind.Delay, 1380, 300, ("时间ms", "200"));
+                var ci = N2(NgKind.Cylinder, 1380, 440, ("气缸", "夹爪"), ("动作", "缩回"));
+                var xr = N2(NgKind.MoveAxis, 1640, 300, ("轴", "X"), ("模式", "相对"), ("目标位置", "50"), ("速度", "100"));
+                var yr = N2(NgKind.MoveAxis, 1640, 440, ("轴", "Y"), ("模式", "相对"), ("目标位置", "30"), ("速度", "100"));
+                var end2 = N2(NgKind.End, 1900, 230);
+                L2(s2, init); L2(init, x0); L2(x0, y0); L2(y0, dec);
+                L2(dec, loop, "True"); L2(dec, end2, "False");
+                L2(loop, inc, "Body"); L2(loop, end2, "Exit");
+                L2(inc, co); L2(co, d2); L2(d2, ci); L2(ci, xr); L2(xr, yr); L2(yr, loop);
+
+                d.Flows.Add(new FlowItem
+                {
+                    Name = "阵列循环(节点图)",
+                    Kind = FlowKind.NodeGraph,
+                    Role = FlowRole.Main,
+                    GraphJson = ng2.ToJson()
+                });
+                return d;
+            },
+        };
+
+        // =================== 综合：视觉分拣线 ===================
+        private static ProjectTemplate VisionSort() => new()
+        {
+            Id = "vision-sort",
+            Name = "视觉分拣线",
+            Category = "综合",
+            Description = "4 轴 + 双相机 + 双气缸，按视觉判定把工件分到良品/不良品料道；含表格主流程与节点图循环流程。",
+            Summary = "1 控制 · 4 轴 · 8 入 8 出 · 2 气缸 · 2 相机 · 1 点位表 · 3 变量 · 3 流程",
+            Highlights = new[]
+            {
+                "控制器：雷赛 DMC5400 (脉冲)",
+                "轴：X/Y/Z 脉冲轴 mm，R 旋转轴 °",
+                "相机：上视定位 / 下视检测",
+                "气缸：夹爪(真空吸) / 分拣挡杆",
+                "变量：计数 / 良品数 / 不良品数",
+                "主流程：上料→视觉→判定→分拣→计数→循环",
+                "节点图：视觉分拣循环（分支+循环+变量）",
+            },
+            Factory = () =>
+            {
+                var d = new ProjectData();
+                d.Controllers.Add(Ctl("控制卡1", "雷赛", "DMC5400", 0, 4, "脉冲", "PCI"));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 100, 200, 200));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 100, 200, 200));
+                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 80, 200, 200));
+                d.Axes.Add(Ax("R", "控制卡1", "脉冲", 3, "°", 60, 200, 200));
+                d.Inputs.Add(In("启动", "启动")); d.Inputs.Add(In("停止", "停止"));
+                d.Inputs.Add(In("复位", "复位")); d.Inputs.Add(In("急停", "急停"));
+                d.Inputs.Add(In("来料", "来料检测")); d.Inputs.Add(In("良品", "良品检测"));
+                d.Inputs.Add(In("不良", "不良品检测")); d.Inputs.Add(In("料满", "料满"));
+                d.Outputs.Add(Out("运行", "运行")); d.Outputs.Add(Out("就绪", "就绪"));
+                d.Outputs.Add(Out("报警", "报警")); d.Outputs.Add(Out("完成", "完成"));
+                d.Outputs.Add(Out("上料阀", "上料")); d.Outputs.Add(Out("分拣气缸", "分拣"));
+                d.Outputs.Add(Out("光源", "光源")); d.Outputs.Add(Out("蜂鸣器", "报警音"));
+                d.Cylinders.Add(Cyl("夹爪", "OUT5", "IN5", "IN6"));
+                d.Cylinders.Add(Cyl("分拣挡杆", "OUT6", "IN7", "IN8"));
+                d.Cameras.Add(Cam("上视相机")); d.Cameras.Add(Cam("下视相机"));
+                var tbl = new PointTable { Name = "分拣工位" };
+                tbl.AxisNames[0] = "X"; tbl.AxisNames[1] = "Y"; tbl.AxisNames[2] = "Z"; tbl.AxisNames[3] = "R";
+                tbl.Points.Add(MakePoint("上料点", 0, 0, 20, 0));
+                tbl.Points.Add(MakePoint("良品点", 100, 0, 20, 0));
+                tbl.Points.Add(MakePoint("不良品点", 200, 0, 20, 0));
+                d.PointTables.Add(tbl);
+                AddVars(d, ("计数", "0"), ("良品数", "0"), ("不良品数", "0"));
+
+                // 主流程（表格）：上料 → 视觉 → 判定（良品/不良）→ 计数 → 循环
+                d.Flows.Add(TblFlow("主流程", FlowRole.Main,
+                    WaitIO("启动", "1", 3000),
+                    SetIO("运行", "1"),
+                    SetIO("光源", "1"),
+                    CylOut("夹爪"),
+                    PointStep("分拣工位", "上料点"),
+                    CameraStep("0"),
+                    Delay(200),
+                    PointStep("分拣工位", "良品点"),
+                    PointStep("分拣工位", "不良品点"),
+                    CylBack("夹爪"),
+                    SetIO("完成", "1"),
+                    Delay(200)));
+
+                // 复位
+                d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+                    SetIO("报警", "0"),
+                    CylBack("夹爪"),
+                    CylBack("分拣挡杆"),
+                    SetIO("光源", "0"),
+                    MoveAxis("Z", 0, 600),
+                    HomeAxis("X"), HomeAxis("Y"), HomeAxis("Z"), HomeAxis("R"),
+                    SetIO("就绪", "1")));
+
+                // 节点图：视觉分拣循环（分支 + 循环 + 变量运算）
+                var ng = new NgDoc();
+                NgNode N(NgKind k, double x, double y, params (string name, string value)[] props)
+                {
+                    var def = NgNodeDefinitions.All[k];
+                    var n = new NgNode { Kind = k, X = x, Y = y };
+                    foreach (var pd in def.Props) n.Props.Add(new NgProp { Name = pd.Name, Value = pd.Default, Options = pd.Options });
+                    foreach (var (pn, pv) in props) { var p = n.Props.FirstOrDefault(z => z.Name == pn); if (p != null) p.Value = pv; }
+                    ng.Nodes.Add(n); return n;
+                }
+                void L(NgNode s, NgNode t, string p = "Out") => ng.Connections.Add(new NgConnection { SourceId = s.Id, SourcePort = p, TargetId = t.Id });
+
+                var a = N(NgKind.Start, 60, 80);
+                var v0 = N(NgKind.VarSet, 320, 20, ("变量", "计数"), ("值", "0"));
+                var sx = N(NgKind.MoveAxis, 320, 160, ("轴", "X"), ("目标位置", "0"), ("速度", "100"));
+                var sy = N(NgKind.MoveAxis, 320, 300, ("轴", "Y"), ("目标位置", "0"), ("速度", "100"));
+                var cam = N(NgKind.CamCapture, 600, 230, ("相机", "上视相机"));
+                var dec = N(NgKind.Decision, 860, 230, ("条件", "X >= 0"));
+                var loop = N(NgKind.Loop, 1120, 230, ("次数", "4"));
+                var inc = N(NgKind.Compute, 1380, 160, ("变量", "计数"), ("表达式", "计数 + 1"));
+                var cyl = N(NgKind.Cylinder, 1380, 300, ("气缸", "夹爪"), ("动作", "伸出"));
+                var dl = N(NgKind.Delay, 1640, 300, ("时间ms", "200"));
+                var cylb = N(NgKind.Cylinder, 1640, 440, ("气缸", "夹爪"), ("动作", "缩回"));
+                var xr = N(NgKind.MoveAxis, 1900, 300, ("轴", "X"), ("模式", "相对"), ("目标位置", "60"), ("速度", "100"));
+                var yr = N(NgKind.MoveAxis, 1900, 440, ("轴", "Y"), ("模式", "相对"), ("目标位置", "40"), ("速度", "100"));
+                var e = N(NgKind.End, 2160, 230);
+                L(a, v0); L(v0, sx); L(sx, sy); L(sy, cam); L(cam, dec);
+                L(dec, loop, "True"); L(dec, e, "False");
+                L(loop, inc, "Body"); L(loop, e, "Exit");
+                L(inc, cyl); L(cyl, dl); L(dl, cylb); L(cylb, xr); L(xr, yr); L(yr, loop);
+                d.Flows.Add(new FlowItem { Name = "视觉分拣(节点图)", Kind = FlowKind.NodeGraph, Role = FlowRole.Main, GraphJson = ng.ToJson() });
+                return d;
+            },
+        };
+
+        // =================== 综合：点胶阵列 ===================
+        private static ProjectTemplate Dispensing() => new()
+        {
+            Id = "dispensing",
+            Name = "点胶阵列",
+            Category = "综合",
+            Description = "3 轴 + 点胶阀 + 定位相机，按阵列逐点出胶；含表格主流程与节点图阵列循环流程。",
+            Summary = "1 控制 · 3 轴 · 4 入 4 出 · 1 气缸 · 1 相机 · 2 变量 · 3 流程",
+            Highlights = new[]
+            {
+                "控制器：雷赛 DMC5400 (脉冲)",
+                "轴：X/Y 脉冲轴 mm，Z 升降轴 mm",
+                "相机：定位相机",
+                "气缸：点胶阀（伸出=出胶，缩回=断胶）",
+                "变量：计数 / 胶量",
+                "主流程：回零→阵列点胶→收尾",
+                "节点图：阵列点胶循环（循环+气缸+变量）",
+            },
+            Factory = () =>
+            {
+                var d = new ProjectData();
+                d.Controllers.Add(Ctl("控制卡1", "雷赛", "DMC5400", 0, 4, "脉冲", "PCI"));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 100, 200, 200));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 100, 200, 200));
+                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 60, 200, 200));
+                d.Inputs.Add(In("启动", "启动")); d.Inputs.Add(In("停止", "停止"));
+                d.Inputs.Add(In("复位", "复位")); d.Inputs.Add(In("急停", "急停"));
+                d.Outputs.Add(Out("运行", "运行")); d.Outputs.Add(Out("就绪", "就绪"));
+                d.Outputs.Add(Out("报警", "报警")); d.Outputs.Add(Out("完成", "完成"));
+                d.Cylinders.Add(Cyl("点胶阀", "OUT1", "IN1", "IN2"));
+                d.Cameras.Add(Cam("定位相机"));
+                AddVars(d, ("计数", "0"), ("胶量", "5"));
+
+                // 主流程（表格）
+                d.Flows.Add(TblFlow("主流程", FlowRole.Main,
+                    WaitIO("启动", "1", 3000),
+                    SetIO("运行", "1"),
+                    MoveAxis("Z", 10, 400),
+                    CameraStep("0"),
+                    CylOut("点胶阀"),
+                    Delay(300),
+                    CylBack("点胶阀"),
+                    MoveAxis("X", 100, 600),
+                    MoveAxis("Z", 0, 400),
+                    SetIO("完成", "1")));
+
+                // 复位
+                d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+                    SetIO("报警", "0"),
+                    CylBack("点胶阀"),
+                    MoveAxis("Z", 0, 600),
+                    HomeAxis("X"), HomeAxis("Y"), HomeAxis("Z"),
+                    SetIO("就绪", "1")));
+
+                // 节点图：阵列点胶循环（循环 + 气缸出胶 + 变量计数）
+                var ng = new NgDoc();
+                NgNode N(NgKind k, double x, double y, params (string name, string value)[] props)
+                {
+                    var def = NgNodeDefinitions.All[k];
+                    var n = new NgNode { Kind = k, X = x, Y = y };
+                    foreach (var pd in def.Props) n.Props.Add(new NgProp { Name = pd.Name, Value = pd.Default, Options = pd.Options });
+                    foreach (var (pn, pv) in props) { var p = n.Props.FirstOrDefault(z => z.Name == pn); if (p != null) p.Value = pv; }
+                    ng.Nodes.Add(n); return n;
+                }
+                void L(NgNode s, NgNode t, string p = "Out") => ng.Connections.Add(new NgConnection { SourceId = s.Id, SourcePort = p, TargetId = t.Id });
+
+                var a = N(NgKind.Start, 60, 80);
+                var v0 = N(NgKind.VarSet, 320, 20, ("变量", "计数"), ("值", "0"));
+                var sx = N(NgKind.MoveAxis, 320, 160, ("轴", "X"), ("目标位置", "0"), ("速度", "120"));
+                var sy = N(NgKind.MoveAxis, 320, 300, ("轴", "Y"), ("目标位置", "0"), ("速度", "120"));
+                var loop = N(NgKind.Loop, 600, 230, ("次数", "6"));
+                var inc = N(NgKind.Compute, 860, 160, ("变量", "计数"), ("表达式", "计数 + 1"));
+                var cylo = N(NgKind.Cylinder, 860, 300, ("气缸", "点胶阀"), ("动作", "伸出"));
+                var dl = N(NgKind.Delay, 1120, 300, ("时间ms", "150"));
+                var cylb = N(NgKind.Cylinder, 1120, 440, ("气缸", "点胶阀"), ("动作", "缩回"));
+                var xr = N(NgKind.MoveAxis, 1380, 300, ("轴", "X"), ("模式", "相对"), ("目标位置", "30"), ("速度", "120"));
+                var e = N(NgKind.End, 1640, 230);
+                L(a, v0); L(v0, sx); L(sx, sy); L(sy, loop);
+                L(loop, inc, "Body"); L(loop, e, "Exit");
+                L(inc, cylo); L(cylo, dl); L(dl, cylb); L(cylb, xr); L(xr, loop);
+                d.Flows.Add(new FlowItem { Name = "阵列点胶(节点图)", Kind = FlowKind.NodeGraph, Role = FlowRole.Main, GraphJson = ng.ToJson() });
                 return d;
             },
         };

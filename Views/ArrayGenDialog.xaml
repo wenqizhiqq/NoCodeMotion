@@ -1,0 +1,67 @@
+﻿<Window x:Class="NoCodeMotion.Views.ArrayGenDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight" WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+    <!-- Apple 风格自定义对话框：生成阵列点位（行列 × 间距） -->
+    <Border CornerRadius="14" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Margin="16" Effect="{StaticResource SoftShadow}">
+        <StackPanel MinWidth="380" MaxWidth="440">
+            <!-- 标题区 -->
+            <Border Padding="22,18,22,14" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource TableIconGeometry}" Width="20" Height="20" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="生成阵列点位" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 参数区 -->
+            <Grid Margin="22,16,22,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="Lbl"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="Lbl"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="行数" VerticalAlignment="Center" Margin="0,6,10,6" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="RowsBox" Text="3" Style="{StaticResource AppleTextField}" Margin="0,4,12,4" VerticalContentAlignment="Center"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="列数" VerticalAlignment="Center" Margin="0,6,10,6" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
+                <TextBox Grid.Row="0" Grid.Column="3" x:Name="ColsBox" Text="3" Style="{StaticResource AppleTextField}" Margin="0,4,0,4" VerticalContentAlignment="Center"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="起始X" VerticalAlignment="Center" Margin="0,6,10,6" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="StartXBox" Text="0" Style="{StaticResource AppleTextField}" Margin="0,4,12,4" VerticalContentAlignment="Center"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="起始Y" VerticalAlignment="Center" Margin="0,6,10,6" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
+                <TextBox Grid.Row="1" Grid.Column="3" x:Name="StartYBox" Text="0" Style="{StaticResource AppleTextField}" Margin="0,4,0,4" VerticalContentAlignment="Center"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="行间距" VerticalAlignment="Center" Margin="0,6,10,6" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
+                <TextBox Grid.Row="2" Grid.Column="1" x:Name="DxBox" Text="10" Style="{StaticResource AppleTextField}" Margin="0,4,12,4" VerticalContentAlignment="Center"/>
+                <TextBlock Grid.Row="2" Grid.Column="2" Text="列间距" VerticalAlignment="Center" Margin="0,6,10,6" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
+                <TextBox Grid.Row="2" Grid.Column="3" x:Name="DyBox" Text="10" Style="{StaticResource AppleTextField}" Margin="0,4,0,4" VerticalContentAlignment="Center"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="速度" VerticalAlignment="Center" Margin="0,6,10,6" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
+                <TextBox Grid.Row="3" Grid.Column="1" x:Name="SpeedBox" Text="100" Style="{StaticResource AppleTextField}" Margin="0,4,12,4" VerticalContentAlignment="Center"/>
+                <TextBlock Grid.Row="3" Grid.Column="2" Text="命名前缀" VerticalAlignment="Center" Margin="0,6,10,6" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13"/>
+                <TextBox Grid.Row="3" Grid.Column="3" x:Name="PrefixBox" Text="P" Style="{StaticResource AppleTextField}" Margin="0,4,0,4" VerticalContentAlignment="Center"/>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="4" Text="将以「行优先」依次填充：X 随列递增、Y 随行递增，写入轴1/轴2 位置，轴3/轴4 留 0。"
+                           FontSize="11.5" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,10,0,2"/>
+            </Grid>
+
+            <!-- 按钮区 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,12,16,16">
+                <Button x:Name="CancelButton" Content="取消" Style="{StaticResource TtGrayBtn}" Click="CancelButton_Click" IsCancel="True"/>
+                <Button x:Name="OkButton" Content="生成" Style="{StaticResource TtBaseBtn}" Margin="8,0,0,0" Click="OkButton_Click" IsDefault="True"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

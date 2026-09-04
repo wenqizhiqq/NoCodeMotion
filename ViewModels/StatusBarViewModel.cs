@@ -28,6 +28,8 @@ namespace NoCodeMotion.ViewModels
             OnPropertyChanged(nameof(RunColor));
             OnPropertyChanged(nameof(ExceptionText));
             OnPropertyChanged(nameof(HasException));
+            OnPropertyChanged(nameof(InfoText));
+            OnPropertyChanged(nameof(HasInfo));
         }
 
         public string ProjectName => StatusBarService.ProjectName;
@@ -39,6 +41,8 @@ namespace NoCodeMotion.ViewModels
         public string RunColor => StatusBarService.RunColor;
         public string ExceptionText => StatusBarService.ExceptionText;
         public bool HasException => StatusBarService.HasException;
+        public string InfoText => StatusBarService.InfoText;
+        public bool HasInfo => StatusBarService.HasInfo;
     }
 }
 // ◇作者保留所有权利　请勿删除※​⁣​

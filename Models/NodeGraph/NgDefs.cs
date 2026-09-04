@@ -3,12 +3,13 @@
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨ۤ
 namespace NoCodeMotion.Models.NodeGraph;
 
-/// <summary>节点三大领域：视觉 / 运控 / 通讯。工具箱按此分组。</summary>
+/// <summary>节点三大领域：视觉 / 运控 / 通讯 / 逻辑。工具箱按此分组。</summary>
 public enum NgDomain
 {
     Vision,
     Motion,
-    Comm
+    Comm,
+    Logic
 }
 
 /// <summary>单个属性定义（节点类型元数据，用于右侧属性面板）。</summary>
@@ -51,6 +52,10 @@ public enum NgKind
     Home,            // 回零
     Delay,           // 延时
     WaitInput,       // 等待输入
+    WaitAxis,        // 等待轴到位
+    Cylinder,        // 气缸动作
+    PointGo,         // 点位移动
+    IoWrite,         // 写输出
     Decision,        // 条件分支
     Loop,            // 循环
     End,             // 结束
@@ -59,7 +64,11 @@ public enum NgKind
     ModbusSend,      // Modbus 发送
     ModbusRecv,      // Modbus 接收
     TcpSend,         // TCP 发送
-    McuWrite         // 下位机写
+    McuWrite,        // 下位机写
+
+    // —— 逻辑 / 变量 ——
+    VarSet,          // 设置变量
+    Compute          // 运算
 }
 
 /// <summary>节点类型静态字典（数据驱动渲染）。</summary>
@@ -138,6 +147,7 @@ public static class NgNodeDefinitions
             Props = new[]
             {
                 new NgPropDef { Name = "轴", Default = "X" },
+                new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对" },
                 new NgPropDef { Name = "目标位置", Default = "0" },
                 new NgPropDef { Name = "速度", Default = "10" },
                 new NgPropDef { Name = "加速度", Default = "50" },
@@ -186,6 +196,40 @@ public static class NgNodeDefinitions
             Outputs = System.Array.Empty<string>(),
         },
 
+        // —— 运控扩展（物理动作 / 信号）——
+        [NgKind.WaitAxis] = new()
+        {
+            Kind = NgKind.WaitAxis, Title = "等待轴到位", Domain = NgDomain.Motion, Color = "#48CFAD",
+            Props = new[] { new NgPropDef { Name = "轴", Default = "X" } }
+        },
+        [NgKind.Cylinder] = new()
+        {
+            Kind = NgKind.Cylinder, Title = "气缸动作", Domain = NgDomain.Motion, Color = "#EC87C0",
+            Props = new[]
+            {
+                new NgPropDef { Name = "气缸", Default = "夹爪" },
+                new NgPropDef { Name = "动作", Default = "伸出", Options = "伸出|缩回" },
+            }
+        },
+        [NgKind.PointGo] = new()
+        {
+            Kind = NgKind.PointGo, Title = "点位移动", Domain = NgDomain.Motion, Color = "#4FC1E9",
+            Props = new[]
+            {
+                new NgPropDef { Name = "点位表", Default = "取放工位" },
+                new NgPropDef { Name = "点位", Default = "取料点" },
+            }
+        },
+        [NgKind.IoWrite] = new()
+        {
+            Kind = NgKind.IoWrite, Title = "写输出", Domain = NgDomain.Motion, Color = "#A0D468",
+            Props = new[]
+            {
+                new NgPropDef { Name = "输出", Default = "光源" },
+                new NgPropDef { Name = "值", Default = "1", Options = "1|0" },
+            }
+        },
+
         // ============ 通讯 ============
         [NgKind.ModbusSend] = new()
         {
@@ -223,16 +267,37 @@ public static class NgNodeDefinitions
                 new NgPropDef { Name = "数据", Default = "0x01" },
             }
         },
+
+        // ============ 逻辑 / 变量 ============
+        [NgKind.VarSet] = new()
+        {
+            Kind = NgKind.VarSet, Title = "设置变量", Domain = NgDomain.Logic, Color = "#ED5565",
+            Props = new[]
+            {
+                new NgPropDef { Name = "变量", Default = "计数" },
+                new NgPropDef { Name = "值", Default = "0" },
+            }
+        },
+        [NgKind.Compute] = new()
+        {
+            Kind = NgKind.Compute, Title = "运算", Domain = NgDomain.Logic, Color = "#DA4453",
+            Props = new[]
+            {
+                new NgPropDef { Name = "变量", Default = "结果" },
+                new NgPropDef { Name = "表达式", Default = "计数 + 1" },
+            }
+        },
     };
 
-    /// <summary>工具箱分组顺序（视觉 / 运控 / 通讯）。</summary>
-    public static readonly IReadOnlyList<NgDomain> DomainOrder = new[] { NgDomain.Vision, NgDomain.Motion, NgDomain.Comm };
+    /// <summary>工具箱分组顺序（视觉 / 运控 / 通讯 / 逻辑）。</summary>
+    public static readonly IReadOnlyList<NgDomain> DomainOrder = new[] { NgDomain.Vision, NgDomain.Motion, NgDomain.Comm, NgDomain.Logic };
 
     public static readonly IReadOnlyDictionary<NgDomain, string> DomainTitle = new Dictionary<NgDomain, string>
     {
         [NgDomain.Vision] = "视觉",
         [NgDomain.Motion] = "运控",
         [NgDomain.Comm] = "通讯",
+        [NgDomain.Logic] = "逻辑/变量",
     };
 }
 // ◇作者保留所有权利　请勿删除※

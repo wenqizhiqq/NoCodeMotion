@@ -133,6 +133,8 @@ namespace NoCodeMotion.ViewModels
         public ICommand JumpCommand { get; }
         public ICommand PauseCommand { get; }
         public ICommand StopCommand { get; }
+        /// <summary>「步骤预览」：用仿真引擎编译当前流程，弹出对话框逐条列出实际执行顺序（分支/循环已展开）。</summary>
+        public ICommand PreviewCommand { get; }
 
         public FlowViewModel()
         {
@@ -151,6 +153,7 @@ namespace NoCodeMotion.ViewModels
             JumpCommand = new RelayCommand(_ => JumpToRow(), _ => CanJump);
             PauseCommand = new RelayCommand(_ => Pause());
             StopCommand = new RelayCommand(_ => Stop());
+            PreviewCommand = new RelayCommand(_ => Preview(), _ => SelectedItem != null);
 
             AddTableFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Table));
             AddScriptFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Lua));
@@ -300,7 +303,7 @@ namespace NoCodeMotion.ViewModels
             FlowKind.Table => new() { "空项目", "点胶机", "XYZ", "探针台", "平移机" },
             FlowKind.Lua   => new() { "空项目", "通讯", "分拣", "MES", "文件处理" },
             FlowKind.Vision => new() { "空项目", "缺陷检测", "测量", "对位", "标定" },
-            FlowKind.NodeGraph => new() { "空项目", "通用流程", "设备启动" },
+            FlowKind.NodeGraph => new() { "空项目", "通用流程", "设备启动", "取放循环", "视觉对位" },
             _ => new() { "空项目" }
         };
 
@@ -926,6 +929,28 @@ namespace NoCodeMotion.ViewModels
             OnPropertyChanged(nameof(CurrentStepText));
             HighlightCurrent();
             RaiseRunState();
+        }
+
+        /// <summary>
+        /// 步骤预览：用仿真引擎（SimFlowPlayer.PreviewSteps）编译当前流程，把展开后的执行顺序
+        /// 逐条弹窗展示，让用户在不实际运行的情况下确认分支/循环/动作序列符合预期。
+        /// </summary>
+        private void Preview()
+        {
+            if (SelectedItem is null) return;
+            try
+            {
+                var steps = Services.SimFlowPlayer.PreviewSteps(SelectedItem);
+                var dlg = new Views.FlowPreviewDialog(SelectedItem.Name, steps.Count, steps)
+                {
+                    Owner = System.Windows.Application.Current?.MainWindow
+                };
+                dlg.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                StatusBarService.ReportException($"流程预览失败：{ex.Message}");
+            }
         }
 
         protected override FlowItem CreateNewItem()

@@ -255,6 +255,18 @@
                                     <TextBlock Text="导入DXF" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
+                            <Button Command="{Binding GenerateArrayCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="按行×列与间距批量生成网格点位：X 随列递增、Y 随行递增。">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource TableIconGeometry}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                    <TextBlock Text="生成阵列" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding ExportCsvCommand}" Style="{StaticResource TtPillGrayBtn}" ToolTip="将当前工位的全部点位导出为 CSV 文件（UTF-8 带 BOM，列头为轴名）。">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource SaveIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                    <TextBlock Text="导出CSV" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <Button Command="{Binding DeletePointCommand}" Style="{StaticResource TtPillRedBtn}" ToolTip="删除表格中选中的那一行点位。">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource DeleteIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>

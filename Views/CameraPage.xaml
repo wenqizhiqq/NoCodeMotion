@@ -3,8 +3,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:local="clr-namespace:NoCodeMotion.Views"
-             mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1000">
+    xmlns:local="clr-namespace:NoCodeMotion.Views"
+    xmlns:conv="clr-namespace:NoCodeMotion.Views"
+    mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1000">
+
+    <UserControl.Resources>
+        <!-- 相机闪光指示画刷：取像瞬间亮绿，随后转灰 -->
+        <conv:CamFlashBrushConverter x:Key="CamFlashBrush"/>
+    </UserControl.Resources>
 
     <!--
         相机页 = EditorPage 宿主：
@@ -113,6 +119,14 @@
                             <Rectangle Style="{StaticResource AppleHairline}"/>
 
                             <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="触发模式"/>
+                                <ListBox DockPanel.Dock="Right" ItemsSource="{Binding TriggerModeOptions}"
+                                         SelectedItem="{Binding SelectedItem.TriggerMode, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource ApplePillList}" IsEnabled="{Binding HasSelection}"/>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+
+                            <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="备注"/>
                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedItem.Description, UpdateSourceTrigger=PropertyChanged}"
@@ -130,7 +144,7 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <!-- 顶部小标题 + 连接状态 -->
+                            <!-- 顶部小标题 + 连接状态 + 闪光指示 -->
                             <DockPanel Grid.Row="0" LastChildFill="False">
                                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                                     <Path Data="{StaticResource CameraIcon}" Width="14" Height="14"
@@ -139,25 +153,30 @@
                                     <TextBlock Text="相机预览" FontWeight="SemiBold"
                                                Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <Border DockPanel.Dock="Right" Padding="8,3" CornerRadius="10"
-                                        Background="{StaticResource AccentSoftBrush}" VerticalAlignment="Center">
-                                    <TextBlock FontSize="12" FontWeight="SemiBold"
-                                               Foreground="{StaticResource AccentDarkBrush}">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Text" Value="未连接"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding SelectedItem.IsConnected}" Value="True">
-                                                        <Setter Property="Text" Value="已连接"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding HasSelection}" Value="False">
-                                                        <Setter Property="Text" Value="未选择"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                </Border>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- 闪光指示：取像瞬间亮绿，随后转灰（由 CamFlashBrushConverter 按 SimRuntime 闪光时刻判定） -->
+                                    <Border Tag="CamFlashDot" Width="10" Height="10" CornerRadius="5" Margin="0,0,8,0"
+                                            Background="{Binding SelectedItem.Name, Converter={StaticResource CamFlashBrush}}"/>
+                                    <Border Padding="8,3" CornerRadius="10"
+                                            Background="{StaticResource AccentSoftBrush}" VerticalAlignment="Center">
+                                        <TextBlock FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource AccentDarkBrush}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="未连接"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedItem.IsConnected}" Value="True">
+                                                            <Setter Property="Text" Value="已连接"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding HasSelection}" Value="False">
+                                                            <Setter Property="Text" Value="未选择"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </StackPanel>
                             </DockPanel>
 
                             <!-- 预览区（占位：SDK 未接入前显示黑底+提示） -->
@@ -185,27 +204,67 @@
                             </Border>
 
                             <!-- 底部控制：连接 / 拍照 -->
-                            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Style="{StaticResource TtBaseBtn}" Margin="0,0,8,0"
-                                        Command="{Binding ConnectCommand}"
-                                        IsEnabled="{Binding HasSelection}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path Data="{StaticResource PowerIcon}" Width="14" Height="14"
-                                              Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"
-                                              Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                                        <TextBlock Text="连接 / 断开" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource TtWarnBtn}"
-                                        Command="{Binding CaptureCommand}"
-                                        IsEnabled="{Binding HasSelection}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path Data="{StaticResource CameraIcon}" Width="14" Height="14"
-                                              Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"
-                                              Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                                        <TextBlock Text="拍照" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
+                            <StackPanel Grid.Row="2" Orientation="Vertical">
+                                <!-- 取像结果展示：最近一次仿真/真实检测的中心与分数 -->
+                                <Border Margin="0,6,0,10" Padding="10,8" CornerRadius="8"
+                                        Background="{StaticResource AccentSoftBrush}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="最近结果" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding SelectedItem.LastResult, TargetNullValue='—'}"
+                                                   FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   VerticalAlignment="Center" Margin="8,0,12,0" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="2" Text="匹配分数" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" FontSize="12" Foreground="{StaticResource AccentDarkBrush}"
+                                                   VerticalAlignment="Center" Margin="8,0,0,0">
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="{}{0:0.00}">
+                                                    <Binding Path="SelectedItem.LastScore"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                    </Grid>
+                                </Border>
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Style="{StaticResource TtPillBlueBtn}" Margin="0,0,8,0"
+                                            Command="{Binding ApplyCommonParamsCommand}"
+                                            IsEnabled="{Binding HasSelection}" ToolTip="一键应用常用拍摄参数：曝光 10ms / 增益 1.0 / 连续触发。">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="{StaticResource CheckIcon}" Width="14" Height="14"
+                                                  Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                            <TextBlock Text="应用常用参数" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource TtBaseBtn}" Margin="0,0,8,0"
+                                            Command="{Binding ConnectCommand}"
+                                            IsEnabled="{Binding HasSelection}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="{StaticResource PowerIcon}" Width="14" Height="14"
+                                                  Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                            <TextBlock Text="连接 / 断开" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource TtWarnBtn}"
+                                            Command="{Binding CaptureCommand}"
+                                            IsEnabled="{Binding HasSelection}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="{StaticResource CameraIcon}" Width="14" Height="14"
+                                                  Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                            <TextBlock Text="拍照" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Border>

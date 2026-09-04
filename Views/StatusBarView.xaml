@@ -38,6 +38,19 @@
 
             <!-- 异常情况：点击错误文本可弹窗查看完整内容（状态栏空间有限会截断显示） -->
             <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- 普通信息胶囊：中性蓝底，展示成功/进度类提示，区别于红色异常 -->
+                <Border CornerRadius="4" Padding="6,3" Margin="0,0,8,0"
+                        Background="#221D4ED8" Cursor="Hand"
+                        ToolTip="点击清除提示"
+                        MouseLeftButtonUp="ClearInfo_Click"
+                        Visibility="{Binding HasInfo, Converter={StaticResource BoolToVis}}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource CheckIcon}" Width="13" Height="13" Stretch="Uniform"
+                              Fill="#1D4ED8" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding InfoText}" Foreground="#1D4ED8" FontSize="12" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+                    </StackPanel>
+                </Border>
                 <Path Data="{StaticResource WarnIcon}" Width="14" Height="14" Stretch="Uniform"
                       Fill="#DC2626" Margin="0,0,5,0" VerticalAlignment="Center"
                       Visibility="{Binding HasException, Converter={StaticResource BoolToVis}}"/>

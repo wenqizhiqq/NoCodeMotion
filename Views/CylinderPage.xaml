@@ -7,6 +7,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:conv="clr-namespace:NoCodeMotion.Views"
              xmlns:ctl="clr-namespace:NoCodeMotion.Views.Controls"
              xmlns:svc="clr-namespace:NoCodeMotion.Services"
              xmlns:hc="https://handyorg.github.io/handycontrol"
@@ -17,6 +18,10 @@
         手动动作按钮已从右侧详情移至左侧列表 —— 通过 EditorPage.LeftListItemTemplate 注入。
     -->
     <UserControl.Resources>
+        <!-- 运行时状态转换器：让时序表「实时状态」列随 SimRuntime 刷新 -->
+        <conv:CylinderRuntimeStateConverter x:Key="CylinderRuntimeState"/>
+        <conv:CylinderRuntimeBrushConverter x:Key="CylinderRuntimeBrush"/>
+
         <!-- 气缸页专用的列表项模板：名称 + 伸出/缩回 内联按钮（带状态着色） -->
         <DataTemplate x:Key="CylinderListItemTemplate">
             <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center">
@@ -101,10 +106,12 @@
         </local:EditorPage.LeftListItemTemplate>
 
         <local:EditorPage.Detail>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <Grid Background="{StaticResource CanvasBrush}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -311,7 +318,124 @@
                         </StackPanel>
                     </Border>
                 </StackPanel>
+
+                <!-- ============ 第 3 行：气缸时序动作表 ============ -->
+                <Border Grid.Row="2" Grid.ColumnSpan="2" Style="{StaticResource AppleGroupCard}" Margin="12,0,12,12">
+                    <StackPanel>
+                        <!-- 标题 + 操作栏 -->
+                        <Grid Margin="2,0,2,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Style="{StaticResource AppleSectionHeader}" Text="气缸时序动作表"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Style="{StaticResource TtPillBlueBtn}" Margin="0,0,6,0"
+                                        Command="{Binding AddSeqStepCommand}" ToolTip="在末尾追加一步动作">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource AddIcon}" Width="13" Height="13" Stretch="Uniform"
+                                              Margin="0,0,4,0" VerticalAlignment="Center"
+                                              Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="添加" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource TtPillRedBtn}" Margin="0,0,6,0"
+                                        Command="{Binding RemoveSeqStepCommand}" ToolTip="删除选中步骤">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource DeleteIcon}" Width="13" Height="13" Stretch="Uniform"
+                                              Margin="0,0,4,0" VerticalAlignment="Center"
+                                              Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="删除" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource TtPillBlueBtn}" Margin="0,0,6,0"
+                                        Command="{Binding PlaySequenceCommand}" ToolTip="按步序播放（受仿真运行时驱动）">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource PlayIcon}" Width="13" Height="13" Stretch="Uniform"
+                                              Margin="0,0,4,0" VerticalAlignment="Center"
+                                              Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="播放" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource TtPillGrayBtn}"
+                                        Command="{Binding StopSequenceCommand}" ToolTip="停止播放">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource StopIcon}" Width="13" Height="13" Stretch="Uniform"
+                                              Margin="0,0,4,0" VerticalAlignment="Center"
+                                              Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="停止" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 时序表：步 / 气缸 / 动作 / 延时 / 实时状态 -->
+                        <DataGrid Tag="SeqGrid" ItemsSource="{Binding Sequence}" SelectedItem="{Binding SelectedSeqStep}"
+                                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                  HeadersVisibility="Column" GridLinesVisibility="None"
+                                  RowHeight="30" FontSize="12" MaxHeight="240"
+                                  Background="Transparent" BorderThickness="0"
+                                  VerticalScrollBarVisibility="Auto">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="步" Binding="{Binding StepIndex}" Width="36" IsReadOnly="True"/>
+                                <DataGridTemplateColumn Header="气缸" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{x:Static svc:Catalog.CylinderNames}"
+                                                      SelectedItem="{Binding Cylinder, UpdateSourceTrigger=PropertyChanged}"
+                                                      Style="{StaticResource AppleCombo}" Margin="4,2"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="动作" Width="88">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{Binding DataContext.SeqActionOptions,
+                                                                      RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                      SelectedItem="{Binding Action, UpdateSourceTrigger=PropertyChanged}"
+                                                      Style="{StaticResource AppleCombo}" Margin="4,2"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="延时(ms)" Binding="{Binding DelayMs, UpdateSourceTrigger=PropertyChanged}" Width="84"/>
+                                <DataGridTemplateColumn Header="实时状态" Width="92">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+                                                <Border Width="10" Height="10" CornerRadius="5" Margin="0,0,6,0"
+                                                        Background="{Binding Cylinder, Converter={StaticResource CylinderRuntimeBrush}}"/>
+                                                <TextBlock Text="{Binding Cylinder, Converter={StaticResource CylinderRuntimeState}}"
+                                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- 进度 / 状态文本 -->
+                        <DockPanel Margin="2,8,2,0">
+                            <TextBlock DockPanel.Dock="Left" Text="{Binding SeqProgressText}" FontSize="12"
+                                       Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock DockPanel.Dock="Right" FontSize="11.5" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value=""/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSeqPlaying}" Value="True">
+                                                <Setter Property="Text" Value="● 播放中"/>
+                                                <Setter Property="Foreground" Value="#10B981"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
             </Grid>
+            </ScrollViewer>
         </local:EditorPage.Detail>
     </local:EditorPage>
 </UserControl>

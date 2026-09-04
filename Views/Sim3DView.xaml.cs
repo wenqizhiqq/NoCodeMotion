@@ -190,6 +190,13 @@ namespace NoCodeMotion.Views
         private Point3D _dwgCenter;                        // 取景中心
         private double _dwgRadius;                         // 取景半径
 
+        // ===== 仿真流程播放器（让 3D 机台真正"跑"流程） =====
+        private SimFlowPlayer? _simPlayer;
+        private readonly Dictionary<string, GeometryModel3D> _cylRodModels = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, GeometryModel3D> _camLensModels = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Transform3D> _cylRodOrig = new(StringComparer.OrdinalIgnoreCase);
+        private Material? _lensMat, _flashLensMat;
+
         public Sim3DView()
         {
             InitializeComponent();
@@ -238,7 +245,7 @@ namespace NoCodeMotion.Views
                 UpdateCamera();
             };
 
-            _timer.Tick += (s, e) => UpdatePoseFromRuntime();
+            _timer.Tick += (s, e) => { UpdatePoseFromRuntime(); UpdateSimVisuals(); };
 
             if (ProjectStore.Data?.Axes is INotifyCollectionChanged ncA)
                 ncA.CollectionChanged += (s, e) => Dispatcher.Invoke(BuildScene);
@@ -247,7 +254,13 @@ namespace NoCodeMotion.Views
             if (ProjectStore.Data?.Cylinders is INotifyCollectionChanged ncY)
                 ncY.CollectionChanged += (s, e) => Dispatcher.Invoke(BuildScene);
             if (ProjectStore.Data?.Flows is INotifyCollectionChanged ncF)
-                ncF.CollectionChanged += (s, e) => Dispatcher.Invoke(BuildScene);
+                ncF.CollectionChanged += (s, e) => { Dispatcher.Invoke(BuildScene); RefreshFlowCombo(); };
+
+            // 仿真流程播放器：绑定到流程下拉框 + 进度回显
+            _simPlayer = new SimFlowPlayer();
+            _simPlayer.Progress += (i, n) => SetStpStatus($"仿真 [{i}/{n}] {_simPlayer!.CurrentLabel}");
+            _simPlayer.Completed += () => SetStpStatus("仿真结束 · 机台停在终点");
+            RefreshFlowCombo();
 
             BuildScene();
             _timer.Start();
@@ -262,9 +275,40 @@ namespace NoCodeMotion.Views
         {
             if (_autoCadTried) return;
             _autoCadTried = true;
+            // 仅当工程没有任何轴配置时，默认载入示例机器人 STP 作为展示；
+            // 一旦工程已含轴/流程（如"仿真演示"模板），则显示参数化机台并可直接运行仿真。
+            if (ProjectStore.Data?.Axes?.Count > 0) return;
             var def = System.IO.Path.Combine(AppContext.BaseDirectory, "Models", "CAD", "IR-R10-140S-INT-3D-3D.stp");
             if (System.IO.File.Exists(def))
                 LoadStepFile(def);
+        }
+
+        /// <summary>刷新流程下拉框：列出当前工程所有流程，默认选中主流程。</summary>
+        private void RefreshFlowCombo()
+        {
+            if (CmbFlow == null) return;
+            var flows = ProjectStore.Data?.Flows;
+            CmbFlow.ItemsSource = flows;
+            if (flows != null && flows.Count > 0 && CmbFlow.SelectedItem == null)
+                CmbFlow.SelectedItem = flows.FirstOrDefault(f => f.Role == FlowRole.Main) ?? flows[0];
+        }
+
+        private void BtnRun_Click(object sender, RoutedEventArgs e)
+        {
+            var flow = CmbFlow?.SelectedItem as FlowItem;
+            if (flow == null) { RefreshFlowCombo(); flow = CmbFlow?.SelectedItem as FlowItem; }
+            if (flow == null) { SetStpStatus("无可运行的流程（请先在流程页添加流程）"); return; }
+            _simPlayer ??= new SimFlowPlayer();
+            _simPlayer.Load(flow);
+            _simPlayer.Play();
+        }
+
+        private void BtnPause_Click(object sender, RoutedEventArgs e) => _simPlayer?.Pause();
+
+        private void BtnStop_Click(object sender, RoutedEventArgs e)
+        {
+            _simPlayer?.Stop();
+            SetStpStatus("仿真已停止 · 机台保持当前位置");
         }
 
         // ===================== 场景构建 =====================
@@ -292,6 +336,8 @@ namespace NoCodeMotion.Views
             _axisSpeed.Clear();
             _dispX = _dispY = _dispZ = 0;
             _dispRot = 0;
+            _cylRodModels.Clear();
+            _camLensModels.Clear();
 
             var raw = Points;
 
@@ -405,10 +451,13 @@ namespace NoCodeMotion.Views
                 double cx = Math.Cos(ang) * 62;
                 double cz = -Math.Sin(ang) * 62;
                 double cy = 56 - i * 3;
+                string camName = (ProjectStore.Data?.Cameras != null && i < ProjectStore.Data.Cameras.Count)
+                    ? ProjectStore.Data.Cameras[i].Name : ("相机" + (i + 1));
                 AddModel(_machineGroup, _box, 14, 10, 18, new Point3D(cx, cy, cz), MatKind.CameraBody);
-                AddModel(_machineGroup, _cyl, 8, 8, 8, new Point3D(cx, cy - 9, cz), MatKind.CameraLens);
+                var lens = AddModel(_machineGroup, _cyl, 8, 8, 8, new Point3D(cx, cy - 9, cz), MatKind.CameraLens);
+                _camLensModels[camName] = lens;   // 仿真"相机"步骤时闪光
                 AddModel(_machineGroup, _cyl, 3, 40, 3, new Point3D(cx, cy - 21, cz), MatKind.CameraBody);
-                _machineGroup.Children.Add(MakeLabel("相机" + (camN > 1 ? (i + 1).ToString() : ""), new Point3D(cx, cy + 13, cz)));
+                _machineGroup.Children.Add(MakeLabel(camName, new Point3D(cx, cy + 13, cz)));
             }
 
             // 气缸：由 ProjectStore.Data.Cylinders 数量驱动（流程用到气缸则至少 1 个）
@@ -418,9 +467,13 @@ namespace NoCodeMotion.Views
             {
                 double cx = cylN == 1 ? 0 : -40 + 80 * (double)i / (cylN - 1);
                 double cz = 32;
+                string cylName = (ProjectStore.Data?.Cylinders != null && i < ProjectStore.Data.Cylinders.Count)
+                    ? ProjectStore.Data.Cylinders[i].Name : ("气缸" + (i + 1));
                 AddModel(_machineGroup, _cyl, 9, 16, 9, new Point3D(cx, -4, cz), MatKind.CylBody);   // 缸体
-                AddModel(_machineGroup, _cyl, 3.4, 16, 3.4, new Point3D(cx, 12, cz), MatKind.CylRod); // 活塞杆（伸出示意）
-                _machineGroup.Children.Add(MakeLabel("气缸" + (cylN > 1 ? (i + 1).ToString() : ""), new Point3D(cx, 26, cz)));
+                var rod = AddModel(_machineGroup, _cyl, 3.4, 16, 3.4, new Point3D(cx, 12, cz), MatKind.CylRod); // 活塞杆
+                _cylRodModels[cylName] = rod;     // 仿真"气缸"步骤时伸缩
+                _cylRodOrig[cylName] = rod.Transform;   // 缓存原始变换，运行时叠加伸缩偏移
+                _machineGroup.Children.Add(MakeLabel(cylName, new Point3D(cx, 26, cz)));
             }
 
             BuildLabels();
@@ -564,6 +617,41 @@ namespace NoCodeMotion.Views
             PlaceHead(_dispX, _dispY, _dispZ);
 
             UpdateSmartFocus();
+        }
+
+        /// <summary>每帧把 SimRuntime 的 IO/气缸/相机状态反映到参数化机台可视化：
+        /// 气缸活塞伸缩、相机镜头在"取帧"步骤闪光。与轴位置（AxisRuntimeState）解耦。</summary>
+        private void UpdateSimVisuals()
+        {
+            if (_machineGroup == null) return;
+            if (_lensMat == null)
+            {
+                _lensMat = GetMaterial(MatKind.CameraLens);
+                _flashLensMat = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x55)));
+            }
+
+            // 气缸：伸出=原位(y=12)，缩回=活塞杆下移 9
+            foreach (var kv in _cylRodModels)
+            {
+                int st = SimRuntime.GetCylinder(kv.Key);
+                double dy = st == 1 ? 0 : -9;
+                if (_cylRodOrig.TryGetValue(kv.Key, out var orig))
+                {
+                    var g = new Transform3DGroup();
+                    g.Children.Add(new TranslateTransform3D(0, dy, 0));
+                    g.Children.Add(orig);
+                    kv.Value.Transform = g;
+                }
+            }
+
+            // 相机：闪光 350ms
+            foreach (var kv in _camLensModels)
+            {
+                double age = (DateTime.Now - SimRuntime.GetCamFlash(kv.Key)).TotalMilliseconds;
+                bool flash = age >= 0 && age < 350;
+                var target = flash ? _flashLensMat! : _lensMat!;
+                if (!ReferenceEquals(kv.Value.Material, target)) kv.Value.Material = target;
+            }
         }
 
         // 智能跟随：检测运动最快的轴 → 相机平滑对准它；异常锁定轴优先并红高亮

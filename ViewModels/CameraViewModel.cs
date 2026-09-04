@@ -7,6 +7,8 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using NoCodeMotion.Models;
+using NoCodeMotion.Services;
+using NoCodeMotion.Services.Vision;
 
 namespace NoCodeMotion.ViewModels
 {
@@ -54,6 +56,12 @@ namespace NoCodeMotion.ViewModels
         public ICommand ConnectCommand { get; }
         public ICommand CaptureCommand { get; }
 
+        /// <summary>触发模式可选项（连续 / 软触发 / 硬触发），绑定药丸选择器。</summary>
+        public string[] TriggerModeOptions { get; } = { "连续", "软触发", "硬触发" };
+
+        /// <summary>一键应用常用拍摄参数（曝光 10ms / 增益 1.0 / 连续触发），便于快速标定。</summary>
+        public ICommand ApplyCommonParamsCommand { get; }
+
         public CameraViewModel()
         {
             AddCommand = new RelayCommand(_ => Add());
@@ -61,6 +69,7 @@ namespace NoCodeMotion.ViewModels
             RenameCommand = new RelayCommand(_ => Rename(), _ => SelectedItem is not null);
             ConnectCommand = new RelayCommand(_ => Connect(), _ => SelectedItem is not null);
             CaptureCommand = new RelayCommand(_ => Capture(), _ => SelectedItem is not null);
+            ApplyCommonParamsCommand = new RelayCommand(_ => ApplyCommonParams(), _ => SelectedItem is not null);
         }
 
         private void Add()
@@ -101,7 +110,24 @@ namespace NoCodeMotion.ViewModels
         private void Capture()
         {
             if (SelectedItem is null) return;
-            StatusMessage = $"{SelectedItem.Name} 拍照指令已发送（SDK 未接入）";
+            int idx = Items.IndexOf(SelectedItem);
+            // 仿真取像：真实 SDK 未接入时由 VisionSimCapture 产出伪检测结果，
+            // 与 FlowRunnerService 的「相机」步骤走同一仿真回退路径，保证页面与流程一致。
+            var det = VisionSimCapture.Detect(idx);
+            SelectedItem.LastResult = $"中心 ({det.X:0.0},{det.Y:0.0})";
+            SelectedItem.LastScore = det.Score;
+            SimRuntime.FlashCamera(SelectedItem.Name);
+            SimRuntime.SetVariable($"CamResult{idx}", det.Score);
+            StatusMessage = $"{SelectedItem.Name} 取像完成，匹配分数 {det.Score:0.00}";
+        }
+
+        private void ApplyCommonParams()
+        {
+            if (SelectedItem is null) return;
+            SelectedItem.ExposureMs = 10.0;
+            SelectedItem.Gain = 1.0;
+            SelectedItem.TriggerMode = "连续";
+            StatusMessage = $"{SelectedItem.Name} 已应用常用参数：曝光 10ms / 增益 1.0 / 连续触发";
         }
 
         private void RaiseCanExecutes()

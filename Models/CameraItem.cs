@@ -47,8 +47,20 @@ namespace NoCodeMotion.Models
         /// <summary>增益</summary>
         public double Gain { get => _gain; set => Set(ref _gain, value); }
 
+        private string _triggerMode = "连续";
+        /// <summary>触发模式：连续（自由取流）/ 软触发（指令触发）/ 硬触发（外部信号触发）。</summary>
+        public string TriggerMode { get => _triggerMode; set => Set(ref _triggerMode, value); }
+
         /// <summary>当前连接状态（运行时回填）</summary>
         public bool IsConnected { get => _isConnected; set => Set(ref _isConnected, value); }
+
+        private string _lastResult = "";
+        /// <summary>最近一次取像（仿真/真实）的检测结果摘要，供页面展示。</summary>
+        public string LastResult { get => _lastResult; set => Set(ref _lastResult, value); }
+
+        private double _lastScore;
+        /// <summary>最近一次取像的匹配分数(0~1)。</summary>
+        public double LastScore { get => _lastScore; set => Set(ref _lastScore, value); }
 
         /// <summary>备注</summary>
         public string Description { get => _description; set => Set(ref _description, value); }

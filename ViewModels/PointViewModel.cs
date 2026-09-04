@@ -6,7 +6,10 @@ using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -130,6 +133,8 @@ namespace NoCodeMotion.ViewModels
             DeletePointCommand = new RelayCommand(_ => DeletePoint(), _ => CanDeletePoint);
             CompileCommand = new RelayCommand(_ => Compile(), _ => SelectedItem != null);
             ImportDxfCommand = new RelayCommand(_ => ImportDxf(), _ => SelectedItem != null);
+            GenerateArrayCommand = new RelayCommand(_ => GenerateArray(), _ => SelectedItem != null);
+            ExportCsvCommand = new RelayCommand(_ => ExportCsv(), _ => SelectedItem != null);
 
             // 轨迹仿真命令
             SimPlayCommand = new RelayCommand(_ => SimPlay(), _ => CanSimulate(null) && !IsSimulating);
@@ -248,6 +253,8 @@ namespace NoCodeMotion.ViewModels
         public ICommand DeletePointCommand { get; }
         public ICommand CompileCommand { get; }
         public ICommand ImportDxfCommand { get; }
+        public ICommand GenerateArrayCommand { get; }
+        public ICommand ExportCsvCommand { get; }
 
         private void AddPoint()
         {
@@ -309,6 +316,109 @@ namespace NoCodeMotion.ViewModels
             if (SelectedItem is not PointTable table || SelectedPoint is not PointItem point) return;
             table.Points.Remove(point);
             SelectedPoint = null;
+        }
+
+        /// <summary>生成阵列点位：弹窗设置行/列/起点的 X Y 与行间距/列间距/速度，按「行优先」填充网格。
+        /// X 随列递增、Y 随行递增，写入轴 1/轴 2 位置，轴 3/轴 4 留 0，速度统一设为目标速度。</summary>
+        private void GenerateArray()
+        {
+            if (SelectedItem is not PointTable table) return;
+            try
+            {
+                var dlg = new ArrayGenDialog();
+                if (dlg.ShowDialog() != true) return;
+
+                int rows = dlg.Rows;
+                int cols = dlg.Cols;
+                var used = new HashSet<string>(table.Points.Select(p => p.Name));
+                int total = rows * cols;
+                int start = table.Points.Count;
+
+                for (int r = 0; r < rows; r++)
+                {
+                    for (int c = 0; c < cols; c++)
+                    {
+                        int seq = r * cols + c + 1;
+                        var name = dlg.Prefix + seq;
+                        int n = 1;
+                        while (used.Contains(name))
+                            name = dlg.Prefix + seq + "_" + (n++);
+                        used.Add(name);
+
+                        var p = new PointItem { Name = name };
+                        p.Positions[0].Position = Math.Round(dlg.StartX + c * dlg.Dx, 4);
+                        p.Positions[1].Position = Math.Round(dlg.StartY + r * dlg.Dy, 4);
+                        p.Positions[0].Speed = dlg.Speed;
+                        p.Positions[1].Speed = dlg.Speed;
+                        table.Points.Add(p);
+                    }
+                }
+
+                SelectedPoint = table.Points[start];
+                StatusBarService.ReportInfo($"已生成 {total} 个阵列点位（{rows}×{cols}，命名前缀 {dlg.Prefix}）。");
+            }
+            catch (Exception ex)
+            {
+                StatusBarService.ReportException($"生成阵列点位失败：{ex.Message}");
+            }
+        }
+
+        /// <summary>导出当前工位的点位表为 CSV：UTF-8（带 BOM），列头使用轴名，便于在 Excel / 文本编辑器查看或二次处理。</summary>
+        private void ExportCsv()
+        {
+            if (SelectedItem is not PointTable table) return;
+            try
+            {
+                var dlg = new SaveFileDialog
+                {
+                    Title = "导出点位表为 CSV",
+                    Filter = "CSV 文件 (*.csv)|*.csv|所有文件 (*.*)|*.*",
+                    FileName = $"{table.Name}.csv",
+                    OverwritePrompt = true,
+                    AddExtension = true
+                };
+                if (dlg.ShowDialog() != true) return;
+
+                var inv = CultureInfo.InvariantCulture;
+                var axisNames = table.AxisNames.Select((nm, i) => string.IsNullOrWhiteSpace(nm) ? $"轴{i + 1}" : nm).ToList();
+                var lines = new List<string>
+                {
+                    "点位名称,时序标记," + string.Join(",", axisNames.Select(n => n + " 位置")) + "," +
+                    string.Join(",", axisNames.Select(n => n + " 速度")) + ",同步组"
+                };
+
+                foreach (var p in table.Points)
+                {
+                    var cells = new List<string>
+                    {
+                        CsvCell(p.Name),
+                        CsvCell(p.TimingMark)
+                    };
+                    for (int i = 0; i < PointTable.SlotCount; i++)
+                        cells.Add(p.Positions.Count > i ? p.Positions[i].Position.ToString(inv) : "0");
+                    for (int i = 0; i < PointTable.SlotCount; i++)
+                        cells.Add(p.Positions.Count > i ? p.Positions[i].Speed.ToString(inv) : "0");
+                    cells.Add(CsvCell(p.SyncGroup));
+                    lines.Add(string.Join(",", cells));
+                }
+
+                // UTF-8 带 BOM，保证 Excel 正确识别中文
+                File.WriteAllLines(dlg.FileName, lines, new UTF8Encoding(true));
+                StatusBarService.ReportInfo($"已导出 {table.Points.Count} 个点位到 {Path.GetFileName(dlg.FileName)}。");
+            }
+            catch (Exception ex)
+            {
+                StatusBarService.ReportException($"导出 CSV 失败：{ex.Message}");
+            }
+        }
+
+        /// <summary>CSV 单元格转义：含逗号/引号/换行时用双引号包裹并转义内部引号。</summary>
+        private static string CsvCell(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            if (s.Contains(',') || s.Contains('"') || s.Contains('\n') || s.Contains('\r'))
+                return "\"" + s.Replace("\"", "\"\"") + "\"";
+            return s;
         }
 
         /// <summary>编译当前工位的「时序标记 / 同步组」列，做编译期冲突检测，结果填入 CompileIssues。</summary>

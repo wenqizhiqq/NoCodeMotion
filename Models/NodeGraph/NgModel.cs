@@ -109,12 +109,13 @@ public static class NgTemplates
     public static string Build(string template)
     {
         var doc = new NgDoc();
-        NgNode Node(NgKind kind, double x, double y)
+        NgNode Node(NgKind kind, double x, double y, params (string name, string value)[] props)
         {
             var def = NgNodeDefinitions.All[kind];
             var n = new NgNode { Kind = kind, X = x, Y = y };
             foreach (var pd in def.Props)
                 n.Props.Add(new NgProp { Name = pd.Name, Value = pd.Default, Options = pd.Options });
+            foreach (var (pn, pv) in props) { var p = n.Props.FirstOrDefault(z => z.Name == pn); if (p != null) p.Value = pv; }
             doc.Nodes.Add(n);
             return n;
         }
@@ -146,6 +147,42 @@ public static class NgTemplates
             Link(h, "Out", w);
             Link(h, "Out", d);
             Link(d, "Out", e);
+            return doc.ToJson();
+        }
+        if (template == "取放循环")
+        {
+            var s = Node(NgKind.Start, 80, 60);
+            var x0 = Node(NgKind.MoveAxis, 320, 60, ("轴", "X"), ("目标位置", "0"), ("速度", "100"));
+            var loop = Node(NgKind.Loop, 600, 60, ("次数", "3"));
+            var co = Node(NgKind.Cylinder, 860, 40, ("气缸", "夹爪"), ("动作", "伸出"));
+            var d = Node(NgKind.Delay, 1100, 40, ("时间ms", "250"));
+            var ci = Node(NgKind.Cylinder, 1100, 180, ("气缸", "夹爪"), ("动作", "缩回"));
+            var xr = Node(NgKind.MoveAxis, 1340, 110, ("轴", "X"), ("模式", "相对"), ("目标位置", "50"), ("速度", "100"));
+            var e = Node(NgKind.End, 1580, 60);
+            Link(s, "Out", x0);
+            Link(x0, "Out", loop);
+            Link(loop, "Body", co);
+            Link(loop, "Exit", e);
+            Link(co, "Out", d);
+            Link(d, "Out", ci);
+            Link(ci, "Out", xr);
+            Link(xr, "Out", loop);
+            return doc.ToJson();
+        }
+        if (template == "视觉对位")
+        {
+            var s = Node(NgKind.Start, 80, 60);
+            var cam = Node(NgKind.CamCapture, 320, 60, ("相机", "相机1"));
+            var mt = Node(NgKind.TemplateMatch, 560, 60, ("模板", "模板1"), ("分数阈值", "0.8"));
+            var dec = Node(NgKind.Decision, 820, 60, ("条件", "分数 >= 0.8"));
+            var mx = Node(NgKind.MoveAxis, 1080, 40, ("轴", "X"), ("目标位置", "0"), ("速度", "100"));
+            var e = Node(NgKind.End, 1340, 60);
+            Link(s, "Out", cam);
+            Link(cam, "Out", mt);
+            Link(mt, "Out", dec);
+            Link(dec, "True", mx);
+            Link(dec, "False", e);
+            Link(mx, "Out", e);
             return doc.ToJson();
         }
         // 默认：仅开始节点

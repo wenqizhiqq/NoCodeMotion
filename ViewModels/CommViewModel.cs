@@ -104,6 +104,29 @@ namespace NoCodeMotion.ViewModels
         public ICommand SendCommand { get; }
         public ICommand ClearLogCommand { get; }
         public ICommand AutoScanCommand { get; }
+        /// <summary>命令预设：把常用报文模板一键填入发送框（用户可改后发送）。</summary>
+        public ICommand ApplyPresetCommand { get; }
+
+        /// <summary>常用命令预设模板（Modbus / 心跳 / 查询等），选中「应用预设」即填入发送框。</summary>
+        public ObservableCollection<string> CommandPresets { get; } = new()
+        {
+            "01 03 00 00 00 0A CRC",      // ModbusRTU 读保持寄存器 0x0000 起 10 个
+            "01 04 00 00 00 08 CRC",      // ModbusRTU 读输入寄存器
+            "01 06 00 01 00 64 CRC",      // ModbusRTU 写单个寄存器 0x0001 = 100
+            "01 01 00 00 00 10 CRC",      // ModbusRTU 读线圈
+            "AT\r\n",                      // 串口通用 AT 指令
+            "PING\r\n",                   // 心跳/探测
+            "{\"cmd\":\"read\",\"id\":1}\r\n", // JSON 查询（网口设备）
+            "*IDN?\r\n"                   // SCPI 识别查询
+        };
+
+        private string? _selectedPreset;
+        /// <summary>当前选中的命令预设（下拉框）。</summary>
+        public string? SelectedPreset
+        {
+            get => _selectedPreset;
+            set => SetField(ref _selectedPreset, value);
+        }
 
         public CommViewModel()
         {
@@ -118,6 +141,7 @@ namespace NoCodeMotion.ViewModels
             SendCommand = new RelayCommand(_ => Send());
             ClearLogCommand = new RelayCommand(_ => DebugLog.Clear());
             AutoScanCommand = new RelayCommand(_ => AutoScan());
+            ApplyPresetCommand = new RelayCommand(_ => ApplyPreset(), _ => !string.IsNullOrEmpty(SelectedPreset));
         }
 
         protected override CommItem CreateNewItem() => new CommItem { Name = $"通讯{Counter + 1}" };
@@ -205,6 +229,14 @@ namespace NoCodeMotion.ViewModels
             if (!IsConnected) Log("  ⚠ 当前未连接，以下为回显仿真。");
             Log($"« 回应：{txt}");
             SendText = string.Empty;
+        }
+
+        /// <summary>把选中的命令预设填入发送框（不立即发送，便于修改后手动发送）。</summary>
+        private void ApplyPreset()
+        {
+            if (string.IsNullOrEmpty(SelectedPreset)) return;
+            SendText = SelectedPreset;
+            Log($"▷ 已载入命令预设：{SelectedPreset}（可编辑后点「发送」）");
         }
 
         private void AutoScan()

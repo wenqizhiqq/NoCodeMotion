@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:conv="clr-namespace:NoCodeMotion.Views"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="1000"
              Background="Transparent">
 
@@ -74,6 +75,8 @@
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
+
+        <conv:VarResolveSummaryConverter x:Key="VarResolveSummary"/>
     </UserControl.Resources>
 
     <Grid Margin="8">
@@ -97,7 +100,7 @@
 
         <!-- 变量表格（白色卡片包裹）：每行 5 组 (名称 / 字符串值) -->
         <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}">
-            <DataGrid ItemsSource="{Binding Items}"
+            <DataGrid x:Name="VarGrid" ItemsSource="{Binding Items}"
                       SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                       RowStyle="{StaticResource VarRowStyle}"
                       CellStyle="{StaticResource VarCellStyle}"
@@ -186,9 +189,29 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
+
+                    <!-- 解析值：值为表达式（如 计数+1）时实时显示计算结果，仿真运行时随依赖变量刷新 -->
+                    <DataGridTemplateColumn Header="解析值" Width="170" IsReadOnly="True">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock VerticalAlignment="Center" Margin="8,0" FontSize="12"
+                                           Foreground="{StaticResource AccentDarkBrush}" TextTrimming="CharacterEllipsis">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{StaticResource VarResolveSummary}">
+                                            <Binding Path="Name1"/><Binding Path="Value1"/>
+                                            <Binding Path="Name2"/><Binding Path="Value2"/>
+                                            <Binding Path="Name3"/><Binding Path="Value3"/>
+                                            <Binding Path="Name4"/><Binding Path="Value4"/>
+                                            <Binding Path="Name5"/><Binding Path="Value5"/>
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
-        <local:PageHintBar Grid.Row="3" OperationText="表格内增删变量，填写名称、类型与初始值；流程中用 {变量名} 引用。" PrecautionText="变量名勿用中文或空格；运行期修改即时生效，注意单位与取值范围。"/>
+        <local:PageHintBar Grid.Row="3" OperationText="表格内增删变量，填写名称与初始值；值可写算术表达式（如 计数+1、A*2），右侧&quot;解析值&quot;实时显示结果；流程用 {变量名} 引用。" PrecautionText="变量名勿用中文或空格；表达式支持 + - * / % 与括号及引用其它变量；运行期修改即时生效。"/>
     </Grid>
 </UserControl>

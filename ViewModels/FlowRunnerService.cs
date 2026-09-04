@@ -729,13 +729,28 @@ namespace NoCodeMotion.ViewModels
                             int camIdx = 0;
                             if (int.TryParse(name, out var c)) camIdx = c;
                             var bgra = VisionEngine.CaptureFrame(camIdx, out int w, out int h);
-                            if (bgra != null && w > 0 && h > 0)
+                            bool sim = false;
+                            if (bgra == null || w <= 0 || h <= 0)
                             {
-                                _log?.Invoke($"[相机] 已取帧 {w}x{h}（相机步骤「{name}」）。", LogLevel.Info);
-                                _ctrl.OnCameraCapture?.Invoke(bgra, w, h);
+                                bgra = VisionSimCapture.Capture(camIdx, out w, out h);
+                                sim = true;
                             }
-                            else
-                                _log?.Invoke($"[相机] 取帧失败：{name}", LogLevel.Warn);
+                            var det = VisionSimCapture.Detect(camIdx);
+                            var camName = name;
+                            var cams = ProjectStore.Data?.Cameras;
+                            if (cams != null && camIdx >= 0 && camIdx < cams.Count) camName = cams[camIdx].Name;
+                            var resKey = $"CamResult{camIdx}";
+                            _ctrl.Vars[resKey] = $"{det.X:0.0},{det.Y:0.0}";
+                            SimRuntime.SetVariable(resKey, det.Score);   // 分数写入数值仓，便于 {CamResult0} 引用
+                            SimRuntime.FlashCamera(camName);
+                            // 同步相机页「最近结果 / 匹配分数」展示
+                            if (cams != null && camIdx >= 0 && camIdx < cams.Count)
+                            {
+                                cams[camIdx].LastResult = $"中心 ({det.X:0.0},{det.Y:0.0})";
+                                cams[camIdx].LastScore = det.Score;
+                            }
+                            _log?.Invoke($"[相机] {(sim ? "仿真" : "真实")}取帧 {w}x{h}（{camName}），检测中心 ({det.X:0.0},{det.Y:0.0}) 分数 {det.Score:0.00}", LogLevel.Info);
+                            _ctrl.OnCameraCapture?.Invoke(bgra, w, h);
                         }
                         catch (Exception ex)
                         {
@@ -827,6 +842,13 @@ namespace NoCodeMotion.ViewModels
         private void ExecVar(FlowStep s, string name, string setv)
         {
             if (string.IsNullOrEmpty(name)) return;
+            // 表达式模式：setv 含运算符/变量名 → 按当前变量值实时求值（如 "计数+1"、"A*2"）。
+            if (ExpressionEvaluator.IsExpression(setv))
+            {
+                var ok = ExpressionEvaluator.Evaluate(setv, n => GetVarNum(n), out var r);
+                _ctrl.Vars[name] = (ok ? r : 0).ToString();
+                return;
+            }
             double cur = GetVarNum(name);
             double val = double.TryParse(setv, out var v) ? v : 0;
             string op = (s.Operation ?? "").Trim();

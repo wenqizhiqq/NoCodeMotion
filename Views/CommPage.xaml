@@ -236,6 +236,16 @@
                             </WrapPanel>
 
                             <DockPanel LastChildFill="True" Margin="0,0,0,8">
+                                <TextBlock DockPanel.Dock="Left" Text="命令预设" Style="{StaticResource AppleLabel}" Margin="0,0,10,0"/>
+                                <Button DockPanel.Dock="Right" Content="应用预设" Style="{StaticResource AppleBtnSecondary}" Margin="8,0,0,0" Command="{Binding ApplyPresetCommand}"/>
+                                <ComboBox ItemsSource="{Binding CommandPresets}"
+                                          SelectedItem="{Binding SelectedPreset, UpdateSourceTrigger=PropertyChanged}"
+                                          BorderThickness="1" BorderBrush="{StaticResource LineBrush}"
+                                          Background="{StaticResource SurfaceBrush}" VerticalAlignment="Center" Padding="6"
+                                          ToolTip="选中常用报文模板，点「应用预设」填入发送框后再编辑发送。"/>
+                            </DockPanel>
+
+                            <DockPanel LastChildFill="True" Margin="0,0,0,8">
                                 <TextBlock DockPanel.Dock="Left" Text="发送" Style="{StaticResource AppleLabel}" Margin="0,0,10,0"/>
                                 <Button DockPanel.Dock="Right" Content="发送" Style="{StaticResource AppleBtn}" Margin="8,0,0,0" Command="{Binding SendCommand}"/>
                                 <TextBox Text="{Binding SendText, UpdateSourceTrigger=PropertyChanged}" BorderThickness="1"

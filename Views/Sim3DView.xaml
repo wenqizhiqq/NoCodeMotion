@@ -42,6 +42,15 @@
                     FontSize="11" MinWidth="0" Padding="10,3" Margin="0,0,6,0" Click="BtnImportDwg_Click"/>
             <Button x:Name="BtnClearStp" Content="清除" Style="{StaticResource TtPillGrayBtn}"
                     FontSize="11" MinWidth="0" Padding="10,3" Click="BtnClearStp_Click"/>
+            <Separator Width="1" Margin="6,4" Background="#CBD5E1"/>
+            <ComboBox x:Name="CmbFlow" Width="118" FontSize="11" Margin="0,0,6,0"
+                      ToolTip="选择要运行的流程（默认主流程）" DisplayMemberPath="Name"/>
+            <Button x:Name="BtnRun" Content="运行" Style="{StaticResource TtPillGreenBtn}"
+                    FontSize="11" MinWidth="0" Padding="10,3" Margin="0,0,4,0" Click="BtnRun_Click"/>
+            <Button x:Name="BtnPause" Content="暂停" Style="{StaticResource TtPillOrangeBtn}"
+                    FontSize="11" MinWidth="0" Padding="10,3" Margin="0,0,4,0" Click="BtnPause_Click"/>
+            <Button x:Name="BtnStop" Content="停止" Style="{StaticResource TtPillRedBtn}"
+                    FontSize="11" MinWidth="0" Padding="10,3" Click="BtnStop_Click"/>
         </StackPanel>
 
         <!-- STP 加载状态（打开/解析/三角面数/失败原因） -->

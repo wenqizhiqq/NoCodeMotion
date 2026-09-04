@@ -6,6 +6,7 @@
              xmlns:vm="clr-namespace:NoCodeMotion.ViewModels"
              xmlns:model="clr-namespace:NoCodeMotion.Models"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:conv="clr-namespace:NoCodeMotion.Views"
              xmlns:svc="clr-namespace:NoCodeMotion.Services"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -104,6 +105,9 @@
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
             <Setter Property="Margin" Value="0,0,0,6"/>
         </Style>
+
+        <conv:IoRuntimeStateConverter x:Key="IoRuntimeState"/>
+        <conv:IoRuntimeBrushConverter x:Key="IoRuntimeBrush"/>
     </UserControl.Resources>
 
     <Grid Margin="8">
@@ -130,7 +134,7 @@
 
             <!-- IO 表格（白色卡片包裹） -->
             <Border Style="{StaticResource CardBorderStyle}">
-                <DataGrid ItemsSource="{Binding InputPanel.Items}"
+                <DataGrid x:Name="InputGrid" ItemsSource="{Binding InputPanel.Items}"
                           SelectedItem="{Binding InputPanel.SelectedItem, Mode=TwoWay}"
                           RowStyle="{StaticResource IoRowStyle}"
                           CellStyle="{StaticResource IoCellStyle}"
@@ -195,7 +199,7 @@
             </Grid>
 
             <Border Style="{StaticResource CardBorderStyle}">
-                <DataGrid ItemsSource="{Binding OutputPanel.Items}"
+                <DataGrid x:Name="OutputGrid" ItemsSource="{Binding OutputPanel.Items}"
                           SelectedItem="{Binding OutputPanel.SelectedItem, Mode=TwoWay}"
                           RowStyle="{StaticResource IoRowStyle}"
                           CellStyle="{StaticResource IoCellStyle}"
@@ -243,6 +247,19 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="值" Binding="{Binding Value}" Width="50" IsReadOnly="True"/>
+                        <!-- 运行时：仿真播放时按 SimRuntime 输出状态实时高亮（置位绿/复位灰） -->
+                        <DataGridTemplateColumn Header="运行时" Width="70" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="4" Margin="6,3" Height="20" Width="40" HorizontalAlignment="Center"
+                                            Background="{Binding Name, Converter={StaticResource IoRuntimeBrush}}">
+                                        <TextBlock Text="{Binding Name, Converter={StaticResource IoRuntimeState}}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="White" FontSize="11"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>

@@ -35,6 +35,11 @@ namespace NoCodeMotion.Services
 
         public static bool HasException => !string.IsNullOrWhiteSpace(ExceptionText);
 
+        /// <summary>普通信息文本（如「已生成 N 个点位」），区别于异常，以中性/蓝色展示。</summary>
+        public static string InfoText { get; private set; } = "";
+
+        public static bool HasInfo => !string.IsNullOrWhiteSpace(InfoText);
+
         /// <summary>运行状态圆点/文本颜色。</summary>
         public static string RunColor => EStopped ? "#DC2626" : (IsRunning ? "#16A34A" : "#64748B");
 
@@ -65,6 +70,21 @@ namespace NoCodeMotion.Services
         public static void ClearException()
         {
             ExceptionText = "";
+            Raise();
+        }
+
+        /// <summary>报告一条普通信息到状态栏（自动带时间，区别于异常告警）。</summary>
+        public static void ReportInfo(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return;
+            InfoText = $"[{DateTime.Now:HH:mm:ss}] {message}";
+            Raise();
+        }
+
+        /// <summary>清除信息提示。</summary>
+        public static void ClearInfo()
+        {
+            InfoText = "";
             Raise();
         }
 
