@@ -49,8 +49,8 @@ namespace NoCodeMotion
             StatusBarService.RefreshUser();
             // 底栏署名（AuthorWatermark 是 internal，作者联系串在源码里被拆段+零宽混淆，
             // 即便有人用整段字符串批量替换也无法一次抹掉。本字段仅在 InitializeComponent 之后可用） 
-            // 默认打开「流程」页面
-            NavigateTo("Flow");
+            // 启动时一次性预初始化所有页面（在加载遮罩下进行），使后续切换页面瞬时完成、无需进度条
+            PreloadAllPagesAsync();
         }
 
         private void Nav_Click(object sender, RoutedEventArgs e)
@@ -112,11 +112,74 @@ namespace NoCodeMotion
             }
         }
 
-        /// <summary>加载遮罩可见性 / 文本随 LoadingService 状态切换（打开/新建工程时显示）。</summary>
+        /// <summary>加载遮罩可见性 / 文本 / 进度随 LoadingService 状态切换（打开/新建工程、启动预初始化时显示）。</summary>
         private void OnLoadingStateChanged()
         {
             LoadingOverlay.Visibility = LoadingService.IsLoading ? Visibility.Visible : Visibility.Collapsed;
             LoadingText.Text = LoadingService.Message;
+            if (LoadingService.Progress < 0)
+            {
+                LoadingBar.IsIndeterminate = true;
+            }
+            else
+            {
+                LoadingBar.IsIndeterminate = false;
+                LoadingBar.Maximum = LoadingService.ProgressMax;
+                LoadingBar.Value = Math.Min(LoadingService.Progress, LoadingService.ProgressMax);
+            }
+        }
+
+        /// <summary>导航键对应的中文页签名，用于预初始化提示文案。</summary>
+        private static string TitleFor(string key) => key switch
+        {
+            "ProjectManager" => "项目管理",
+            "AxisController" => "控制器",
+            "Axis" => "轴",
+            "Io" => "IO",
+            "Cylinder" => "气缸",
+            "Point" => "点位表",
+            "Comm" => "通讯",
+            "Tray" => "料盘",
+            "Variable" => "变量",
+            "Flow" => "流程",
+            "Camera" => "相机",
+            "Engineer" => "工程师",
+            "Operator" => "操作员",
+            "Manual" => "说明书",
+            _ => key
+        };
+
+        /// <summary>
+        /// 启动时一次性预初始化所有页面（在加载遮罩下进行），用确定式进度条显示「第 i / 共 n 页」；
+        /// 全部构造进缓存后，默认进入「流程」页（已在缓存中，瞬时切换，不再需要进度条）。
+        /// </summary>
+        private async void PreloadAllPagesAsync()
+        {
+            var keys = _pages.Keys.ToList();
+            int total = keys.Count;
+            LoadingService.ProgressMax = total;
+            LoadingService.Show($"正在初始化页面 (0/{total})…");
+            // 先让遮罩渲染出来，再开始逐页构造
+            await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+            try
+            {
+                int done = 0;
+                foreach (var key in keys)
+                {
+                    done++;
+                    LoadingService.Report(done, $"正在初始化页面 ({done}/{total})：{TitleFor(key)}…");
+                    // 让进度文本/进度条刷新一帧，再构造下一页
+                    await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+                    if (!_cache.ContainsKey(key))
+                        _cache[key] = _pages[key]();
+                }
+                // 默认进入「流程」页（已在缓存中，瞬时切换）
+                NavigateTo("Flow");
+            }
+            finally
+            {
+                LoadingService.Hide();
+            }
         }
 
         /// <summary>导航栏「在线下发」开关：开启后配置页改值实时下发到设备（仅真实硬件桥生效）。</summary>
