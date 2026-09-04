@@ -1,9 +1,0 @@
-ERRORS (0)
-
-LAST 6
-D:\wqz\code\NoCodeMotion\ViewModels\FlowRunnerService.cs(340,48): warning CS8600: Op?null ���Vpn��'hr_s�Lu�k null J�p�Fm��m���m�]r_�m?null �~��7p��?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
-D:\wqz\code\NoCodeMotion\ViewModels\OperatorViewModel.cs(45,24): warning CS0414: pAi��%��mperatorViewModel._timingClockMs%��o�Qt��tyJ�wx}cm�U�|��C�Z"�(1C~9p�Q�kJ�?[D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
-    32 �mG��[�?
-    0 �mH�Je�t?
-
-�[,�de��X�h 00:00:11.49

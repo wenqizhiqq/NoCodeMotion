@@ -1,0 +1,7 @@
+﻿size 3373960
+ver AC1032
+preview seeker @0x0D = 3258592 0x31b8e0
+bytes@seeker 1f 25 6d 07 d4 36 28 28 9d 57 ca 3f 9d 44 10 2b
+BMP sig found at -1 
+PNG sig found at 3258711 0x31b957
+first 16 @0x80 68 40 f8 f7 92 2a b5 ef 18 dd 0b f1 f1 bb e9 eb

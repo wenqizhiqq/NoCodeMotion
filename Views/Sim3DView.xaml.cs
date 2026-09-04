@@ -18,6 +18,7 @@ using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using NoCodeMotion.Services.Cad;
 
 namespace NoCodeMotion.Views
 {
@@ -184,6 +185,11 @@ namespace NoCodeMotion.Views
         private Point3D _stpCenter;                        // CAD 包围盒中心（WPF 空间，已 Z-up→Y-up）
         private double _stpRadius;                         // CAD 包围球半径
 
+        // ===== DWG / DXF 二维布局（由"导入DWG/DXF"按钮导入，独立于参数化机台与 STP） =====
+        private ModelVisual3D? _dwgContent;                // DWG 可视节点（含线段网格 + 文字标签）
+        private Point3D _dwgCenter;                        // 取景中心
+        private double _dwgRadius;                         // 取景半径
+
         public Sim3DView()
         {
             InitializeComponent();
@@ -268,6 +274,8 @@ namespace NoCodeMotion.Views
             _pointModels.Clear();
             _headModel = null;
             _machineGroup = null;
+            _stpModel = null;
+            _dwgContent = null;
             _linearGroups.Clear();
             _rotaryTops.Clear();
             _highlightHosts.Clear();
@@ -287,13 +295,15 @@ namespace NoCodeMotion.Views
 
             var raw = Points;
 
-            if (_cadMode && _stpContent != null)
+            if (_cadMode && (_dwgContent != null || _stpContent != null))
             {
-                // CAD 显示模式：只显示导入的 STP 模型，隐藏参数化机台、轨迹与点位
+                // CAD/DWG 显示模式：隐藏参数化机台、轨迹与点位，只显示导入模型
                 EmptyHint.Visibility = Visibility.Collapsed;
                 _machineGroup = null;
-                _stpModel = new ModelVisual3D { Content = _stpContent };
-                Root.Children.Add(_stpModel);
+                if (_dwgContent != null)
+                    Root.Children.Add(_dwgContent);
+                else if (_stpContent != null)
+                    Root.Children.Add(new ModelVisual3D { Content = _stpContent });
             }
             else
             {
@@ -682,11 +692,19 @@ namespace NoCodeMotion.Views
         // 工具条：复位视角到默认轨道
         private void BtnResetView_Click(object sender, RoutedEventArgs e)
         {
-            if (_cadMode && _stpContent != null)
+            if (_cadMode && (_dwgContent != null || _stpContent != null))
             {
-                // CAD 模式：复位到模型最佳取景
-                _theta = 0.7; _phi = 0.5; _radius = Math.Max(_stpRadius * 2.6, 120);
-                _orbitCenter = _orbitCenterTarget = _stpCenter;
+                // CAD/DWG 模式：复位到模型最佳取景
+                if (_dwgContent != null)
+                {
+                    _theta = 0.7; _phi = 0.5; _radius = Math.Max(_dwgRadius * 2.6, 140);
+                    _orbitCenter = _orbitCenterTarget = _dwgCenter;
+                }
+                else
+                {
+                    _theta = 0.7; _phi = 0.5; _radius = Math.Max(_stpRadius * 2.6, 120);
+                    _orbitCenter = _orbitCenterTarget = _stpCenter;
+                }
             }
             else
             {
@@ -722,12 +740,70 @@ namespace NoCodeMotion.Views
             if (ok == true) LoadStepFile(dlg.FileName);
         }
 
+        /// <summary>打开 DWG/DXF 文件对话框并异步加载为 2D 布局（Aspose.CAD 读取，矢量迭代无评估水印）。</summary>
+        private void BtnImportDwg_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "CAD 图纸 (*.dwg;*.dxf)|*.dwg;*.dxf|所有文件 (*.*)|*.*",
+                Title = "导入 DWG / DXF 图纸"
+            };
+            bool? ok = null;
+            try { ok = dlg.ShowDialog(); }
+            catch (Exception ex)
+            {
+                SetStpStatus("无法打开文件对话框（可能被安全软件拦截）：" + ex.Message);
+                return;
+            }
+            if (ok == true) LoadDwgFile(dlg.FileName);
+        }
+
+        /// <summary>异步解析 DWG/DXF 并切换到 2D 布局显示模式（后台线程做几何提取，UI 线程只负责装配）。</summary>
+        public void LoadDwgFile(string path)
+        {
+            SetStpStatus("正在解析图纸…");
+            Task.Run(() =>
+            {
+                try
+                {
+                    var d = DwgReader.Read(path);   // 同步读取 + 几何提取（Aspose.CAD，矢量迭代无评估水印）
+                    if (!d.HasData || !d.HasFit)
+                    {
+                        Dispatcher.Invoke(() => SetStpStatus("图纸无可渲染几何（可能是纯 3D 实体/栅格）：" + System.IO.Path.GetFileName(path)));
+                        return;
+                    }
+                    BuildDwgModel(d, out var root, out var center, out var radius);
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        _stpContent = null; _stpModel = null;   // 导入 DWG 时清空可能已显示的 STP
+                        _dwgContent = root;
+                        _dwgCenter = center;
+                        _dwgRadius = radius;
+                        _cadMode = true;
+                        _orbitCenter = _orbitCenterTarget = center;
+                        _radius = Math.Max(radius * 2.6, 140);
+                        _followEnabled = false;
+                        if (ChkFollow != null) ChkFollow.IsChecked = false;
+                        BuildScene();   // 进入 DWG 模式：隐藏参数化机台，显示导入图纸
+                        UpdateCamera();
+                        SetStpStatus($"已加载 {System.IO.Path.GetFileName(path)} · 线段 {d.Segments.Count:N0} · 标注 {d.Labels.Count}");
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.Invoke(() => SetStpStatus("图纸解析失败：" + ex.Message));
+                }
+            });
+        }
+
         /// <summary>清除已加载的 CAD 模型，恢复参数化机台。</summary>
         private void BtnClearStp_Click(object sender, RoutedEventArgs e)
         {
             _cadMode = false;
             _stpContent = null;
             _stpModel = null;
+            _dwgContent = null;
             _followEnabled = true;
             if (ChkFollow != null) ChkFollow.IsChecked = true;
             BuildScene();
@@ -748,6 +824,7 @@ namespace NoCodeMotion.Views
 
                     Dispatcher.Invoke(() =>
                     {
+                        _dwgContent = null;   // 载入 STP 时清空可能已显示的 DWG
                         _stpContent = group;
                         _stpCenter = center;
                         _stpRadius = radius;
@@ -918,6 +995,133 @@ namespace NoCodeMotion.Views
                 Material = hostMat,
                 Visual = border,
                 Transform = new TranslateTransform3D(position.X, position.Y, position.Z)
+            };
+        }
+
+        // ===================== DWG / DXF 二维布局渲染 =====================
+        // 把 DwgReader 提取的线段 + 文字标注，烘焙成躺在地面（XZ 平面）的 3D 布局：
+        //  - 每条线段 → 一条细矩形（两个三角形），沿 XZ 平面铺开；
+        //  - 文字标注 → Viewport2DVisual3D（复用 IsVisualHostMaterial 技术）；
+        //  - 背板 → 浅色半透明卡片，提升可读性。
+        // DWG(X,Y) 直接映射到场景 X / Z（Y-up→场景 Z），并按取景包围盒居中、缩放到固定主尺寸。
+
+        /// <summary>把图纸烘焙为可视节点（含线段网格 + 文字标签），并计算取景中心与半径。</summary>
+        private static void BuildDwgModel(DwgDrawing d, out ModelVisual3D root, out Point3D center, out double radius)
+        {
+            const double floorY = 0.2;     // 略高于机台床面（BaseY=-10）
+            const double target = 180.0;    // 取景主尺寸（场景单位）：图纸较大一维映射到该长度
+            double fx0 = d.FitMinX, fy0 = d.FitMinY, fx1 = d.FitMaxX, fy1 = d.FitMaxY;
+            double fcx = (fx0 + fx1) / 2, fcy = (fy0 + fy1) / 2;
+            double fw = Math.Max(fx1 - fx0, 1e-3), fh = Math.Max(fy1 - fy0, 1e-3);
+            double scale = target / Math.Max(fw, fh);   // DWG 单位 → 场景单位
+            double lineW = target / 650.0;              // 线宽（场景单位）
+            double hw = lineW / 2;
+            double margin = 0.02 * Math.Max(fw, fh);    // 容差：剔除离群图块（如远处的电缆表）
+
+            double MapX(double x) => (x - fcx) * scale;
+            double MapZ(double y) => (y - fcy) * scale;
+
+            // ---- 背板 ----
+            var back = new MeshGeometry3D();
+            double bw = fw * scale * 0.5 + lineW * 3, bh = fh * scale * 0.5 + lineW * 3;
+            back.Positions.Add(new Point3D(-bw, floorY - 0.05, -bh));
+            back.Positions.Add(new Point3D(bw, floorY - 0.05, -bh));
+            back.Positions.Add(new Point3D(bw, floorY - 0.05, bh));
+            back.Positions.Add(new Point3D(-bw, floorY - 0.05, bh));
+            back.TriangleIndices.Add(0); back.TriangleIndices.Add(1); back.TriangleIndices.Add(2);
+            back.TriangleIndices.Add(0); back.TriangleIndices.Add(2); back.TriangleIndices.Add(3);
+            var backMat = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0xF8, 0xF9, 0xFB)) { Opacity = 0.30 });
+            var backModel = new GeometryModel3D(back, backMat);
+
+            // ---- 线段（细矩形，XZ 平面）----
+            var mg = new MeshGeometry3D();
+            foreach (var s in d.Segments)
+            {
+                // 跳过离群图块（与取景主图块不相连，例如被拖到远处 Y≈-2.5M 的电缆表）
+                double mx = (s.X1 + s.X2) / 2, my = (s.Y1 + s.Y2) / 2;
+                if (mx < fx0 - margin || mx > fx1 + margin || my < fy0 - margin || my > fy1 + margin) continue;
+
+                double ax = MapX(s.X1), az = MapZ(s.Y1);
+                double bx = MapX(s.X2), bz = MapZ(s.Y2);
+                double dx = bx - ax, dz = bz - az;
+                double len = Math.Sqrt(dx * dx + dz * dz);
+                if (len < 1e-9) continue;
+                double px = -dz / len * hw, pz = dx / len * hw;   // 垂直方向（XZ 平面）
+                int b = mg.Positions.Count;
+                mg.Positions.Add(new Point3D(ax + px, floorY, az + pz));
+                mg.Positions.Add(new Point3D(bx + px, floorY, bz + pz));
+                mg.Positions.Add(new Point3D(bx - px, floorY, bz - pz));
+                mg.Positions.Add(new Point3D(ax - px, floorY, az - pz));
+                mg.TriangleIndices.Add(b); mg.TriangleIndices.Add(b + 1); mg.TriangleIndices.Add(b + 2);
+                mg.TriangleIndices.Add(b); mg.TriangleIndices.Add(b + 2); mg.TriangleIndices.Add(b + 3);
+            }
+            var lineMat = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0x1F, 0x2A, 0x37)));
+            var lineModel = new GeometryModel3D(mg, lineMat);
+
+            var linesGroup = new Model3DGroup();
+            linesGroup.Children.Add(backModel);
+            linesGroup.Children.Add(lineModel);
+            linesGroup.Freeze();
+
+            root = new ModelVisual3D();
+            root.Children.Add(new ModelVisual3D { Content = linesGroup });
+
+            // ---- 文字标注（仅主图块内）----
+            double lh = target / 22.0;   // 标签高度（场景单位）
+            foreach (var lb in d.Labels)
+            {
+                if (lb.X < fx0 - margin || lb.X > fx1 + margin || lb.Y < fy0 - margin || lb.Y > fy1 + margin) continue;
+                var t = lb.Text?.Trim();
+                if (string.IsNullOrWhiteSpace(t)) continue;
+                double lx = MapX(lb.X), lz = MapZ(lb.Y);
+                root.Children.Add(MakeDwgLabel(t, new Point3D(lx, floorY + lh * 0.6, lz), lh));
+            }
+
+            center = new Point3D(0, 0, 0);   // 已按取景中心居中
+            radius = target * 1.55;
+        }
+
+        /// <summary>生成一个贴地的文字标签（Viewport2DVisual3D）。</summary>
+        private static Viewport2DVisual3D MakeDwgLabel(string text, Point3D pos, double worldH)
+        {
+            double w = worldH * Math.Max(2.4, text.Length * 0.62);
+            double h = worldH;
+            var tb = new TextBlock
+            {
+                Text = text,
+                FontSize = worldH * 0.66,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)),
+                FontWeight = FontWeights.Medium,
+                TextWrapping = TextWrapping.NoWrap,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(228, 0xFF, 0xFF, 0xFF)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
+                BorderThickness = new Thickness(worldH * 0.05),
+                CornerRadius = new CornerRadius(worldH * 0.14),
+                Padding = new Thickness(worldH * 0.12),
+                Width = w,
+                Height = h,
+                Child = tb
+            };
+            var hostMat = new DiffuseMaterial(new SolidColorBrush(Colors.White));
+            Viewport2DVisual3D.SetIsVisualHostMaterial(hostMat, true);
+            var mesh = new MeshGeometry3D();
+            mesh.Positions.Add(new Point3D(-w / 2, -h / 2, 0));
+            mesh.Positions.Add(new Point3D(w / 2, -h / 2, 0));
+            mesh.Positions.Add(new Point3D(w / 2, h / 2, 0));
+            mesh.Positions.Add(new Point3D(-w / 2, h / 2, 0));
+            mesh.TriangleIndices.Add(0); mesh.TriangleIndices.Add(1); mesh.TriangleIndices.Add(2);
+            mesh.TriangleIndices.Add(0); mesh.TriangleIndices.Add(2); mesh.TriangleIndices.Add(3);
+            return new Viewport2DVisual3D
+            {
+                Geometry = mesh,
+                Material = hostMat,
+                Visual = border,
+                Transform = new TranslateTransform3D(pos.X, pos.Y, pos.Z)
             };
         }
 

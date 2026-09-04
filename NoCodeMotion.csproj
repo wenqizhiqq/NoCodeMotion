@@ -10,6 +10,10 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- AvalonEdit 6.3 针对 net6.0-windows 编译，net10 引用会触发框架回退提示，属正常兼容，抑制以保持 0 警告。 -->
     <NoWarn>NU1701</NoWarn>
+    <!-- .NET 10 SDK 的 WPF 临时标记编译工程（_wpftmp）会重复包含自动生成的 AssemblyInfo / 框架特性文件，
+         导致 CS0579 重复特性错误。关闭主工程自动生成，由 _wpftmp 自行生成其特性（共享的 ThemeInfo 保留在 AssemblyInfo.cs 中且不冲突）。 -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,6 +51,9 @@
     <PackageReference Include="System.IO.Ports" Version="10.0.11" />
     <!-- OpenCV：OpenCvSharp4 4.13 仅含托管 OpenCvSharp.dll，原生运行时（OpenCvSharpExtern/opencv_world480/ffmpeg）统一由项目本地 Native\ 目录提供，版本已对齐。 -->
     <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
+    <!-- Aspose.CAD：读取二进制 DWG（AutoCAD 各版本）与 DXF 文本，提取矢量几何供 3D 仿真页以平面布局显示。
+         仅迭代矢量实体（CadImage.Entities / BlockEntities），不调用 Image.Save 栅格化，故不触发"Evaluation only"水印。 -->
+    <PackageReference Include="Aspose.CAD" Version="26.7.0" />
   </ItemGroup>
 
   <ItemGroup>

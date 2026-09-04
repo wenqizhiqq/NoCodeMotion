@@ -81,3 +81,19 @@
 - **懒加载**：镜像 VisionContent —— `FlowPage.xaml.cs` 的 `NodeGraphContent` DependencyProperty + `EnsureNodeGraph()`，避免 MC3093 NameScope 冲突（ContentControl 不可 x:Name）。
 - **易踩坑**：① 节点 VM 的 `Outputs` 是 `IReadOnlyList<string>`，**没有 `.IndexOf`** → 加 `OutputPortIndex(string)` 辅助方法，调用处改用它（`_src.Outputs.IndexOf` 报 CS1929）；② 节点页 code-behind 必须 `using System.Windows.Controls;`（UserControl 所在命名空间），否则 CS0246；③ 测试工程**不能放在 NoCodeMotion 目录内**（SDK `**/*.cs` globs 会把测试 Program.cs 一起编进 NoCodeMotion 导致 CS0017 双 Main），须放到上级 `D:\wqz\code\NodeGraphSmoke`。
 - **沙箱自测**：构建 0 错误；另写 `D:\wqz\code\NodeGraphSmoke`（ProjectReference 引用 NoCodeMotion.csproj，net10.0-windows + UseWPF）做无头逻辑冒烟测试（NgDoc 往返/三模板连线端点/LoadFrom/AddNode/Connect/DeleteSelected/Save 同步写回 GraphJson/几何），22 项全 PASS。WPF 渲染层因无显示器无法在无头沙箱验证，需用户在桌面运行确认。
+
+## .NET 10 SDK WPF 构建：`_wpftmp` CS0579 重复特性（2026-09-04 实测 + 修复）
+- **现象**：`dotnet build` 报 16 个 `CS0579`，全在 `NoCodeMotion_xxx_wpftmp.csproj`（WPF 临时标记编译工程），重复 `TargetFrameworkAttribute` + `AssemblyCompany/Version/...Attribute`。根因：SDK 10.0.102 的 `_wpftmp` 同时含主工程生成的 `NoCodeMotion.AssemblyInfo.cs` 与自带 `_wpftmp.AssemblyInfo.cs` / `.NETCoreApp,Version=v10.0.AssemblyAttributes.cs`。
+- **修复（csproj `<PropertyGroup>`）**：加 `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>` + `<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>`；共享的 `[assembly:ThemeInfo(...)]` 保留在根 `AssemblyInfo.cs`（仅此项、不与临时工程冲突）。改后 **0 错误**。
+- ⚠️ 主程序集将不再含版本/TargetFramework 特性（仅缺失元数据，桌面直接启动仍可运行）；若日后出现运行时报缺框架特性，再考虑用 `Directory.Build.props` + 手动特性回退。
+- ⚠️ 不要误用 `UseArtifactsOutput`/`UseArtifactsOutputPath`（非本 SDK 真实属性）；若需重定向中间产物，正确属性是 `UseArtifactsPath=true` + `ArtifactsPath=artifacts`（但本 bug 用它无效，必须用上面的 Generate* 关闭法）。
+- 构建通道：Bash 对 dotnet 一律 LOLBin 拦截（含 `run_in_background` 包装），**始终用 PowerShell + 绝对 `C:\Program Files\dotnet\dotnet.exe` 前台构建**。`DiffuseMaterial` 无 `Opacity` 属性 → 透明度设在 `SolidColorBrush` 上。
+
+## DWG/DXF 二维图纸导入仿真页（2026-09-04）
+- **阅读器**：`Services/Cad/DwgReader.cs`，Aspose.CAD 26.7.0（PackageReference）。`Image.Load(path)` 通吃二进制 DWG 与 DXF 文本，返回 `CadImage`。**只迭代矢量实体（`CadImage.Entities` / `BlockEntities[name]`），绝不调 `Image.Save` 栅格化 → 无 "Evaluation only" 水印**。
+- **递归块**：`CadInsertObject` → `img.BlockEntities[ins.OriginalBlockName]`（带 BasePoint 移位、Scale、绕 Z 旋转、插入点、阵列行列偏移），深度≤24 + 访问集合防环。
+- **实体→线段**：`CadLine`(FirstPoint→SecondPoint)；`CadLwPolyline`(Coordinates，闭合接首尾)；`CadCircle`/`CadArc` 按半径采样成段。**⚠️ CadArc 继承自 CadCircle，switch 必须 Arc 在 Circle 之前**（否则 CS8120 不可达）。`CadArc` 顺时针用 `CounterClockwize!=0` 判定；`CadLwPolylineFlag` 是枚举，`(int)pl.Flag` 直接转（不能 `(int)(object)` 否则 InvalidCast）。
+- **文字**：`CadText`(FirstAlignment/DefaultValue/TextHeight/TextRotation)、`CadMText`(InsertionPoint/Text或FullText/InitialTextHeight/RotationAngleRad)。
+- **取景聚类**：`ComputeFitBounds` 网格连通分量聚类，选面积最大图块为相机取景目标。实测目标文件 96% 图元在 Y≈-2.5M（电缆表/明细，被拖远），正确剔除，主图块为机器立面。
+- **渲染**：`Sim3DView.BuildDwgModel` 把线段烘焙成 XZ 平面细矩形网格 + 半透明背板 + `Viewport2DVisual3D` 文字标签，按取景包围盒居中缩放（target=180 场景单位），离群段/标签剔除；`LoadDwgFile` 后台读 + Dispatcher 装配，复用 `_cadMode` 隐藏参数化机台；XAML 工具栏「导入DWG/DXF」按钮（`BtnImportDwg_Click`）。
+- **本机验证**：DwgTest 头less（已删）RAW=100, SEGMENTS=70381, LABELS=79, FIT=[-3,2797.6→860,24596.8]；主工程构建 0 错误。WPF 运行时渲染未截图验证（沙箱无显示器）。

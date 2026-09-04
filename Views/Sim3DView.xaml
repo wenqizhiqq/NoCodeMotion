@@ -38,6 +38,8 @@
                     FontSize="11" MinWidth="0" Padding="10,3" Margin="0,0,6,0" Click="BtnResetView_Click"/>
             <Button x:Name="BtnOpenStp" Content="打开STP" Style="{StaticResource TtPillBlueBtn}"
                     FontSize="11" MinWidth="0" Padding="10,3" Margin="0,0,6,0" Click="BtnOpenStp_Click"/>
+            <Button x:Name="BtnImportDwg" Content="导入DWG/DXF" Style="{StaticResource TtPillBlueBtn}"
+                    FontSize="11" MinWidth="0" Padding="10,3" Margin="0,0,6,0" Click="BtnImportDwg_Click"/>
             <Button x:Name="BtnClearStp" Content="清除" Style="{StaticResource TtPillGrayBtn}"
                     FontSize="11" MinWidth="0" Padding="10,3" Click="BtnClearStp_Click"/>
         </StackPanel>
@@ -50,7 +52,7 @@
         <TextBlock x:Name="EmptyHint" Text="该工位暂无点位，无法仿真"
                    FontSize="12" Foreground="#94A3B8" HorizontalAlignment="Center"
                    VerticalAlignment="Center" Visibility="Collapsed"/>
-        <TextBlock Text="拖拽旋转 · 滚轮缩放"
+        <TextBlock Text="拖拽旋转 · 滚轮缩放 · 可导入 DWG/DXF 显示平面图"
                    FontSize="10" Foreground="#94A3B8" HorizontalAlignment="Right"
                    VerticalAlignment="Bottom" Margin="6" IsHitTestVisible="False"/>
 
