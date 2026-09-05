@@ -166,7 +166,9 @@ namespace NoCodeMotion.Views
         private GeometryModel3D? _dragPlaneModel;     // 拖拽用不可见水平面（命中测试）
         private System.Windows.Media.Media3D.TranslateTransform3D? _dragPlanePos;
         private readonly List<(string name, double cx, double cz)> _cylLayout = new();
-        private BodyHandle _spindleHandle;
+        // 机台运动学碰撞体跟随描述：(key, 局部x,y,z, 尺寸x,y,z, 跟随类型)
+        // kind: 0=龙门(X轴) 1=桥式滑座(D轴) 2=主轴(U轴) 3=气缸活塞杆
+        private readonly List<(string key, double lx, double ly, double lz, double sx, double sy, double sz, int kind)> _kinSpecs = new();
         private Point3D _vmHead = new(0, 0, 0);
 
         // 轴分类结果 + 流程设备使用
@@ -476,43 +478,101 @@ namespace NoCodeMotion.Views
             Root.Children.Add(new ModelVisual3D { Content = _dragPlaneModel });
         }
 
-        /// <summary>重建物理世界（床面 + 工件 + 运动学碰撞体）。场景重建时调用，工件回到初始落点。</summary>
+        /// <summary>重建物理世界：机台所有部件都成为刚体并参与碰撞（静态结构 + 运动学运动部件 + 工件动态体）。
+        /// 工件初始置于床身顶面，被整个机台兜住；另有兜底地面，绝不会无限下落。</summary>
         private void RebuildPhysics()
         {
             if (_machineGroup == null) return;
             _physics?.Dispose();
             _physics = new PhysicsWorld(new System.Numerics.Vector3(0, -80, 0));
-            // 床面：顶面在 y=-5，恰好托住初始位于 (0,-2,0) 的工件
-            _physics.AddFloor(new System.Numerics.Vector3(0, -10, 0), new System.Numerics.Vector3(200, 10, 200));
-            if (_workpieceModel != null)
-                _physics.AddWorkpiece(new System.Numerics.Vector3(0, -2, 0), new System.Numerics.Vector3(22, 6, 18), 2f);
-            _spindleHandle = _physics.AddKinematic(new System.Numerics.Vector3(0, 12, 0), new System.Numerics.Vector3(10, 20, 10));
-            _physics.RegisterKinematic("spindle", _spindleHandle);
+            _kinSpecs.Clear();
+
+            // 兜底地面：任何掉出机台的工件最终停在 y≈-32，绝不会无限下落
+            _physics.AddFloor(V(0, -32, 0), V(500, 4, 500));
+
+            // 静态结构：床身 + 4 底脚
+            _physics.AddFloor(V(0, -12, 0), V(130, 4, 90));
+            foreach (var cx in new[] { -55.0, 55.0 })
+                foreach (var cz in new[] { -35.0, 35.0 })
+                    _physics.AddFloor(V(cx, -18, cz), V(10, 10, 10));
+
+            // 龙门（随 X 轴平移）
+            if (_axialX != null)
+            {
+                AddKinSpec("gantryL", 0, 15, -32, 8, 55, 8, 0);
+                AddKinSpec("gantryR", 0, 15, 32, 8, 55, 8, 0);
+                AddKinSpec("gantryT", 0, 42, 0, 8, 8, 72, 0);
+            }
+            // 桥式滑座（随 D/depth 轴平移）
+            if (_axialYdepth != null)
+                AddKinSpec("bridge", 0, 38, 0, 110, 10, 12, 1);
+            // 主轴/刀具（随 U/up 轴平移）
+            if (_axialZup != null)
+            {
+                AddKinSpec("spindleBody", 0, 12, 0, 10, 20, 10, 2);
+                AddKinSpec("spindleTip", 0, -2, 0, 4, 8, 4, 2);
+            }
+            // 旋转转台（静态，旋转对称，碰撞体不随转角变化）
+            foreach (var r in _rotaryInfos)
+            {
+                _physics.AddFloor(V(0, -9, 0), V(18, 3, 18));   // 转台底座
+                _physics.AddFloor(V(0, -6, 0), V(16, 4, 16));   // 转台顶面
+            }
+            // 相机（静态支架 + 机身）
+            int camN = ProjectStore.Data?.Cameras?.Count ?? 0;
+            if (camN == 0 && _usesCamera) camN = 1;
+            for (int i = 0; i < camN; i++)
+            {
+                double t = camN == 1 ? 0.5 : (double)i / (camN - 1);
+                double ang = (0.25 + 0.5 * t) * Math.PI;
+                double cx = Math.Cos(ang) * 62;
+                double cz = -Math.Sin(ang) * 62;
+                double cy = 56 - i * 3;
+                _physics.AddFloor(V(cx, cy, cz), V(14, 10, 18));
+                _physics.AddFloor(V(cx, cy - 21, cz), V(3, 40, 3));
+            }
+            // 气缸：缸体静态 + 活塞杆运动学（随伸出/缩回）
             foreach (var c in _cylLayout)
             {
-                BodyHandle h = _physics.AddKinematic(
-                    new System.Numerics.Vector3((float)c.cx, 12, (float)c.cz),
-                    new System.Numerics.Vector3(6.8f, 16, 6.8f));
-                _physics.RegisterKinematic("cyl:" + c.name, h);
+                _physics.AddFloor(V(c.cx, -4, c.cz), V(9, 16, 9));
+                AddKinSpec("cyl:" + c.name, c.cx, 12, c.cz, 6.8, 16, 6.8, 3);
             }
+            // 工件（动态刚体）：初始置于床身顶面（y=-7），被机台兜住，不再无限下落
+            if (_workpieceModel != null)
+                _physics.AddWorkpiece(V(0, -7, 0), V(22, 6, 18), 2f);
         }
 
-        /// <summary>每帧推进物理：运动学碰撞体跟随流程运行时移动，步进后把工件位姿写回可视模型。</summary>
+        private void AddKinSpec(string key, double lx, double ly, double lz, double sx, double sy, double sz, int kind)
+        {
+            _kinSpecs.Add((key, lx, ly, lz, sx, sy, sz, kind));
+            var h = _physics!.AddKinematic(V(lx, ly, lz), V(sx, sy, sz));
+            _physics.RegisterKinematic(key, h);
+        }
+
+        private static System.Numerics.Vector3 V(double x, double y, double z) => new((float)x, (float)y, (float)z);
+
+        /// <summary>每帧推进物理：机台运动学碰撞体跟随流程运行时（轴位移 / 气缸状态）移动，步进后写回工件位姿。</summary>
         private void StepPhysics()
         {
             if (_physics == null || _cadMode || _machineGroup == null || _workpieceModel == null) return;
 
-            // 主轴/滑座（最末轴组）运动学碰撞体跟随轴显示位移
-            _physics.SetKinematicPose(_spindleHandle,
-                new System.Numerics.Vector3((float)_dispX, (float)(_dispY + 12), (float)_dispZ));
-
-            // 各气缸活塞杆运动学碰撞体跟随其伸出/缩回状态
-            foreach (var c in _cylLayout)
+            // 机台运动学碰撞体跟随流程运行时移动，从而物理推动工件（实现「与流程交互」）
+            foreach (var s in _kinSpecs)
             {
-                int st = SimRuntime.GetCylinder(c.name);
-                double dy = st == 1 ? 0 : -9;
-                _physics.SetKinematicPose("cyl:" + c.name,
-                    new System.Numerics.Vector3((float)c.cx, (float)(12 + dy), (float)c.cz));
+                System.Numerics.Vector3 p;
+                switch (s.kind)
+                {
+                    case 0: p = V(s.lx + _dispX, s.ly, s.lz); break;                       // 龙门：随 X 轴
+                    case 1: p = V(s.lx + _dispX, s.ly, s.lz + _dispZ); break;              // 桥：随 X + depth(Z)
+                    case 2: p = V(s.lx + _dispX, s.ly + _dispY, s.lz + _dispZ); break;     // 主轴：随 X + up(Y) + depth(Z)
+                    case 3:                                                                    // 气缸活塞杆：随伸出(0)/缩回(-9)
+                        int st = SimRuntime.GetCylinder(s.key.Substring(4));
+                        double dy = st == 1 ? 0 : -9;
+                        p = V(s.lx, s.ly + dy, s.lz);
+                        break;
+                    default: p = V(s.lx, s.ly, s.lz); break;
+                }
+                _physics.SetKinematicPose(s.key, p);
             }
 
             _physics.Step(1f / 60f, out var pos, out var rot);
@@ -644,7 +704,7 @@ namespace NoCodeMotion.Views
             var wpModel = new GeometryModel3D(_box, _wpMat) { BackMaterial = _wpMat };
             var wpT = new Transform3DGroup();
             wpT.Children.Add(new ScaleTransform3D(22, 6, 18));
-            wpT.Children.Add(new TranslateTransform3D(0, -2, 0));
+            wpT.Children.Add(new TranslateTransform3D(0, -7, 0));
             wpModel.Transform = wpT;
             _machineGroup.Children.Add(new ModelVisual3D { Content = wpModel });
             _workpieceModel = wpModel;
