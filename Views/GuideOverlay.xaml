@@ -1,0 +1,39 @@
+<UserControl x:Class="NoCodeMotion.Views.GuideOverlay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" d:DesignHeight="220" d:DesignWidth="340">
+    <!-- 根容器不设置背景：空白处不拦截点击，让用户在引导时仍能操作下方真实控件；
+         仅 Dim/Frame 显式 IsHitTestVisible=false 做纯视觉暗化与高亮，Bubble 保持可交互。 -->
+    <Grid x:Name="Root">
+        <!-- 暗化层：仅视觉，点击穿透 -->
+        <Border x:Name="Dim" Background="#66000000" IsHitTestVisible="False"/>
+
+        <!-- 高亮边框：框住当前要引导的目标控件 -->
+        <Border x:Name="Frame" BorderBrush="{StaticResource AccentBrush}" BorderThickness="2.5"
+                Background="Transparent" CornerRadius="8" Visibility="Collapsed"
+                HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="14" ShadowDepth="0" Color="#2563EB" Opacity="0.55"/>
+            </Border.Effect>
+        </Border>
+
+        <!-- 引导气泡：Apple 风格圆角卡片 -->
+        <Border x:Name="Bubble" Background="{StaticResource SurfaceBrush}" CornerRadius="14"
+                BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                Padding="16,14" Effect="{StaticResource SoftShadow}" Visibility="Collapsed"
+                HorizontalAlignment="Left" VerticalAlignment="Top">
+            <StackPanel Width="300" MaxWidth="320">
+                <TextBlock x:Name="TitleTb" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="TextTb" Margin="0,6,0,12" FontSize="13" LineHeight="20"
+                           Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="SkipBtn" Content="跳过" Style="{StaticResource TtGrayBtn}" Click="Skip_Click"/>
+                    <Button x:Name="NextBtn" Content="下一步" Style="{StaticResource TtBaseBtn}" Click="Next_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
