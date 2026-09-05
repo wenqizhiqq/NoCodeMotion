@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 using NoCodeMotion.Services.Cad;
+using BepuPhysics;
 
 namespace NoCodeMotion.Views
 {
@@ -150,7 +151,22 @@ namespace NoCodeMotion.Views
         private readonly Dictionary<char, ModelVisual3D> _linearGroups = new(); // 场景轴 X/D/U -> 组
         private ModelVisual3D? _deepestLinear;
         private readonly Dictionary<char, ModelVisual3D> _rotaryTops = new();   // 旋转轴角色 -> 旋转顶面
-        private ModelVisual3D? _workpieceParent;
+        // ===== 物理仿真（BepuPhysics v2，纯 C# 无原生 DLL） =====
+        private PhysicsWorld? _physics;
+        private GeometryModel3D? _workpieceModel;     // 工件可视模型（位姿由物理每帧驱动）
+        private Material? _wpMat;                     // 工件常态材质
+        private Material? _wpSelectMat;               // 选中高亮材质（橙 + 高光）
+        private Material? _wpHoverMat;                // 悬停高亮材质（浅蓝 + 高光）
+        private bool _wpSelected;                     // 工件是否处于选中态
+        private bool _wpHover;                        // 工件是否处于悬停态
+        private const string _defaultHint = "点击工件可拖拽 · 空白拖拽旋转 · 滚轮缩放 · 可导入 DWG/DXF";
+        private System.Numerics.Vector3 _wpPos = new(0, -2, 0);
+        private bool _objectDrag;                      // 是否正在拖拽工件
+        private System.Numerics.Vector3 _grabOffset;
+        private GeometryModel3D? _dragPlaneModel;     // 拖拽用不可见水平面（命中测试）
+        private System.Windows.Media.Media3D.TranslateTransform3D? _dragPlanePos;
+        private readonly List<(string name, double cx, double cz)> _cylLayout = new();
+        private BodyHandle _spindleHandle;
         private Point3D _vmHead = new(0, 0, 0);
 
         // 轴分类结果 + 流程设备使用
@@ -204,28 +220,66 @@ namespace NoCodeMotion.Views
 
             Vp.MouseDown += (s, e) =>
             {
+                var mp = e.GetPosition(Vp);
+                // 点中工件 → 进入拖拽（而非旋转视角）
+                if (!_objectDrag && TryHitWorkpiece(mp, out var hp))
+                {
+                    _objectDrag = true;
+                    _physics?.SetWorkpieceKinematic(true);
+                    _grabOffset = hp - _wpPos;
+                    PositionDragPlane(_wpPos.Y);
+                    SelectWorkpiece(true);
+                    _followEnabled = false;
+                    _followResumeTimer?.Stop();
+                    Vp.CaptureMouse();
+                    e.Handled = true;
+                    return;
+                }
                 Vp.CaptureMouse();
                 _dragging = true;
-                _last = e.GetPosition(Vp);
+                _last = mp;
                 // 用户手动接管视角：暂停智能跟随，松开 2.5s 后自动恢复（异常锁定时不恢复）
                 _followEnabled = false;
                 _followResumeTimer?.Stop();
             };
             Vp.MouseMove += (s, e) =>
             {
-                if (!_dragging) return;
-                var p = e.GetPosition(Vp);
-                double dx = p.X - _last.X;
-                double dy = p.Y - _last.Y;
-                _last = p;
+                var mp = e.GetPosition(Vp);
+                if (_objectDrag)
+                {
+                    if (TryHitDragPlane(mp, out var wp))
+                        _physics?.SetWorkpiecePose(wp - _grabOffset);
+                    e.Handled = true;
+                    return;
+                }
+                if (!_dragging)
+                {
+                    // 悬停工件 → 浅蓝高亮 + 手型光标，提示可拖拽
+                    SetHover(TryHitWorkpiece(mp, out _));
+                    return;
+                }
+                double dx = mp.X - _last.X;
+                double dy = mp.Y - _last.Y;
+                _last = mp;
                 // 自然跟踪球：拖动方向与场景旋转方向一致（抓取跟随手感）
                 _theta += dx * 0.01;
                 _phi += dy * 0.01;
                 _phi = Math.Max(-1.45, Math.Min(1.45, _phi));
                 UpdateCamera();
             };
+            // 鼠标移出视口：清除悬停高亮与手型光标
+            Vp.MouseLeave += (s, e) => { if (!_objectDrag) SetHover(false); };
             Vp.MouseUp += (s, e) =>
             {
+                if (_objectDrag)
+                {
+                    _objectDrag = false;
+                    _physics?.SetWorkpieceKinematic(false);
+                    SelectWorkpiece(false);
+                    Vp.ReleaseMouseCapture();
+                    e.Handled = true;
+                    return;
+                }
                 _dragging = false;
                 Vp.ReleaseMouseCapture();
                 // 2.5s 后恢复智能跟随（除非正处于异常锁定视角）
@@ -245,7 +299,7 @@ namespace NoCodeMotion.Views
                 UpdateCamera();
             };
 
-            _timer.Tick += (s, e) => { UpdatePoseFromRuntime(); UpdateSimVisuals(); };
+            _timer.Tick += (s, e) => { UpdatePoseFromRuntime(); UpdateSimVisuals(); StepPhysics(); };
 
             if (ProjectStore.Data?.Axes is INotifyCollectionChanged ncA)
                 ncA.CollectionChanged += (s, e) => Dispatcher.Invoke(BuildScene);
@@ -324,7 +378,8 @@ namespace NoCodeMotion.Views
             _rotaryTops.Clear();
             _highlightHosts.Clear();
             _highlightModels.Clear();
-            _workpieceParent = null;
+            _workpieceModel = null;
+            _cylLayout.Clear();
             _deepestLinear = null;
             _axialX = _axialYdepth = _axialZup = null;
             _linearInfos.Clear();
@@ -401,6 +456,154 @@ namespace NoCodeMotion.Views
 
             UpdatePoseFromRuntime();
             UpdateCurrent();
+
+            BuildDragPlane();
+            RebuildPhysics();
+        }
+
+        // ----- 物理仿真：床面 + 工件 + 运动学碰撞体（气缸杆 / 主轴） -----
+
+        /// <summary>构建不可见水平拖拽面（命中测试用），随工件高度移动。</summary>
+        private void BuildDragPlane()
+        {
+            _dragPlanePos ??= new System.Windows.Media.Media3D.TranslateTransform3D(0, -2, 0);
+            // 近乎全透明但不完全透明，确保可被 3D 命中测试拾取
+            var mat = new DiffuseMaterial(new SolidColorBrush(Colors.White) { Opacity = 0.001 });
+            var g = new Transform3DGroup();
+            g.Children.Add(new ScaleTransform3D(220, 0.4, 220));
+            g.Children.Add(_dragPlanePos);
+            _dragPlaneModel = new GeometryModel3D(_box, mat) { Transform = g, BackMaterial = mat };
+            Root.Children.Add(new ModelVisual3D { Content = _dragPlaneModel });
+        }
+
+        /// <summary>重建物理世界（床面 + 工件 + 运动学碰撞体）。场景重建时调用，工件回到初始落点。</summary>
+        private void RebuildPhysics()
+        {
+            if (_machineGroup == null) return;
+            _physics?.Dispose();
+            _physics = new PhysicsWorld(new System.Numerics.Vector3(0, -80, 0));
+            // 床面：顶面在 y=-5，恰好托住初始位于 (0,-2,0) 的工件
+            _physics.AddFloor(new System.Numerics.Vector3(0, -10, 0), new System.Numerics.Vector3(200, 10, 200));
+            if (_workpieceModel != null)
+                _physics.AddWorkpiece(new System.Numerics.Vector3(0, -2, 0), new System.Numerics.Vector3(22, 6, 18), 2f);
+            _spindleHandle = _physics.AddKinematic(new System.Numerics.Vector3(0, 12, 0), new System.Numerics.Vector3(10, 20, 10));
+            _physics.RegisterKinematic("spindle", _spindleHandle);
+            foreach (var c in _cylLayout)
+            {
+                BodyHandle h = _physics.AddKinematic(
+                    new System.Numerics.Vector3((float)c.cx, 12, (float)c.cz),
+                    new System.Numerics.Vector3(6.8f, 16, 6.8f));
+                _physics.RegisterKinematic("cyl:" + c.name, h);
+            }
+        }
+
+        /// <summary>每帧推进物理：运动学碰撞体跟随流程运行时移动，步进后把工件位姿写回可视模型。</summary>
+        private void StepPhysics()
+        {
+            if (_physics == null || _cadMode || _machineGroup == null || _workpieceModel == null) return;
+
+            // 主轴/滑座（最末轴组）运动学碰撞体跟随轴显示位移
+            _physics.SetKinematicPose(_spindleHandle,
+                new System.Numerics.Vector3((float)_dispX, (float)(_dispY + 12), (float)_dispZ));
+
+            // 各气缸活塞杆运动学碰撞体跟随其伸出/缩回状态
+            foreach (var c in _cylLayout)
+            {
+                int st = SimRuntime.GetCylinder(c.name);
+                double dy = st == 1 ? 0 : -9;
+                _physics.SetKinematicPose("cyl:" + c.name,
+                    new System.Numerics.Vector3((float)c.cx, (float)(12 + dy), (float)c.cz));
+            }
+
+            _physics.Step(1f / 60f, out var pos, out var rot);
+            _wpPos = pos;
+
+            var g = new Transform3DGroup();
+            g.Children.Add(new ScaleTransform3D(22, 6, 18));
+            g.Children.Add(new System.Windows.Media.Media3D.RotateTransform3D(
+                new System.Windows.Media.Media3D.QuaternionRotation3D(
+                    new System.Windows.Media.Media3D.Quaternion(rot.X, rot.Y, rot.Z, rot.W))));
+            g.Children.Add(new System.Windows.Media.Media3D.TranslateTransform3D(pos.X, pos.Y, pos.Z));
+            _workpieceModel.Transform = g;
+        }
+
+        private bool TryHitWorkpiece(Point p, out System.Numerics.Vector3 hit)
+        {
+            hit = default;
+            if (_workpieceModel == null) return false;
+            var res = VisualTreeHelper.HitTest(Vp, p);
+            if (res is RayMeshGeometry3DHitTestResult r && ReferenceEquals(r.ModelHit, _workpieceModel))
+            {
+                hit = new System.Numerics.Vector3((float)r.PointHit.X, (float)r.PointHit.Y, (float)r.PointHit.Z);
+                return true;
+            }
+            return false;
+        }
+
+        private bool TryHitDragPlane(Point p, out System.Numerics.Vector3 hit)
+        {
+            hit = default;
+            if (_dragPlaneModel == null) return false;
+            var res = VisualTreeHelper.HitTest(Vp, p);
+            if (res is RayMeshGeometry3DHitTestResult r && ReferenceEquals(r.ModelHit, _dragPlaneModel))
+            {
+                hit = new System.Numerics.Vector3((float)r.PointHit.X, (float)r.PointHit.Y, (float)r.PointHit.Z);
+                return true;
+            }
+            return false;
+        }
+
+        private void PositionDragPlane(double y)
+        {
+            if (_dragPlanePos != null) { _dragPlanePos.OffsetX = 0; _dragPlanePos.OffsetY = y; _dragPlanePos.OffsetZ = 0; }
+        }
+
+        /// <summary>选中/取消选中工件：橙色高亮 + 手型光标 + 状态提示（物理态切换在调用方处理）。</summary>
+        private void SelectWorkpiece(bool on)
+        {
+            if (_workpieceModel == null) return;
+            _wpSelected = on;
+            _wpHover = false;
+            var m = on ? (_wpSelectMat ??= MakeWorkpieceMaterial(true, false)) : _wpMat!;
+            _workpieceModel.Material = m;
+            _workpieceModel.BackMaterial = m;
+            Vp.Cursor = on ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow;
+            SetInteractHint(on ? "工件已选中：拖拽移动，松开恢复重力" : _defaultHint);
+        }
+
+        /// <summary>悬停工件：浅蓝高亮 + 手型光标，提示可拖拽；离开恢复常态。选中态不被覆盖。</summary>
+        private void SetHover(bool on)
+        {
+            if (_wpSelected) { Vp.Cursor = System.Windows.Input.Cursors.Hand; return; }
+            if (on == _wpHover) return;
+            _wpHover = on;
+            if (_workpieceModel != null)
+            {
+                var m = on ? (_wpHoverMat ??= MakeWorkpieceMaterial(false, true)) : _wpMat!;
+                _workpieceModel.Material = m;
+                _workpieceModel.BackMaterial = m;
+            }
+            Vp.Cursor = on ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow;
+            SetInteractHint(on ? "工件可拖拽：按下并移动鼠标" : _defaultHint);
+        }
+
+        /// <summary>工件材质工厂：常态蓝 / 悬停浅蓝 / 选中橙，均带蓝色镜面高光（光源效果）。</summary>
+        private static Material MakeWorkpieceMaterial(bool selected, bool hover)
+        {
+            Color diff = selected ? Color.FromRgb(0xFB, 0x92, 0x3C)
+                        : hover ? Color.FromRgb(0x60, 0xA5, 0xFA)
+                        : Color.FromRgb(0x3B, 0x82, 0xF6);
+            Color spec = selected ? Color.FromRgb(0xFF, 0xC9, 0x9E) : Color.FromRgb(0xBF, 0xDB, 0xFE);
+            var grp = new MaterialGroup();
+            grp.Children.Add(new DiffuseMaterial(new SolidColorBrush(diff)));
+            grp.Children.Add(new SpecularMaterial(new SolidColorBrush(spec), 36));
+            grp.Freeze();
+            return grp;
+        }
+
+        private void SetInteractHint(string text)
+        {
+            if (TxtInteractHint != null) TxtInteractHint.Text = text;
         }
 
         // 机台：轴（龙门/导轨/转台）+ 流程内容驱动的外设（相机/气缸）
@@ -433,13 +636,18 @@ namespace NoCodeMotion.Views
                 baseC.Children.Add(top);
                 AddModel(top, _cyl, 16, 4, 16, new Point3D(0, -6, 0), MatKind.Rotary);
                 _rotaryTops[r.Role] = top;
-                if (_workpieceParent == null) _workpieceParent = top; // 工件随第一个旋转轴转
                 AddHighlight(baseC, r.Role, 22, 8, 22, new Point3D(0, -6, 0));
             }
 
-            // 工件（蓝金属块）：放在旋转台上（若有），否则床面
-            if (_workpieceParent == null) _workpieceParent = _machineGroup;
-            AddModel(_workpieceParent, _box, 22, 6, 18, new Point3D(0, -2, 0), MatKind.Workpiece);
+            // 工件（蓝金属块）：单位立方体缩放至 (22,6,18)，位姿由物理引擎每帧驱动（落于床面 / 被气缸与轴推动）
+            if (_wpMat == null) _wpMat = GetMaterial(MatKind.Workpiece);
+            var wpModel = new GeometryModel3D(_box, _wpMat) { BackMaterial = _wpMat };
+            var wpT = new Transform3DGroup();
+            wpT.Children.Add(new ScaleTransform3D(22, 6, 18));
+            wpT.Children.Add(new TranslateTransform3D(0, -2, 0));
+            wpModel.Transform = wpT;
+            _machineGroup.Children.Add(new ModelVisual3D { Content = wpModel });
+            _workpieceModel = wpModel;
 
             // 相机：由 ProjectStore.Data.Cameras 数量驱动（流程用到相机则至少 1 个）
             int camN = ProjectStore.Data?.Cameras?.Count ?? 0;
@@ -474,6 +682,7 @@ namespace NoCodeMotion.Views
                 _cylRodModels[cylName] = rod;     // 仿真"气缸"步骤时伸缩
                 _cylRodOrig[cylName] = rod.Transform;   // 缓存原始变换，运行时叠加伸缩偏移
                 _machineGroup.Children.Add(MakeLabel(cylName, new Point3D(cx, 26, cz)));
+                _cylLayout.Add((cylName, cx, cz));
             }
 
             BuildLabels();
@@ -1273,6 +1482,7 @@ namespace NoCodeMotion.Views
                 _orbitCenter.Y + r * Math.Sin(_phi),
                 _orbitCenter.Z + r * Math.Cos(_phi) * Math.Sin(_theta));
             Cam.Position = pos;
+            if (CamLight != null) CamLight.Position = pos;   // 镜头灯跟随相机，照亮正对镜头的一面
             Cam.LookDirection = new Vector3D(_orbitCenter.X - pos.X, _orbitCenter.Y - pos.Y, _orbitCenter.Z - pos.Z);
             Cam.UpDirection = new Vector3D(0, 1, 0);
         }
@@ -1292,6 +1502,15 @@ namespace NoCodeMotion.Views
         {
             if (kind == MatKind.Point || kind == MatKind.Traj || kind == MatKind.Head)
                 return new DiffuseMaterial(new SolidColorBrush(kind == MatKind.Traj ? C_Traj : kind == MatKind.Head ? C_Head : C_Point));
+
+            if (kind == MatKind.Workpiece)
+            {
+                // 工件：常态蓝 + 蓝色镜面高光，让光照打上后有明显反光（光源效果）
+                var grp = new MaterialGroup();
+                grp.Children.Add(new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0x3B, 0x82, 0xF6))));
+                grp.Children.Add(new SpecularMaterial(new SolidColorBrush(Color.FromRgb(0xBF, 0xDB, 0xFE)), 36));
+                return grp;
+            }
 
             var brush = new ImageBrush(Texture(kind))
             {

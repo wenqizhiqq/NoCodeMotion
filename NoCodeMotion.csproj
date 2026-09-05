@@ -54,6 +54,8 @@
     <!-- Aspose.CAD：读取二进制 DWG（AutoCAD 各版本）与 DXF 文本，提取矢量几何供 3D 仿真页以平面布局显示。
          仅迭代矢量实体（CadImage.Entities / BlockEntities），不调用 Image.Save 栅格化，故不触发"Evaluation only"水印。 -->
     <PackageReference Include="Aspose.CAD" Version="26.7.0" />
+    <!-- BepuPhysics v2：纯 C# 3D 物理引擎（无原生 DLL），用于仿真工件物理化（重力/碰撞/被气缸与轴推动）。 -->
+    <PackageReference Include="BepuPhysics" Version="2.5.0-beta.29" />
   </ItemGroup>
 
   <ItemGroup>

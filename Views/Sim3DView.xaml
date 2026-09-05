@@ -20,9 +20,14 @@
             <ModelVisual3D>
                 <ModelVisual3D.Content>
                     <Model3DGroup>
-                        <AmbientLight Color="#E8E8E8"/>
-                        <DirectionalLight Color="#FFFFFF" Direction="-0.4,-1,-0.6"/>
-                        <DirectionalLight Color="#B8C4D0" Direction="0.5,-0.4,0.6"/>
+                        <!-- 环境光：整体基础亮度，避免背面全黑 -->
+                        <AmbientLight Color="#EEF2F8"/>
+                        <!-- 主方向光：斜上前方打入，产生明显立体与高光 -->
+                        <DirectionalLight x:Name="KeyLight" Color="#FFFFFF" Direction="-0.5,-1,-0.7"/>
+                        <!-- 冷色补光：柔化暗面阴影 -->
+                        <DirectionalLight x:Name="FillLight" Color="#C6D3E4" Direction="0.6,-0.35,0.55"/>
+                        <!-- 镜头灯：跟随相机位置，照亮正对镜头的一面（明显的光源效果） -->
+                        <PointLight x:Name="CamLight" Color="#DCE6F2" Range="1000"/>
                     </Model3DGroup>
                 </ModelVisual3D.Content>
             </ModelVisual3D>
@@ -61,8 +66,8 @@
         <TextBlock x:Name="EmptyHint" Text="该工位暂无点位，无法仿真"
                    FontSize="12" Foreground="#94A3B8" HorizontalAlignment="Center"
                    VerticalAlignment="Center" Visibility="Collapsed"/>
-        <TextBlock Text="拖拽旋转 · 滚轮缩放 · 可导入 DWG/DXF 显示平面图"
-                   FontSize="10" Foreground="#94A3B8" HorizontalAlignment="Right"
+        <TextBlock x:Name="TxtInteractHint" Text="点击工件可拖拽 · 空白拖拽旋转 · 滚轮缩放 · 可导入 DWG/DXF"
+                   FontSize="10" Foreground="#2563EB" HorizontalAlignment="Right"
                    VerticalAlignment="Bottom" Margin="6" IsHitTestVisible="False"/>
 
         <!-- 相机抓拍预览：流程走到「相机」步骤时由 OperatorViewModel 写入 CaptureImage -->

@@ -28,6 +28,7 @@
 ## 仿真体系
 - `Services/SimRuntime.cs` 静态态(IO/气缸/相机/变量) 驱动 3D+变量页；`Sim3DView.UpdatePoseFromRuntime()` 每 tick 读 `AxisRuntimeState.Get(axis)`。
 - `Services/SimFlowPlayer.cs` 把 FlowItem(Table/NodeGraph) 编译 `List<SimAction>`，DispatcherTimer 33ms 驱动；`StepCount`/`StepLabels`/`PreviewSteps(flow)` 静态供预览（无副作用）。
+- **仿真物理（BepuPhysics v2，NuGet `2.5.0-beta.29`，纯 C# 无原生 DLL）**：`Services/PhysicsWorld.cs` 封装。工件蓝块=动态刚体(重力落床面)；主轴/气缸活塞杆=运动学碰撞体每帧跟随 `AxisRuntimeState`/`SimRuntime` 位移推工件；鼠标点选+拖拽(运动学态拖、松手恢复动态)。**Bepu 四个致命坑**（已 headless 验证）：①`Simulation.Create` 求解器须 `new SolveDescription(1,1)`（默认 SubstepCount=0 抛异常）；②`ConfigureContactManifold` 内须 `pairMaterial.SpringSettings = new SpringSettings(30f,1f)`（默认频率0→接触 NaN，`using BepuPhysics.Constraints`）；③运动学↔动态切换用 `br.BecomeKinematic()` / `br.SetLocalInertia(inertia)`，**不能** `br.LocalInertia=x`（ref 属性不更新 mobility）；④推动工件须 `br.Velocity.Linear=(target-current)/dt` 速度驱动，不能只设 `br.Pose`。详见 `2026-09-05.md`。
 - `Services/ProjectTemplateCatalog.cs` 20 模板；`NgTemplates.Build` 脚手架(空/通用流程/设备启动/取放循环/视觉对位)。
 
 ## Phase 3 配置页增强（已完成，0 构建错误）
