@@ -69,3 +69,5 @@ KPI生产统计：累计产量、良率、节拍、运行时长；
 <img width="2559" height="1527" alt="e61cf76a02c23474cefe044505ae9be6" src="https://github.com/user-attachments/assets/e6fd1bd9-f8bb-43d7-a884-43fdf5bf3836" />
 <img width="2559" height="1527" alt="d4a813a9c0c4b5bb97fa7e061db6cdf5" src="https://github.com/user-attachments/assets/3e187127-a19e-4cc2-91f4-f3edfb178c46" />
 <img width="2559" height="1534" alt="image" src="https://github.com/user-attachments/assets/5ae7671e-2e73-4090-879e-776e58cce0d0" />
+<img width="2559" height="1527" alt="28e398f41d11ffbc33a53c35b5bc6bab" src="https://github.com/user-attachments/assets/187ecbfe-7976-42b9-9045-11258651bdde" />
+
