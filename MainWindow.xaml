@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:NoCodeMotion"
         xmlns:views="clr-namespace:NoCodeMotion.Views"
-        Title="NoCodeMotion · 无代码运动控制"  
+        Title="NoCodeMotion · 无代码运控视觉通讯软件 专注于统一中国设备通用平台软件"  
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         FontFamily="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif"
