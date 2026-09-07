@@ -35,6 +35,13 @@ namespace NoCodeMotion.Views
                 _flashTimer.Stop();
                 SimRuntime.Changed -= OnSimChanged;
             };
+            // 相机页内嵌于 FlowPage：当 FlowPage 仅 Visibility 切换（不卸载）时，Loaded/Unloaded 不会再次触发，
+            // 闪光定时器会在后台持续空转。改用 IsVisibleChanged 门控，页面隐藏即停、重新显示即起，杜绝常驻空转。
+            IsVisibleChanged += (_, __) =>
+            {
+                if (IsVisible) _flashTimer.Start();
+                else _flashTimer.Stop();
+            };
             _flashTimer.Tick += (_, _) => RefreshFlash();
         }
 
