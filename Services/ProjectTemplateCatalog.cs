@@ -1,4 +1,4 @@
-// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦⁣
+﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦⁣
 // ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇⁣
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦⁣
 // =====================================================================
@@ -107,15 +107,22 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("主流程", FlowRole.Main,
+
+                    CommentStep("主流程" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("就绪", "1"),
                     SetIO("运行", "1"),
                     MoveAxis("X", 100, 1000),
-                    Delay(200),
+                    WaitStep(200),
                     MoveAxis("X", 0, 1000),
                     SetIO("运行", "0"),
+                    ElseStep(),
+                    CommentStep("未收到启动信号，本周期跳过"),
+                    EndIfStep(),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     HomeAxis("X"),
                     SetIO("就绪", "1")));
@@ -163,18 +170,24 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("主流程1", FlowRole.Main,
+
+                    CommentStep("主流程1" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("X", 100, 800),
                     MoveAxis("Y", 50, 800),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("主流程2", FlowRole.Main,
+
+                    CommentStep("主流程2" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("X", 200, 1200),
                     MoveAxis("Y", 150, 1200),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     HomeAxis("X"),
                     HomeAxis("Y"),
@@ -217,24 +230,30 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("取料", FlowRole.Main,
+
+                    CommentStep("取料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("Z", 0, 600),
                     MoveAxis("X", 200, 800),
                     MoveAxis("Y", 100, 800),
                     SetIO("真空", "1"),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("Z", 50, 600),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("放料", FlowRole.Main,
+
+                    CommentStep("放料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     MoveAxis("X", 400, 800),
                     MoveAxis("Y", 300, 800),
                     SetIO("下料", "1"),
-                    Delay(300),
+                    WaitStep(300),
                     SetIO("真空", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     SetIO("Z抱闸", "0"),
                     MoveAxis("Z", 0, 800),
@@ -284,6 +303,8 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("点胶", FlowRole.Main,
+
+                    CommentStep("点胶" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("R", 45, 600),
@@ -291,31 +312,39 @@ namespace NoCodeMotion.Services
                     MoveAxis("Y", 200, 800),
                     MoveAxis("Z", -10, 400),
                     SetIO("点胶阀", "1"),
-                    Delay(500),
+                    WaitStep(500),
                     SetIO("点胶阀", "0"),
                     MoveAxis("Z", 0, 400),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("贴标", FlowRole.Main,
+
+                    CommentStep("贴标" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("R", 90, 600),
                     MoveAxis("X", 200, 800),
                     MoveAxis("Y", 100, 800),
                     MoveAxis("Z", -5, 400),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("Z", 0, 400),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("自动循环", FlowRole.Main,
+
+                    CommentStep("自动循环" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
+                    LoopStart(3),
                     MoveAxis("X", 50, 600),
                     MoveAxis("Y", 50, 600),
-                    Delay(200),
+                    WaitStep(200),
                     MoveAxis("X", 250, 600),
                     MoveAxis("Y", 250, 600),
-                    Delay(200),
+                    WaitStep(200),
+                    LoopEnd(),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     SetIO("R锁紧", "1"),
                     MoveAxis("Z", 0, 800),
@@ -369,16 +398,20 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"), ("当前产品", "A"));
                 d.Flows.Add(TblFlow("自动取料", FlowRole.Main,
+
+                    CommentStep("自动取料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("J1", 30, 800),
                     MoveAxis("J2", -20, 800),
                     MoveAxis("Z", -30, 400),
                     SetIO("真空", "1"),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("Z", 0, 400),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("自动放料", FlowRole.Main,
+
+                    CommentStep("自动放料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("J1", -45, 800),
@@ -387,24 +420,32 @@ namespace NoCodeMotion.Services
                     MoveAxis("Z", -25, 400),
                     SetIO("真空", "0"),
                     SetIO("夹爪", "1"),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("Z", 0, 400),
                     SetIO("夹爪", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("示教记录", FlowRole.Main,
+
+                    CommentStep("示教记录" + " 流程示例"),
                     WaitIO("示教", "1", 60000),
                     SetIO("暂停", "1"),
-                    Delay(200),
+                    WaitStep(200),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("自动循环", FlowRole.Main,
+
+                    CommentStep("自动循环" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
+                    LoopStart(3),
                     MoveAxis("J1", 0, 600),
                     MoveAxis("J2", 0, 600),
                     MoveAxis("R", 0, 400),
-                    Delay(500),
+                    WaitStep(500),
+                    LoopEnd(),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("完整复位", FlowRole.Reset,
+
+                    CommentStep("完整复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     SetIO("真空", "0"),
                     SetIO("夹爪", "0"),
@@ -415,6 +456,8 @@ namespace NoCodeMotion.Services
                     HomeAxis("Z"),
                     SetIO("就绪", "1")));
                 d.Flows.Add(TblFlow("快速归位", FlowRole.Reset,
+
+                    CommentStep("快速归位" + " 流程示例"),
                     SetIO("真空", "0"),
                     MoveAxis("Z", 0, 600),
                     SetIO("就绪", "1")));
@@ -466,6 +509,8 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("ModbusIO", "ModbusTCP", "192.168.1.20", 502));
                 AddVars(d, ("计数", "0"), ("总数", "0"), ("当前产品", "A"));
                 d.Flows.Add(TblFlow("取料", FlowRole.Main,
+
+                    CommentStep("取料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("J1", 0, 600),
@@ -475,9 +520,11 @@ namespace NoCodeMotion.Services
                     MoveAxis("J5", 0, 600),
                     MoveAxis("J6", 0, 600),
                     SetIO("真空", "1"),
-                    Delay(500),
+                    WaitStep(500),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("放料", FlowRole.Main,
+
+                    CommentStep("放料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("J1", 90, 800),
@@ -487,34 +534,44 @@ namespace NoCodeMotion.Services
                     MoveAxis("J5", 45, 600),
                     MoveAxis("J6", 90, 600),
                     SetIO("真空", "0"),
-                    Delay(300),
+                    WaitStep(300),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("示教", FlowRole.Main,
+
+                    CommentStep("示教" + " 流程示例"),
                     WaitIO("示教", "1", 60000),
                     SetIO("暂停", "1"),
-                    Delay(200),
+                    WaitStep(200),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("点焊", FlowRole.Main,
+
+                    CommentStep("点焊" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("J1", 45, 600),
                     MoveAxis("J2", 30, 600),
                     MoveAxis("J3", -30, 600),
                     SetIO("焊接", "1"),
-                    Delay(800),
+                    WaitStep(800),
                     SetIO("焊接", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("搬运循环", FlowRole.Main,
+
+                    CommentStep("搬运循环" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
+                    LoopStart(3),
                     MoveAxis("J1", 0, 600),
                     MoveAxis("J2", 0, 600),
                     MoveAxis("J3", 0, 600),
                     SetIO("工装1", "1"),
-                    Delay(500),
+                    WaitStep(500),
                     SetIO("工装1", "0"),
+                    LoopEnd(),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("完整复位", FlowRole.Reset,
+
+                    CommentStep("完整复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     SetIO("真空", "0"),
                     SetIO("夹爪", "0"),
@@ -527,6 +584,8 @@ namespace NoCodeMotion.Services
                     HomeAxis("J6"),
                     SetIO("就绪", "1")));
                 d.Flows.Add(TblFlow("快速归位", FlowRole.Reset,
+
+                    CommentStep("快速归位" + " 流程示例"),
                     SetIO("报警", "0"),
                     SetIO("真空", "0"),
                     SetIO("完成", "1")));
@@ -570,16 +629,20 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("主流程", FlowRole.Main,
+
+                    CommentStep("主流程" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     CylOut("推料"),
-                    Delay(500),
+                    WaitStep(500),
                     CylOut("挡料"),
-                    Delay(500),
+                    WaitStep(500),
                     CylBack("推料"),
                     CylBack("挡料"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     CylBack("推料"),
                     CylBack("挡料"),
                     SetIO("报警", "0"),
@@ -627,33 +690,41 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("压力传感器", "ModbusTCP", "192.168.1.30", 502));
                 AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("装配", FlowRole.Main,
+
+                    CommentStep("装配" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     CylOut("送料"),
                     WaitIO("送料完成", "1", 5000),
                     CylBack("送料"),
                     CylOut("夹紧"),
-                    Delay(300),
+                    WaitStep(300),
                     CylOut("顶升"),
-                    Delay(300),
+                    WaitStep(300),
                     CylOut("打螺丝"),
-                    Delay(800),
+                    WaitStep(800),
                     CylBack("打螺丝"),
                     CylBack("顶升"),
-                    Delay(200),
+                    WaitStep(200),
                     CylBack("夹紧"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("循环装配", FlowRole.Main,
+
+                    CommentStep("循环装配" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
+                    LoopStart(3),
                     CylOut("送料"),
-                    Delay(1000),
+                    WaitStep(1000),
                     CylBack("送料"),
                     CylOut("夹紧"),
-                    Delay(500),
+                    WaitStep(500),
                     CylBack("夹紧"),
+                    LoopEnd(),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("送料"),
                     CylBack("夹紧"),
@@ -695,16 +766,20 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("ModbusIO从站", "ModbusRTU", "COM2", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("主流程", FlowRole.Main,
+
+                    CommentStep("主流程" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     SetIO("送料", "1"),
                     WaitIO("完成", "1", 5000),
                     SetIO("送料", "0"),
                     SetIO("装配", "1"),
-                    Delay(1000),
+                    WaitStep(1000),
                     SetIO("装配", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     SetIO("送料", "0"),
                     SetIO("装配", "0"),
@@ -749,6 +824,8 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("ModbusTCP桥", "ModbusTCP", "192.168.1.20", 502));
                 AddVars(d, ("计数", "0"), ("总数", "0"), ("当前工位", "1"));
                 d.Flows.Add(TblFlow("单工位", FlowRole.Main,
+
+                    CommentStep("单工位" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     SetIO("工位1控制", "1"),
@@ -756,19 +833,23 @@ namespace NoCodeMotion.Services
                     SetIO("工位1控制", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("多工位并行", FlowRole.Main,
+
+                    CommentStep("多工位并行" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     SetIO("工位1控制", "1"),
                     SetIO("工位2控制", "1"),
                     SetIO("工位3控制", "1"),
                     SetIO("工位4控制", "1"),
-                    Delay(3000),
+                    WaitStep(3000),
                     SetIO("工位1控制", "0"),
                     SetIO("工位2控制", "0"),
                     SetIO("工位3控制", "0"),
                     SetIO("工位4控制", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     SetIO("工位1控制", "0"),
                     SetIO("工位2控制", "0"),
@@ -836,26 +917,32 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("取料", FlowRole.Main,
+
+                    CommentStep("取料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("X", 100, 800),
                     MoveAxis("Y", 50, 800),
                     MoveAxis("Z", -30, 400),
                     CylOut("抓取"),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("Z", 0, 400),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("放料", FlowRole.Main,
+
+                    CommentStep("放料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("X", 200, 800),
                     MoveAxis("Y", 150, 800),
                     MoveAxis("Z", -30, 400),
                     CylBack("抓取"),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("Z", 0, 400),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("完整复位", FlowRole.Reset,
+
+                    CommentStep("完整复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("抓取"),
                     MoveAxis("Z", 0, 600),
@@ -864,6 +951,8 @@ namespace NoCodeMotion.Services
                     HomeAxis("Z"),
                     SetIO("就绪", "1")));
                 d.Flows.Add(TblFlow("快速归位", FlowRole.Reset,
+
+                    CommentStep("快速归位" + " 流程示例"),
                     CylBack("抓取"),
                     MoveAxis("Z", 0, 600),
                     SetIO("就绪", "1")));
@@ -932,6 +1021,8 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"), ("当前工位", "1"));
                 d.Flows.Add(TblFlow("分拣", FlowRole.Main,
+
+                    CommentStep("分拣" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("X", 0, 600),
@@ -939,40 +1030,48 @@ namespace NoCodeMotion.Services
                     MoveAxis("Z1", 0, 400),
                     WaitIO("来料", "1", 5000),
                     CylOut("分拣"),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("X", 100, 600),
                     MoveAxis("Y", 50, 600),
                     SetIO("分拣A", "1"),
-                    Delay(500),
+                    WaitStep(500),
                     CylBack("分拣"),
                     SetIO("分拣A", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("包装", FlowRole.Main,
+
+                    CommentStep("包装" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("X", 300, 800),
                     MoveAxis("Y", 100, 800),
                     MoveAxis("Z2", -20, 400),
                     SetIO("上料", "1"),
-                    Delay(500),
+                    WaitStep(500),
                     SetIO("上料", "0"),
                     SetIO("包装", "1"),
-                    Delay(800),
+                    WaitStep(800),
                     SetIO("包装", "0"),
                     SetIO("封口", "1"),
-                    Delay(500),
+                    WaitStep(500),
                     SetIO("封口", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("联动循环", FlowRole.Main,
+
+                    CommentStep("联动循环" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
+                    LoopStart(3),
                     MoveAxis("X", 100, 600),
                     MoveAxis("Y", 100, 600),
-                    Delay(200),
+                    WaitStep(200),
                     MoveAxis("X", 300, 600),
                     MoveAxis("Y", 200, 600),
+                    LoopEnd(),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("完整复位", FlowRole.Reset,
+
+                    CommentStep("完整复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("分拣"),
                     CylBack("包装"),
@@ -984,6 +1083,8 @@ namespace NoCodeMotion.Services
                     HomeAxis("Z2"),
                     SetIO("就绪", "1")));
                 d.Flows.Add(TblFlow("快速归位", FlowRole.Reset,
+
+                    CommentStep("快速归位" + " 流程示例"),
                     CylBack("分拣"),
                     CylBack("包装"),
                     SetIO("就绪", "1")));
@@ -1050,6 +1151,8 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"), ("当前工序", "1"));
                 d.Flows.Add(TblFlow("送料", FlowRole.Main,
+
+                    CommentStep("送料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     CylOut("送料"),
@@ -1057,41 +1160,49 @@ namespace NoCodeMotion.Services
                     CylBack("送料"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("装配", FlowRole.Main,
+
+                    CommentStep("装配" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     CylOut("夹紧"),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("X", 100, 800),
                     SetIO("装配1", "1"),
-                    Delay(500),
+                    WaitStep(500),
                     SetIO("装配1", "0"),
                     MoveAxis("X", 200, 800),
                     SetIO("装配2", "1"),
-                    Delay(500),
+                    WaitStep(500),
                     SetIO("装配2", "0"),
                     CylBack("夹紧"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("打螺丝", FlowRole.Main,
+
+                    CommentStep("打螺丝" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("X", 500, 800),
                     CylOut("打螺丝"),
-                    Delay(1000),
+                    WaitStep(1000),
                     CylBack("打螺丝"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("检测", FlowRole.Main,
+
+                    CommentStep("检测" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("X", 600, 800),
                     SetIO("检测", "1"),
-                    Delay(800),
+                    WaitStep(800),
                     SetIO("检测", "0"),
                     MoveAxis("X", 700, 800),
                     SetIO("出料", "1"),
-                    Delay(500),
+                    WaitStep(500),
                     SetIO("出料", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("完整复位", FlowRole.Reset,
+
+                    CommentStep("完整复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("送料"),
                     CylBack("夹紧"),
@@ -1107,6 +1218,8 @@ namespace NoCodeMotion.Services
                     HomeAxis("Z2"),
                     SetIO("就绪", "1")));
                 d.Flows.Add(TblFlow("快速归位", FlowRole.Reset,
+
+                    CommentStep("快速归位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("送料"),
                     CylBack("夹紧"),
@@ -1169,6 +1282,8 @@ namespace NoCodeMotion.Services
                 d.PointTables.Add(vtbl);
 
                 d.Flows.Add(TblFlow("自动取料", FlowRole.Main,
+
+                    CommentStep("自动取料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     SetIO("光源", "1"),
@@ -1180,10 +1295,12 @@ namespace NoCodeMotion.Services
                     MoveAxis("Z", -30, 400),
                     PointStep("视觉工位", "取料位"),
                     CylOut("夹爪"),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("Z", 0, 400),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("自动放料", FlowRole.Main,
+
+                    CommentStep("自动放料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("R", 180, 600),
@@ -1192,13 +1309,15 @@ namespace NoCodeMotion.Services
                     MoveAxis("Z", -30, 400),
                     CylBack("夹爪"),
                     SetIO("真空", "0"),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("Z", 0, 400),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("手动示教", FlowRole.Main,
+
+                    CommentStep("手动示教" + " 流程示例"),
                     WaitIO("示教", "1", 60000),
                     SetIO("暂停", "1"),
-                    Delay(200),
+                    WaitStep(200),
                     SetIO("完成", "1")));
                 var vis = new FlowItem { Name = "视觉引导", Kind = FlowKind.Vision, Role = FlowRole.Main };
                 vis.VisualSteps.Add(new VisualFlowStep { Name = "图像采集", StepType = "图像采集", CameraId = "0", ExposureMs = 10, Width = 1920, Height = 1080 });
@@ -1207,6 +1326,8 @@ namespace NoCodeMotion.Services
                 vis.VisualSteps.Add(new VisualFlowStep { Name = "输出位姿", StepType = "通讯", Protocol = "Modbus", Target = "控制卡1", Content = "X,Y,R" });
                 d.Flows.Add(vis);
                 d.Flows.Add(TblFlow("完整复位", FlowRole.Reset,
+
+                    CommentStep("完整复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("夹爪"),
                     CylBack("真空"),
@@ -1218,6 +1339,8 @@ namespace NoCodeMotion.Services
                     HomeAxis("Z"),
                     SetIO("就绪", "1")));
                 d.Flows.Add(TblFlow("视觉归位", FlowRole.Reset,
+
+                    CommentStep("视觉归位" + " 流程示例"),
                     SetIO("光源", "0"),
                     CylBack("夹爪"),
                     CylBack("真空"),
@@ -1276,46 +1399,54 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
                 AddVars(d, ("当前产品", "A"), ("计数", "0"), ("总数", "0"));
                 d.Flows.Add(TblFlow("产品A", FlowRole.Main,
+
+                    CommentStep("产品A" + " 流程示例"),
                     WaitIO("产品A", "1", 3000),
                     SetIO("产品A运行", "1"),
                     MoveAxis("X", 0, 600),
                     MoveAxis("Y", 0, 600),
                     MoveAxis("Z", -30, 400),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("X", 100, 600),
                     MoveAxis("Y", 100, 600),
                     MoveAxis("Z", -30, 400),
-                    Delay(500),
+                    WaitStep(500),
                     MoveAxis("Z", 0, 400),
                     MoveAxis("R", 90, 400),
                     MoveAxis("X", 200, 600),
-                    Delay(500),
+                    WaitStep(500),
                     MoveAxis("X", 300, 600),
                     SetIO("产品A运行", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("产品B", FlowRole.Main,
+
+                    CommentStep("产品B" + " 流程示例"),
                     WaitIO("产品B", "1", 3000),
                     SetIO("产品B运行", "1"),
                     MoveAxis("X", 0, 600),
                     MoveAxis("Y", 200, 600),
                     MoveAxis("Z", -20, 400),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("X", 300, 600),
                     MoveAxis("Y", 200, 600),
                     SetIO("产品B运行", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("产品C", FlowRole.Main,
+
+                    CommentStep("产品C" + " 流程示例"),
                     WaitIO("产品C", "1", 3000),
                     SetIO("产品C运行", "1"),
                     MoveAxis("X", 0, 600),
                     MoveAxis("Y", 300, 600),
                     MoveAxis("Z", -40, 400),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("X", 300, 600),
                     MoveAxis("Y", 300, 600),
                     SetIO("产品C运行", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     SetIO("产品A运行", "0"),
                     SetIO("产品B运行", "0"),
@@ -1415,6 +1546,8 @@ namespace NoCodeMotion.Services
                 d.Comms.Add(Comm("扫码枪", "串口", "COM2", 9600));
                 AddVars(d, ("计数", "0"), ("总数", "0"), ("当前产品", "A"), ("工位选择", "1"), ("循环数", "0"));
                 d.Flows.Add(TblFlow("自动取料", FlowRole.Main,
+
+                    CommentStep("自动取料" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     SetIO("真空", "1"),
@@ -1424,53 +1557,65 @@ namespace NoCodeMotion.Services
                     MoveAxis("X", 0, 600),
                     MoveAxis("Y", 0, 600),
                     MoveAxis("Z", -30, 400),
-                    Delay(500),
+                    WaitStep(500),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("装配循环", FlowRole.Main,
+
+                    CommentStep("装配循环" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
+                    LoopStart(3),
                     CylOut("夹紧"),
-                    Delay(300),
+                    WaitStep(300),
                     CylOut("打螺丝"),
-                    Delay(1000),
+                    WaitStep(1000),
                     CylBack("打螺丝"),
                     CylBack("夹紧"),
+                    LoopEnd(),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("工位1出料", FlowRole.Main,
+
+                    CommentStep("工位1出料" + " 流程示例"),
                     WaitIO("检测完成", "1", 5000),
                     SetIO("运行", "1"),
                     MoveAxis("X", 350, 800),
                     MoveAxis("Y", 0, 800),
                     SetIO("出料", "1"),
-                    Delay(500),
+                    WaitStep(500),
                     SetIO("出料", "0"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("工位2包装", FlowRole.Main,
+
+                    CommentStep("工位2包装" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("X", 400, 800),
                     MoveAxis("Y", 100, 800),
                     MoveAxis("Z", -20, 400),
-                    Delay(500),
+                    WaitStep(500),
                     MoveAxis("Z", 0, 400),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("全流程", FlowRole.Main,
+
+                    CommentStep("全流程" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     CylOut("送料"),
                     WaitIO("来料", "1", 5000),
                     CylBack("送料"),
                     CylOut("顶升"),
-                    Delay(300),
+                    WaitStep(300),
                     CylOut("夹紧"),
-                    Delay(500),
+                    WaitStep(500),
                     CylOut("打螺丝"),
-                    Delay(1000),
+                    WaitStep(1000),
                     CylBack("打螺丝"),
                     CylBack("夹紧"),
                     CylBack("顶升"),
                     SetIO("完成", "1")));
                 d.Flows.Add(TblFlow("完整复位", FlowRole.Reset,
+
+                    CommentStep("完整复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("送料"),
                     CylBack("夹紧"),
@@ -1488,6 +1633,8 @@ namespace NoCodeMotion.Services
                     HomeAxis("Z"),
                     SetIO("就绪", "1")));
                 d.Flows.Add(TblFlow("快速归位", FlowRole.Reset,
+
+                    CommentStep("快速归位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("送料"),
                     CylBack("夹紧"),
@@ -1496,6 +1643,8 @@ namespace NoCodeMotion.Services
                     SetIO("真空", "0"),
                     SetIO("就绪", "1")));
                 d.Flows.Add(TblFlow("气缸复位", FlowRole.Reset,
+
+                    CommentStep("气缸复位" + " 流程示例"),
                     CylBack("送料"),
                     CylBack("夹紧"),
                     CylBack("打螺丝"),
@@ -1559,7 +1708,7 @@ Variable.Set('循环数', tostring(cycle))
 
 -- 等待启动信号
 while IO.Get('启动') ~= '1' do
-    Delay(50)
+    WaitStep(50)
     if EStop() then return end
 end
 
@@ -1568,20 +1717,20 @@ IO.Set('运行', '1')
 -- 演示轴联动：X/Y 走一个矩形
 Axis.MoveAbs('X', 0, 800)
 Axis.MoveAbs('Y', 0, 800)
-Delay(200)
+WaitStep(200)
 Axis.MoveAbs('X', 100, 800)
 Axis.MoveAbs('Y', 0, 800)
-Delay(200)
+WaitStep(200)
 Axis.MoveAbs('X', 100, 800)
 Axis.MoveAbs('Y', 100, 800)
-Delay(200)
+WaitStep(200)
 Axis.MoveAbs('X', 0, 800)
 Axis.MoveAbs('Y', 100, 800)
-Delay(200)
+WaitStep(200)
 
 -- 气缸动作
 Cylinder.Out('夹紧')
-Delay(300)
+WaitStep(300)
 Cylinder.Back('夹紧')
 
 IO.Set('完成', '1')
@@ -1650,6 +1799,8 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
 
                 // 主流程1：完整取放（点位表走位 + 气缸 + 相机取帧）
                 d.Flows.Add(TblFlow("取放演示", FlowRole.Main,
+
+                    CommentStep("取放演示" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     SetIO("光源", "1"),
@@ -1661,20 +1812,22 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                     // 点位表走位：仿真按 4 轴槽目标位置联动
                     PointStep("取放工位", "取料点"),
                     CylOut("夹爪"),
-                    Delay(300),
+                    WaitStep(300),
                     // 相机取帧：仿真相机预览刷新（返回合成帧）
                     CameraStep("0"),
                     SetIO("真空", "1"),
-                    Delay(300),
+                    WaitStep(300),
                     PointStep("取放工位", "放料点"),
                     CylBack("夹爪"),
                     SetIO("真空", "0"),
-                    Delay(300),
+                    WaitStep(300),
                     MoveAxis("Z", 0, 600),
                     SetIO("完成", "1")));
 
                 // 主流程2：视觉定位（连续拍照 + 走位循环，便于观察相机预览刷新）
                 d.Flows.Add(TblFlow("视觉定位", FlowRole.Main,
+
+                    CommentStep("视觉定位" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     SetIO("光源", "1"),
@@ -1691,6 +1844,8 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
 
                 // 复位：气缸缩回 + 各轴回零
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("夹爪"),
                     CylBack("真空"),
@@ -1821,21 +1976,25 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
 
                 // 主流程（表格）：上料 → 视觉 → 判定（良品/不良）→ 计数 → 循环
                 d.Flows.Add(TblFlow("主流程", FlowRole.Main,
+
+                    CommentStep("主流程" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     SetIO("光源", "1"),
                     CylOut("夹爪"),
                     PointStep("分拣工位", "上料点"),
                     CameraStep("0"),
-                    Delay(200),
+                    WaitStep(200),
                     PointStep("分拣工位", "良品点"),
                     PointStep("分拣工位", "不良品点"),
                     CylBack("夹爪"),
                     SetIO("完成", "1"),
-                    Delay(200)));
+                    WaitStep(200)));
 
                 // 复位
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("夹爪"),
                     CylBack("分拣挡杆"),
@@ -1914,12 +2073,14 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
 
                 // 主流程（表格）
                 d.Flows.Add(TblFlow("主流程", FlowRole.Main,
+
+                    CommentStep("主流程" + " 流程示例"),
                     WaitIO("启动", "1", 3000),
                     SetIO("运行", "1"),
                     MoveAxis("Z", 10, 400),
                     CameraStep("0"),
                     CylOut("点胶阀"),
-                    Delay(300),
+                    WaitStep(300),
                     CylBack("点胶阀"),
                     MoveAxis("X", 100, 600),
                     MoveAxis("Z", 0, 400),
@@ -1927,6 +2088,8 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
 
                 // 复位
                 d.Flows.Add(TblFlow("复位", FlowRole.Reset,
+
+                    CommentStep("复位" + " 流程示例"),
                     SetIO("报警", "0"),
                     CylBack("点胶阀"),
                     MoveAxis("Z", 0, 600),
@@ -2051,9 +2214,27 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             => new() { Logic = "就", Function = "气缸", Property = "伸出", Operation = "修改", SetValue = "伸出", Name = cylId };
         private static FlowStep CylBack(string cylId)
             => new() { Logic = "就", Function = "气缸", Property = "缩回", Operation = "修改", SetValue = "缩回", Name = cylId };
-        // Delay 为纯延时占位（引擎按 轴+空名+SetValue=0 识别），不绑定对象，Name 留空。
-        private static FlowStep Delay(int ms)
-            => new() { Logic = "就", Function = "轴", Property = "速度", Operation = "等于", SetValue = "0", DurationMs = ms };
+        // 等待：真实时间停顿（Logic=等待，引擎按 SetValue 毫秒 Sleep）。替代原 Delay 占位
+        // （原 Delay 用 轴+空名+SetValue=0 仅把速度设为 0，并非时间延迟，列里也只显示「就」）。
+        private static FlowStep WaitStep(int ms)
+            => new() { Logic = "等待", Function = "系统", Property = "延时", Operation = "修改", SetValue = ms.ToString(), DurationMs = ms };
+
+        // 循环结构（循环开始 / 循环结束 成对出现；引擎按 循环开始 的 SetValue 次数重复执行循环体）。
+        private static FlowStep LoopStart(int count = 3)
+            => new() { Logic = "循环开始", Function = "系统", Property = "循环", Operation = "修改", SetValue = count.ToString() };
+        private static FlowStep LoopEnd()
+            => new() { Logic = "循环结束", Function = "系统" };
+
+        // 注释：仅作流程说明，不执行任何动作。
+        private static FlowStep CommentStep(string text)
+            => new() { Logic = "注释", Function = "系统", Property = "注释", Operation = "修改", SetValue = text };
+
+        // 分支结构（如果 / 否则如果 / 否则 / 结束 成对；否则 之前可接 如果 或 否则如果）。
+        private static FlowStep ElseStep()
+            => new() { Logic = "否则", Function = "系统" };
+        private static FlowStep EndIfStep()
+            => new() { Logic = "结束", Function = "系统" };
+
         private static FlowStep SetIO(string ioName, string value)
             => new() { Logic = "就", Function = "IO", Property = "输出状态", Operation = "修改", SetValue = value, Name = ioName };
 
