@@ -238,6 +238,31 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
         public int ReadInBit(ushort card, ushort bitNo) =>
             CallValue(() => LtdmcNative.dmc_read_inbit(card, bitNo), "读输入位");
 
+        // ===================== 轴机上初始化（移植自雷赛完整 SDK，最佳努力） =====================
+
+        /// <summary>
+        /// 设置脉冲输出模式。0=脉冲+方向（最常见）、1=双脉冲、2=CW/CCW 等，具体以《LTDMC 函数库说明书》为准。
+        /// 移植自 SamsunMotion 的 LTDMC 完整 SDK（LtdmcSdk），机上接线前务必确认模式与驱动器一致。
+        /// </summary>
+        public void SetPulseOutmode(ushort card, ushort axis, ushort mode) =>
+            Call(() => LtdmcSdk.dmc_set_pulse_outmode(card, axis, mode), "设置脉冲输出模式");
+
+        /// <summary>
+        /// 设置减速停止时间（秒）。影响限位触发、急停、减速停止指令的减速过程，合理设置可防止撞机。
+        /// </summary>
+        public void SetDecStopTime(ushort card, ushort axis, double stopTime) =>
+            Call(() => LtdmcSdk.dmc_set_dec_stop_time(card, axis, stopTime), "设置减速停止时间");
+
+        /// <summary>
+        /// 读取轴 IO 状态位（位定义以雷赛手册为准，常见：bit0=负限位、bit1=正限位、bit2=原点、
+        /// bit3=EZ、bit4=伺服报警、bit5=急停）。用于上电自检与诊断。
+        /// </summary>
+        public uint ReadAxisIoStatus(ushort card, ushort axis)
+        {
+            try { return LtdmcSdk.dmc_axis_io_status(card, axis); }
+            catch (Exception ex) { throw Translate(ex, "读取轴 IO 状态"); }
+        }
+
         // ===================== 错误处理 =====================
 
         /// <summary>执行一个返回错误码的原生调用，非 0 抛中文异常。</summary>

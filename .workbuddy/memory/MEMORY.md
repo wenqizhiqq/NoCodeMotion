@@ -38,3 +38,10 @@
 - 相机：`CameraItem.TriggerMode`(连续/软触发/硬触发) + `CameraViewModel.ApplyCommonParams`(曝光/增益/触发) + CameraPage 触发模式行+「应用常用参数」。
 - 轴/IO/气缸：状态高亮与内联动作(气缸伸出蓝/缩回灰蓝) 此前已具备，本轮未追加。
 - 状态栏新增中性蓝 `InfoText/HasInfo` + `ReportInfo/ClearInfo`（StatusBarService/StatusBarViewModel/StatusBarView）。
+
+## 真实硬件（控制卡）接入
+- NoCodeMotion 已有完整**雷赛(Leadshine)实桥**：`Services/Hardware/Leadshine/LeadshineHardwareBridge.cs`(轴/IO/气缸/通讯/料盘全实现) + `LtdmcCard.cs`/`LtdmcNative.cs` P/Invoke **LTDMC.dll**(统一 SDK，覆盖 DMC1000/2210/3400A/EtherCAT)；`HardwareSetup.AutoDetect()` 启动检测 LTDMC.dll，无卡降级日志兜底。
+- 参考实现 `E:\小增量\SMotion_v3.7_20251128\SMotion_v3\SamsunMotion\SamsunMotionWin32\` 是**同卡族另一套代码**（各卡 `MotionCardRes/DMC1000S|DMC2210|DMC3400A|DMC_E3032_EtherCAT/CardRealization.cs` 最终也调 LTDMC.dll）。`Loader/bin` 有现成原生库。
+- 原生库来源：从 `SamsunMotion/Loader/bin` 拷 **x64** 的 `LTDMC.dll`+`Dmc1000.dll`+`IMC100API.dll`+`ecat_motion.dll` 进 `NoCodeMotion/Native/`，csproj 按既有 `Native\*.dll` 模式加 `<None CopyToOutputDirectory=PreserveNewest>`。**位数必须一致**：NoCodeMotion.exe 为 x64，LTDMC.dll 也是 x64，匹配；但 `DMC2210.dll` 在参考实现里是 **x86**，与 x64 进程不兼容——DMC2210 卡型需另取 x64 版。
+- 无实物卡时 `dmc_board_init()` 返回 0（IsCardReady=false→日志兜底）；插卡+装驱动后返回卡数>0 即走真实轴/IO。headless 冒烟测试：x64 python ctypes 加载 LTDMC.dll 调 `dmc_board_init()`=0 通过。
+- 不要整体替换成 SamsunMotion 内核（工作量大、需重做 AxisItem/IoItem 映射）；已与用户确认走「拷原生 DLL 让卡能初始化」最小路径。

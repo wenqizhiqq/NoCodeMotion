@@ -65,6 +65,18 @@
     <None Include="Native\opencv_videoio_ffmpeg4130_64.dll" Link="opencv_videoio_ffmpeg4130_64.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- 雷赛（Leadshine）DMC 系列控制卡原生运行时：取自 SamsunMotion 参考实现的 Loader\bin。
+       全部为 x64 原生库，与 NoCodeMotion.exe(x64) 位数一致。
+       LTDMC.dll 是统一驱动（Hardware/Leadshine/LtdmcNative.cs P/Invoke 的目标）；
+       Dmc1000/IMC100API/ecat_motion 是各卡型的后端，插对应实物卡时由 LTDMC.dll 按需加载。
+       注：DMC2210.dll 在参考实现里是 x86，与 x64 进程不兼容，DMC2210 卡型需另取 x64 版本。 -->
+  <ItemGroup>
+    <None Include="Native\LTDMC.dll" Link="LTDMC.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\Dmc1000.dll" Link="Dmc1000.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\IMC100API.dll" Link="IMC100API.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\ecat_motion.dll" Link="ecat_motion.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- 真实机台 3D 模型（WaveFront .obj，直接嵌入输出目录，运行时按路径加载） -->
   <ItemGroup>
     <Content Include="Models\**\*.obj" CopyToOutputDirectory="PreserveNewest" />

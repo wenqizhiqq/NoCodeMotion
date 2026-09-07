@@ -167,6 +167,7 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
         {
             if (!Ready(axis.Name, "使能")) return;
             var (card, no) = Addr(axis);
+            ConfigureAxisForMachine(card, no, axis.Name);   // 机上必做：脉冲模式 / 减速停止 / 状态自检
             bool lowActive = IsLowActive(axis.EnableLevel);
             Guard(() => _card.ServoOn(card, no, enable: true, lowActive: lowActive));
             Log($"[雷赛] 轴「{axis.Name}」已使能（{(lowActive ? "低电平有效" : "高电平有效")}）");
@@ -382,6 +383,32 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
 
         private void EnsureProfile(AxisItem axis, ushort card, ushort no) =>
             _card.ApplyAxisProfile(card, no, axis.PulsePerUnit, axis.Speed, axis.Accel, axis.Decel, axis.Jerk);
+
+        /// <summary>
+        /// 轴上电时一次性初始化（移植自 SamsunMotion 的 LTDMC 完整 SDK）：设置脉冲输出模式、
+        /// 减速停止时间，并读取轴 IO 状态做诊断日志。全部按“最佳努力”下发——任一函数不被
+        /// 当前卡型号支持（返回非 0 / 抛 EntryPointNotFound）都只记日志、不中断上电。
+        /// </summary>
+        private void ConfigureAxisForMachine(ushort card, ushort no, string axisName)
+        {
+            TryConfig(() => _card.SetPulseOutmode(card, no, 0), $"轴「{axisName}」脉冲输出模式=脉冲+方向(0)");
+            TryConfig(() => _card.SetDecStopTime(card, no, 0.1), $"轴「{axisName}」减速停止时间=0.1s");
+            TryConfig(() =>
+            {
+                uint st = _card.ReadAxisIoStatus(card, no);
+                Log($"[雷赛] 轴「{axisName}」上电自检 IO 状态位 = 0x{st:X}（bit0负限位/bit1正限位/bit2原点/bit3 EZ/bit4伺服报警/bit5急停，详见雷赛手册）");
+            }, $"轴「{axisName}」读取 IO 状态");
+        }
+
+        /// <summary>轴上电配置按最佳努力执行：失败只记日志，不阻断伺服使能与后续流程。</summary>
+        private void TryConfig(Action action, string what)
+        {
+            try { action(); }
+            catch (Exception ex)
+            {
+                Log($"[雷赛·配置未生效] {what}：{ex.Message}（不影响上电，必要时按手册调整）");
+            }
+        }
 
         /// <summary>把「模块号 + 序号」换算成雷赛的位号。</summary>
         private static ushort BitNo(IoItem io)
