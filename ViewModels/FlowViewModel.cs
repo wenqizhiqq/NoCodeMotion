@@ -579,7 +579,10 @@ namespace NoCodeMotion.ViewModels
                     }
                     else
                     {
-                        next = FindElse(items, i);
+                        // 条件不成立且没有「否则/否则如果」兄弟分支时，跳到匹配的「结束」跳过整个 if 块，
+                        // 而不是直接 FinishRun（否则以 WaitIO 开头的流程会在第一行就“结束”）。
+                        int els = FindElse(items, i);
+                        next = els < items.Count ? els : FindEnd(items, i);
                     }
                     break;
                 }
@@ -602,7 +605,8 @@ namespace NoCodeMotion.ViewModels
                         }
                         else
                         {
-                            next = FindElse(items, i);
+                            int els = FindElse(items, i);
+                            next = els < items.Count ? els : FindEnd(items, i);
                         }
                     }
                     break;
@@ -820,7 +824,14 @@ namespace NoCodeMotion.ViewModels
         {
             string left = (s.Function == "变量") ? GetVariableValue(s.Name) : s.ActualValue;
             string right = s.SetValue;
-            if (string.IsNullOrWhiteSpace(left)) return false;
+            if (string.IsNullOrWhiteSpace(left))
+            {
+                // 编辑器步进（可视化）：IO 类「如果」(WaitIO 等待输入) 在未接真实硬件时读不到输入值，
+                // 若直接判 false，会让所有以 WaitIO 开头的流程永远跳过主体 —— 现象即“运行只能第一行”。
+                // 这里对 IO 条件按“进入分支”处理，使流程能完整走查；真实硬件执行由 FlowRunnerService 负责，不受此影响。
+                if (s.Function == "IO") return true;
+                return false;
+            }
             bool okL = double.TryParse(left, out double lnum);
             bool okR = double.TryParse(right, out double rnum);
             switch (s.Operation)
