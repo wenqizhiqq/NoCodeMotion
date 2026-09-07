@@ -269,7 +269,10 @@ namespace NoCodeMotion.ViewModels
 
         public void EnsureDefaultSelection()
         {
-            Refresh();
+            // 页面已缓存，重复进入时不重新枚举所有工程（避免逐个打开 xlsx 读 meta 造成卡顿）；
+            // 仅当列表为空（首次构造尚未刷新）时才刷新。选中项会在切换时保留，无需重设。
+            if (Projects.Count == 0)
+                Refresh();
             if (SelectedEntry == null && Projects.Count > 0)
                 SelectedEntry = Projects[0];
         }

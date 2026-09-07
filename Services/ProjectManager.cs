@@ -237,7 +237,8 @@ namespace NoCodeMotion.Services
             catch { }
         }
 
-        /// <summary>读取指定工程的需求文本（AI 生成流程用的输入需求）。文件不存在时返回空字符串。</summary>
+        /// <summary>读取指定工程的需求文本（AI 生成流程用的输入需求）。文件不存在时返回空字符串。
+        /// 用轻量 <see cref="XlsxProjectStore.LoadMetaValue"/> 只读「项目管理」信息表，避免为单个字段全量解析整个 xlsx。</summary>
         public static string GetRequirementsText(string name)
         {
             var path = FileFor(name);
@@ -245,9 +246,7 @@ namespace NoCodeMotion.Services
             try
             {
                 XlsxProjectStore.ConfigureRoot(RootDir);
-                var data = new ProjectData();
-                XlsxProjectStore.OpenProject(data, name);
-                return data.RequirementsText ?? "";
+                return XlsxProjectStore.LoadMetaValue(name, "RequirementsText") ?? "";
             }
             catch { return ""; }
         }

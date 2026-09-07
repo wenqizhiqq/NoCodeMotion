@@ -218,6 +218,30 @@ namespace NoCodeMotion.Services
             catch { return (null, null, null); }
         }
 
+        /// <summary>
+        /// 轻量读取单个标量元信息（如需求文本），只打开「项目管理」信息表、只读目标行，
+        /// 不同于 <see cref="OpenProject"/> 会把整个 xlsx（所有集合表）全量反射解析。
+        /// 用于项目管理页选中等场景，避免为一个字段付出全量解析的代价。
+        /// </summary>
+        public static string? LoadMetaValue(string projectName, string rowName)
+        {
+            var path = FilePathFor(projectName);
+            if (!File.Exists(path)) return null;
+            try
+            {
+                using var wb = new XLWorkbook(path);
+                var ws = wb.Worksheets.FirstOrDefault(s => s.Name == "项目管理");
+                if (ws == null) return null;
+                foreach (var row in ws.RowsUsed())
+                {
+                    var name = row.Cell(1).GetString();
+                    if (name == rowName) return row.Cell(2).GetString();
+                }
+                return null;
+            }
+            catch { return null; }
+        }
+
         public static void Delete(string projectName)
         {
             var path = FilePathFor(projectName);
