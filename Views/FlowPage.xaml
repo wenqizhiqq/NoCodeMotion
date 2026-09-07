@@ -435,7 +435,7 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0"
-                                           Text="运行 / 单步会按「逻辑」列跳转：如果 / 否则如果 / 否则 选择分支，循环开始 / 循环结束 重复执行；橙色行 = 当前执行行。"
+                                           Text="运行 / 单步按「逻辑」列跳转：如果 / 否则如果 / 否则 选择分支，循环开始 / 循环结束 重复执行；分支真假按「实际值」列（或变量值）与「运算」判定，橙色行 = 当前执行行。"
                                            FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                                            TextWrapping="Wrap" Margin="0,0,0,8"/>
                                 <Grid Grid.Row="1">
