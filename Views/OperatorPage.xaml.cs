@@ -13,6 +13,12 @@ namespace NoCodeMotion.Views
         {
             InitializeComponent();
             DataContext = new OperatorViewModel();
+            // 仅当本页可见时才跑 33ms 仿真循环；导航到其它页/最小化时停止，省出 UI 线程给其它页面。
+            if (DataContext is OperatorViewModel vm)
+            {
+                IsVisibleChanged += (_, __) => vm.SetSimVisible(IsVisible);
+                vm.SetSimVisible(IsVisible);
+            }
         }
     }
 }

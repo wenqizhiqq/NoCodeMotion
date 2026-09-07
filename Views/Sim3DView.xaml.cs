@@ -319,7 +319,10 @@ namespace NoCodeMotion.Views
             RefreshFlowCombo();
 
             BuildScene();
-            _timer.Start();
+            // 仅在操作员页（本控件所在子树）真正可见时才跑 33ms 渲染+物理循环；
+            // 导航到其它页面或最小化时 IsVisible=false，计时器停止，释放 UI 线程，
+            // 避免隐藏页仍空转拖慢轴/IO/点位等其它页面。
+            IsVisibleChanged += (_, __) => { if (IsVisible) _timer.Start(); else _timer.Stop(); };
 
             // 自动载入内置示例机器人 STP（位于输出目录 Models\CAD\ 下），让操作员仿真页默认展示真实 3D 模型；
             // 用 Loaded 触发一次即可，避免在构造时控件尚未就绪。用户也可用「打开STP」加载其它模型。

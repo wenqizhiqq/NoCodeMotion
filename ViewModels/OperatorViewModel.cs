@@ -377,8 +377,22 @@ namespace NoCodeMotion.ViewModels
             _uiTimer.Start();
 
             // 3D 仿真定时器：运行时沿点位路径循环插值移动当前位置头（仅 UI 线程，不触碰运行线程）。
+            // 注意：不在此 Start —— 由 OperatorPage 可见性驱动（SetSimVisible），隐藏时停止以省 UI 线程。
             _sim3DTimer.Tick += Sim3DTick;
-            _sim3DTimer.Start();
+        }
+
+        /// <summary>由 OperatorPage 的可见性驱动：仅当操作员页可见时才跑 33ms 3D 仿真循环（图表/相位插值），
+        /// 隐藏时停止，避免空转占用 UI 线程拖慢其它页面。运行线程与日志/状态刷新（_uiTimer）不受此影响。</summary>
+        public void SetSimVisible(bool visible)
+        {
+            if (visible)
+            {
+                if (!_sim3DTimer.IsEnabled) _sim3DTimer.Start();
+            }
+            else
+            {
+                _sim3DTimer.Stop();
+            }
         }
 
         /// <summary>定时器回调（UI 线程）：推状态、刷新文本、排空队列。运行线程不在此做任何 UI 操作。</summary>
