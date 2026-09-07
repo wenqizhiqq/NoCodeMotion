@@ -2039,21 +2039,23 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             return f;
         }
 
-        // 流程步骤构造助手
+        // 流程步骤构造助手（Name 取自首个参数：模板调用时已传入与所建对象一致的名字，
+        // 这样示例流程的「名称」列直接指向真实存在的轴/IO/气缸/通讯，落库后下拉即可选中、运行器能解析）。
         private static FlowStep WaitIO(string ioName, string value, int timeoutMs)
-            => new() { Logic = "如果", Function = "IO", Property = "输入状态", Operation = "是否等于", SetValue = value, Timeout = "等待3秒就统计", DurationMs = timeoutMs };
+            => new() { Logic = "如果", Function = "IO", Property = "输入状态", Operation = "是否等于", SetValue = value, Timeout = "等待3秒就统计", DurationMs = timeoutMs, Name = ioName };
         private static FlowStep MoveAxis(string axisName, double position, int durationMs)
-            => new() { Logic = "就", Function = "轴", Property = "位置", Operation = "修改", SetValue = position.ToString("0.##"), DurationMs = durationMs };
+            => new() { Logic = "就", Function = "轴", Property = "位置", Operation = "修改", SetValue = position.ToString("0.##"), DurationMs = durationMs, Name = axisName };
         private static FlowStep HomeAxis(string axisName)
-            => new() { Logic = "就", Function = "轴", Property = "速度", Operation = "等于", SetValue = "0", Timeout = "空" };
+            => new() { Logic = "就", Function = "轴", Property = "速度", Operation = "等于", SetValue = "0", Timeout = "空", Name = axisName };
         private static FlowStep CylOut(string cylId)
-            => new() { Logic = "就", Function = "气缸", Property = "伸出", Operation = "修改", SetValue = "伸出" };
+            => new() { Logic = "就", Function = "气缸", Property = "伸出", Operation = "修改", SetValue = "伸出", Name = cylId };
         private static FlowStep CylBack(string cylId)
-            => new() { Logic = "就", Function = "气缸", Property = "缩回", Operation = "修改", SetValue = "缩回" };
+            => new() { Logic = "就", Function = "气缸", Property = "缩回", Operation = "修改", SetValue = "缩回", Name = cylId };
+        // Delay 为纯延时占位（引擎按 轴+空名+SetValue=0 识别），不绑定对象，Name 留空。
         private static FlowStep Delay(int ms)
             => new() { Logic = "就", Function = "轴", Property = "速度", Operation = "等于", SetValue = "0", DurationMs = ms };
         private static FlowStep SetIO(string ioName, string value)
-            => new() { Logic = "就", Function = "IO", Property = "输出状态", Operation = "修改", SetValue = value };
+            => new() { Logic = "就", Function = "IO", Property = "输出状态", Operation = "修改", SetValue = value, Name = ioName };
 
         // 相机采集步骤：Name 即相机序号（与 ProjectData.Cameras 的下标对应，0 起）。
         // 运行到该步骤时 FlowRunnerService 会调用 VisionEngine.CaptureFrame 取一帧
@@ -2157,6 +2159,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 Property = "发送",
                 Operation = "修改",
                 SetValue = content,
+                Name = commName,
             };
     }
 }
