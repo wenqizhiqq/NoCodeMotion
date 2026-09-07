@@ -6,6 +6,7 @@ using System;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
+using System.Windows;
 using MoonSharp.Interpreter;
 using NoCodeMotion.Models;
 
@@ -180,8 +181,24 @@ namespace NoCodeMotion.Services
                 return DynValue.NewString(raw);
             }
 
-            /// <summary>写入变量值（数字或字符串都会以字符串形式存回变量表，并实时打印）。</summary>
+            /// <summary>写入变量值（数字或字符串都会以字符串形式存回变量表，并实时打印）。
+            /// 整个查找+新建+写入在 UI 线程同步执行：<c>ProjectStore.Data.Variables</c> 绑定到「变量页面」DataGrid 的
+            /// CollectionView，从 LuaScriptThread 后台线程 <c>Add</c> / 修改行属性会触发
+            /// "该类型的 CollectionView 不支持从调度程序线程以外的线程对其 SourceCollection" 异常，
+            /// 被 LuaDebugSession 包成「宿主异常」（现象：脚本报错（行 0））。
+            /// 用 <c>Dispatcher.Invoke</c> 短暂阻塞，保证紧跟其后的 Variable.Get 能读到新值。</summary>
             public void Set(string name, object value)
+            {
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    dispatcher.Invoke(new Action(() => SetCore(name, value)));
+                    return;
+                }
+                SetCore(name, value);
+            }
+
+            private void SetCore(string name, object value)
             {
                 var (row, col) = FindOrAddVar(name);
                 string s = value switch
@@ -360,6 +377,9 @@ namespace NoCodeMotion.Services
 
             script.Globals["EStop"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Func<bool>)api.IsEStop));
             script.Globals["Delay"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<double>)api.Delay));
+            // WaitStep：与 Delay 等价的别名。命名上对齐表格流程里 FlowStep.WaitStep(ms) 的 C# 助手与内置「脚本流程」Lua 模板，
+            // 让用户写 Lua 时既能写 Delay(ms)（一般延时）也能写 WaitStep(ms)（每步停顿）而不会触发「attempt to call a nil value」。
+            script.Globals["WaitStep"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<double>)api.Delay));
             script.Globals["Print"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<object>)api.LuaPrint));
 
             script.Globals["HardwareStatus"] = (Func<string>)api.HardwareStatus;
