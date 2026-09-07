@@ -58,6 +58,7 @@ namespace NoCodeMotion.ViewModels
         private bool _isRunning;
         private bool _isPaused;
         private int _currentStep = -1;
+        private int _jumpRowNumber = 1;         // 跳到指定行运行：用户填的「起始行」（1 基，对应用户看到的行号）
 
         // 「实际值」列 1 秒定时刷新：不管是否在运行，每秒把当前选中流程里
         // Function=="变量" 的步骤 ActualValue 回填为变量当前值，方便用户实时看到变量读数变化。
@@ -89,6 +90,22 @@ namespace NoCodeMotion.ViewModels
         public string CurrentStepText => _currentStep < 0
             ? (IsRunning ? "运行中" : "未开始")
             : (_currentStep < StepPanel.Items.Count ? $"第 {_currentStep + 1} 步 / 共 {StepPanel.Items.Count} 步" : "已完成");
+
+        /// <summary>跳到指定行运行：用户填的起始行号（1 基）。出界时 <see cref="RunFromRow"/> 自动夹紧到首尾。</summary>
+        public int JumpRowNumber
+        {
+            get => _jumpRowNumber;
+            set
+            {
+                if (!SetField(ref _jumpRowNumber, value)) return;
+                OnPropertyChanged(nameof(CanRunFromRow));
+            }
+        }
+
+        /// <summary>「从指定行运行」按钮可用：已选中流程、有步骤、且行号在 [1, 步数] 内（运行中/暂停/停止都允许，点击会重定位并继续/启动）。</summary>
+        public bool CanRunFromRow =>
+            SelectedItem != null && StepPanel.Items.Count > 0 &&
+            _jumpRowNumber >= 1 && _jumpRowNumber <= StepPanel.Items.Count;
 
         public bool IsRunning
         {
@@ -131,6 +148,7 @@ namespace NoCodeMotion.ViewModels
         public ICommand RunCommand { get; }
         public ICommand StepCommand { get; }
         public ICommand JumpCommand { get; }
+        public ICommand RunFromRowCommand { get; }
         public ICommand PauseCommand { get; }
         public ICommand StopCommand { get; }
         /// <summary>「步骤预览」：用仿真引擎编译当前流程，弹出对话框逐条列出实际执行顺序（分支/循环已展开）。</summary>
@@ -151,6 +169,7 @@ namespace NoCodeMotion.ViewModels
             RunCommand = new RelayCommand(_ => Run());
             StepCommand = new RelayCommand(_ => StepOnce());
             JumpCommand = new RelayCommand(_ => JumpToRow(), _ => CanJump);
+            RunFromRowCommand = new RelayCommand(_ => RunFromRow(), _ => CanRunFromRow);
             PauseCommand = new RelayCommand(_ => Pause());
             StopCommand = new RelayCommand(_ => Stop());
             PreviewCommand = new RelayCommand(_ => Preview(), _ => SelectedItem != null);
@@ -494,6 +513,7 @@ namespace NoCodeMotion.ViewModels
             OnPropertyChanged(nameof(CanRun));
             OnPropertyChanged(nameof(CanStep));
             OnPropertyChanged(nameof(CanJump));
+            OnPropertyChanged(nameof(CanRunFromRow));
             OnPropertyChanged(nameof(CanPause));
             OnPropertyChanged(nameof(CanStop));
             OnPropertyChanged(nameof(CurrentStepText));
@@ -919,6 +939,26 @@ namespace NoCodeMotion.ViewModels
             CurrentStep = idx;
         }
 
+        /// <summary>跳到指定行并运行：把执行指针移到 <see cref="JumpRowNumber"/>（1 基，自动夹紧到 [1, 步数]）指定的行，
+        /// 重置控制流栈，然后启动/继续运行。已运行时点击 = 重定位并从该行继续；停止态点击 = 从该行开始一次完整运行。</summary>
+        private void RunFromRow()
+        {
+            var items = StepPanel.Items;
+            if (items.Count == 0) return;
+            int idx = _jumpRowNumber - 1;            // 1 基 → 0 基
+            if (idx < 0) idx = 0;
+            if (idx >= items.Count) idx = items.Count - 1;
+            _pendingNext = -1;
+            _ifStack.Clear();
+            _loopStack.Clear();
+            ClearCurrentFlags();
+            CurrentStep = idx;                      // 高亮目标行（也会触发 RaiseRunState）
+            IsPaused = false;
+            IsRunning = true;
+            _runTimer.Start();                      // 下一拍 StepOnce 即从 idx 执行
+            RaiseRunState();
+        }
+
         private void Pause()
         {
             if (!CanPause) return;
@@ -993,6 +1033,7 @@ namespace NoCodeMotion.ViewModels
             if (propertyName == nameof(SelectedItem))
             {
                 StepPanel.SetItems(SelectedItem?.Steps ?? new ObservableCollection<FlowStep>());
+                JumpRowNumber = 1;   // 切换流程时行数不同，起始行重置为 1
                 Stop();
                 OnPropertyChanged(nameof(IsKindTable));
                 OnPropertyChanged(nameof(IsKindLua));
