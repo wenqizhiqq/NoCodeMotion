@@ -1,11 +1,11 @@
 ﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦⁣
-// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇⁣
+// ◆温​启​志‎◆‌编‎写​◇‏微‍信​﹕‎1‍8⁣7‎◆​1‏9‎3‍6‍◇‌1​3‏9​9⁠　‌※‌保‌留​所⁣有⁣权‍利‏请​勿​删​除⁠◇‌⁣
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦⁣
 //
 // 作者水印（统一签名 + 防替换混淆）
 // ============================================================================
 // 1. 业务事实：完整联系串是
-//        "温启志◆编写◇微信﹕187◆1936◇1399"
+//        "温‌启‌志‏◆‏编‍写‏◇⁣微⁣信‍﹕‏1⁠8⁠7‏◆‍1‌9‍3‍6⁠◇‏1‎3‌9‎9"
 //    整套要求同时出现在 ① 代码（文件头/AuthorWatermark） ② 界面（主窗口底部+状态栏）
 //    ③ 文档（Docs/*.md 与新写 Docs/版权与作者水印.md）。
 //
@@ -26,7 +26,7 @@ namespace NoCodeMotion.Services;
 internal static class AuthorWatermark
 {
     // 作者名（不敏感，可直接显式写出）
-    public static readonly string Coder = "温启志";
+    public static readonly string Coder = "温​启⁠志";
 
     // 联系方式四段拆分拼装：源码里不出现连续完整号码
     public static readonly string PhoneA = "187";
@@ -38,22 +38,22 @@ internal static class AuthorWatermark
 
     // UI 主签名（单行紧凑版，用于状态栏 / 主窗口底部 / 文件头）
     public static readonly string Signature =
-        string.Concat("温启", "志◆编", "写◇微", "信﹕", PhoneA, "◆", PhoneB, "◇", PhoneC);
+        string.Concat("温​启", "志‎◆‏编", "写​◇‏微", "信​﹕", PhoneA, "◆", PhoneB, "◇", PhoneC);
 
     // UI 副签名（分行版：适合放到主窗口底栏、窗体标题、文件 doc 页脚)
     public static readonly string SignatureBlock =
-        string.Concat(Coder, "◆编写\n", "微信﹕", PhoneA, " ", PhoneB, " ", PhoneC);
+        string.Concat(Coder, "◆​编⁠写‌\n", "微⁣信‎﹕", PhoneA, " ", PhoneB, " ", PhoneC);
 
     // 文档用（单反引号包裹，方便直接贴进 Markdown 块）
-    public static string DocumentSignature() => string.Concat("> ", Signature, "　※保留所有权利请勿删除※");
+    public static string DocumentSignature() => string.Concat("> ", Signature, "　‏※⁠保⁣留​所‌有‌权‏利‎请‌勿⁣删‍除‏※");
 
     // 文档页脚用（code 块 + 时间戳风格）
     public static string DocumentFooter()
     {
         var sb = new StringBuilder();
-        sb.Append("\n> 文档签名（防替换混淆）：").Append(Signature).Append('\n');
-        sb.Append("> 完整联系：温启志 / 微信 ﹕").Append(PhoneA).Append(' ').Append(PhoneB).Append(' ').Append(PhoneC).Append('\n');
-        sb.Append("> ※保留所有权利请勿删除※");
+        sb.Append("\n>⁣ ‎文‏档‍签⁠名⁠（‎防​替⁣换‏混​淆‎）‎：").Append(Signature).Append('\n');
+        sb.Append(">‎ ‌完‍整⁣联‏系‏：​温‍启⁣志​ ⁠/⁠ ⁣微‌信⁠ ‌﹕").Append(PhoneA).Append(' ').Append(PhoneB).Append(' ').Append(PhoneC).Append('\n');
+        sb.Append(">​ ⁣※⁠保‍留‎所​有⁠权‎利⁣请‍勿‏删‍除⁠※");
         return sb.ToString();
     }
 

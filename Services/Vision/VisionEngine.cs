@@ -1,4 +1,4 @@
-// === NoCodeMotion 视觉流程引擎（OpenCV 实现） | 作者：温启志 | 微信：18719361399 | 保留所有权利，请勿删除 ===
+﻿// === NoCodeMotion 视觉流程引擎（OpenCV 实现） | 作者：温​启‎志‍ ‍|⁣ ⁣微‏信‎：‏1‏8‌7‍1‌9‎3⁠6‏1​3​9‌9‌ ⁠|​ ​保‎留‍所⁠有‍权⁣利‏，⁣请‌勿‍删‎除 ===
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -873,4 +873,4 @@ namespace NoCodeMotion.Services.Vision
         }
     }
 }
-// === NoCodeMotion 视觉流程引擎（OpenCV 实现） | 作者：温启志 | 微信：18719361399 | 保留所有权利，请勿删除 ===
+// === NoCodeMotion 视觉流程引擎（OpenCV 实现） | 作者：温⁣启⁠志‌ ‌|​ ​微⁠信​：‎1‎8‎7‎1⁠9‎3​6‏1‎3‎9⁠9⁠ ​|⁣ ‌保⁣留​所⁠有​权‍利‏，⁠请‎勿‏删‍除 ===

@@ -26,13 +26,13 @@
   <!-- 复用 GrayMatch 的旋转不变 NCC 匹配核心（纯算法/C#：RotatedTemplateMatcher + MatchResult + DefectResult，无 WPF/WinForms 依赖）。
        副本已打包进项目本地 Vision\GrayMatch\，由 .NET SDK 默认 Compile 自动纳入（无需显式 Include，避免 NETSDK1022 重复项），IDE 在任意工作目录均可构建。
        当 GrayMatch 主项目源文件演进时需手动同步本副本；保持作者签名。
-       作者：温启志◆编写◇微信﹕187◆1936◇1399 -->
+       作者：温‌启‍志‍◆‍编⁣写‎◇‌微‎信⁠﹕⁣1‍8‍7⁣◆​1‎9‎3‌6⁣◇​1‏3‌9‌9 -->
 
   <!-- 原生匹配 DLL（x64）与其 OpenMP 运行时（vcomp140），已全部打包进项目本地 Native\ 目录，
        不再依赖父级 GrayMatch/CvMatch 仓库位置，IDE 在任意工作目录均可 build/run。
        GrayModelNative 由 C++ 编译，其产物 GrayModelNative.dll 已置于 Native\；
        使用 OpenMP 并行，运行时必须随附 vcomp140.dll（见下方复制项），否则 P/Invoke 加载失败。
-       作者：温启志◆编写◇微信﹕187◆1936◇1399 -->
+       作者：温‌启​志‍◆⁣编‏写⁠◇⁣微‎信‏﹕‎1‎8⁣7‌◆​1⁣9⁠3‎6‎◇‎1‍3‍9⁣9 -->
   <ItemGroup>
     <None Include="Native\GrayModelNative.dll" Link="GrayModelNative.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\vcomp140.dll" Link="vcomp140.dll" CopyToOutputDirectory="PreserveNewest" />
@@ -63,10 +63,6 @@
     <None Include="Native\OpenCvSharpExtern.dll" Link="OpenCvSharpExtern.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\opencv_world480.dll" Link="opencv_world480.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\opencv_videoio_ffmpeg4130_64.dll" Link="opencv_videoio_ffmpeg4130_64.dll" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Assets\Lua.xshd" />
   </ItemGroup>
 
   <!-- 真实机台 3D 模型（WaveFront .obj，直接嵌入输出目录，运行时按路径加载） -->
