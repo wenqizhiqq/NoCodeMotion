@@ -23,16 +23,23 @@ namespace NoCodeMotion.Services
         private static readonly Dictionary<string, DateTime> _camFlash = new(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, double> _variables = new(StringComparer.OrdinalIgnoreCase);
 
+        // 三路并发访问（3D 渲染定时器读 / Lua 脚本线程写 / UI 线程读写），Dictionary 非线程安全，
+        // 用一把粗粒度锁护住所有字典的读写。内存操作极轻，加锁开销可忽略。
+        private static readonly object _gate = new();
+
         /// <summary>任意状态变化（IO 输出 / 气缸 / 相机闪光 / 变量）时触发，供 3D 视图订阅刷新。</summary>
         public static event Action? Changed;
 
         public static void Reset()
         {
-            _outputs.Clear();
-            _cylinders.Clear();
-            _camFlash.Clear();
-            _variables.Clear();
-            // 变量页实时值复位为 0（仿真结束回到初始态）
+            lock (_gate)
+            {
+                _outputs.Clear();
+                _cylinders.Clear();
+                _camFlash.Clear();
+                _variables.Clear();
+            }
+            // 变量页实时值复位为 0（仿真结束回到初始态）；UI 集合保持原线程约束
             if (ProjectStore.Data?.Variables != null)
                 foreach (var r in ProjectStore.Data.Variables)
                     for (int c = 1; c <= 5; c++) SetVarCell(r, c, "0");
@@ -41,45 +48,61 @@ namespace NoCodeMotion.Services
 
         // —— IO 输出 ——
         public static int GetOutput(string name)
-            => _outputs.TryGetValue(name, out var v) ? v : 0;
+        {
+            if (string.IsNullOrEmpty(name)) return 0;
+            lock (_gate) return _outputs.TryGetValue(name, out var v) ? v : 0;
+        }
         public static void SetOutput(string name, int value)
         {
             if (string.IsNullOrEmpty(name)) return;
             int v = value != 0 ? 1 : 0;
-            if (!_outputs.TryGetValue(name, out var cur) || cur != v)
+            bool changed;
+            lock (_gate)
             {
-                _outputs[name] = v;
-                Changed?.Invoke();
+                changed = !_outputs.TryGetValue(name, out var cur) || cur != v;
+                if (changed) _outputs[name] = v;
             }
+            if (changed) Changed?.Invoke();
         }
 
         // —— 气缸 ——
         public static int GetCylinder(string name)
-            => _cylinders.TryGetValue(name, out var v) ? v : 0;
+        {
+            if (string.IsNullOrEmpty(name)) return 0;
+            lock (_gate) return _cylinders.TryGetValue(name, out var v) ? v : 0;
+        }
         public static void SetCylinder(string name, int state)
         {
             if (string.IsNullOrEmpty(name)) return;
             int v = state != 0 ? 1 : 0;
-            if (!_cylinders.TryGetValue(name, out var cur) || cur != v)
+            bool changed;
+            lock (_gate)
             {
-                _cylinders[name] = v;
-                Changed?.Invoke();
+                changed = !_cylinders.TryGetValue(name, out var cur) || cur != v;
+                if (changed) _cylinders[name] = v;
             }
+            if (changed) Changed?.Invoke();
         }
 
         // —— 相机闪光（记录最近一次触发时刻，由视图按时间衰减还原）——
         public static DateTime GetCamFlash(string name)
-            => _camFlash.TryGetValue(name, out var t) ? t : DateTime.MinValue;
+        {
+            if (string.IsNullOrEmpty(name)) return DateTime.MinValue;
+            lock (_gate) return _camFlash.TryGetValue(name, out var t) ? t : DateTime.MinValue;
+        }
         public static void FlashCamera(string name)
         {
             if (string.IsNullOrEmpty(name)) return;
-            _camFlash[name] = DateTime.Now;
+            lock (_gate) _camFlash[name] = DateTime.Now;
             Changed?.Invoke();
         }
 
         // —— 变量（与变量页 VariableRow 实时双向：仿真写回，页面显示）——
         public static double GetVariable(string name)
-            => _variables.TryGetValue(name, out var v) ? v : 0;
+        {
+            if (string.IsNullOrEmpty(name)) return 0;
+            lock (_gate) return _variables.TryGetValue(name, out var v) ? v : 0;
+        }
 
         /// <summary>解析变量值：若 VariableRow 的 Value 是表达式（含其他变量名或运算符），
         /// 按当前其它变量的解析值递归求值；纯数字则直接返回；否则回退到数值仓。</summary>
@@ -108,7 +131,7 @@ namespace NoCodeMotion.Services
         public static void SetVariable(string name, double value)
         {
             if (string.IsNullOrEmpty(name)) return;
-            _variables[name] = value;
+            lock (_gate) _variables[name] = value;
             WriteVarRow(name, value);
             Changed?.Invoke();
         }
