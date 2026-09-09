@@ -9,6 +9,7 @@
 - 沙箱构建：**Bash 对 dotnet 一律 LOLBin 拦截**；用 **PowerShell + 绝对 `C:\Program Files\dotnet\dotnet.exe` 前台构建**（exit code 真实）。无头验证另开工程（ProjectReference 引用 NoCodeMotion.csproj，net10.0-windows+UseWPF），**不能放主工程目录内**（CS0017 双 Main）。Python venv+ctypes PrintWindow 可抓窗口。
 - 全局加载进度：`Services/LoadingService`（静态 depth 引用计数 + `Show/Hide/Report/StateChanged` + `Progress/ProgressMax`，<0=不确定）；`MainWindow` 遮罩 `LoadingOverlay` 订阅它。**启动预初始化所有页面**用确定式进度（"正在初始化页面 (i/n)：中文名"）；**打开/新建工程**用不确定式遮罩（xlsx 读/写放 `Task.Run`，`LoadInto` 回 UI 线程，页面重建发生在遮罩可见期）。页面切换 `Navigate` 即时完成、不显遮罩（页面已在启动预初始化时进缓存）。`Dispatcher.Yield(DispatcherPriority)` 是静态方法，须 `System.Windows.Threading.Dispatcher.Yield(...)`。
 - .NET 10 `_wpftmp` CS0579：csproj 加 `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>`+`<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>`；`[assembly:ThemeInfo]` 留根 AssemblyInfo.cs。勿用 UseArtifactsOutput。
+- **WPF 重复 XAML 编译陷阱**：SDK `EnableDefaultPageItems` 会把 `Views/*.xaml` 全部当 `<Page>` 自动编译。编码转换/探针脚本若生成 `XXX_utf8.xaml` 且与 `XXX.xaml` **同 `x:Class`**，会 CS0102（成员重复）+ CS8646（partial 冲突），整工程编译失败。删除 `_utf8` 副本即可；删前先 Grep 该 class 是否另有唯一改动。本工程 NodeGraphPage 曾因此被 `_utf8` 副本拖崩。
 
 ## 全局 UI 约定
 - 所有删除/清空按钮红色：`TtDeleteBtn`（大）/ `TtPillRedBtn`（小）；色彩编码 红=破坏/橙=反向非破坏/蓝=正向/绿=保存/灰=次要。改前先 Grep 列全清单。
@@ -19,7 +20,8 @@
 ## 视觉/节点图页同步陷阱
 - `VisualFlowPage.xaml.cs ApplySelection()` 须覆盖 `_vm.Steps/_vm.Name/_vm.SelectedStep`（漏→卡片全 Collapsed）；Steps 非空且 SelectedStep=null 时自动选 Steps[0]。
 - 节点图 `Models/NodeGraph/`：`NgDefs.cs`(NgKind/NgDomain/NgNodeDefinitions.All 数据驱动)、`NgModel.cs`(NgDoc/NgNode/NgConnection/NgTemplates)；UI 用 ItemsControl+DataTemplate，禁 code-behind Children.Add。输出端口坐标 `OutputPoint(x,y,idx)=(x+NodeWidth, y+HeaderHeight+11+idx*OutputRowHeight)` 须与 NodeView 一致；`Outputs` 为 IReadOnlyList，用 `OutputPortIndex(string)` 辅助。
-- 节点图仅编辑+存 `FlowItem.GraphJson`，**无执行引擎**（FlowRunnerService 不跑 NodeGraph）。仿真执行在 `Services/SimFlowPlayer.cs`（递归执行器，支持 Decision/Loop/Compute/VarSet）。
+- 节点图编辑+存 `FlowItem.GraphJson`；**调试执行引擎在 `Services/NgRunner.cs`**（独立于 FlowRunnerService，直接走 NgDoc 邻接表）：6 按钮（运行/单步/继续/暂停/停止/断点）+ 每节点 `NgStepResult`(耗时 DurationMs / 状态 StepStatus / 异常 ErrorText)。VM 桥：`NodeGraphViewModel.OnRunnerReportChanged` 把 `Report.Results[id]` → `NodeGraphNodeViewModel.StepResult` + `IsCurrent`；`NodeGraphNodeView.xaml` 用 DataTrigger 渲染色边框/状态浮标/异常红条。
+- **NgRunner 两个致命坑（已修）**：①`WaitResumeAsync` 必须是**实例方法按 `_state==NgRunState.Paused` 轮询**，不能写成 `static` 只查 `ct.IsCancellationRequested`——否则 `Resume()`/`Step()` 改 `_state` 不取消 CTS，暂停循环永远不退出（继续/单步-暂停后死锁）。②手动 `Pause()` 只在节点边界生效：RunAsync 跑完一个节点后须 `if (_stepMode || _state==Paused)` 再切 Paused，否则 Pause 在普通 Run 中被忽略、流程跑到结束。
 
 ## CAD/DWG 导入
 - 真实 BREP(STP/STEP/IGES)→ **OcctNet.Wrapper 0.1.1**（OpenCASCADE 7.9.3，原生 DLL 自动拷）。`OcctShape.ImportStep(path).Triangulate(linearDeflection:1.0)`；`OcctMesh` 非 IDisposable（勿 Dispose）；读完顶点/索引到 WPF 再 `using` 释放 shape。STEP Z-up→WPF Y-up 绕 X -90°；顶点法线按三角形累加；BackMaterial=mat 防黑面。参考 `D:\StpRenderProbe`。

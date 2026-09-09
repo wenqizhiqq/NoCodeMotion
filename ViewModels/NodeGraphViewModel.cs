@@ -26,6 +26,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
 {
     private FlowItem? _flowItem;
     private readonly NgDoc _doc = new();
+    private readonly NgRunner _runner;
 
     public ObservableCollection<NodeGraphNodeViewModel> Nodes { get; } = new();
     public ObservableCollection<NodeGraphConnectionViewModel> Connections { get; } = new();
@@ -69,11 +70,60 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     public ICommand DeleteCommand { get; }
     public ICommand ClearCommand { get; }
 
+    // ===================== 调试器：状态、6 命令、按钮可用性 =====================
+
+    public NgRunState RunState => _runner.State;
+    public string? CurrentNodeId => _runner.CurrentNodeId;
+    public string LastError => _runner.LastError;
+    public string RunStateText => RunState switch
+    {
+        NgRunState.Idle => "未运行",
+        NgRunState.Running => "运行中…",
+        NgRunState.Paused => "已暂停（断点或单步）",
+        NgRunState.Stepping => "单步中…",
+        NgRunState.Completed => "已完成",
+        NgRunState.Error => "异常停止",
+        NgRunState.Stopped => "已停止",
+        _ => string.Empty,
+    };
+    public bool CanRun => _runner.State is NgRunState.Idle or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error;
+    public bool CanStep => _runner.State is NgRunState.Idle or NgRunState.Paused or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error;
+    public bool CanResume => _runner.State == NgRunState.Paused;
+    public bool CanPause => _runner.State is NgRunState.Running or NgRunState.Stepping;
+    public bool CanStop => _runner.State != NgRunState.Idle;
+
+    public ICommand RunCommand { get; }
+    public ICommand StepCommand { get; }
+    public ICommand ResumeCommand { get; }
+    public ICommand PauseCommand { get; }
+    public ICommand StopCommand { get; }
+    public ICommand ToggleBreakpointCommand { get; }
+
     public NodeGraphViewModel()
     {
+        // 构造 NgRunner：把 name→对象 的解析 + 变量读写桥接给 runner
+        _runner = new NgRunner(
+            HardwareBridge.Current,
+            HardwareResolver.ResolveAxis,
+            HardwareResolver.ResolveInput,
+            HardwareResolver.ResolveOutput,
+            HardwareResolver.ResolveCylinder,
+            HardwareResolver.ResolveComm,
+            SimRuntime.SetVariable,
+            SimRuntime.GetVariable);
+        _runner.StateChanged += OnRunnerStateChanged;
+        _runner.ReportChanged += OnRunnerReportChanged;
+
         AddNodeCommand = new RelayCommand(p => AddNode(ParseKind(p), DefaultX(), DefaultY()));
         DeleteCommand = new RelayCommand(_ => DeleteSelected(), _ => HasSelection);
         ClearCommand = new RelayCommand(_ => ClearAll());
+
+        RunCommand = new RelayCommand(_ => _runner.Run(), _ => CanRun);
+        StepCommand = new RelayCommand(_ => _runner.Step(), _ => CanStep);
+        ResumeCommand = new RelayCommand(_ => _runner.Resume(), _ => CanResume);
+        PauseCommand = new RelayCommand(_ => _runner.Pause(), _ => CanPause);
+        StopCommand = new RelayCommand(_ => _runner.Stop(), _ => CanStop);
+        ToggleBreakpointCommand = new RelayCommand(p => _runner.ToggleBreakpoint(p as string ?? string.Empty));
 
         ToolboxGroups = NgNodeDefinitions.DomainOrder.Select(dom => new NgToolGroup
         {
@@ -91,6 +141,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         _flowItem = item;
         var doc = NgDoc.FromJson(item.GraphJson);
         BuildViewModels(doc);
+        _runner.Load(doc);
     }
 
     private void BuildViewModels(NgDoc doc)
@@ -184,6 +235,33 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    // ===================== NgRunner 事件回调 =====================
+
+    private void OnRunnerStateChanged()
+    {
+        // 同步所有节点的断点标记（断点是 runner 全局态）
+        foreach (var n in Nodes) n.HasBreakpoint = _runner.HasBreakpoint(n.Id);
+        OnChanged(nameof(RunState));
+        OnChanged(nameof(RunStateText));
+        OnChanged(nameof(CurrentNodeId));
+        OnChanged(nameof(LastError));
+        OnChanged(nameof(CanRun));
+        OnChanged(nameof(CanStep));
+        OnChanged(nameof(CanResume));
+        OnChanged(nameof(CanPause));
+        OnChanged(nameof(CanStop));
+    }
+
+    private void OnRunnerReportChanged()
+    {
+        // 每步执行完同步到节点 VM（StepResult + IsCurrent）
+        foreach (var n in Nodes)
+        {
+            n.StepResult = _runner.Report.Results.TryGetValue(n.Id, out var r) ? r : null;
+            n.IsCurrent = n.Id == _runner.CurrentNodeId;
+        }
+    }
 }
 // ◇作者保留所有权利　请勿删除※
 // ◆◇※▣▤▥ۦ▧▨۩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥ۦ▧▨۩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥ۦ▧

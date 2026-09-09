@@ -72,6 +72,47 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
         set { if (_isSelected != value) { _isSelected = value; OnChanged(nameof(IsSelected)); } }
     }
 
+    // ===================== 调试器相关属性（由 NgRunner 报告驱动，XAML 用 DataTrigger 渲染色边框/耗时/异常/断点） =====================
+
+    private NgStepResult? _stepResult;
+    public NgStepResult? StepResult
+    {
+        get => _stepResult;
+        set
+        {
+            if (_stepResult == value) return;
+            _stepResult = value;
+            OnChanged(nameof(StepResult));
+            OnChanged(nameof(StepStatus));
+            OnChanged(nameof(StatusText));
+            OnChanged(nameof(DurationText));
+            OnChanged(nameof(ErrorText));
+            OnChanged(nameof(HasError));
+        }
+    }
+    /// <summary>节点执行状态（Idle/Running/Done/Error/Paused/Skipped）。XAML 用它做 DataTrigger 切换 BorderBrush 与浮标颜色。</summary>
+    public NgStepStatus StepStatus => _stepResult?.Status ?? NgStepStatus.Idle;
+    public string StatusText => _stepResult?.StatusText ?? string.Empty;
+    public string DurationText => _stepResult?.DurationText ?? string.Empty;
+    public string ErrorText => _stepResult?.ErrorText ?? string.Empty;
+    public bool HasError => _stepResult?.Status == NgStepStatus.Error;
+
+    private bool _hasBreakpoint;
+    /// <summary>是否有断点（标题栏右上小红点）。</summary>
+    public bool HasBreakpoint
+    {
+        get => _hasBreakpoint;
+        set { if (_hasBreakpoint != value) { _hasBreakpoint = value; OnChanged(nameof(HasBreakpoint)); } }
+    }
+
+    private bool _isCurrent;
+    /// <summary>是否正在执行（脉冲外发光）。</summary>
+    public bool IsCurrent
+    {
+        get => _isCurrent;
+        set { if (_isCurrent != value) { _isCurrent = value; OnChanged(nameof(IsCurrent)); } }
+    }
+
     public NodeGraphNodeViewModel(NgNode model, System.Action? onPropChanged = null)
     {
         _model = model;

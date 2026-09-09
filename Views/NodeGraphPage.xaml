@@ -42,6 +42,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 左：工具箱（视觉 / 运控 / 通讯 分组，拖到画布或点击添加）-->
@@ -179,8 +180,104 @@
             </DockPanel>
         </Border>
 
-        <local:PageHintBar Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1"
+        <local:PageHintBar Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="2"
             OperationText="从左侧工具箱拖拽节点到画布（或点击添加）；拖动节点标题栏移动位置；在空白处按住鼠标拖动可平移画布；滚轮以光标为中心缩放；从输出端口拖到另一节点输入端口连线；右侧编辑属性；选中后点「删除所选」移除。"
-            PrecautionText="节点图仅做编辑与保存，暂不参与运行；连线避免形成环路导致后续执行死循环。保存随工程自动写入 xlsx。"/>
+            PrecautionText="断点命中或单步后用「继续」恢复；条件分支按 prop「条件」求值；循环按 prop「次数」重复 Body 端口分支；保存随工程自动写入 xlsx。"/>
+
+        <!-- 调试工具栏：6 按钮（运行/单步/继续/暂停/停止/断点）+ 状态指示灯 + 当前节点 + 异常信息 -->
+        <Border Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Margin="10,4,10,4"
+                Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 状态指示灯 + 状态文字 + 当前节点 -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="10" Height="10" VerticalAlignment="Center" Margin="0,0,8,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="#94A3B8"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding RunState}" Value="Running">
+                                        <Setter Property="Fill" Value="#16A34A"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding RunState}" Value="Paused">
+                                        <Setter Property="Fill" Value="#F59E0B"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding RunState}" Value="Error">
+                                        <Setter Property="Fill" Value="#DC2626"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding RunStateText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
+                               Foreground="#0F172A"/>
+                    <TextBlock Text="　·　当前：" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    <TextBlock Text="{Binding CurrentNodeId}" FontSize="11" Foreground="#475569" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" MaxWidth="320"/>
+                    <TextBlock Text="{Binding LastError}" FontSize="11" Foreground="#DC2626" VerticalAlignment="Center"
+                               Margin="16,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="360"
+                               ToolTip="{Binding LastError}"/>
+                </StackPanel>
+
+                <!-- 6 按钮：运行/单步/继续/暂停/停止/断点 -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
+                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
+                            ToolTip="从开始节点连续执行整个流程">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="▶" Foreground="#16A34A" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="运行" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding StepCommand}" IsEnabled="{Binding CanStep}"
+                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
+                            ToolTip="单步执行（运行一个节点后暂停）；从空闲启动时也生效">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⤼" Foreground="#2563EB" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="单步" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding ResumeCommand}" IsEnabled="{Binding CanResume}"
+                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
+                            ToolTip="从暂停处继续执行">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⏵" Foreground="#2563EB" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="继续" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}"
+                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
+                            ToolTip="暂停当前执行">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⏸" Foreground="#F59E0B" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="暂停" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding StopCommand}" IsEnabled="{Binding CanStop}"
+                            Style="{StaticResource TtPillRedBtn}" Margin="0,0,4,0" Padding="8,4"
+                            ToolTip="立即停止当前执行">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="■" Foreground="White" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="停止" Foreground="White" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding ToggleBreakpointCommand}"
+                            CommandParameter="{Binding SelectedNode.Id}"
+                            IsEnabled="{Binding HasSelection}"
+                            Style="{StaticResource ToolButtonStyle}" Padding="8,4"
+                            ToolTip="为选中节点切换断点（运行到此节点自动暂停）">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="●" Foreground="#DC2626" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="断点" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>
