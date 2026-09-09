@@ -20,6 +20,15 @@ namespace NoCodeMotion.Services.Vision
         public string Type { get; set; } = "";
         public bool Ok { get; set; }
         public string Summary { get; set; } = "";
+
+        /// <summary>
+        /// 结构化数值结果（供节点图执行器读取，避免从 Summary 文本里正则抽数）：
+        /// 模板匹配=相似度分数；测量=测量长度；缺陷检测=最大缺陷面积；其它=0。
+        /// </summary>
+        public double Value { get; set; }
+
+        /// <summary>结构化计数结果：模板匹配=命中框数；缺陷检测=缺陷处数；其它=0。</summary>
+        public int Count { get; set; }
     }
 
     /// <summary>
@@ -55,6 +64,10 @@ namespace NoCodeMotion.Services.Vision
         public int Width;
         public int Height;
         public byte[]? Bgra = Array.Empty<byte>();
+
+        /// <summary>本次图像来自「合成测试图」（无相机/无文件时的回退）。
+        /// 节点图执行器据此决定后续节点是否重建同一张测试图（保持自动取模板能力）。</summary>
+        public bool UsedSynthetic;
         public List<VisionStepResult> Results { get; } = new();
 
         /// <summary>最近的「模板匹配」步骤结果（用于 UI 叠加绿框/红框 + 文本）。无匹配步则为 null。</summary>
@@ -170,6 +183,7 @@ namespace NoCodeMotion.Services.Vision
                 });
             }
 
+            report.UsedSynthetic = usedSynthetic;
             var img = display ?? cur;
             if (img != null)
             {
@@ -429,6 +443,8 @@ namespace NoCodeMotion.Services.Vision
                 StepName = s.Name,
                 Type = "模板匹配",
                 Ok = pass,
+                Value = best,
+                Count = report.Matches.Count,
                 Summary = pass
                     ? $"[{mode}] 匹配成功 分数 {best:F3} @ ({bx},{by}) 角度 {bangle:F0}°　模板={tsrc}"
                     : $"[{mode}] 未达阈值（{s.ScoreThreshold:F2}）分数 {best:F3} @ ({bx},{by})　模板={tsrc}"
@@ -486,6 +502,8 @@ namespace NoCodeMotion.Services.Vision
                 StepName = s.Name,
                 Type = "缺陷检测",
                 Ok = true,
+                Value = largestArea > 0 ? largestArea : 0,
+                Count = idx,
                 Summary = $"[{dmode}] 检出 {idx} 处缺陷（面积阈值 {minA:0}~{maxA:0}）"
             });
             progress?.Report($"缺陷检测：{idx} 处");
@@ -521,6 +539,8 @@ namespace NoCodeMotion.Services.Vision
                 StepName = s.Name,
                 Type = "测量",
                 Ok = true,
+                Value = len,
+                Count = pts.Count,
                 Summary = $"{a.Tag}->{b.Tag} 距离 {len:F2} {s.Unit}（{px:F1}px x 标定 {cal}）"
             });
             progress?.Report($"测量：{len:F2} {s.Unit}");
@@ -747,6 +767,82 @@ namespace NoCodeMotion.Services.Vision
             Marshal.Copy(src.Data, bytes, 0, bytes.Length);
             tmp?.Dispose();
             return bytes;
+        }
+
+        /// <summary>
+        /// 把 BGRA 像素缓冲落盘为图片文件。
+        /// 节点图执行器在「图像采集」节点后保存当帧，后续视觉节点以「文件」源复用同一帧，
+        /// 避免每个节点都重新触发相机取图。
+        /// </summary>
+        public static bool SaveBgra(byte[]? bgra, int w, int h, string path)
+        {
+            try
+            {
+                if (bgra == null || w <= 0 || h <= 0 || bgra.Length < w * h * 4) return false;
+                var dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                using var m = BgraToMat(bgra, w, h);
+                return Cv.Cv2.ImWrite(path, m);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[VisionEngine] 保存图像失败：{ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 相机标定（求像素当量 mm/px）：在图像中查找棋盘格 / 圆点标定板，
+        /// 用同一行相邻特征点的平均像素间距与实际格子尺寸求 mm/px。
+        /// </summary>
+        public static bool Calibrate(string imagePath, bool circleGrid, int rows, int cols,
+            double cellMm, out double mmPerPx, out int foundPoints, out string message)
+        {
+            mmPerPx = 0; foundPoints = 0; message = "";
+            Cv.Mat? src = null;
+            try
+            {
+                src = ImReadBgra(imagePath);
+                if (src == null) { message = $"标定图像无法读取：{imagePath}"; return false; }
+                rows = (int)Clamp(rows, 2, 64);
+                cols = (int)Clamp(cols, 2, 64);
+                using var gray = new Cv.Mat();
+                Cv.Cv2.CvtColor(src, gray, Cv.ColorConversionCodes.BGRA2GRAY);
+                var size = new Cv.Size(cols, rows);
+                Cv.Point2f[] pts;
+                bool ok = circleGrid
+                    ? Cv.Cv2.FindCirclesGrid(gray, size, out pts, Cv.FindCirclesGridFlags.SymmetricGrid)
+                    : Cv.Cv2.FindChessboardCorners(gray, size, out pts,
+                        Cv.ChessboardFlags.AdaptiveThresh | Cv.ChessboardFlags.NormalizeImage);
+                foundPoints = pts?.Length ?? 0;
+                if (!ok || pts == null || foundPoints < cols * rows)
+                {
+                    message = $"未找到完整的{(circleGrid ? "圆点" : "棋盘格")}标定板 {cols}×{rows}（命中 {foundPoints} 点）";
+                    return false;
+                }
+                // 行优先排列：累计同一行内相邻两点的像素间距
+                double sum = 0; int n = 0;
+                for (int r = 0; r < rows; r++)
+                    for (int c = 0; c + 1 < cols; c++)
+                    {
+                        var p0 = pts[r * cols + c];
+                        var p1 = pts[r * cols + c + 1];
+                        double ddx = p0.X - p1.X, ddy = p0.Y - p1.Y;
+                        sum += Math.Sqrt(ddx * ddx + ddy * ddy);
+                        n++;
+                    }
+                double avgPx = n > 0 ? sum / n : 0;
+                if (avgPx <= 1e-6) { message = "标定点间距异常（≈0），无法求像素当量"; return false; }
+                mmPerPx = Clamp(cellMm, 1e-6, 1e6) / avgPx;
+                message = $"{(circleGrid ? "圆点" : "棋盘格")} {cols}×{rows} 命中 {foundPoints} 点，平均间距 {avgPx:F2}px";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                message = $"标定异常：{ex.Message}";
+                return false;
+            }
+            finally { src?.Dispose(); }
         }
 
         /// <summary>

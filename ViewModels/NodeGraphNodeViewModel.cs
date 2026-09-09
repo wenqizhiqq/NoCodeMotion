@@ -88,6 +88,8 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
             OnChanged(nameof(DurationText));
             OnChanged(nameof(ErrorText));
             OnChanged(nameof(HasError));
+            OnChanged(nameof(Summary));
+            OnChanged(nameof(HasSummary));
         }
     }
     /// <summary>节点执行状态（Idle/Running/Done/Error/Paused/Skipped）。XAML 用它做 DataTrigger 切换 BorderBrush 与浮标颜色。</summary>
@@ -96,6 +98,11 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
     public string DurationText => _stepResult?.DurationText ?? string.Empty;
     public string ErrorText => _stepResult?.ErrorText ?? string.Empty;
     public bool HasError => _stepResult?.Status == NgStepStatus.Error;
+
+    /// <summary>结果摘要（视觉节点：匹配分数 / 缺陷数 / 测量值 / 偏差 / 像素当量）。</summary>
+    public string Summary => _stepResult?.Summary ?? string.Empty;
+    /// <summary>有摘要且非异常时才在卡片上显示摘要行（异常已有红条）。</summary>
+    public bool HasSummary => !string.IsNullOrWhiteSpace(_stepResult?.Summary) && !HasError;
 
     private bool _hasBreakpoint;
     /// <summary>是否有断点（标题栏右上小红点）。</summary>

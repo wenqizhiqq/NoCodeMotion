@@ -82,7 +82,9 @@ public static class NgNodeDefinitions
             Kind = NgKind.CamCapture, Title = "图像采集", Domain = NgDomain.Vision, Color = "#10B981",
             Props = new[]
             {
+                new NgPropDef { Name = "图像源", Default = "相机", Options = "相机|文件|文件夹" },
                 new NgPropDef { Name = "相机", Default = "相机1" },
+                new NgPropDef { Name = "图像路径", Default = "" },
                 new NgPropDef { Name = "曝光ms", Default = "10" },
                 new NgPropDef { Name = "宽度", Default = "1280" },
                 new NgPropDef { Name = "高度", Default = "960" },
@@ -93,9 +95,13 @@ public static class NgNodeDefinitions
             Kind = NgKind.TemplateMatch, Title = "模板匹配", Domain = NgDomain.Vision, Color = "#34C759",
             Props = new[]
             {
-                new NgPropDef { Name = "模板", Default = "模板1" },
+                new NgPropDef { Name = "模板路径", Default = "" },
+                new NgPropDef { Name = "模板框", Default = "" },
+                new NgPropDef { Name = "匹配模式", Default = "灰度匹配", Options = "灰度匹配|轮廓匹配" },
                 new NgPropDef { Name = "分数阈值", Default = "0.8" },
                 new NgPropDef { Name = "角度范围", Default = "360" },
+                new NgPropDef { Name = "失败即停", Default = "是", Options = "是|否" },
+                new NgPropDef { Name = "变量前缀", Default = "匹配" },
             }
         },
         [NgKind.DefectDetect] = new()
@@ -103,9 +109,14 @@ public static class NgNodeDefinitions
             Kind = NgKind.DefectDetect, Title = "缺陷检测", Domain = NgDomain.Vision, Color = "#22C55E",
             Props = new[]
             {
-                new NgPropDef { Name = "算法", Default = "阈值面积" },
-                new NgPropDef { Name = "最小面积", Default = "50" },
+                new NgPropDef { Name = "检测模式", Default = "阈值面积", Options = "阈值面积|边缘轮廓" },
+                new NgPropDef { Name = "缺陷类型", Default = "暗斑", Options = "暗斑|亮斑" },
                 new NgPropDef { Name = "阈值", Default = "128" },
+                new NgPropDef { Name = "最小面积", Default = "50" },
+                new NgPropDef { Name = "最大面积", Default = "100000" },
+                new NgPropDef { Name = "允许缺陷数", Default = "0" },
+                new NgPropDef { Name = "超限即停", Default = "否", Options = "是|否" },
+                new NgPropDef { Name = "变量前缀", Default = "缺陷" },
             }
         },
         [NgKind.Measure] = new()
@@ -113,8 +124,12 @@ public static class NgNodeDefinitions
             Kind = NgKind.Measure, Title = "测量", Domain = NgDomain.Vision, Color = "#16A34A",
             Props = new[]
             {
-                new NgPropDef { Name = "测量项", Default = "直径" },
+                new NgPropDef { Name = "测量项", Default = "距离", Options = "距离|直径" },
                 new NgPropDef { Name = "标定系数", Default = "1" },
+                new NgPropDef { Name = "单位", Default = "mm" },
+                new NgPropDef { Name = "下限", Default = "0" },
+                new NgPropDef { Name = "上限", Default = "0" },
+                new NgPropDef { Name = "变量前缀", Default = "测量" },
             }
         },
         [NgKind.Align] = new()
@@ -122,8 +137,12 @@ public static class NgNodeDefinitions
             Kind = NgKind.Align, Title = "对位", Domain = NgDomain.Vision, Color = "#059669",
             Props = new[]
             {
-                new NgPropDef { Name = "基准点", Default = "P1" },
+                new NgPropDef { Name = "基准X", Default = "0" },
+                new NgPropDef { Name = "基准Y", Default = "0" },
+                new NgPropDef { Name = "像素当量", Default = "0" },
                 new NgPropDef { Name = "容差", Default = "0.5" },
+                new NgPropDef { Name = "超差即停", Default = "否", Options = "是|否" },
+                new NgPropDef { Name = "变量前缀", Default = "偏差" },
             }
         },
         [NgKind.Calib] = new()
@@ -131,8 +150,10 @@ public static class NgNodeDefinitions
             Kind = NgKind.Calib, Title = "标定", Domain = NgDomain.Vision, Color = "#047857",
             Props = new[]
             {
-                new NgPropDef { Name = "标定板", Default = "圆点9x9" },
-                new NgPropDef { Name = "格子尺寸", Default = "10" },
+                new NgPropDef { Name = "标定板", Default = "棋盘格", Options = "棋盘格|圆点" },
+                new NgPropDef { Name = "行数", Default = "9" },
+                new NgPropDef { Name = "列数", Default = "9" },
+                new NgPropDef { Name = "格子尺寸mm", Default = "10" },
             }
         },
 

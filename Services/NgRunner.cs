@@ -13,7 +13,9 @@
 // 不需要"先编译 NgDoc → SimAction"。代价是节点执行 switch 写在 NgRunner 内。
 //
 // 节点执行：运控/通讯/逻辑/变量 15 个 Kind 调 IHardwareBridge 真逻辑；
-// 视觉 6 个（采集/匹配/缺陷/测量/对位/标定）抛友好异常"暂未实装"。
+// 视觉 6 个（采集/匹配/缺陷/测量/对位/标定）交给 NgVisionExecutor，
+// 内部走 VisionEngine（OpenCvSharp + GrayMatch 旋转不变 NCC）真算子，
+// 结果摘要写回 NgStepResult.Summary，数值结果写入 SimRuntime 变量。
 // =====================================================================
 using System;
 using System.Collections.Generic;
@@ -24,6 +26,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NoCodeMotion.Models;
 using NoCodeMotion.Models.NodeGraph;
+using NoCodeMotion.Services.Vision;
 
 namespace NoCodeMotion.Services;
 
@@ -42,6 +45,11 @@ public sealed class NgRunner
     private readonly Dictionary<string, List<NgConnection>> _outMap = new();
     private readonly Dictionary<string, int> _loopCounters = new();
     private NgDoc? _doc;
+
+    /// <summary>视觉节点执行器（会话式：跨节点保持当帧与算子链）。</summary>
+    private readonly NgVisionExecutor _vision;
+    /// <summary>上一个节点的结果摘要（视觉节点回填，写入 NgStepResult.Summary 供卡片显示）。</summary>
+    private string _lastNodeSummary = "";
 
     private CancellationTokenSource? _cts;
     private volatile NgRunState _state = NgRunState.Idle;
@@ -76,6 +84,7 @@ public sealed class NgRunner
         _findComm = findComm;
         _setVar = setVar;
         _getVar = getVar;
+        _vision = new NgVisionExecutor(setVar, msg => { try { bridge?.Log(msg); } catch { } });
     }
 
     /// <summary>加载/切换 NgDoc 时调用：重建邻接表、清空报告与循环计数、断点保留。</summary>
@@ -105,6 +114,7 @@ public sealed class NgRunner
         if (_doc == null) return;
         _loopCounters.Clear();
         Report.Reset();
+        _vision.Reset();
         _cts = new CancellationTokenSource();
         _stepMode = false;
         _state = NgRunState.Running;
@@ -126,6 +136,7 @@ public sealed class NgRunner
         if (_doc == null) return;
         _loopCounters.Clear();
         Report.Reset();
+        _vision.Reset();
         _cts = new CancellationTokenSource();
         _stepMode = true;
         _state = NgRunState.Running;
@@ -209,6 +220,7 @@ public sealed class NgRunner
                 try
                 {
                     await Task.Run(() => ExecuteNodeSync(current), ct);
+                    res.Summary = _lastNodeSummary;
                     if (res.Status == NgStepStatus.Running) res.Status = NgStepStatus.Done;
                 }
                 catch (NotImplementedException nex)
@@ -330,6 +342,7 @@ public sealed class NgRunner
 
     private void ExecuteNodeSync(NgNode node)
     {
+        _lastNodeSummary = "";
         switch (node.Kind)
         {
             case NgKind.Start:
@@ -447,14 +460,17 @@ public sealed class NgRunner
                 break;
             }
 
-            // —— 视觉节点：暂未实装 ——
+            // —— 视觉节点：交给会话式视觉执行器（VisionEngine + GrayMatch 真算子） ——
+            // 采集节点把当帧落盘，后续 匹配/缺陷/测量/对位/标定 复用同一帧；
+            // 结果摘要回填卡片，数值结果写入变量供 条件分支 / 运算 节点引用。
             case NgKind.CamCapture:
             case NgKind.TemplateMatch:
             case NgKind.DefectDetect:
             case NgKind.Measure:
             case NgKind.Align:
             case NgKind.Calib:
-                throw new NotImplementedException($"视觉节点 {node.Kind} 暂未实装");
+                _lastNodeSummary = _vision.Execute(node);
+                break;
         }
     }
 

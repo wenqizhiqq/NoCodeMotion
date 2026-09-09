@@ -2,6 +2,7 @@
 // ◆温‍启​志⁣◆‍编​写⁠◇⁠微‌信‎﹕⁣1‎8⁠7‌◆⁣1⁠9​3⁠6‎◇‌1⁣3‎9‏9‎　‎※⁠保‎留‌所⁣有‌权‎利​请‌勿⁠删‌除​◇
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥ۤ
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -55,11 +56,38 @@ public sealed class NgDoc
         try
         {
             var doc = JsonSerializer.Deserialize<NgDoc>(s!, JsonOptions);
+            doc?.Normalize();
             return doc ?? new NgDoc();
         }
         catch
         {
             return new NgDoc();
+        }
+    }
+
+    /// <summary>
+    /// 按节点类型定义对齐属性：补齐新增属性（取默认值）、剔除已废弃属性、按定义顺序排列，
+    /// 并同步下拉可选项。老工程存下的 GraphJson 升级后可直接使用新参数，不必重建节点。
+    /// </summary>
+    public void Normalize()
+    {
+        foreach (var n in Nodes)
+        {
+            if (n == null) continue;
+            if (!NgNodeDefinitions.All.TryGetValue(n.Kind, out var def)) continue;
+            var old = n.Props ?? new List<NgProp>();
+            var rebuilt = new List<NgProp>(def.Props.Count);
+            foreach (var pd in def.Props)
+            {
+                var prev = old.FirstOrDefault(x => x != null && x.Name == pd.Name);
+                rebuilt.Add(new NgProp
+                {
+                    Name = pd.Name,
+                    Value = prev != null && !string.IsNullOrEmpty(prev.Value) ? prev.Value : pd.Default,
+                    Options = pd.Options
+                });
+            }
+            n.Props = rebuilt;
         }
     }
 }
@@ -173,7 +201,7 @@ public static class NgTemplates
         {
             var s = Node(NgKind.Start, 80, 60);
             var cam = Node(NgKind.CamCapture, 320, 60, ("相机", "相机1"));
-            var mt = Node(NgKind.TemplateMatch, 560, 60, ("模板", "模板1"), ("分数阈值", "0.8"));
+            var mt = Node(NgKind.TemplateMatch, 560, 60, ("模板路径", ""), ("分数阈值", "0.8"));
             var dec = Node(NgKind.Decision, 820, 60, ("条件", "分数 >= 0.8"));
             var mx = Node(NgKind.MoveAxis, 1080, 40, ("轴", "X"), ("目标位置", "0"), ("速度", "100"));
             var e = Node(NgKind.End, 1340, 60);

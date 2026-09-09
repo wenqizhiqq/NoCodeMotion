@@ -41,6 +41,9 @@ public sealed class NgStepResult
     public DateTime StartedAt { get; set; }
     public DateTime FinishedAt { get; set; }
 
+    /// <summary>结果摘要（视觉节点回填：匹配分数/缺陷数/测量值/偏差/像素当量）。空=无摘要。</summary>
+    public string Summary { get; set; } = "";
+
     /// <summary>显示在节点卡片标题下方的状态图标（✓ ✗ ‖ 等）。XAML 优先用 DataTrigger 绑图标，这里是 fallback。</summary>
     public string StatusText => Status switch
     {
