@@ -70,24 +70,42 @@ public sealed class NgVisionExecutor
         k == NgKind.CamCapture || k == NgKind.TemplateMatch || k == NgKind.DefectDetect
         || k == NgKind.Measure || k == NgKind.Align || k == NgKind.Calib;
 
-    /// <summary>执行一个视觉节点，返回结果摘要（写入节点卡片）。失败抛异常，由 NgRunner 记红条。</summary>
-    public string Execute(NgNode node)
+    /// <summary>单节点执行结果：summary 写卡片摘要，error 非空时由 NgRunner 写 ErrorText（不进异常流）。</summary>
+    public readonly struct VisionExecOutcome
     {
-        return node.Kind switch
+        public readonly string Summary;
+        public readonly string? Error;
+        public VisionExecOutcome(string summary, string? error) { Summary = summary; Error = error; }
+    }
+
+    /// <summary>执行一个视觉节点。**任何内部异常一律降级到 Error 字段**，绝不抛给 NgRunner，
+    /// 由 NgRunner 写入节点卡 ErrorText + Report.LastError + 日志面板；
+    /// 这样调试器不会因为单个视觉节点配置缺失/算子失败而中断整条流程。</summary>
+    public VisionExecOutcome Execute(NgNode node)
+    {
+        try
         {
-            NgKind.CamCapture => Capture(node),
-            NgKind.TemplateMatch => Match(node),
-            NgKind.DefectDetect => Defect(node),
-            NgKind.Measure => MeasureStep(node),
-            NgKind.Align => Align(node),
-            NgKind.Calib => Calib(node),
-            _ => throw new InvalidOperationException($"非视觉节点：{node.Kind}")
-        };
+            return node.Kind switch
+            {
+                NgKind.CamCapture => Capture(node),
+                NgKind.TemplateMatch => Match(node),
+                NgKind.DefectDetect => Defect(node),
+                NgKind.Measure => MeasureStep(node),
+                NgKind.Align => Align(node),
+                NgKind.Calib => Calib(node),
+                _ => new VisionExecOutcome($"非视觉节点：{node.Kind}", null)
+            };
+        }
+        catch (Exception ex)
+        {
+            // 真致命（采集完全失败、标定无帧且落盘失败等）→ 返回错误，不抛
+            return new VisionExecOutcome($"{node.Kind} 异常：{ex.Message}", ex.Message);
+        }
     }
 
     // ===================== 图像采集 =====================
 
-    private string Capture(NgNode node)
+    private VisionExecOutcome Capture(NgNode node)
     {
         string src = Prop(node, "图像源", "相机").Trim();
         if (src != "相机" && src != "文件" && src != "文件夹") src = "相机";
@@ -111,7 +129,11 @@ public sealed class NgVisionExecutor
         _synthW = step.Width <= 0 ? 1280 : step.Width;
         _synthH = step.Height <= 0 ? 960 : step.Height;
 
-        var rep = VisionEngine.Run(new[] { step });
+        VisionReport rep;
+        string? err = null;
+        try { rep = VisionEngine.Run(new[] { step }); }
+        catch (Exception ex) { rep = new VisionReport(); err = ex.Message; }
+
         // 新的一帧：算子链与匹配结果全部作废
         _ops.Clear();
         _lastMatch = null;
@@ -121,8 +143,8 @@ public sealed class NgVisionExecutor
         _frameH = rep.Height;
 
         var r = LastResult(rep, "图像采集");
-        if (!rep.HasImage)
-            throw new InvalidOperationException($"图像采集失败：{r?.Summary ?? "未取到图像"}");
+        if (err != null)
+            return new VisionExecOutcome($"图像采集失败：{err}", err);
 
         // 当帧落盘（文件名按节点 Id，循环里覆盖同一文件不堆垃圾）
         string file = Path.Combine(_sessionDir, $"frame_{Safe(node.Id)}.png");
@@ -131,13 +153,14 @@ public sealed class NgVisionExecutor
         SimRuntime.FlashCamera(string.IsNullOrWhiteSpace(camName) ? "相机1" : camName.Trim());
         _setVar("图像宽", _frameW);
         _setVar("图像高", _frameH);
-        _log($"[视觉] 图像采集：{r?.Summary}");
-        return r?.Summary ?? $"已采集 {_frameW}×{_frameH}";
+        string summary = r?.Summary ?? $"已采集 {_frameW}×{_frameH}";
+        _log($"[视觉] 图像采集：{summary}");
+        return new VisionExecOutcome(summary, null);
     }
 
     // ===================== 模板匹配 =====================
 
-    private string Match(NgNode node)
+    private VisionExecOutcome Match(NgNode node)
     {
         var op = new VisualFlowStep
         {
@@ -151,7 +174,12 @@ public sealed class NgVisionExecutor
         };
         ApplyRoi(op, Prop(node, "模板框", ""));
 
-        var rep = RunChain(op, replayOps: false);
+        // 用 try/RunChain 的方式捕获引擎的"请先框选模板区域"等配置类异常，
+        // 这类问题不该让整条流程崩 —— 写变量「通过=0」+ 摘要给原因即可。
+        VisionReport rep;
+        string err = "";
+        try { rep = RunChain(op, replayOps: false); }
+        catch (Exception ex) { err = ex.Message; rep = new VisionReport(); }
         var r = LastResult(rep, "模板匹配");
         var m = rep.Match;
         string prefix = Prop(node, "变量前缀", "匹配");
@@ -175,16 +203,19 @@ public sealed class NgVisionExecutor
 
         AddOp(node.Id, op);
         bool pass = m?.Pass ?? false;
-        string summary = r?.Summary ?? "模板匹配无结果";
+        string summary = !string.IsNullOrEmpty(err)
+            ? $"模板匹配未配置（{err}）"
+            : (r?.Summary ?? "模板匹配无结果");
         _log($"[视觉] 模板匹配：{summary}");
-        if (!pass && IsYes(Prop(node, "失败即停", "是")))
-            throw new InvalidOperationException(summary);
-        return summary;
+
+        // 「失败即停」开关完全去掉 —— 节点卡 + Report.LastError 才是异常显示的地方。
+        // 是否中断由上游 Decision 节点按 `前缀通过` 变量决定。
+        return new VisionExecOutcome(summary, pass ? null : (err.Length > 0 ? err : "模板匹配未通过"));
     }
 
     // ===================== 缺陷检测 =====================
 
-    private string Defect(NgNode node)
+    private VisionExecOutcome Defect(NgNode node)
     {
         var op = new VisualFlowStep
         {
@@ -192,14 +223,17 @@ public sealed class NgVisionExecutor
             StepType = "缺陷检测",
             Enabled = true,
             DetectMode = Prop(node, "检测模式", "阈值面积"),
-            Algorithm = Prop(node, "缺陷类型", "暗斑"),   // 引擎按是否含「亮」判定亮/暗斑
+            Algorithm = Prop(node, "缺陷类型", "暗斑"),
             Threshold = Num(node, "阈值", 128),
             MinArea = Num(node, "最小面积", 50),
             MaxArea = Num(node, "最大面积", 100000)
         };
         if (op.MaxArea <= op.MinArea) op.MaxArea = 1e9;
 
-        var rep = RunChain(op, replayOps: false);
+        VisionReport rep;
+        string err = "";
+        try { rep = RunChain(op, replayOps: false); }
+        catch (Exception ex) { err = ex.Message; rep = new VisionReport(); }
         var r = LastResult(rep, "缺陷检测");
         int cnt = r?.Count ?? 0;
         int allow = (int)Num(node, "允许缺陷数", 0);
@@ -213,14 +247,16 @@ public sealed class NgVisionExecutor
         AddOp(node.Id, op);
         string summary = $"{r?.Summary ?? $"检出 {cnt} 处"} → {(pass ? "合格" : "超限")}（允许 {allow}）";
         _log($"[视觉] 缺陷检测：{summary}");
-        if (!pass && IsYes(Prop(node, "超限即停", "否")))
-            throw new InvalidOperationException($"缺陷数 {cnt} 超过允许值 {allow}");
-        return summary;
+        // 「超限即停」开关去掉 —— 超限仅做变量标记，不抛异常中断流程。
+        string? errOut = null;
+        if (err.Length > 0) errOut = err;
+        else if (!pass) errOut = $"缺陷 {cnt} 个，超出允许 {allow}";
+        return new VisionExecOutcome(summary, errOut);
     }
 
     // ===================== 测量 =====================
 
-    private string MeasureStep(NgNode node)
+    private VisionExecOutcome MeasureStep(NgNode node)
     {
         double cal = Num(node, "标定系数", 1);
         if (cal <= 0) cal = _mmPerPx > 0 ? _mmPerPx : 1;
@@ -235,8 +271,10 @@ public sealed class NgVisionExecutor
             Unit = Prop(node, "单位", "mm")
         };
 
-        // 测量依赖上游算子产生的特征点 → 重放本帧算子链
-        var rep = RunChain(op, replayOps: true);
+        VisionReport rep;
+        string err = "";
+        try { rep = RunChain(op, replayOps: true); }
+        catch (Exception ex) { err = ex.Message; rep = new VisionReport(); }
         var r = LastResult(rep, "测量");
         double val = r?.Value ?? 0;
         double lo = Num(node, "下限", 0), hi = Num(node, "上限", 0);
@@ -252,15 +290,18 @@ public sealed class NgVisionExecutor
             ? $"{r?.Summary ?? $"测量 {val:F2}"} → {(pass ? "合格" : "超差")}（{lo:F2}~{hi:F2}）"
             : (r?.Summary ?? $"测量 {val:F2} {op.Unit}");
         _log($"[视觉] 测量：{summary}");
-        return summary;
+        string? errOut = null;
+        if (err.Length > 0) errOut = err;
+        else if (judge && !pass) errOut = $"测量 {val:F2} 超出范围 {lo:F2}~{hi:F2}";
+        return new VisionExecOutcome(summary, errOut);
     }
 
     // ===================== 对位（匹配中心 vs 基准点） =====================
 
-    private string Align(NgNode node)
+    private VisionExecOutcome Align(NgNode node)
     {
         if (_lastMatch == null)
-            throw new InvalidOperationException("对位需要上游「模板匹配」结果：请在对位节点之前连接一个模板匹配节点");
+            return new VisionExecOutcome("对位跳过：尚未执行模板匹配", "对位需要上游「模板匹配」结果");
 
         double mmpp = Num(node, "像素当量", 0);
         if (mmpp <= 0) mmpp = _mmPerPx > 0 ? _mmPerPx : 1;
@@ -289,16 +330,17 @@ public sealed class NgVisionExecutor
         string basis = useCenter ? "基准=图像中心" : $"基准=({rx:F0},{ry:F0})";
         string summary = $"偏差 X {dx:F3} / Y {dy:F3}　距离 {dist:F3}（{basis}，当量 {mmpp:G4} mm/px）→ {(pass ? "合格" : "超差")}";
         _log($"[视觉] 对位：{summary}");
-        if (!pass && IsYes(Prop(node, "超差即停", "否")))
-            throw new InvalidOperationException($"对位偏差 {dist:F3} 超出容差 {tol:F3}");
-        return summary;
+        // 「超差即停」开关去掉 —— 超差仅做变量标记，不抛异常。
+        return new VisionExecOutcome(summary, pass ? null : $"对位偏差 {dist:F3} 超出容差 {tol:F3}");
     }
 
     // ===================== 标定（求像素当量 mm/px） =====================
 
-    private string Calib(NgNode node)
+    private VisionExecOutcome Calib(NgNode node)
     {
-        EnsureFrameFile();
+        try { EnsureFrameFile(); }
+        catch (Exception ex) { return new VisionExecOutcome($"标定跳过：{ex.Message}", ex.Message); }
+
         bool circles = Prop(node, "标定板", "棋盘格").IndexOf("圆", StringComparison.Ordinal) >= 0;
         int rows = (int)Num(node, "行数", 9);
         int cols = (int)Num(node, "列数", 9);
@@ -306,13 +348,13 @@ public sealed class NgVisionExecutor
 
         if (!VisionEngine.Calibrate(_framePath, circles, rows, cols, cell,
                 out double mmpp, out int found, out string msg))
-            throw new InvalidOperationException($"标定失败：{msg}");
+            return new VisionExecOutcome($"标定失败：{msg}", msg);
 
         _mmPerPx = mmpp;
         _setVar("像素当量", mmpp);
         string summary = $"像素当量 {mmpp:G6} mm/px（{msg}）";
         _log($"[视觉] 标定：{summary}　命中点 {found}");
-        return summary;
+        return new VisionExecOutcome(summary, null);
     }
 
     // ===================== 会话帧与算子链 =====================
@@ -357,7 +399,9 @@ public sealed class NgVisionExecutor
     private void EnsureFrameFile()
     {
         if (!string.IsNullOrEmpty(_framePath) && File.Exists(_framePath)) return;
-        var rep = VisionEngine.Run(new[] { CurrentFrameStep() });
+        VisionReport rep;
+        try { rep = VisionEngine.Run(new[] { CurrentFrameStep() }); }
+        catch (Exception ex) { throw new InvalidOperationException("无法生成测试图：" + ex.Message, ex); }
         if (!rep.HasImage) throw new InvalidOperationException("尚未采集图像，且无法生成测试图");
         _frameW = rep.Width;
         _frameH = rep.Height;

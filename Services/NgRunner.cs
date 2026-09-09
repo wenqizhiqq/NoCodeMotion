@@ -50,6 +50,8 @@ public sealed class NgRunner
     private readonly NgVisionExecutor _vision;
     /// <summary>上一个节点的结果摘要（视觉节点回填，写入 NgStepResult.Summary 供卡片显示）。</summary>
     private string _lastNodeSummary = "";
+    /// <summary>上一个节点的错误信息（非视觉节点 throw / 视觉节点 Error 字段都落到这里）。</summary>
+    private string _lastNodeError = "";
 
     private CancellationTokenSource? _cts;
     private volatile NgRunState _state = NgRunState.Idle;
@@ -221,29 +223,39 @@ public sealed class NgRunner
                 {
                     await Task.Run(() => ExecuteNodeSync(current), ct);
                     res.Summary = _lastNodeSummary;
-                    if (res.Status == NgStepStatus.Running) res.Status = NgStepStatus.Done;
-                }
-                catch (NotImplementedException nex)
-                {
-                    res.Status = NgStepStatus.Error;
-                    res.ErrorText = nex.Message;
-                    _state = NgRunState.Error;
-                    Report.LastError = nex.Message;
+                    // 视觉节点的 Error 字段不算 throw —— 只标记节点卡 ErrorText、推日志，
+                    // 流程继续走下一个节点，由 Decision/Compute 节点按变量决定走向。
+                    if (!string.IsNullOrEmpty(_lastNodeError))
+                    {
+                        res.Status = NgStepStatus.Error;
+                        res.ErrorText = _lastNodeError;
+                        Report.LastError = _lastNodeError;
+                        ReportChanged?.Invoke();
+                        try { _bridge.Log($"[节点 {current.Kind}] {_lastNodeError}"); } catch { }
+                    }
+                    else if (res.Status == NgStepStatus.Running)
+                    {
+                        res.Status = NgStepStatus.Done;
+                    }
                 }
                 catch (Exception ex)
                 {
+                    // 真致命：节点执行器本身崩了（非视觉节点 / 调度异常）
                     res.Status = NgStepStatus.Error;
                     res.ErrorText = ex.Message;
-                    _state = NgRunState.Error;
                     Report.LastError = ex.Message;
+                    try { _bridge.Log($"[节点 {current.Kind} 异常] {ex.Message}"); } catch { }
+                    ReportChanged?.Invoke();
+                    // 这里不切 _state=Error，让 Debug UI 红条可见但仍可继续；
+                    // 若想「真致命即停」可加一个属性开关，默认走「节点卡显示、不中断」。
                 }
                 finally
                 {
                     sw.Stop();
                     res.DurationMs = sw.ElapsedMilliseconds;
                     res.FinishedAt = DateTime.Now;
+                    ReportChanged?.Invoke();
                 }
-                ReportChanged?.Invoke();
 
                 if (_state == NgRunState.Error) return;
 
@@ -343,6 +355,7 @@ public sealed class NgRunner
     private void ExecuteNodeSync(NgNode node)
     {
         _lastNodeSummary = "";
+        _lastNodeError = "";
         switch (node.Kind)
         {
             case NgKind.Start:
@@ -463,13 +476,18 @@ public sealed class NgRunner
             // —— 视觉节点：交给会话式视觉执行器（VisionEngine + GrayMatch 真算子） ——
             // 采集节点把当帧落盘，后续 匹配/缺陷/测量/对位/标定 复用同一帧；
             // 结果摘要回填卡片，数值结果写入变量供 条件分支 / 运算 节点引用。
+            // 异常一律降级到 _lastNodeError，不抛 —— 节点卡 + 日志显示 + 流程继续。
             case NgKind.CamCapture:
             case NgKind.TemplateMatch:
             case NgKind.DefectDetect:
             case NgKind.Measure:
             case NgKind.Align:
             case NgKind.Calib:
-                _lastNodeSummary = _vision.Execute(node);
+                {
+                    var oc = _vision.Execute(node);
+                    _lastNodeSummary = oc.Summary;
+                    _lastNodeError = oc.Error ?? "";
+                }
                 break;
         }
     }
