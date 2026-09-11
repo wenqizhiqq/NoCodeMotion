@@ -115,7 +115,7 @@
         <!-- 加载进度遮罩：切换/加载页面、打开/新建工程时显示（不确定进度条 + 提示） -->
         <Grid x:Name="LoadingOverlay" Grid.RowSpan="4" Visibility="Collapsed"
               Background="#66000000" Panel.ZIndex="999">
-            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="16"
+            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="20"
                     Padding="32,26" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Effect="{StaticResource SoftShadow}">
                 <StackPanel HorizontalAlignment="Center">
