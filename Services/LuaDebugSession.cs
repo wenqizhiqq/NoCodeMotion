@@ -528,7 +528,15 @@ namespace NoCodeMotion.Services
 
             if (_stopRequested) throw new ScriptTerminatedException();
 
-            return new DebuggerAction { Action = _nextAction };
+            // 从暂停态恢复：仅当上层请求「自由运行(Run)」时改返回 StepOver，
+            // 让引擎在每一行真实源行重新回调 GetAction —— 从而能逐行累计耗时 + 实时跳行高亮。
+            // 若直接把 Run 返回，MoonSharp 会进入"自由运行、不再回调"模式：脚本虽跑完，
+            // 但每行耗时全为 0、界面看不到任何"在跑"迹象（对比 Idle 直接点运行能正常显示）。
+            // 单步(StepIn/StepOver/StepOut)保持原动作，确保第一步入栈/出栈/跨行语义正确。
+            var resumeAction = _nextAction == DebuggerAction.ActionType.Run
+                ? DebuggerAction.ActionType.StepOver
+                : _nextAction;
+            return new DebuggerAction { Action = resumeAction };
         }
 
         public void SignalExecutionEnded()
