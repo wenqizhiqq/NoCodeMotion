@@ -44,6 +44,8 @@ public sealed class NgRunner
     private readonly Dictionary<string, NgNode> _nodeMap = new();
     private readonly Dictionary<string, List<NgConnection>> _outMap = new();
     private readonly Dictionary<string, int> _loopCounters = new();
+    /// <summary>并行汇聚状态：Join 节点 Id → 已到达分支 Id 集合。</summary>
+    private readonly Dictionary<string, HashSet<string>> _joinArrivals = new();
     private NgDoc? _doc;
 
     /// <summary>视觉节点执行器（会话式：跨节点保持当帧与算子链）。</summary>
@@ -115,6 +117,7 @@ public sealed class NgRunner
         if (_state == NgRunState.Running || _state == NgRunState.Stepping) return;
         if (_doc == null) return;
         _loopCounters.Clear();
+        _joinArrivals.Clear();
         Report.Reset();
         _vision.Reset();
         _cts = new CancellationTokenSource();
@@ -137,6 +140,7 @@ public sealed class NgRunner
             && _state != NgRunState.Stopped && _state != NgRunState.Error) return;
         if (_doc == null) return;
         _loopCounters.Clear();
+        _joinArrivals.Clear();
         Report.Reset();
         _vision.Reset();
         _cts = new CancellationTokenSource();
@@ -193,10 +197,17 @@ public sealed class NgRunner
                 return;
             }
 
-            var current = start;
-            while (current != null)
+            // 多游标调度器：每个分支一条游标，逻辑并行、执行单线程交错（便于调试）。
+            var queue = new Queue<BranchCursor>();
+            queue.Enqueue(new BranchCursor { Current = start });
+
+            while (queue.Count > 0)
             {
                 if (ct.IsCancellationRequested) return;
+
+                var branch = queue.Dequeue();
+                var current = branch.Current;
+                if (current == null) continue;
 
                 // 断点：进入节点前先判断
                 if (Breakpoints.Contains(current.Id))
@@ -261,9 +272,8 @@ public sealed class NgRunner
 
                 if (current.Kind == NgKind.End)
                 {
-                    _state = NgRunState.Completed;
-                    StateChanged?.Invoke();
-                    return;
+                    // 该分支到达结束；继续处理其他分支，等全部完成再 Completed。
+                    continue;
                 }
 
                 // 单步 或 手动暂停：跑完一个节点后在边界停下，等用户继续 / 恢复
@@ -276,14 +286,8 @@ public sealed class NgRunner
                     if (ct.IsCancellationRequested) return;
                 }
 
-                // 选下一节点
-                string? port = current.Kind switch
-                {
-                    NgKind.Decision => EvaluateDecision(current) ? "True" : "False",
-                    NgKind.Loop => GetLoopPort(current),
-                    _ => "Out",
-                };
-                current = NextNode(current.Id, port);
+                // 选下一节点 / 分支
+                EnqueueNextNodes(queue, branch, current);
             }
 
             _state = NgRunState.Completed;
@@ -350,6 +354,70 @@ public sealed class NgRunner
         return null;
     }
 
+    /// <summary>根据当前节点类型，把后续节点/分支加入调度队列。
+    /// ParallelFork 同时扇出 N 条分支；ParallelJoin 等待全部分支到达后再继续。</summary>
+    private void EnqueueNextNodes(Queue<BranchCursor> queue, BranchCursor branch, NgNode current)
+    {
+        if (current.Kind == NgKind.ParallelFork)
+        {
+            int count = GetIntProp(current, "分支数", 4);
+            int emitted = 0;
+            if (_outMap.TryGetValue(current.Id, out var list))
+            {
+                // 按 Branch1..Branch8 顺序取前 count 个已连线的端口
+                foreach (var c in list.OrderBy(x => x.SourcePort))
+                {
+                    if (emitted >= count) break;
+                    if (!c.SourcePort.StartsWith("Branch", StringComparison.Ordinal)) continue;
+                    if (_nodeMap.TryGetValue(c.TargetId, out var target))
+                    {
+                        queue.Enqueue(new BranchCursor { Current = target });
+                        emitted++;
+                    }
+                }
+            }
+            // 若该 Fork 一条线都没连，直接走默认 Out（兼容旧图 / 空 Fork）
+            if (emitted == 0)
+            {
+                var next = NextNode(current.Id, "Out");
+                if (next != null) queue.Enqueue(new BranchCursor { Current = next });
+            }
+        }
+        else if (current.Kind == NgKind.ParallelJoin)
+        {
+            if (!_joinArrivals.TryGetValue(current.Id, out var set))
+                _joinArrivals[current.Id] = set = new HashSet<string>(StringComparer.Ordinal);
+            set.Add(branch.Id);
+
+            int expected = GetIntProp(current, "分支数", 4);
+            if (set.Count >= expected)
+            {
+                _joinArrivals.Remove(current.Id);
+                var next = NextNode(current.Id, "Out");
+                if (next != null) queue.Enqueue(new BranchCursor { Current = next });
+            }
+        }
+        else
+        {
+            string? port = current.Kind switch
+            {
+                NgKind.Decision => EvaluateDecision(current) ? "True" : "False",
+                NgKind.Loop => GetLoopPort(current),
+                _ => "Out",
+            };
+            var next = NextNode(current.Id, port);
+            if (next != null) queue.Enqueue(new BranchCursor { Current = next });
+        }
+    }
+
+    /// <summary>并行执行上下文：每个分支一条游标，调度器按队列顺序逐个执行节点。
+    /// 逻辑上多条分支并发，执行层面单线程交错（便于调试、断点、暂停）。</summary>
+    private sealed class BranchCursor
+    {
+        public string Id { get; } = System.Guid.NewGuid().ToString();
+        public NgNode? Current { get; set; }
+    }
+
     // ===================== 节点执行（按 Kind switch） =====================
 
     private void ExecuteNodeSync(NgNode node)
@@ -360,6 +428,9 @@ public sealed class NgRunner
         {
             case NgKind.Start:
             case NgKind.End:
+            case NgKind.ParallelFork:
+            case NgKind.ParallelJoin:
+                // 路由逻辑在 EnqueueNextNodes 中处理；节点本身无业务动作。
                 break;
 
             case NgKind.Delay: {

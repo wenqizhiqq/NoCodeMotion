@@ -68,7 +68,11 @@ public enum NgKind
 
     // —— 逻辑 / 变量 ——
     VarSet,          // 设置变量
-    Compute          // 运算
+    Compute,         // 运算
+
+    // —— 并行控制 ——
+    ParallelFork,    // 并行分支：同时扇出多条分支
+    ParallelJoin,    // 并行汇聚：等待全部分支到达后再继续
 }
 
 /// <summary>节点类型静态字典（数据驱动渲染）。</summary>
@@ -306,6 +310,25 @@ public static class NgNodeDefinitions
             {
                 new NgPropDef { Name = "变量", Default = "结果" },
                 new NgPropDef { Name = "表达式", Default = "计数 + 1" },
+            }
+        },
+
+        // —— 并行控制 ——
+        [NgKind.ParallelFork] = new()
+        {
+            Kind = NgKind.ParallelFork, Title = "并行分支", Domain = NgDomain.Logic, Color = "#FF9500",
+            Outputs = new[] { "Branch1", "Branch2", "Branch3", "Branch4", "Branch5", "Branch6", "Branch7", "Branch8" },
+            Props = new[]
+            {
+                new NgPropDef { Name = "分支数", Default = "4", Options = "2|3|4|5|6|7|8" }
+            }
+        },
+        [NgKind.ParallelJoin] = new()
+        {
+            Kind = NgKind.ParallelJoin, Title = "并行汇聚", Domain = NgDomain.Logic, Color = "#FF9500",
+            Props = new[]
+            {
+                new NgPropDef { Name = "分支数", Default = "4", Options = "2|3|4|5|6|7|8" }
             }
         },
     };
