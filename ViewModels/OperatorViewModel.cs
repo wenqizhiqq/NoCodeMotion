@@ -673,22 +673,24 @@ namespace NoCodeMotion.ViewModels
                 log: (msg, lvl) => _logQueue.Enqueue((msg, lvl)),
                 onStep: (idx, name, cur) => { },
                 onFlowDone: (idx, name) => { },
-                onComplete: () => _uiQueue.Enqueue(() => FinalizeReset(gen)),
+                onComplete: () => _uiQueue.Enqueue(() => FinalizeReset(gen, resetFlows.Count)),
                 ct: CancellationToken.None,
                 filter: f => f.Role == FlowRole.Reset
             );
         }
 
         /// <summary>复位流程全部执行完的收尾（由 UI 定时器队列在 UI 线程执行）：复位运行态、写回变量、刷新状态文本。</summary>
-        private void FinalizeReset(int gen)
+        private void FinalizeReset(int gen, int count = 0)
         {
             if (gen != _runGen) return;   // 已被新的 启动/复位 取代，丢弃旧收尾
             _runActive = false;
             IsRunning = false;
             IsPaused = false;
             _flowCtrl?.WriteBackVars();
-            StatusText = "复位完成，点「启动」运行（按全部流程并发）。";
-            AddLog(LogLevel.Info, "复位流程执行完成。");
+            StatusText = count > 0
+                ? $"执行完成：{count} 个复位流程已全部执行。点「启动」运行（按全部流程并发）。"
+                : "执行完成：复位流程已全部执行。点「启动」运行（按全部流程并发）。";
+            AddLog(LogLevel.Info, $"复位流程执行完成（{count} 个）。");
         }
 
         /// <summary>把各流程状态芯片重置为 就绪（UI 线程调用）。</summary>

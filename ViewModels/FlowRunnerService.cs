@@ -261,11 +261,14 @@ namespace NoCodeMotion.ViewModels
             // 避免早前实现的「错误也立即重启」造成的 LuaScriptThread/LuaWatch 死循环刷屏与 UI 卡顿。
             try
             {
+            int luaRound = 0;   // 复位流程只跑一轮：首轮 luaRound==0 进入，之后置 1 → 退出；主流程无限循环
             var editor = LuaEditorView.Active;
             if (editor != null)
             {
-                while (!ctrl.StopRequested && !ctrl.EStopRequested)
+                // 复位流程（Role=Reset）只跑一轮（执行一次）即结束；主流程（Role=Main）持续循环直到停止/急停。
+                while ((flow.Role != FlowRole.Reset || luaRound == 0) && !ctrl.StopRequested && !ctrl.EStopRequested)
                 {
+                    luaRound++;
                     Thread.Sleep(1);   // 让出 CPU，避免紧密循环抢占 UI 线程
                     LuaDebugSession session = null;
                     ExecutionEndedInfo lastEnded = null;
@@ -333,8 +336,10 @@ namespace NoCodeMotion.ViewModels
             }
 
             // 退化路径：Lua 编辑器页面未加载，用独立会话连续运行并广播当前行。
-            while (!ctrl.StopRequested && !ctrl.EStopRequested)
+            // 复位流程（Role=Reset）只跑一轮（执行一次）即结束；主流程（Role=Main）持续循环直到停止/急停。
+            while ((flow.Role != FlowRole.Reset || luaRound == 0) && !ctrl.StopRequested && !ctrl.EStopRequested)
             {
+                luaRound++;
                 Thread.Sleep(1);   // 让出 CPU，避免紧密循环抢占 UI 线程
                 var ended = new ManualResetEventSlim(false);
                 ExecutionEndedInfo lastEnded = null;
