@@ -112,15 +112,9 @@ public partial class NodeGraphPage : UserControl
         }
         // 3) 输入端口 → 等待 mouseup 完成连线（此处不动作）
         if (FindWithTag(dep, "IN") != null) { e.Handled = true; return; }
-        // 4) 标题栏 → 拖拽移动
-        if (FindWithTag(dep, "NODE_HEADER") is FrameworkElement hdr)
-        {
-            var node = FindNodeVm(hdr);
-            if (node != null) { BeginNodeDrag(node, e); return; }
-        }
-        // 5) 节点其它区域 → 选中
+        // 4) 整张节点卡（除 OUT/IN 端口外，标题栏/主体/属性区/浮标区均可）→ 拖拽移动，单击即选中
         var anyNode = FindNodeVm(dep);
-        if (anyNode != null) { _vm.SelectedNode = anyNode; return; }
+        if (anyNode != null) { BeginNodeDrag(anyNode, e); return; }
         // 6) 空白 → 取消选中，并开始按住拖拽平移画布
         _vm.SelectedNode = null;
         _panning = true;
