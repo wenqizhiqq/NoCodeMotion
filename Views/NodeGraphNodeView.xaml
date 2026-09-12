@@ -64,9 +64,9 @@
             <Border Grid.Row="0" Height="30" CornerRadius="8,8,0,0" Tag="NODE_HEADER"
                     Background="{Binding Color, Converter={StaticResource NgStringToBrush}}">
                 <Grid>
-                    <Ellipse Tag="IN" Width="12" Height="12" Stroke="White" StrokeThickness="1.5"
+                    <Ellipse Tag="IN" Width="16" Height="16" Stroke="White" StrokeThickness="2"
                              Fill="{Binding Color, Converter={StaticResource NgStringToBrush}}"
-                             HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-6,0,0,0" Cursor="Hand"/>
+                             HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-8,0,0,0" Cursor="Hand"/>
                     <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold" FontSize="12"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     <!-- 断点小圆点：仅 HasBreakpoint=True 时显示 -->
@@ -90,8 +90,8 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{Binding}" Foreground="#64748B" FontSize="10.5"
                                            VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
-                                <Ellipse Grid.Column="1" Tag="OUT" Width="11" Height="11" Stroke="White" StrokeThickness="1.5"
-                                         Cursor="Cross" VerticalAlignment="Center" Margin="0,0,-6,0"
+                                <Ellipse Grid.Column="1" Tag="OUT" Width="16" Height="16" Stroke="White" StrokeThickness="2"
+                                         Cursor="Cross" VerticalAlignment="Center" Margin="0,0,-8,0"
                                          Fill="{Binding DataContext.Color, RelativeSource={RelativeSource AncestorType=local:NodeGraphNodeView}, Converter={StaticResource NgStringToBrush}}"/>
                             </Grid>
                         </DataTemplate>
