@@ -41,8 +41,7 @@ namespace NoCodeMotion.Services
                 XlsxProjectStore.ConfigureRoot(RootDir);
                 if (!Directory.Exists(RootDir)) return list;
                 foreach (var name in Directory.EnumerateFiles(RootDir, "*.xlsx")
-                                               .Select(p => Path.GetFileNameWithoutExtension(p))
-                                               .OrderBy(n => n))
+                                               .Select(p => Path.GetFileNameWithoutExtension(p)))
                 {
                     var (created, updated, remark) = XlsxProjectStore.LoadMeta(name);
                     if (created == null) { try { created = File.GetCreationTime(FileFor(name)); } catch { } }
@@ -50,6 +49,8 @@ namespace NoCodeMotion.Services
                     updated = updated ?? created;
                     list.Add(new ProjectEntry { Name = name, CreatedAt = created, UpdatedAt = updated, Remark = remark ?? "" });
                 }
+                // 按修改时间倒序：最新修改的工程排在最上面（无修改时间时回退创建时间）。
+                list = list.OrderByDescending(e => e.UpdatedAt ?? e.CreatedAt).ToList();
             }
             catch { }
             return list;

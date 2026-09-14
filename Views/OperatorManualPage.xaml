@@ -13,324 +13,105 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 顶部标题栏 -->
+        <!-- 顶部标题栏 + 角色分段切换 -->
         <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}" Margin="16,16,16,0">
             <DockPanel LastChildFill="False" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                     <Path Data="{StaticResource InfoIcon}" Width="20" Height="20" Stretch="Uniform"
                           Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="操作员使用说明书" FontSize="20" FontWeight="SemiBold"
+                    <TextBlock Text="{Binding HeaderText}"
+                               FontSize="20" FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
+
+                <!-- 角色分段选择器：操作员 / 工程师 / 维护 / 管理员 -->
+                <ListBox x:Name="RoleSelector"
+                         DockPanel.Dock="Right"
+                         ItemsSource="{Binding Roles}"
+                         SelectedItem="{Binding CurrentRole, Mode=TwoWay}"
+                         BorderThickness="0" Background="Transparent" Padding="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="4,0,0,0"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Bd" CornerRadius="8" Padding="14,7"
+                                                Background="Transparent"
+                                                BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" FontSize="13" FontWeight="SemiBold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                <Setter Property="Foreground" Value="White"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </DockPanel>
         </Border>
 
-        <!-- 15 章节滚动列表 -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
-                      Padding="22,12,22,16">
-            <StackPanel>
-                    <!-- 章节 1 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S1_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S1_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 2 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S2_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S2_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 3 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S3_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S3_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 4 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S4_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S4_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 5 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S5_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S5_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 6 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S6_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S6_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 7 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S7_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S7_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 8 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S8_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S8_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 9 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S9_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S9_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 10 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S10_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S10_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 11 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S11_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S11_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 12 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S12_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S12_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 13 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S13_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S13_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 14 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S14_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S14_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                    <!-- 章节 15 -->
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
-                        <StackPanel>
-                            <TextBlock Text="{Binding S15_Title}"
-                                       FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,8"/>
-                            <ItemsControl ItemsSource="{Binding S15_Lines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="13"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap" LineHeight="22"
-                                                   Margin="0,0,0,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-            </StackPanel>
+        <!-- 章节滚动列表（按所选角色数据驱动渲染） -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="22,12,22,16">
+            <ItemsControl ItemsSource="{Binding Sections}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12" Padding="18,14">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Title}"
+                                           FontSize="15" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,0,0,8"/>
+                                <ItemsControl ItemsSource="{Binding Lines}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}"
+                                                       FontSize="13"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       TextWrapping="Wrap" LineHeight="22"
+                                                       Margin="0,0,0,3"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </ScrollViewer>
-        <local:PageHintBar Grid.Row="2" OperationText="查阅本机操作方法与注意事项说明；变更流程后同步更新手册内容。" PrecautionText="以本手册为准；内容与程序不一致时以实际程序行为为准并反馈修正。"/>
+
+        <local:PageHintBar Grid.Row="2" OperationText="查阅本机操作方法与注意事项说明；顶部可切换 操作员/工程师/维护/管理员 角色手册。变更流程后同步更新手册内容。" PrecautionText="以本手册为准；内容与程序不一致时以实际程序行为为准并反馈修正。"/>
     </Grid>
 </UserControl>
