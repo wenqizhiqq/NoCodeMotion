@@ -1,0 +1,6 @@
+D:\wqz\code\NoCodeMotion\Views\LuaEditorView.xaml.cs(1227,63): warning CA1416: 鍙湪鎵€鏈夊钩鍙颁笂璁块棶姝よ皟鐢ㄧ珯鐐广€?TextEditor.Text" 浠呭湪 "Windows" 7.0 鍙婃洿楂樼増鏈?涓婂彈鏀寔銆?(https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+D:\wqz\code\NoCodeMotion\Views\LuaEditorView.xaml.cs(1224,17): warning CA1416: 鍙湪鎵€鏈夊钩鍙颁笂璁块棶姝よ皟鐢ㄧ珯鐐广€?TextEditor.Document" 浠呭湪 "Windows" 7.0 鍙婃洿楂樼増鏈?涓婂彈鏀寔銆?(https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [D:\wqz\code\NoCodeMotion\NoCodeMotion.csproj]
+    590 涓鍛?
+    0 涓敊璇?
+
+宸茬敤鏃堕棿 00:00:17.34
