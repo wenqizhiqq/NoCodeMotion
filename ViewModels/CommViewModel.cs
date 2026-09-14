@@ -21,7 +21,7 @@ namespace NoCodeMotion.ViewModels
     {
         // ---------- 药丸选择器数据源（绑定到字符串型模型字段）----------
         public string[] CommTypeOptions { get; } =
-            { "串口", "网口TCP", "网口UDP", "ModbusTCP", "ModbusRTU", "相机网口", "西门子S7", "三菱MC" };
+            { "串口", "网口TCP", "网口UDP", "ModbusTCP", "ModbusRTU", "相机网口", "GPIB", "西门子S7", "三菱MC" };
         public string[] DataBitsOptions { get; } = { "7", "8" };
         public string[] ParityOptions { get; } = { "无", "奇校验", "偶校验" };
         public string[] StopBitsOptions { get; } = { "1", "1.5", "2" };

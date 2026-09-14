@@ -36,6 +36,9 @@
                 <DataTrigger Binding="{Binding}" Value="综合">
                     <Setter Property="Background" Value="#E9D5FF"/>
                 </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="半导体">
+                    <Setter Property="Background" Value="#E0E7FF"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 
@@ -55,6 +58,9 @@
                 </DataTrigger>
                 <DataTrigger Binding="{Binding}" Value="综合">
                     <Setter Property="Foreground" Value="#6B21A8"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="半导体">
+                    <Setter Property="Foreground" Value="#4338CA"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>

@@ -5,9 +5,12 @@
 // 新建工程弹窗所用的「项目模板」目录。
 // 每个模板是一个 ProjectTemplate，Factory() 每次返回全新的 ProjectData。
 //
-// 模板总数：18 个（含 1 个空白）。
-// 分类：空白 / 轴运动(6) / 气缸(2) / IO(2) / 综合(7)。
-// 综合(7) 中「仿真演示」为专为 3D 仿真设计的示例：运行即可看到轴/气缸/相机动起来。
+    // 模板总数：21 个（含 1 个空白）。
+    // 分类：空白 / 轴运动(6) / 气缸(2) / IO(2) / 综合(7) / 半导体(3)。
+    // 综合(7) 中「仿真演示」为专为 3D 仿真设计的示例：运行即可看到轴/气缸/相机动起来。
+    // 半导体(3)：固晶机 / 探针台 / 平移式分选机。
+    //   平移式分选机 共用 AddSemiEquipment（3自动盘+3手动盘+上料/下空盘+2高温中转盘+16吸嘴+搬运手臂+2 Z压力测+GPIB）；
+    //   固晶机 / 探针台 各有专属配置（固晶头/顶针/点胶；真空吸盘/精密载台/探针Z + GPIB）。
 // 覆盖：控制器 / 轴 / IO(入+出) / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 变量 / 流程（主流程多个 + 复位流程）。
 // =====================================================================
 using System;
@@ -52,6 +55,11 @@ namespace NoCodeMotion.Services
             SimDemo(),
             VisionSort(),
             Dispensing(),
+
+            // ---------- 半导体 (3) ----------
+            DieBoner(),
+            ProbeStation(),
+            TransferHandler(),
         };
 
         // ====================================================================
@@ -2123,6 +2131,309 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 L(loop, inc, "Body"); L(loop, e, "Exit");
                 L(inc, cylo); L(cylo, dl); L(dl, cylb); L(cylb, xr); L(xr, loop);
                 d.Flows.Add(new FlowItem { Name = "阵列点胶(节点图)", Kind = FlowKind.NodeGraph, Role = FlowRole.Main, GraphJson = ng.ToJson() });
+                return d;
+            },
+        };
+
+        // =================== 半导体：共用设备清单 ===================
+        // 固晶机 / 探针台 / 平移式分选机 共享的硬件配置：
+        //   3 自动盘 + 3 手动盘 + 上料盘 + 下空盘 + 2 高温中转盘（共 10 盘）
+        //   2×4 上料吸嘴 + 2×4 下料吸嘴（共 16 真空吸嘴，伸出=吸/缩回=放）
+        //   搬运料盘手臂 3 轴 + 2 个 Z 轴压力测
+        //   GPIB 测试机通讯（获取 Bin）
+        private static void AddSemiEquipment(ProjectData d)
+        {
+            d.Controllers.Add(Ctl("运动控制卡", "雷赛", "DMC5800", 0, 12, "脉冲", "PCI"));
+            d.Controllers.Add(Ctl("IO扩展卡", "雷赛", "IO扩展", 1, 0, "Modbus", "网口"));
+            d.Controllers.Add(Ctl("视觉控制卡", "雷赛", "EtherCAT主站", 2, 4, "EtherCAT", "网口"));
+
+            // 搬运料盘手臂 3 轴
+            d.Axes.Add(Ax("搬运X", "运动控制卡", "脉冲", 0, "mm", 600, 300, 300));
+            d.Axes.Add(Ax("搬运Y", "运动控制卡", "脉冲", 1, "mm", 400, 200, 200));
+            d.Axes.Add(Ax("搬运Z", "运动控制卡", "脉冲", 2, "mm", 200, 150, 150));
+            // 2 个 Z 轴压力测
+            d.Axes.Add(Ax("Z压力测1", "运动控制卡", "脉冲", 3, "mm", 100, 80, 80));
+            d.Axes.Add(Ax("Z压力测2", "运动控制卡", "脉冲", 4, "mm", 100, 80, 80));
+
+            // 盘 / 料盘（共 10 个）
+            d.Trays.Add(Tray("自动盘1", 25, 25, 0, 0, 4, 4));
+            d.Trays.Add(Tray("自动盘2", 25, 25, 0, 200, 4, 4));
+            d.Trays.Add(Tray("自动盘3", 25, 25, 0, 400, 4, 4));
+            d.Trays.Add(Tray("手动盘1", 12, 12, 200, 0, 8, 8));
+            d.Trays.Add(Tray("手动盘2", 12, 12, 200, 200, 8, 8));
+            d.Trays.Add(Tray("手动盘3", 12, 12, 200, 400, 8, 8));
+            d.Trays.Add(Tray("上料盘", 20, 20, 400, 0, 6, 6));
+            d.Trays.Add(Tray("下空盘", 20, 20, 400, 200, 6, 6));
+            d.Trays.Add(Tray("高温中转盘1", 10, 10, 600, 0, 10, 10));
+            d.Trays.Add(Tray("高温中转盘2", 10, 10, 600, 200, 10, 10));
+
+            // 16 真空吸嘴：2×4 上料吸嘴 + 2×4 下料吸嘴
+            for (int i = 0; i < 8; i++)
+                d.Cylinders.Add(Cyl($"上料吸嘴{i + 1}", $"Y{i}", "真空检测", "真空检测", "真空吸嘴"));
+            for (int i = 0; i < 8; i++)
+                d.Cylinders.Add(Cyl($"下料吸嘴{i + 1}", $"Y{8 + i}", "真空检测", "真空检测", "真空吸嘴"));
+
+            // 输入 IO（16）
+            string[] inNames = { "启动", "停止", "复位", "急停", "手自动", "暂停",
+                "上料盘到位", "下空盘到位", "高温盘1到位", "高温盘2到位",
+                "搬运原点", "真空检测", "压力报警1", "压力报警2", "安全门", "测试完成" };
+            for (int i = 0; i < inNames.Length; i++)
+                d.Inputs.Add(In(inNames[i], "动点", "IO扩展卡", 1, 0, i));
+
+            // 输出 IO（12）
+            string[] outNames = { "运行", "就绪", "报警", "完成", "光源", "真空总阀",
+                "蜂鸣器", "加热1", "加热2", "搬运使能", "上料阀", "下料阀" };
+            for (int i = 0; i < outNames.Length; i++)
+                d.Outputs.Add(Out(outNames[i], "动点", "IO扩展卡", 1, 0, i));
+
+            // GPIB 测试机（获取 Bin）
+            d.Comms.Add(Comm("测试机GPIB", "GPIB", "GPIB0::7::INSTR", 0, "无", 8, 1.0, 1000));
+
+            // 变量
+            AddVars(d, ("计数", "0"), ("总数", "0"), ("良品数", "0"), ("不良品数", "0"),
+                        ("当前Bin", "0"), ("压力1", "0"), ("压力2", "0"), ("当前工序", "1"));
+        }
+
+        // =================== 半导体：固晶机 ===================
+        private static ProjectTemplate DieBoner() => new()
+        {
+            Id = "die-bonder",
+            Name = "固晶机（Die Bonder）",
+            Category = "半导体",
+            Description = "顶针顶晶 → 固晶吸嘴取晶 → 视觉对位 → 点胶 → 固晶头 Z 下压邦定到基板。",
+            Summary = "3 控制 · 5 轴 · 8 入 8 出 · 3 吸嘴/气缸 · 3 盘 · 1 相机 · 1 Modbus · 5 变量 · 1 主流程 · 1 复位",
+            Highlights = new[]
+            {
+                "控制器：运动控制卡(DMC5400) + IO扩展卡 + 视觉控制卡(EtherCAT)",
+                "轴：载台 X/Y/θ（对位平台）+ 固晶头Z + 顶针Z",
+                "气缸/吸嘴：固晶吸嘴(真空) + 顶针(双作用) + 点胶阀(双作用)",
+                "盘：晶圆环(供晶) / 基板条(邦定) / 收料盘（共 3 盘）",
+                "相机：固晶对位相机（上视晶片 + 下视基板，模板匹配）",
+                "通讯：点胶控制器 ModbusRTU",
+                "变量：计数 / 总数 / 良品数 / 不良品数 / 当前工序",
+                "主流程：顶针顶晶 → 吸嘴取晶 → 视觉对位 → 点胶 → 固晶Z压合 → 放晶",
+                "复位：顶针/吸嘴/点胶缩回 + 轴归零 + 就绪",
+            },
+            Factory = () =>
+            {
+                var d = new ProjectData();
+                d.Controllers.Add(Ctl("运动控制卡", "雷赛", "DMC5400", 0, 5, "脉冲", "PCI"));
+                d.Controllers.Add(Ctl("IO扩展卡", "雷赛", "IO扩展", 1, 0, "Modbus", "网口"));
+                d.Controllers.Add(Ctl("视觉控制卡", "雷赛", "EtherCAT主站", 2, 2, "EtherCAT", "网口"));
+
+                // 固晶机轴：对位平台 X/Y/θ + 固晶头Z + 顶针Z
+                d.Axes.Add(Ax("载台X", "运动控制卡", "脉冲", 0, "mm", 200, 100, 100));
+                d.Axes.Add(Ax("载台Y", "运动控制卡", "脉冲", 1, "mm", 200, 100, 100));
+                d.Axes.Add(Ax("载台θ", "运动控制卡", "脉冲", 2, "°", 360, 180, 180));
+                d.Axes.Add(Ax("固晶头Z", "运动控制卡", "脉冲", 3, "mm", 50, 40, 40));
+                d.Axes.Add(Ax("顶针Z", "运动控制卡", "脉冲", 4, "mm", 20, 20, 20));
+
+                // 吸嘴 / 气缸
+                d.Cylinders.Add(Cyl("固晶吸嘴", "Y0", "真空检测", "真空检测", "真空吸嘴"));
+                d.Cylinders.Add(Cyl("顶针", "Y1", "X0", "X1", "双作用"));
+                d.Cylinders.Add(Cyl("点胶阀", "Y2", "X2", "X3", "双作用"));
+
+                // 盘（3）
+                d.Trays.Add(Tray("晶圆环", 25, 25, 0, 0, 4, 4));
+                d.Trays.Add(Tray("基板条", 8, 4, 300, 0, 15, 15));
+                d.Trays.Add(Tray("收料盘", 8, 4, 300, 200, 15, 15));
+
+                // IO
+                string[] inNames = { "启动", "停止", "复位", "急停", "手自动", "暂停",
+                    "真空检测", "顶针原点", "固晶原点", "点胶原点", "安全门", "来料", "基板到位", "晶片检测", "点胶报警", "完成" };
+                for (int i = 0; i < inNames.Length; i++) d.Inputs.Add(In(inNames[i], "动点", "IO扩展卡", 1, 0, i));
+                string[] outNames = { "运行", "就绪", "报警", "完成", "光源", "真空总阀",
+                    "顶针阀", "点胶使能", "蜂鸣器", "加热", "上料阀", "下料阀" };
+                for (int i = 0; i < outNames.Length; i++) d.Outputs.Add(Out(outNames[i], "动点", "IO扩展卡", 1, 0, i));
+
+                // 通讯：点胶控制器
+                d.Comms.Add(Comm("点胶控制器", "ModbusRTU", "COM4", 9600));
+
+                // 变量
+                AddVars(d, ("计数", "0"), ("总数", "0"), ("良品数", "0"), ("不良品数", "0"), ("当前工序", "1"));
+
+                d.Cameras.Add(Cam("固晶对位相机", "海康威视", "192.168.1.110", 8000, 1920, 1080, 10.0, 1.0, "晶片/基板对位"));
+
+                d.Flows.Add(TblFlow("固晶循环", FlowRole.Main,
+
+                    CommentStep("固晶循环" + " 流程示例"),
+                    WaitIO("启动", "1", 3000),
+                    SetIO("运行", "1"),
+                    SetIO("光源", "1"),
+                    SetIO("真空总阀", "1"),
+                    CylOut("顶针"),
+                    WaitStep(150),
+                    CylOut("固晶吸嘴"),
+                    WaitStep(200),
+                    CameraStep("0"),
+                    CylBack("顶针"),
+                    CylOut("点胶阀"),
+                    WaitStep(120),
+                    MoveAxis("固晶头Z", -3, 200),
+                    WaitStep(200),
+                    MoveAxis("固晶头Z", 0, 200),
+                    CylBack("点胶阀"),
+                    CylBack("固晶吸嘴"),
+                    SetIO("完成", "1"),
+                    WaitStep(200)));
+
+                d.Flows.Add(TblFlow("固晶复位", FlowRole.Reset,
+
+                    CommentStep("固晶复位" + " 流程示例"),
+                    SetIO("报警", "0"),
+                    SetIO("真空总阀", "0"),
+                    CylBack("顶针"),
+                    CylBack("固晶吸嘴"),
+                    CylBack("点胶阀"),
+                    SetIO("光源", "0"),
+                    MoveAxis("固晶头Z", 0, 600),
+                    HomeAxis("载台X"), HomeAxis("载台Y"), HomeAxis("载台θ"),
+                    SetIO("就绪", "1")));
+                return d;
+            },
+        };
+
+        // =================== 半导体：探针台 ===================
+        private static ProjectTemplate ProbeStation() => new()
+        {
+            Id = "probe-station",
+            Name = "探针台（Probe Station）",
+            Category = "半导体",
+            Description = "晶圆吸附在真空吸盘，载台 X/Y/θ 精移使 Die 对准探针卡，探针 Z 下压接触 Pad，GPIB 测试机读取 Bin。",
+            Summary = "3 控制 · 4 轴 · 8 入 8 出 · 2 吸嘴/气缸 · 1 盘 · 1 相机 · 1 GPIB · 5 变量 · 1 主流程 · 1 复位",
+            Highlights = new[]
+            {
+                "控制器：运动控制卡(精密 EtherCAT) + IO扩展卡 + 视觉控制卡",
+                "轴：载台 X/Y/θ（晶圆精密平台）+ 探针Z（接触下压）",
+                "气缸/吸嘴：真空吸盘(吸晶) + 探针卡夹紧(双作用)",
+                "盘：晶圆盘（吸盘上 25×25 Die，共 1 盘）",
+                "相机：显微镜对位相机（Die 与探针卡对位）",
+                "通讯：测试机 GPIB（MEAS:BIN? 读取 Bin）",
+                "变量：当前Bin / 计数 / 良品数 / 不良品数 / 当前Die",
+                "主流程：载台移到Die → 探针Z下压 → GPIB读Bin → 抬起 → 下一颗",
+                "复位：探针Z抬起 + 真空关 + 载台归零 + 就绪",
+            },
+            Factory = () =>
+            {
+                var d = new ProjectData();
+                d.Controllers.Add(Ctl("运动控制卡", "雷赛", "EtherCAT主站", 0, 4, "EtherCAT", "网口"));
+                d.Controllers.Add(Ctl("IO扩展卡", "雷赛", "IO扩展", 1, 0, "Modbus", "网口"));
+                d.Controllers.Add(Ctl("视觉控制卡", "雷赛", "EtherCAT主站", 2, 2, "EtherCAT", "网口"));
+
+                // 探针台轴：载台 X/Y/θ + 探针Z
+                d.Axes.Add(Ax("载台X", "运动控制卡", "EtherCAT", 0, "mm", 300, 100, 100));
+                d.Axes.Add(Ax("载台Y", "运动控制卡", "EtherCAT", 1, "mm", 300, 100, 100));
+                d.Axes.Add(Ax("载台θ", "运动控制卡", "EtherCAT", 2, "°", 360, 180, 180));
+                d.Axes.Add(Ax("探针Z", "运动控制卡", "EtherCAT", 3, "mm", 20, 15, 15));
+
+                // 吸盘 / 探针卡夹紧
+                d.Cylinders.Add(Cyl("真空吸盘", "Y0", "真空检测", "真空检测", "真空吸嘴"));
+                d.Cylinders.Add(Cyl("探针卡夹紧", "Y1", "X0", "X1", "双作用"));
+
+                // 盘（1）：晶圆盘
+                d.Trays.Add(Tray("晶圆盘", 25, 25, 0, 0, 4, 4));
+
+                // IO
+                string[] inNames = { "启动", "停止", "复位", "急停", "手自动", "暂停",
+                    "真空检测", "载台原点", "探针原点", "安全门", "测试完成", "对位完成",
+                    "卡盘到位", "Die到位", "压力报警", "完成" };
+                for (int i = 0; i < inNames.Length; i++) d.Inputs.Add(In(inNames[i], "动点", "IO扩展卡", 1, 0, i));
+                string[] outNames = { "运行", "就绪", "报警", "完成", "光源", "真空总阀",
+                    "探针下压", "卡盘夹紧", "蜂鸣器", "加热", "上料阀", "下料阀" };
+                for (int i = 0; i < outNames.Length; i++) d.Outputs.Add(Out(outNames[i], "动点", "IO扩展卡", 1, 0, i));
+
+                // 通讯：测试机 GPIB（获取 Bin）
+                d.Comms.Add(Comm("测试机GPIB", "GPIB", "GPIB0::7::INSTR", 0, "无", 8, 1.0, 1000));
+
+                // 变量
+                AddVars(d, ("当前Bin", "0"), ("计数", "0"), ("良品数", "0"), ("不良品数", "0"), ("当前Die", "1"));
+
+                d.Cameras.Add(Cam("显微镜对位相机", "巴斯勒", "192.168.1.120", 8000, 2448, 2048, 8.0, 1.5, "Die/探针卡对位"));
+
+                d.Flows.Add(TblFlow("探针测试", FlowRole.Main,
+
+                    CommentStep("探针测试" + " 流程示例"),
+                    WaitIO("启动", "1", 3000),
+                    SetIO("运行", "1"),
+                    SetIO("真空总阀", "1"),
+                    WaitIO("卡盘到位", "1", 5000),
+                    CameraStep("0"),
+                    MoveAxis("载台X", 100, 400),
+                    MoveAxis("载台Y", 100, 400),
+                    SetIO("探针下压", "1"),
+                    MoveAxis("探针Z", -1, 150),
+                    WaitIO("压力报警", "0", 3000),
+                    CommSend("测试机GPIB", "MEAS:BIN?"),
+                    MoveAxis("探针Z", 0, 150),
+                    SetIO("探针下压", "0"),
+                    SetIO("完成", "1"),
+                    WaitStep(200)));
+
+                d.Flows.Add(TblFlow("探针复位", FlowRole.Reset,
+
+                    CommentStep("探针复位" + " 流程示例"),
+                    SetIO("报警", "0"),
+                    SetIO("探针下压", "0"),
+                    MoveAxis("探针Z", 0, 600),
+                    SetIO("真空总阀", "0"),
+                    HomeAxis("载台X"), HomeAxis("载台Y"), HomeAxis("载台θ"),
+                    SetIO("就绪", "1")));
+                return d;
+            },
+        };
+
+        // =================== 半导体：平移式分选机 ===================
+        private static ProjectTemplate TransferHandler() => new()
+        {
+            Id = "transfer-handler",
+            Name = "平移式分选机（Transfer Handler）",
+            Category = "半导体",
+            Description = "2×4 上料吸嘴取已测件、GPIB 读取 Bin、2×4 下料吸嘴按 Bin 分选到自动盘/手动盘/下空盘/高温中转盘。",
+            Summary = "3 控制 · 5 轴 · 16 入 12 出 · 16 吸嘴 · 10 盘 · 1 GPIB · 8 变量 · 1 主流程 · 1 复位",
+            Highlights = new[]
+            {
+                "控制器：运动控制卡(DMC5800) + IO扩展卡 + 视觉控制卡(EtherCAT)",
+                "轴：搬运X/Y/Z 手臂 + Z压力测1/Z压力测2（辅助压合/定位）",
+                "盘：自动盘×3 / 手动盘×3 / 上料盘 / 下空盘 / 高温中转盘×2（共 10 盘）",
+                "吸嘴：2×4 上料吸嘴取料 + 2×4 下料吸嘴分选（共 16 真空吸嘴）",
+                "通讯：测试机 GPIB（获取 Bin，决定分选落点）",
+                "变量：当前Bin / 良品数 / 不良品数 / 计数 / 总数 等",
+                "主流程：上料吸嘴取料 → GPIB读Bin → 下料吸嘴按Bin分选 → 计数",
+                "复位：吸嘴缩回 + 轴归零 + 就绪",
+            },
+            Factory = () =>
+            {
+                var d = new ProjectData();
+                AddSemiEquipment(d);
+
+                d.Flows.Add(TblFlow("分选循环", FlowRole.Main,
+
+                    CommentStep("分选循环" + " 流程示例"),
+                    WaitIO("启动", "1", 3000),
+                    SetIO("运行", "1"),
+                    SetIO("真空总阀", "1"),
+                    CylOut("上料吸嘴1"),
+                    WaitStep(200),
+                    CommSend("测试机GPIB", "MEAS:BIN?"),
+                    WaitIO("测试完成", "1", 5000),
+                    CylBack("上料吸嘴1"),
+                    CylOut("下料吸嘴1"),
+                    WaitStep(200),
+                    MoveAxis("搬运X", 200, 600),
+                    CylBack("下料吸嘴1"),
+                    MoveAxis("搬运Z", 0, 400),
+                    SetIO("完成", "1"),
+                    WaitStep(200)));
+
+                d.Flows.Add(TblFlow("分选复位", FlowRole.Reset,
+
+                    CommentStep("分选复位" + " 流程示例"),
+                    SetIO("报警", "0"),
+                    SetIO("真空总阀", "0"),
+                    CylBack("上料吸嘴1"),
+                    CylBack("下料吸嘴1"),
+                    HomeAxis("搬运X"), HomeAxis("搬运Y"), HomeAxis("搬运Z"),
+                    SetIO("就绪", "1")));
                 return d;
             },
         };
