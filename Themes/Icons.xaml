@@ -1,0 +1,240 @@
+  <!-- Copyright 温启志 ▪ 微信 18719361399 -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 项目：黄色文件夹 -->
+    <DrawingImage x:Key="IcoProject">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#FBBF24">
+                    <GeometryDrawing.Geometry>
+                        <PathGeometry Figures="M2 6 h7 l2 2 h9 a2 2 0 0 1 2 2 v8 a2 2 0 0 1 -2 2 H4 a2 2 0 0 1 -2 -2 V8 a2 2 0 0 1 2 -2 z" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#F59E0B">
+                    <GeometryDrawing.Geometry>
+                        <PathGeometry Figures="M2 6 h9 l1.4 1.4 h-10.4 a2 2 0 0 0 -2 2 v-1.4 a2 2 0 0 1 2 -2 z" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- 相机：深灰机身 + 蓝镜头 -->
+    <DrawingImage x:Key="IcoCamera">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#475569">
+                    <GeometryDrawing.Geometry>
+                        <PathGeometry Figures="M3 8 a2 2 0 0 1 2 -2 h3 l1.5 -2 h5 l1.5 2 h3 a2 2 0 0 1 2 2 v9 a2 2 0 0 1 -2 2 H5 a2 2 0 0 1 -2 -2 z" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#3B82F6">
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="12,13" RadiusX="4.6" RadiusY="4.6" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#DBEAFE">
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="12,13" RadiusX="2" RadiusY="2" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- 运控：灰色六角螺母 -->
+    <DrawingImage x:Key="IcoMotion">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#64748B">
+                    <GeometryDrawing.Geometry>
+                        <PathGeometry Figures="M12 3 L20 7.5 L20 16.5 L12 21 L4 16.5 L4 7.5 Z" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#E2E8F0">
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="12,12" RadiusX="4" RadiusY="4" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- 通讯：紫色信号塔 -->
+    <DrawingImage x:Key="IcoComm">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#8B5CF6">
+                    <GeometryDrawing.Geometry>
+                        <PathGeometry Figures="M12 3 L5 20 H19 Z" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#EDE9FE">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="9,8.5 6,1.6" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#EDE9FE">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="8,13 8,1.6" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- 变量：绿色计算器 -->
+    <DrawingImage x:Key="IcoVariable">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#10B981">
+                    <GeometryDrawing.Geometry>
+                        <PathGeometry Figures="M6 3 h12 a2 2 0 0 1 2 2 v14 a2 2 0 0 1 -2 2 H6 a2 2 0 0 1 -2 -2 V5 a2 2 0 0 1 2 -2 z" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#064E3B">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="8,5 8,4" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#A7F3D0">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="8,11.5 2.4,2.4" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#A7F3D0">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="11.3,11.5 2.4,2.4" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#A7F3D0">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="14.6,11.5 2.4,2.4" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#A7F3D0">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="8,15 2.4,2.4" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#A7F3D0">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="11.3,15 2.4,2.4" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#A7F3D0">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="14.6,15 2.4,2.4" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- 流程：橙色分支箭头 -->
+    <DrawingImage x:Key="IcoFlow">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing>
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#F59E0B" Thickness="2" EndLineCap="Round" StartLineCap="Round" />
+                    </GeometryDrawing.Pen>
+                    <GeometryDrawing.Geometry>
+                        <PathGeometry Figures="M12 3 V10 M12 10 L5 18 M12 10 L19 18" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#F59E0B">
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="5,18" RadiusX="1.6" RadiusY="1.6" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#F59E0B">
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="19,18" RadiusX="1.6" RadiusY="1.6" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- 工程师：棕色扳手 -->
+    <DrawingImage x:Key="IcoEngineer">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#92400E">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="11,11 2,9">
+                            <RectangleGeometry.Transform>
+                                <RotateTransform Angle="45" CenterX="12" CenterY="15" />
+                            </RectangleGeometry.Transform>
+                        </RectangleGeometry>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#92400E">
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="8,8" RadiusX="4" RadiusY="4" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#E2E8F0">
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="8,8" RadiusX="2" RadiusY="2" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- 操作员：粉色人像 -->
+    <DrawingImage x:Key="IcoOperator">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#EC4899">
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="12,8" RadiusX="3.6" RadiusY="3.6" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#EC4899">
+                    <GeometryDrawing.Geometry>
+                        <PathGeometry Figures="M5 21 a7 7 0 0 1 14 0 z" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- 说明书：蓝色书本 -->
+    <DrawingImage x:Key="IcoManual">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#2563EB">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="5,3,13,18" RadiusX="1.6" RadiusY="1.6" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#1D4ED8">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="5,3,3,18" RadiusX="1.6" RadiusY="1.6" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#DBEAFE">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="9.5,7 7,1.3" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#DBEAFE">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="9.5,10 7,1.3" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#DBEAFE">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="9.5,13 5,1.3" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+  <!-- 作者 温启志 编写 ░ 微信 187 1936 1399 -->
+</ResourceDictionary>

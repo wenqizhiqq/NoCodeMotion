@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NoCodeMotion · Lua 脚本使用说明书（真实设备版）</title>
+<style>
+:root{
+  --bg:#F5F5F7; --surface:#FFFFFF; --surface2:#FBFBFD;
+  --text:#1D1D1F; --text2:#6E6E73; --text3:#A1A1A6;
+  --accent:#0A84FF; --accent-soft:#E8F2FF; --accent-deep:#0066CC;
+  --green:#34C759; --green-soft:#E9F9EF;
+  --red:#FF3B30; --red-soft:#FFEBEA;
+  --amber:#FF9500; --amber-soft:#FFF4E5;
+  --border:#E5E5EA; --border2:#D2D2D7;
+  --code-bg:#F2F2F7; --code-border:#E5E5EA;
+  --k:#B1451F; --s:#2E6E3E; --c:#8E8E93; --f:#5E5CE6; --n:#1D1D1F; --b:#0A6CFF;
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --mono:"SF Mono","Cascadia Code",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased}
+::selection{background:var(--accent-soft)}
+
+/* ===== 布局 ===== */
+.layout{display:flex;max-width:1440px;margin:0 auto}
+.sidebar{position:fixed;top:0;bottom:0;left:0;width:272px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:20px 14px 40px;z-index:20}
+.main{margin-left:272px;flex:1;min-width:0}
+.content{max-width:880px;margin:0 auto;padding:36px 48px 96px}
+
+/* ===== 侧栏 ===== */
+.brand{display:flex;align-items:center;gap:10px;padding:6px 10px 18px;border-bottom:1px solid var(--border);margin-bottom:14px}
+.brand-logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0A84FF,#5E5CE6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;flex:none}
+.brand-name{font-size:14px;font-weight:700;letter-spacing:.2px}
+.brand-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.toc-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:0 10px 8px}
+.toc{list-style:none}
+.toc a{display:block;padding:6px 10px;border-radius:8px;color:var(--text2);font-size:13.5px;text-decoration:none;transition:background .15s,color .15s;border-left:2px solid transparent}
+.toc a:hover{background:var(--surface2);color:var(--text)}
+.toc a.active{background:var(--accent-soft);color:var(--accent-deep);font-weight:600;border-left-color:var(--accent)}
+.toc .sub{padding-left:18px;font-size:12.5px}
+.toc .badge{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:6px;vertical-align:1px}
+.badge-ok{background:var(--green-soft);color:#1E7A3A}
+.badge-soft{background:var(--amber-soft);color:#B25E00}
+
+/* ===== 页眉 ===== */
+.hero{padding:14px 0 8px}
+.hero h1{font-size:32px;font-weight:800;letter-spacing:-.5px;line-height:1.25}
+.hero .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:var(--surface);border:1px solid var(--border);color:var(--text2)}
+.chip b{color:var(--accent-deep)}
+.chip.green{color:#1E7A3A;background:var(--green-soft);border-color:transparent}
+
+/* ===== 章节 ===== */
+section{padding-top:44px;scroll-margin-top:20px}
+section>h2{font-size:24px;font-weight:800;letter-spacing:-.3px;display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.sec-no{font-size:13px;font-weight:800;color:var(--accent);background:var(--accent-soft);border-radius:8px;padding:3px 9px;flex:none}
+section>h3{font-size:18px;font-weight:700;margin:28px 0 10px;padding-top:8px}
+section>p,section>ul,section>ol{margin:10px 0}
+ul,ol{padding-left:24px}
+li{margin:5px 0}
+strong{font-weight:700}
+a{color:var(--accent-deep)}
+em{font-style:normal;color:var(--text2);font-size:13.5px}
+
+/* ===== 卡片 ===== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;margin:16px 0;box-shadow:var(--shadow)}
+.card h4{font-size:14px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card h4::before{content:"";width:4px;height:14px;border-radius:2px;background:var(--accent)}
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:12px 16px;margin:14px 0;font-size:13.5px}
+.note.warn{border-color:var(--amber);background:var(--amber-soft)}
+.note.danger{border-color:var(--red);background:var(--red-soft)}
+.note b{display:inline}
+.note-title{font-weight:700;margin-right:6px}
+
+/* ===== 表格 ===== */
+.tbl-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
+th{background:var(--surface2);text-align:left;font-weight:700;font-size:12.5px;color:var(--text2);padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+tr:hover td{background:var(--surface2)}
+
+/* ===== 代码 ===== */
+pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:var(--radius-sm);padding:16px 18px;overflow-x:auto;margin:14px 0;position:relative;font-size:13px;line-height:1.7}
+pre code{font-family:var(--mono);background:none;padding:0;color:var(--n)}
+.code-head{display:flex;align-items:center;justify-content:space-between;margin:18px 0 -14px;font-size:12px;font-weight:700;color:var(--text3);letter-spacing:.4px}
+.code-head .cap{text-transform:uppercase}
+.copy-btn{font-family:var(--font);font-size:11px;font-weight:600;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 10px;cursor:pointer;transition:all .15s}
+.copy-btn:hover{color:var(--accent-deep);border-color:var(--accent)}
+.copy-btn.copied{color:#1E7A3A;border-color:var(--green);background:var(--green-soft)}
+code{font-family:var(--mono);background:var(--code-bg);border-radius:5px;padding:1px 6px;font-size:12.5px;color:#B1451F}
+.tk-k{color:var(--k);font-weight:600}
+.tk-s{color:var(--s)}
+.tk-c{color:var(--c);font-style:italic}
+.tk-f{color:var(--f)}
+.tk-n{color:var(--b)}
+.tk-d{color:var(--red)}
+.tk-b{color:#AF52DE;font-weight:600}
+
+/* ===== 状态机 ===== */
+.fsm{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:18px 0}
+.fsm .st{border-radius:20px;padding:7px 16px;font-size:13px;font-weight:700;border:1.5px solid}
+.fsm .ar{color:var(--text3);font-size:16px}
+.st.idle{background:#F2F2F7;border-color:#D2D2D7;color:#48484A}
+.st.run{background:var(--green-soft);border-color:var(--green);color:#1E7A3A}
+.st.pause{background:var(--amber-soft);border-color:var(--amber);color:#B25E00}
+.st.err{background:var(--red-soft);border-color:var(--red);color:#C13028}
+.st.stop{background:#EDEDF5;border-color:#AFB0C5;color:#4A4B6A}
+
+/* ===== 响应式 ===== */
+.menu-btn{display:none}
+@media (max-width:960px){
+  .sidebar{transform:translateX(-100%);transition:transform .25s;box-shadow:var(--shadow)}
+  .sidebar.open{transform:none}
+  .main{margin-left:0}
+  .content{padding:24px 20px 80px}
+  .menu-btn{display:flex;position:fixed;top:14px;left:14px;z-index:30;background:var(--surface);border:1px solid var(--border);border-radius:10px;width:40px;height:40px;align-items:center;justify-content:center;box-shadow:var(--shadow);cursor:pointer}
+  .menu-btn svg{width:20px;height:20px}
+  .hero h1{font-size:26px}
+  .scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:15}
+  .scrim.show{display:block}
+}
+@media (max-width:640px){
+  body{font-size:14.5px}
+  section>h2{font-size:21px}
+  pre{font-size:12px;padding:14px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<button class="menu-btn" id="menuBtn" aria-label="打开目录">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+</button>
+<div class="scrim" id="scrim"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-logo">NM</div>
+    <div>
+      <div class="brand-name">NoCodeMotion</div>
+      <div class="brand-sub">Lua 脚本使用说明书</div>
+    </div>
+  </div>
+  <div class="toc-title">目录</div>
+  <ul class="toc">
+    <li><a href="#overview">1 概览</a></li>
+    <li><a href="#quickstart">2 快速上手（真实设备）</a></li>
+    <li><a href="#language">3 Lua 语言与环境</a></li>
+    <li><a href="#hardware-api">4 硬件函数 API</a></li>
+    <li><a href="#namespace-api">5 命名空间 API</a></li>
+    <li><a href="#comm">6 通讯与 Modbus</a></li>
+    <li><a href="#examples">7 真实设备示例</a></li>
+    <li><a href="#runtime">8 运行控制与异常</a></li>
+    <li><a href="#debug">9 调试</a></li>
+    <li><a href="#limits">10 注意事项与限制</a></li>
+  </ul>
+</nav>
+
+<main class="main">
+<div class="content">
+
+<!-- ===== 1 概览 ===== -->
+<section id="overview">
+  <div class="hero">
+    <h1>NoCodeMotion · Lua 脚本使用说明书</h1>
+    <div class="meta">
+      <span class="chip">适用版本：<b>V1.0</b></span>
+      <span class="chip">运行环境：<b>Windows · .NET 10</b></span>
+      <span class="chip">Lua 引擎：<b>MoonSharp（Lua 5.2）</b></span>
+      <span class="chip green">面向真实设备控制</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>本说明书能做什么</h4>
+    <p>NoCodeMotion 的「脚本流程」使用 <strong>Lua 5.2 语言（MoonSharp 引擎）</strong>编写控制逻辑。脚本运行在后台线程，可直接驱动真实设备：<strong>运动控制卡（雷赛）、输入/输出 IO、气缸、串口/网口通讯（含 Modbus）、料盘</strong>，并与工程变量表、运行控制（启动/暂停/继续/停止/急停）深度联动。</p>
+    <p>本文档所有 API、示例与运行行为均对照软件内 <code>HardwareApi</code> 注册表、Lua 编辑器智能提示与内置工程模板整理，可直接照抄使用。</p>
+  </div>
+
+  <h3>1.1 脚本在框架中的位置</h3>
+  <div class="card">
+    <p>一个「脚本流程」就是一个 Lua 源码块（<code>FlowItem.LuaSource</code>）。工程可同时包含多类流程：</p>
+    <table>
+      <tr><th>流程类型</th><th>编辑方式</th><th>适用场景</th></tr>
+      <tr><td>脚本流程（Lua）</td><td>代码编辑器</td><td>复杂逻辑：条件分支、循环、配方切换、轴联动、与 PLC 通讯</td></tr>
+      <tr><td>表格流程</td><td>DataGrid 行式步骤</td><td>简单顺序动作：轴定位、IO 置位、气缸动作、延时</td></tr>
+      <tr><td>视觉流程</td><td>图形节点</td><td>图像采集、模板匹配、缺陷检测、测量、对位、标定</td></tr>
+      <tr><td>复位流程</td><td>与主流程相同</td><td>复位动作序列（点击「复位」时执行）</td></tr>
+    </table>
+    <div class="note"><b>运行方式：</b>Lua 脚本由 MoonSharp 逐行解释执行，<code>print()</code> 输出实时显示在编辑器的「输出面板」。脚本内部调用硬件函数（如 <code>Axis.MoveAbs</code>）时，框架先按名称从工程配置解析出设备对象，再交给真实硬件桥执行；设备未连接时交给仿真桥执行。</div>
+  </div>
+
+  <h3>1.2 能力总览</h3>
+  <div class="card">
+    <table>
+      <tr><th>能力</th><th>说明</th><th>状态</th></tr>
+      <tr><td>轴运动</td><td>绝对/相对定位、速度设置、回零、停止、等待到位、使能</td><td><span class="badge badge-ok">已支持</span></td></tr>
+      <tr><td>IO 读写</td><td>读输入、写输出、电平取反、阻塞等待输入到位</td><td><span class="badge badge-ok">已支持</span></td></tr>
+      <tr><td>气缸</td><td>伸出/缩回、等待感应到位、复位</td><td><span class="badge badge-ok">已支持</span></td></tr>
+      <tr><td>通讯</td><td>串口/网口文本收发、HEX 十六进制收发、Modbus RTU/TCP（保持寄存器/线圈/输入）</td><td><span class="badge badge-ok">已支持</span></td></tr>
+      <tr><td>料盘</td><td>取料 / 放料</td><td><span class="badge badge-ok">已支持</span></td></tr>
+      <tr><td>变量</td><td>读写工程变量表（数字自动转 number，文本为 string，未定义返回 nil）</td><td><span class="badge badge-ok">已支持</span></td></tr>
+      <tr><td>运行控制</td><td>启动/暂停/继续/停止/急停检测、延时、脚本内自检急停</td><td><span class="badge badge-ok">已支持</span></td></tr>
+      <tr><td>相机 / 视觉</td><td>Lua 内直接取图、模板匹配、缺陷检测</td><td><span class="badge badge-soft">规划中</span>（视觉业务请使用「视觉流程」图形节点）</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ===== 2 快速上手 ===== -->
+<section id="quickstart">
+  <h2><span class="sec-no">2</span>快速上手（真实设备）</h2>
+
+  <h3>2.1 硬件准备</h3>
+  <div class="card">
+    <ol>
+      <li><strong>连接控制卡</strong>：安装雷赛控制卡驱动（LTDMC），插好 PCI/PCIe 卡。软件在「控制器」页面自动检测卡数量与型号。</li>
+      <li><strong>配置设备</strong>：在「轴」「IO」「气缸」「通讯」「料盘」页面按实际接线填写名称、卡号、位号、速度、正负限位等参数。<strong>名称是脚本引用的唯一凭据</strong>，脚本里写什么名字，配置页就必须有同名的设备。</li>
+      <li><strong>切换到真实硬件</strong>：默认处于仿真模式。点击切换到真实硬件（或脚本内调用 <code>UseRealHardware()</code>），状态栏显示「雷赛控制卡已连接」即就绪。</li>
+      <li><strong>新建脚本流程</strong>：在「流程」页面新建流程，类型选「脚本」，进入 Lua 编辑器编写代码。</li>
+    </ol>
+    <div class="note warn"><span class="note-title">提示：</span>真实设备调试前，建议先用 <code>UseSimulation()</code> / 仿真模式把逻辑跑通一遍，再切换真实硬件。仿真模式下未配置的输入 IO 默认返回 <code>"1"</code>，方便直接跑通等待信号的逻辑。</div>
+  </div>
+
+  <h3>2.2 第一个脚本</h3>
+  <p>复制下面的脚本到 Lua 编辑器，F5 运行（<strong>F5 运行，F10 单步，F9 断点</strong>）：</p>
+  <div class="code-head"><span class="cap">示例 · 等待启动 → 轴运动 → 气缸 → 完成</span><button class="copy-btn">复制</button></div>
+<pre><code>-- 等待启动信号（输入 IO「启动」= 1）
+while IO.Get('启动') ~= '1' do
+    WaitStep(50)            -- 每 50ms 查一次
+    if EStop() then return end  -- 急停立即退出
+end
+
+IO.Set('运行', '1')          -- 输出 IO「运行」置 1
+
+-- 轴绝对定位：X 到 100，速度 800
+Axis.MoveAbs('X', 100, 800)
+Axis.WaitDone('X')          -- 等待到位
+
+-- 气缸伸出，等感应到位
+Cylinder.Out('夹紧')
+WaitCylinder('夹紧')
+
+-- 延时 300ms 后缩回
+Delay(300)
+Cylinder.Back('夹紧')
+
+IO.Set('完成', '1')          -- 输出 IO「完成」置 1
+Print('本循环完成')</code></pre>
+  <div class="note"><span class="note-title">注意：</span>以上用到的设备名（<code>启动</code>、<code>运行</code>、<code>X</code>、<code>夹紧</code>、<code>完成</code>）必须在工程配置页中真实存在，否则运行时报错「找不到轴：XXX」并显示在输出面板。</div>
+
+  <h3>2.3 运行与停止</h3>
+  <div class="card">
+    <ul>
+      <li><strong>运行</strong>：编辑器工具栏「运行」或 F5；操作员页面「启动」按工程流程并发执行。</li>
+      <li><strong>暂停 / 继续</strong>：编辑器或操作员页面均可暂停；暂停后按钮变「继续」，恢复执行。</li>
+      <li><strong>停止</strong>：当前步骤完成后退出循环，状态置「已停止」。</li>
+      <li><strong>急停</strong>：立即切断所有运动输出，进入急停锁定；<strong>必须先「复位」才能再次启动</strong>。脚本内用 <code>EStop()</code> 主动检测。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 3 Lua 语言与环境 ===== -->
+<section id="language">
+  <h2><span class="sec-no">3</span>Lua 语言与环境</h2>
+
+  <h3>3.1 语法速览</h3>
+  <div class="card">
+    <table>
+      <tr><th>语法</th><th>示例</th></tr>
+      <tr><td>变量赋值</td><td><code>local a = 1</code>（<code>local</code> 声明局部变量，推荐）</td></tr>
+      <tr><td>条件分支</td><td><code>if a &gt; 10 then ... elseif ... then ... else ... end</code></td></tr>
+      <tr><td>循环</td><td><code>while cond do ... end</code> / <code>for i = 1, n do ... end</code> / <code>for k,v in pairs(t) do ... end</code></td></tr>
+      <tr><td>函数</td><td><code>function f(x) return x * 2 end</code> / <code>local function f(x) ... end</code></td></tr>
+      <tr><td>字符串拼接</td><td><code>local s = '得分：' .. score</code></td></tr>
+      <tr><td>格式化</td><td><code>string.format('%d 分', 90)</code></td></tr>
+      <tr><td>布尔</td><td><code>true</code> / <code>false</code>；Lua 中只有 <code>nil</code> 和 <code>false</code> 为假</td></tr>
+    </table>
+    <p style="margin-top:10px">编辑器「智能工具」面板提供 <code>if / ifelse / for / forp / fori / while / function / local function / repeat</code> 等代码块模板，一键插入。</p>
+  </div>
+
+  <h3>3.2 标准库</h3>
+  <div class="card">
+    <p>MoonSharp 提供以下标准库，可直接使用（编辑器有完整智能提示）：</p>
+    <table>
+      <tr><th>库</th><th>常用函数</th></tr>
+      <tr><td>全局</td><td><code>print</code> <code>type</code> <code>tostring</code> <code>tonumber</code> <code>pairs</code> <code>ipairs</code> <code>pcall</code> <code>assert</code> <code>unpack</code></td></tr>
+      <tr><td>string</td><td><code>format</code> <code>find</code> <code>match</code> <code>gsub</code> <code>sub</code> <code>upper</code> <code>lower</code> <code>split</code> <code>contains</code> <code>startsWith</code> <code>endsWith</code>（后 4 个为 MoonSharp 扩展）</td></tr>
+      <tr><td>table</td><td><code>insert</code> <code>remove</code> <code>concat</code> <code>sort</code> <code>unpack</code> <code>pack</code></td></tr>
+      <tr><td>math</td><td><code>floor</code> <code>ceil</code> <code>abs</code> <code>max</code> <code>min</code> <code>sqrt</code> <code>pow</code> <code>random</code> <code>fmod</code> <code>pi</code></td></tr>
+      <tr><td>os</td><td><code>time</code> <code>date</code> <code>clock</code> <code>difftime</code></td></tr>
+      <tr><td>coroutine</td><td><code>create</code> <code>resume</code> <code>yield</code> <code>status</code></td></tr>
+      <tr><td>json</td><td><code>json.parse(s)</code> <code>json.serialize(t)</code> — 与第三方设备交换 JSON 数据</td></tr>
+    </table>
+  </div>
+
+  <h3>3.3 输出</h3>
+  <div class="card">
+    <ul>
+      <li><code>print(...)</code> / <code>Print(...)</code>：把内容输出到「输出面板」。高频输出走批量刷新，不会卡界面。</li>
+      <li>硬件函数内部日志（如 <code>Variable.Set</code> 的 <code>[变量] name = value</code>）也会显示在输出面板。</li>
+      <li>脚本报错时输出面板显示错误信息与<strong>行号</strong>，流程状态置「异常」并停止重试。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 4 硬件函数 API ===== -->
+<section id="hardware-api">
+  <h2><span class="sec-no">4</span>硬件函数 API（全局函数）</h2>
+  <p>以下 25 个函数由框架注册为 Lua 全局函数，<strong>编辑器「智能工具」面板可一键插入</strong>，调用时设备名必须与工程配置一致，找不到设备会直接报错。</p>
+
+  <h3>4.1 轴运动</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>AxisMove(name)</code></td><td>驱动轴运动到<strong>配置页设定的目标位置</strong>（配合点位使用）</td></tr>
+    <tr><td><code>MoveAxisAbs(name, position)</code></td><td>轴运动到绝对位置 <code>position</code>（使用轴当前速度）</td></tr>
+    <tr><td><code>MoveAxisRel(name, distance)</code></td><td>轴相对当前位置移动 <code>distance</code>（可负值）</td></tr>
+    <tr><td><code>SetAxisSpeed(name, speed)</code></td><td>设置轴运行速度，后续移动生效</td></tr>
+    <tr><td><code>AxisHome(name)</code></td><td>轴回零（找原点）</td></tr>
+    <tr><td><code>StopAxis(name)</code></td><td>立即停止该轴</td></tr>
+    <tr><td><code>WaitAxisDone(name)</code></td><td><strong>阻塞等待轴到位</strong>（运动完成才返回）</td></tr>
+    <tr><td><code>EnableAxis(name)</code></td><td>轴使能 / 解除使能（切换伺服使能）</td></tr>
+  </table></div>
+
+  <h3>4.2 IO 读写</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>ReadIO(name)</code></td><td>读取输入 IO，返回 <code>0</code> / <code>1</code>（number）</td></tr>
+    <tr><td><code>WaitIO(name, value)</code></td><td><strong>阻塞等待输入 IO 变为 <code>value</code></strong>（0 或 1）</td></tr>
+    <tr><td><code>SetIO(name, value)</code></td><td>设置输出 IO 电平 <code>value</code>（0 或 1）</td></tr>
+    <tr><td><code>ToggleIO(name)</code></td><td>输出 IO 电平取反</td></tr>
+  </table></div>
+
+  <h3>4.3 气缸</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>CylinderMove(name, state)</code></td><td>气缸动作：<code>state=1</code> 伸出 / <code>0</code> 缩回</td></tr>
+    <tr><td><code>WaitCylinder(name)</code></td><td><strong>阻塞等待气缸到位</strong>（按感应点轮询）</td></tr>
+    <tr><td><code>CylinderReset(name)</code></td><td>气缸复位到初始状态</td></tr>
+  </table></div>
+
+  <h3>4.4 通讯</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>CommSend(name, data)</code></td><td>发送数据：普通文本直接发；<code>"HEX:02 41 42 03"</code> 按十六进制字节发；Modbus 通道用命令语法（见第 6 章）</td></tr>
+    <tr><td><code>CommRecv(name)</code></td><td>接收数据并返回字符串；Modbus 通道返回上一条读命令的结果（逗号分隔）</td></tr>
+  </table></div>
+
+  <h3>4.5 料盘</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>TrayPick(name)</code></td><td>料盘取料（按当前取料位执行）</td></tr>
+    <tr><td><code>TrayPlace(name)</code></td><td>料盘放料</td></tr>
+  </table></div>
+
+  <h3>4.6 硬件状态与模式</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>HardwareStatus()</code></td><td>返回当前硬件对接状态（中文），如「雷赛控制卡已连接（卡数量 1）…」</td></tr>
+    <tr><td><code>HardwareReady()</code></td><td>控制卡是否就绪：<code>1</code> 就绪 / <code>0</code> 未就绪</td></tr>
+    <tr><td><code>HardwareReconnect()</code></td><td>重新连接控制卡（现场插好卡 / 装好驱动后调用），返回中文结果</td></tr>
+    <tr><td><code>UseRealHardware()</code></td><td>切换到真实硬件（雷赛控制卡 + 真实串口/网口/Modbus），返回中文结果</td></tr>
+    <tr><td><code>UseSimulation()</code></td><td>切换到仿真模式（不驱动任何设备，只打印日志），返回中文结果</td></tr>
+  </table></div>
+
+  <h3>4.7 运行控制与辅助</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>EStop()</code></td><td>当前是否急停锁定（返回 boolean）。脚本循环里 <code>if EStop() then return end</code> 及时退出</td></tr>
+    <tr><td><code>Delay(ms)</code></td><td>脚本内延时（毫秒），范围 0~60000，在后台线程休眠</td></tr>
+    <tr><td><code>WaitStep(ms)</code></td><td>与 <code>Delay</code> 等价的别名，语义为「每步停顿」，模板中使用</td></tr>
+    <tr><td><code>Print(...)</code></td><td>大写别名，输出到输出面板（标准 <code>print</code> 同样可用）</td></tr>
+  </table></div>
+</section>
+
+<!-- ===== 5 命名空间 API ===== -->
+<section id="namespace-api">
+  <h2><span class="sec-no">5</span>命名空间 API</h2>
+  <p>除全局函数外，框架提供 4 个命名空间表，写法更接近面向对象，推荐在脚本流程中使用：</p>
+
+  <h3>5.1 Variable — 工程变量表</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>Variable.Get(name)</code></td><td>读变量：可解析为数字时返回 <code>number</code>，否则返回 <code>string</code>；未定义返回 <code>nil</code></td></tr>
+    <tr><td><code>Variable.Set(name, value)</code></td><td>写变量（数字或字符串皆可），自动在变量表查找/新建，并实时打印 <code>[变量] name = value</code></td></tr>
+  </table></div>
+  <div class="code-head"><span class="cap">示例 · 配方切换</span><button class="copy-btn">复制</button></div>
+<pre><code>local recipe = Variable.Get('当前工序') or 'A'
+if recipe == 'A' then
+    Variable.Set('缺陷阈值', 0.95)
+elseif recipe == 'B' then
+    Variable.Set('缺陷阈值', 0.90)
+else
+    Print('未知配方：' .. recipe)
+end</code></pre>
+  <div class="note warn"><span class="note-title">提示：</span>变量表数据绑定到「变量页面」表格，<code>Variable.Set</code> 会自动在 UI 线程同步执行，保证线程安全；紧跟其后的 <code>Variable.Get</code> 一定能读到新值。</div>
+
+  <h3>5.2 IO — 输入 / 输出</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>IO.Get(name)</code></td><td>读输入 IO，返回字符串 <code>"0"</code> / <code>"1"</code>。仿真且未配置该输入时返回 <code>"1"</code></td></tr>
+    <tr><td><code>IO.Set(name, value)</code></td><td>写输出 IO（值自动解析为整数）；找不到该输出时给出警告而非崩溃</td></tr>
+  </table></div>
+  <p style="margin-top:8px">与全局函数的关系：<code>IO.Get</code> 等价 <code>ReadIO</code> 的字符串版（<code>IO.Get(x) == '1'</code> 即 <code>ReadIO(x) == 1</code>）；<code>IO.Set</code> 等价 <code>SetIO</code>，但参数更宽容、找不到设备只警告。</p>
+
+  <h3>5.3 Axis — 轴</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>Axis.MoveAbs(name, position, speed)</code></td><td>设置速度后运动到绝对位置（一步完成）</td></tr>
+    <tr><td><code>Axis.MoveRel(name, distance)</code></td><td>相对移动</td></tr>
+    <tr><td><code>Axis.Home(name)</code></td><td>回零</td></tr>
+    <tr><td><code>Axis.Stop(name)</code></td><td>立即停止</td></tr>
+    <tr><td><code>Axis.WaitDone(name)</code></td><td>阻塞等待到位</td></tr>
+    <tr><td><code>Axis.SetSpeed(name, speed)</code></td><td>设置速度</td></tr>
+    <tr><td><code>Axis.Enable(name)</code></td><td>使能</td></tr>
+  </table></div>
+
+  <h3>5.4 Cylinder — 气缸</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>Cylinder.Out(name)</code></td><td>伸出（等价 <code>CylinderMove(name, 1)</code>）</td></tr>
+    <tr><td><code>Cylinder.Back(name)</code></td><td>缩回（等价 <code>CylinderMove(name, 0)</code>）</td></tr>
+    <tr><td><code>Cylinder.Reset(name)</code></td><td>复位到初始状态</td></tr>
+  </table></div>
+</section>
+
+<!-- ===== 6 通讯与 Modbus ===== -->
+<section id="comm">
+  <h2><span class="sec-no">6</span>通讯与 Modbus</h2>
+  <p>「通讯」配置页的设备（串口 / 网口 / ModbusRTU / ModbusTCP）统一通过 <code>CommSend</code> / <code>CommRecv</code> 访问。发送内容分三种形态：</p>
+
+  <h3>6.1 三种发送形态</h3>
+  <div class="card">
+    <table>
+      <tr><th>形态</th><th>写法</th><th>说明</th></tr>
+      <tr><td>纯文本</td><td><code>CommSend('PLC1', 'READY')</code></td><td>按 ASCII 字节直接发送</td></tr>
+      <tr><td>十六进制</td><td><code>CommSend('PLC1', 'HEX:02 41 42 03')</code></td><td><code>HEX:</code> 前缀，允许空格/逗号/0x 前缀，按字节发送（适合帧头帧尾、CRC 等不可见字节）</td></tr>
+      <tr><td>Modbus 命令</td><td><code>CommSend('PLC1', 'RH,1,0,2')</code></td><td>ModbusRTU / ModbusTCP 通道专用命令语法（见下）</td></tr>
+    </table>
+  </div>
+
+  <h3>6.2 Modbus 命令一览</h3>
+  <div class="card">
+    <table>
+      <tr><th>命令</th><th>功能</th><th>格式</th><th>Modbus 功能码</th></tr>
+      <tr><td><code>RH</code></td><td>读保持寄存器</td><td><code>RH,站号,起始地址,数量</code></td><td>03</td></tr>
+      <tr><td><code>RI</code></td><td>读输入寄存器</td><td><code>RI,站号,起始地址,数量</code></td><td>04</td></tr>
+      <tr><td><code>RC</code></td><td>读线圈</td><td><code>RC,站号,起始地址,数量</code></td><td>01</td></tr>
+      <tr><td><code>RD</code></td><td>读离散输入</td><td><code>RD,站号,起始地址,数量</code></td><td>02</td></tr>
+      <tr><td><code>WH</code></td><td>写保持寄存器</td><td><code>WH,站号,地址,值</code>（多值逗号分隔）</td><td>06 / 16</td></tr>
+      <tr><td><code>WC</code></td><td>写线圈</td><td><code>WC,站号,地址,值</code>（0/1）</td><td>05 / 15</td></tr>
+    </table>
+    <p style="margin-top:10px">命令<strong>大小写不敏感</strong>；读命令用 <code>CommRecv</code> 取结果，返回逗号分隔字符串（如 <code>"100,200"</code>、<code>"1,0,0,1"</code>）。</p>
+  </div>
+
+  <div class="code-head"><span class="cap">示例 · 读写 PLC 寄存器</span><button class="copy-btn">复制</button></div>
+<pre><code>-- 读保持寄存器：站号 1，地址 0，读 2 个
+CommSend('PLC1', 'RH,1,0,2')
+local v = CommRecv('PLC1')        -- 例 "100,200"
+local t1 = tonumber(v:split(',')[1])
+
+-- 写单个保持寄存器：站号 1，地址 10，值 1234
+CommSend('PLC1', 'WH,1,10,1234')
+
+-- 写线圈：站号 1，地址 5，置 1
+CommSend('PLC1', 'WC,1,5,1')
+
+-- 读离散输入 4 个
+CommSend('PLC1', 'RD,1,0,4')
+local s = CommRecv('PLC1')        -- 例 "1,0,0,1"</code></pre>
+  <div class="note"><span class="note-title">接线提醒：</span>ModbusRTU 走串口（配置页填 COM 口 + 波特率），ModbusTCP 走网口（填 PLC 的 IP，端口默认 502）。连接超时、串口被占用、地址不通都会给出中文错误提示。</div>
+</section>
+
+<!-- ===== 7 真实设备示例 ===== -->
+<section id="examples">
+  <h2><span class="sec-no">7</span>真实设备示例</h2>
+  <p>以下示例均使用已注册 API，可直接复制到 Lua 编辑器调试。设备名请替换为工程中实际配置的名称。</p>
+
+  <h3>7.1 完整取放流程（料盘 + 轴联动 + 气缸 + 视觉工位等待）</h3>
+  <div class="code-head"><span class="cap">示例 · 单循环取放</span><button class="copy-btn">复制</button></div>
+<pre><code>-- ===== 上料段 =====
+TrayPick('上料盘')                -- 料盘取料
+
+-- X/Y 轴联动走矩形（绝对定位，速度 800）
+Axis.MoveAbs('X', 0, 800)
+Axis.MoveAbs('Y', 0, 800)
+WaitStep(200)
+Axis.MoveAbs('X', 100, 800)
+Axis.MoveAbs('Y', 0, 800)
+WaitStep(200)
+Axis.MoveAbs('X', 100, 800)
+Axis.MoveAbs('Y', 100, 800)
+WaitStep(200)
+Axis.MoveAbs('X', 0, 800)
+Axis.MoveAbs('Y', 100, 800)
+WaitStep(200)
+
+-- ===== 夹紧段 =====
+Cylinder.Out('夹紧')
+WaitCylinder('夹紧')              -- 等感应到位
+Delay(300)
+Cylinder.Back('夹紧')
+
+-- ===== 放料段 =====
+TrayPlace('下料盘')
+
+IO.Set('完成', '1')               -- 通知下位机本循环完成
+Print('单循环完成')</code></pre>
+
+  <h3>7.2 等待外部启动信号的主循环</h3>
+  <p>设备「启动」按钮接入输入 IO 时，脚本流程可用此模式等待启动；循环内每步都检查急停：</p>
+  <div class="code-head"><span class="cap">示例 · 启动信号循环</span><button class="copy-btn">复制</button></div>
+<pre><code>local cycle = Variable.Get('循环数') or 0
+
+while true do
+    -- 等待启动信号（输入 IO「启动」为 1）
+    while IO.Get('启动') ~= '1' do
+        WaitStep(50)
+        if EStop() then return end
+    end
+
+    cycle = cycle + 1
+    Variable.Set('循环数', tostring(cycle))
+
+    IO.Set('运行', '1')
+
+    -- …… 此处写实际工艺动作 ……
+    Axis.MoveAbs('X', 50, 600)
+    Axis.WaitDone('X')
+
+    IO.Set('完成', '1')
+    IO.Set('运行', '0')
+end</code></pre>
+
+  <h3>7.3 配方 / 参数切换</h3>
+  <div class="code-head"><span class="cap">示例 · 依据变量选择工艺参数</span><button class="copy-btn">复制</button></div>
+<pre><code>local recipe = Variable.Get('当前配方') or 'A'
+
+if recipe == 'A' then
+    SetAxisSpeed('X', 800)
+    Variable.Set('缺陷阈值', 0.95)
+elseif recipe == 'B' then
+    SetAxisSpeed('X', 400)
+    Variable.Set('缺陷阈值', 0.90)
+else
+    Print('未知配方：' .. recipe)
+    return false      -- 结束本轮，流程进入异常/停止分支
+end
+
+Axis.MoveAbs('X', 100, 800)</code></pre>
+
+  <h3>7.4 复位脚本</h3>
+  <p>复位流程（Role = 复位）在点击操作员页「复位」时执行，用于把设备恢复初始姿态：</p>
+  <div class="code-head"><span class="cap">示例 · 设备复位</span><button class="copy-btn">复制</button></div>
+<pre><code>-- 气缸全部缩回
+Cylinder.Back('夹紧')
+Cylinder.Back('顶升')
+
+-- 轴回零
+Axis.Home('X')
+Axis.WaitDone('X')
+Axis.Home('Y')
+Axis.WaitDone('Y')
+
+-- 输出复位
+IO.Set('运行', '0')
+IO.Set('完成', '0')
+Print('复位完成')</code></pre>
+
+  <h3>7.5 视觉配合（通过视觉流程）</h3>
+  <div class="card">
+    <p>视觉能力（图像采集、模板匹配、缺陷检测、测量、对位、标定）由<strong>「视觉流程」图形节点</strong>承载，内部调用 VisionEngine 真算子（OpenCvSharp + 旋转不变 NCC 匹配）。Lua 脚本与视觉流程的衔接方式：</p>
+    <ul>
+      <li>视觉流程把结果写入<strong>工程变量</strong>（如「匹配分数」「X」「Y」「R」），Lua 用 <code>Variable.Get</code> 读取判断。</li>
+      <li>视觉流程可把结果通过通讯发给下位机（Target 内容支持 <code>{变量名}</code> 占位符）。</li>
+      <li>Lua 侧目前<strong>未注册</strong> <code>Camera.Grab</code> / <code>Vision.Match</code> / <code>Vision.Defect</code> / <code>Log.*</code> 等命名空间（处于规划中）。请不要在脚本流程中直接调用它们，否则会报「attempt to index a nil value」。视觉业务请走视觉流程图形节点。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 8 运行控制与异常 ===== -->
+<section id="runtime">
+  <h2><span class="sec-no">8</span>运行控制与异常</h2>
+
+  <h3>8.1 运行状态机</h3>
+  <div class="card">
+    <div class="fsm">
+      <span class="st idle">空闲</span><span class="ar">→</span>
+      <span class="st run">运行中</span><span class="ar">→</span>
+      <span class="st pause">暂停中</span><span class="ar">↔</span>
+      <span class="st run">运行中</span>
+    </div>
+    <div class="fsm">
+      <span class="st run">运行中</span><span class="ar">→</span>
+      <span class="st err">异常</span><span class="ar">→</span>
+      <span class="st stop">已停止</span>
+    </div>
+    <table style="margin-top:10px">
+      <tr><th>状态</th><th>触发条件</th><th>说明</th></tr>
+      <tr><td>空闲</td><td>未运行 / 正常结束</td><td>可启动</td></tr>
+      <tr><td>运行中</td><td>点「启动 / 继续」</td><td>暂停 / 停止 / 急停按钮可用</td></tr>
+      <tr><td>暂停中</td><td>点「暂停」</td><td>Lua 会话挂起，按钮变「继续」可恢复</td></tr>
+      <tr><td>异常</td><td>脚本报错 / 硬件异常 / 超时</td><td>停止重试，提示行号与错误信息，需修正脚本后重新启动</td></tr>
+      <tr><td>已停止</td><td>点「停止」或「急停」</td><td>本轮结束，KPI 不清零</td></tr>
+    </table>
+  </div>
+
+  <h3>8.2 暂停 / 继续 / 停止 / 急停</h3>
+  <div class="card">
+    <ul>
+      <li><strong>暂停</strong>：运行中随时可点。Lua 会话在安全点挂起（脚本循环 <code>WaitStep</code> / 步骤边界），界面按钮变为「继续」。</li>
+      <li><strong>继续</strong>：恢复挂起的会话继续执行。</li>
+      <li><strong>停止</strong>：请求当前步骤结束后退出循环，状态置「已停止」。</li>
+      <li><strong>急停</strong>：立即切断所有运动输出（轴停止、IO 复位、气缸缩回），进入<strong>急停锁定</strong>；锁定期间所有运行按钮灰显，必须点「复位」解锁。脚本内可用 <code>EStop()</code> 主动检测并提前 return。</li>
+    </ul>
+  </div>
+
+  <h3>8.3 脚本异常处理</h3>
+  <div class="card">
+    <ul>
+      <li><strong>找不到设备</strong>（轴 / IO / 气缸 / 通讯 / 料盘名称不匹配）：抛 <code>ScriptRuntimeException</code>，错误信息直接显示在输出面板，如「找不到轴：X」。</li>
+      <li><strong>脚本语法 / 运行错误</strong>：输出面板显示错误信息与行号，流程状态置「异常」，<strong>停止重试</strong>（避免日志刷屏）。</li>
+      <li><strong>防死循环</strong>：表格流程有步骤执行数上限保护；Lua 循环建议每轮 <code>WaitStep(ms)</code> 让出节奏并检查 <code>EStop()</code>。</li>
+      <li><strong>建议写法</strong>：工艺关键处用 <code>if EStop() then return end</code>；等待外部条件用 <code>WaitIO</code> / <code>IO.Get</code> 轮询 + 急停检查，而不是空转死等。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 9 调试 ===== -->
+<section id="debug">
+  <h2><span class="sec-no">9</span>调试</h2>
+  <p>Lua 编辑器内置调试器，与运行环境共用同一套硬件桥，可在真实设备上安全调试：</p>
+
+  <div class="card">
+    <table>
+      <tr><th>能力</th><th>操作</th><th>说明</th></tr>
+      <tr><td>运行</td><td>F5 或「运行」</td><td>连续运行当前脚本</td></tr>
+      <tr><td>断点</td><td>F9 或点击行号左侧边栏</td><td>运行到断点行自动暂停（支持多断点）</td></tr>
+      <tr><td>单步</td><td>F10 / 单步进入 / 单步跳出</td><td>逐行执行，观察状态变化</td></tr>
+      <tr><td>暂停 / 继续</td><td>工具栏按钮</td><td>运行中随时暂停，暂停后继续</td></tr>
+      <tr><td>变量查看</td><td>右侧面板</td><td>暂停时查看局部变量、全局变量、调用栈；未定义/未运行时提示「尚无运行时值」</td></tr>
+      <tr><td>每行耗时</td><td>左侧边栏</td><td>运行中实时显示每行耗时，定位性能瓶颈</td></tr>
+      <tr><td>输出面板</td><td>底部</td><td>显示 <code>print</code> 输出与硬件日志；高频输出自动批量刷新不卡界面</td></tr>
+    </table>
+  </div>
+
+  <div class="note"><span class="note-title">提示：</span>编辑器内直接运行脚本时，若操作员页面也在运行流程，框架会自动避免冲突（编辑器会话忙时返回 null，调用方自行退化）。连续运行流程时断点会被自动清除，避免卡在调试断点上。</div>
+</section>
+
+<!-- ===== 10 注意事项与限制 ===== -->
+<section id="limits">
+  <h2><span class="sec-no">10</span>注意事项与限制</h2>
+
+  <h3>10.1 名称解析</h3>
+  <div class="card">
+    <ul>
+      <li>脚本中所有设备名（轴 / 输入 IO / 输出 IO / 气缸 / 通讯 / 料盘）必须与工程配置页名称<strong>完全一致</strong>，区分大小写。</li>
+      <li>找不到设备时抛错并显示在输出面板，流程置「异常」。</li>
+    </ul>
+  </div>
+
+  <h3>10.2 行为细节</h3>
+  <div class="card">
+    <ul>
+      <li><code>Delay(ms)</code> 范围 <strong>0 ~ 60000 ms</strong>，超出自动截断。</li>
+      <li><code>IO.Get</code> 在<strong>仿真且未配置该输入</strong>时返回 <code>"1"</code>，保证纯仿真脚本可跑通等待逻辑；接真实硬件后以真实电平为准。</li>
+      <li><code>IO.Set</code> 找不到输出时只警告不崩溃；<code>ReadIO / WaitIO / SetIO</code> 找不到则抛错。</li>
+      <li><code>Variable.Get</code>：可解析为数字返回 number（可用算术运算），否则返回 string，未定义返回 nil——用 <code>or</code> 给默认值（如 <code>Variable.Get('循环数') or 0</code>）。</li>
+      <li>变量表绑定 UI 表格，<code>Variable.Set</code> 自动切到 UI 线程写入，线程安全；不要在脚本里直接修改 <code>ProjectStore</code> 之外的框架对象。</li>
+      <li>仿真模式下 <code>Axis.WaitDone</code> 立即返回；真实模式下按卡到位信号阻塞等待。</li>
+    </ul>
+  </div>
+
+  <h3>10.3 当前限制</h3>
+  <div class="card">
+    <table>
+      <tr><th>项目</th><th>状态</th><th>替代方案</th></tr>
+      <tr><td>Lua 内取相机图 / 模板匹配 / 缺陷检测</td><td><span class="badge badge-soft">规划中</span></td><td>使用「视觉流程」图形节点（真算子），结果写入变量供 Lua 读取</td></tr>
+      <tr><td>运动控制卡固高（GT 系列）</td><td><span class="badge badge-soft">登记中</span></td><td>当前真实硬件为雷赛 LTDMC 卡；固高桥未启用前请使用雷赛</td></tr>
+      <tr><td>Lua 内飞拍（运动中触发相机）</td><td><span class="badge badge-soft">规划中</span></td><td>雷赛 SDK 已具备 <code>dmc_sorting_*</code> / <code>dmc_m_posTrig_outbit</code>，接口扩展后可暴露为 Lua API</td></tr>
+      <tr><td>脚本读写文件 / 网络请求</td><td><span class="badge badge-soft">未开放</span></td><td>io / os 库部分函数受 MoonSharp 沙箱限制；需要时通过通讯通道与上位机交换</td></tr>
+    </table>
+  </div>
+
+  <div class="note danger"><span class="note-title">安全提示：</span>真实设备调试前务必确认急停回路可靠。急停锁定后所有运动输出被切断，但机械惯性仍需现场安全防护；复位操作会执行复位流程，请确保复位流程内容安全。</div>
+</section>
+
+<footer style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0 10px;border-top:1px solid var(--border);margin-top:40px">
+  NoCodeMotion · Lua 脚本使用说明书 · 本文档基于软件内置 API 注册表与工程模板整理
+</footer>
+
+
+</div>
+</main>
+</div>
+<script>
+/* ===== 目录：滚动高亮 + 移动端抽屉 ===== */
+(function(){
+  var links=[].slice.call(document.querySelectorAll('.toc a'));
+  var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));});
+  var sb=document.getElementById('sidebar'),sc=document.getElementById('scrim'),mb=document.getElementById('menuBtn');
+  function setActive(id){
+    links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+id);});
+  }
+  function onScroll(){
+    var y=window.scrollY+120,cur=secs[0]?secs[0].id:null;
+    secs.forEach(function(s){if(s&&s.offsetTop<=y)cur=s.id;});
+    if(cur)setActive(cur);
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+  links.forEach(function(a){a.addEventListener('click',function(){sb.classList.remove('open');sc.classList.remove('show');});});
+  mb.addEventListener('click',function(){sb.classList.toggle('open');sc.classList.toggle('show');});
+  sc.addEventListener('click',function(){sb.classList.remove('open');sc.classList.remove('show');});
+})();
+/* ===== Lua 语法高亮（轻量正则） ===== */
+(function(){
+  var KEY='\\b(and|break|do|else|elseif|end|false|for|function|goto|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b';
+  var re=new RegExp('('+KEY+')|(--[^\\n]*)|("(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')|(\\b\\d+\\.?\\d*\\b)|(\\b[A-Za-z_][A-Za-z0-9_]*\\s*(?=\\())|(\\b[A-Za-z_][A-Za-z0-9_]*\\s*(?=\\.))','g');
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function run(pre){
+    var code=pre.firstChild?pre.firstChild.textContent:pre.textContent;
+    var out='';var last=0;var m;
+    re.lastIndex=0;
+    while((m=re.exec(code))!==null){
+      out+=esc(code.slice(last,m.index));
+      if(m[1])out+='<span class="tk-k">'+esc(m[1])+'</span>';
+      else if(m[2])out+='<span class="tk-c">'+esc(m[2])+'</span>';
+      else if(m[3])out+='<span class="tk-s">'+esc(m[3])+'</span>';
+      else if(m[4])out+='<span class="tk-n">'+esc(m[4])+'</span>';
+      else if(m[5])out+='<span class="tk-f">'+esc(m[5].trim())+'</span>';
+      else if(m[6])out+='<span class="tk-b">'+esc(m[6].trim())+'</span>';
+      last=m.index+m[0].length;
+    }
+    out+=esc(code.slice(last));
+    var c=document.createElement('code');c.innerHTML=out;pre.innerHTML='';pre.appendChild(c);
+  }
+  document.querySelectorAll('pre code').forEach(function(el){run(el.parentNode);});
+})();
+/* ===== 复制按钮 ===== */
+(function(){
+  document.querySelectorAll('.code-head').forEach(function(h){
+    var btn=h.querySelector('.copy-btn');if(!btn)return;
+    btn.addEventListener('click',function(){
+      var pre=h.nextElementSibling;
+      var txt=pre.textContent;
+      function done(){btn.textContent='已复制';btn.classList.add('copied');setTimeout(function(){btn.textContent='复制';btn.classList.remove('copied');},1600);}
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done,function(){fallback();});}
+      else fallback();
+      function fallback(){var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){}ta.remove();}
+    });
+  });
+})();
+</script>
+</body>
+</html>
