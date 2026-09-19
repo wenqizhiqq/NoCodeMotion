@@ -794,6 +794,20 @@ namespace NoCodeMotion.ViewModels
             var table = SelectedTable;
             if (table == null || idx < 0 || idx >= table.Points.Count) return;
             var p = table.Points[idx];
+
+            // 防撞：移动到该点位前，其「已填名称」的条件必须全部满足，否则阻止移动
+            var fails = PointConditionService.Evaluate(p);
+            if (fails.Count > 0)
+            {
+                Ui(() =>
+                {
+                    AddLog(LogLevel.Error, $"[防撞] 点位「{p.Name}」有 {fails.Count} 条移动条件未满足，已阻止移动：");
+                    foreach (var f in fails) AddLog(LogLevel.Error, "[防撞] " + f);
+                    StatusText = $"移动被防撞条件阻止：「{p.Name}」{fails.Count} 条条件未满足。";
+                });
+                return;
+            }
+
             var bridge = HardwareBridge.Current;
             for (int i = 0; i < PointTable.SlotCount; i++)
             {
@@ -818,6 +832,21 @@ namespace NoCodeMotion.ViewModels
         {
             if (table == null || idx < 0 || idx >= table.Points.Count) return;
             var p = table.Points[idx];
+
+            // 防撞：自动运行中条件未满足 → 阻止移动并安全停机
+            var fails = PointConditionService.Evaluate(p);
+            if (fails.Count > 0)
+            {
+                Ui(() =>
+                {
+                    AddLog(LogLevel.Error, $"[防撞] 点位「{p.Name}」有 {fails.Count} 条移动条件未满足，已阻止移动并停止运行：");
+                    foreach (var f in fails) AddLog(LogLevel.Error, "[防撞] " + f);
+                    StatusText = $"移动被防撞条件阻止：「{p.Name}」{fails.Count} 条条件未满足，已停止运行。";
+                });
+                _stopRequested = true;
+                return;
+            }
+
             var bridge = HardwareBridge.Current;
             for (int i = 0; i < PointTable.SlotCount; i++)
             {

@@ -15,10 +15,15 @@ namespace NoCodeMotion.Models
 
         private ObservableCollection<PointAxis> _positions = new();
 
+        /// <summary>移动条件表格固定行数：每个点位恒有 10 行，名称留空的行不参与判断。</summary>
+        public const int ConditionRowCount = 10;
+
         public PointItem()
         {
             Attach(_positions);
+            AttachConditions(_conditions);
             EnsureSlots();
+            EnsureConditionRows();
         }
 
         private string _timingMark = string.Empty;
@@ -64,11 +69,60 @@ namespace NoCodeMotion.Models
             }
         }
 
+        /// <summary>移动条件（防撞机）：固定 10 行，移动到本点位前「已填名称」的行必须全部满足。</summary>
+        public ObservableCollection<PointMoveCondition> Conditions
+        {
+            get => _conditions;
+            set
+            {
+                if (ReferenceEquals(_conditions, value)) return;
+                DetachConditions(_conditions);
+                _conditions = value ?? new ObservableCollection<PointMoveCondition>();
+                AttachConditions(_conditions);
+                EnsureConditionRows();
+                OnPropertyChanged();
+            }
+        }
+        private ObservableCollection<PointMoveCondition> _conditions = new();
+
+        /// <summary>补齐到 10 行空条件（表格始终显示 10 行，留空行不参与判断）。</summary>
+        public void EnsureConditionRows()
+        {
+            while (_conditions.Count < ConditionRowCount) _conditions.Add(new PointMoveCondition());
+        }
+
         /// <summary>补齐到 4 个轴槽（兼容旧工程中 Positions 为空的行，避免单元格空白且无法编辑）。</summary>
         public void EnsureSlots()
         {
             while (_positions.Count < SlotCount) _positions.Add(new PointAxis());
         }
+
+        private void AttachConditions(ObservableCollection<PointMoveCondition> list)
+        {
+            list.CollectionChanged += OnConditionsChanged;
+            foreach (var c in list) c.PropertyChanged += OnConditionChanged;
+        }
+
+        private void DetachConditions(ObservableCollection<PointMoveCondition> list)
+        {
+            list.CollectionChanged -= OnConditionsChanged;
+            foreach (var c in list) c.PropertyChanged -= OnConditionChanged;
+        }
+
+        private void OnConditionsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.NewItems != null)
+                foreach (PointMoveCondition c in e.NewItems)
+                    c.PropertyChanged += OnConditionChanged;
+            if (e.OldItems != null)
+                foreach (PointMoveCondition c in e.OldItems)
+                    c.PropertyChanged -= OnConditionChanged;
+            OnPropertyChanged(nameof(Conditions));
+        }
+
+        // 单条条件的字段变化 → 冒泡为 Conditions 变更，触发自动保存
+        private void OnConditionChanged(object? sender, PropertyChangedEventArgs e)
+            => OnPropertyChanged(nameof(Conditions));
 
         private void Attach(ObservableCollection<PointAxis> list)
         {

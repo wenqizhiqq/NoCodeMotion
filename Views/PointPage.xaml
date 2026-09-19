@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:svc="clr-namespace:NoCodeMotion.Services"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
@@ -66,6 +67,20 @@
                     <Binding Source="速度"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
+
+        <!-- 移动条件（防撞机）下拉选项 -->
+        <x:Array x:Key="ConditionKinds" Type="sys:String">
+            <sys:String>IO</sys:String>
+            <sys:String>气缸</sys:String>
+        </x:Array>
+        <x:Array x:Key="IoStates" Type="sys:String">
+            <sys:String>0</sys:String>
+            <sys:String>1</sys:String>
+        </x:Array>
+        <x:Array x:Key="CylinderStates" Type="sys:String">
+            <sys:String>伸出</sys:String>
+            <sys:String>缩回</sys:String>
+        </x:Array>
 
         <!-- 编译时序结果：严重度彩色圆点 + 正文 -->
         <Style x:Key="IssueDotStyle" TargetType="Ellipse">
@@ -284,8 +299,15 @@
                     </Border>
                 </StackPanel>
 
-                <!-- 点位表：占满剩余高度，使用自身内部滚动条，列头固定不随页面滚动 -->
-                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True" Margin="12,0,12,12">
+                <!-- 点位表 与 移动条件：同一行并列（同级），高度天然一致 -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="340"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 左：点位表（占满剩余高度，内部滚动，列头固定） -->
+                    <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True" Margin="12,0,6,12">
                         <DataGrid ItemsSource="{Binding CurrentPoints}"
                                   SelectedItem="{Binding SelectedPoint, Mode=TwoWay}"
                                   RowStyle="{StaticResource PointRowStyle}"
@@ -306,15 +328,6 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- 时序标记：相对工艺起点的触发时刻（T+0ms / T+5ms），对应专利「时序标记」列 -->
-                                <DataGridTemplateColumn Header="时序标记" Width="104">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBox Text="{Binding TimingMark, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}" ToolTip="相对工艺起点的触发时刻，如 T+0ms / T+5ms。"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -379,15 +392,6 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <!-- 同步组：同组动作同一 DC 周期原子执行（GroupA…），对应专利「同步组」列 -->
-                                <DataGridTemplateColumn Header="同步组" Width="104">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBox Text="{Binding SyncGroup, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}" ToolTip="同步组标识（如 GroupA），同组动作同一时刻原子执行；留空表示独立执行。"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
                                 <!-- 行操作：移动到该点位 / 保存当前位置到此行（iOS 染色药丸） -->
                                 <DataGridTemplateColumn Header="移动" Width="84">
                                     <DataGridTemplateColumn.CellTemplate>
@@ -408,6 +412,89 @@
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
+
+                    <!-- 右：移动条件（与点位表同级 → 同高）。固定 10 行，名称留空的行不参与判断；
+                         已填名称的行全部满足才允许移动到该点位。 -->
+                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="6,0,12,12">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Margin="10,10,10,6">
+                                <TextBlock Text="移动条件" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="已填名称的行必须全部满足，才允许移动到该点位；名称留空的行不参与判断。"
+                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <DataGrid ItemsSource="{Binding SelectedPoint.Conditions}"
+                                      RowStyle="{StaticResource PointRowStyle}"
+                                      CellStyle="{StaticResource PointCellStyle}"
+                                      ColumnHeaderStyle="{StaticResource PointHeaderStyle}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False" CanUserDeleteRows="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Single" SelectionUnit="CellOrRowHeader"
+                                      GridLinesVisibility="None"
+                                      HeadersVisibility="Column"
+                                      BorderThickness="0" Background="Transparent"
+                                      RowHeight="26" FontSize="12"
+                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                      Margin="4,0,4,4">
+                                <DataGrid.Columns>
+                                    <!-- IO：条件类型（IO / 气缸） -->
+                                    <DataGridTemplateColumn Header="IO" Width="70">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox ItemsSource="{StaticResource ConditionKinds}"
+                                                          SelectedItem="{Binding Kind, UpdateSourceTrigger=PropertyChanged}"
+                                                          Margin="2,0" BorderThickness="0" Background="Transparent"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- IO名称：IO 点或气缸名，随「IO」列类型切换候选 -->
+                                    <DataGridTemplateColumn Header="IO名称" Width="150">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox SelectedItem="{Binding TargetName, UpdateSourceTrigger=PropertyChanged}"
+                                                          Margin="2,0" BorderThickness="0" Background="Transparent">
+                                                    <ComboBox.Style>
+                                                        <Style TargetType="ComboBox">
+                                                            <Setter Property="ItemsSource" Value="{x:Static svc:Catalog.IoNames}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Kind}" Value="气缸">
+                                                                    <Setter Property="ItemsSource" Value="{x:Static svc:Catalog.CylinderNames}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ComboBox.Style>
+                                                </ComboBox>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- IO状态：IO 为 0/1，气缸为 伸出/缩回 -->
+                                    <DataGridTemplateColumn Header="IO状态" Width="86">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox SelectedItem="{Binding ExpectedState, UpdateSourceTrigger=PropertyChanged}"
+                                                          Margin="2,0" BorderThickness="0" Background="Transparent">
+                                                    <ComboBox.Style>
+                                                        <Style TargetType="ComboBox">
+                                                            <Setter Property="ItemsSource" Value="{StaticResource IoStates}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Kind}" Value="气缸">
+                                                                    <Setter Property="ItemsSource" Value="{StaticResource CylinderStates}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ComboBox.Style>
+                                                </ComboBox>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
                 </Grid>
 
                 <!-- 编译时序结果面板：点击「编译时序」后显示同周期/分辨率/资源争用冲突 -->

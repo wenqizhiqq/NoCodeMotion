@@ -18,8 +18,43 @@ namespace NoCodeMotion.Services
     /// </summary>
     public static class PointConditionService
     {
-        /// <summary>返回未满足的条件说明；空列表表示全部满足（或无条件）。</summary>
-      
+        /// <summary>
+        /// 返回未满足的条件说明；空列表表示全部满足（或无条件）。
+        /// 名称留空的行不参与判断；已填名称的行必须全部满足才允许移动。
+        /// </summary>
+        public static IReadOnlyList<string> Evaluate(PointItem? point)
+        {
+            var fails = new List<string>();
+            if (point?.Conditions == null) return fails;
+
+            foreach (var c in point.Conditions)
+            {
+                if (string.IsNullOrWhiteSpace(c.TargetName)) continue;   // 空行不参与判断
+
+                if (c.Kind == "气缸")
+                {
+                    int actual = SimRuntime.GetCylinder(c.TargetName);
+                    int expected = c.ExpectedState == "伸出" ? 1 : 0;
+                    bool pass = c.Comparison == "!=" ? actual != expected : actual == expected;
+                    if (!pass)
+                        fails.Add($"气缸 [{c.TargetName}] 期望「{c.ExpectedState}」实际「{(actual == 1 ? "伸出" : "缩回")}」");
+                }
+                else // IO
+                {
+                    var io = ResolveIo(c.TargetName);
+                    if (!io.Found)
+                    {
+                        fails.Add($"IO [{c.TargetName}] 在项目 IO（输入/输出）中找不到，无法校验");
+                        continue;
+                    }
+                    int expected = c.ExpectedState == "1" ? 1 : 0;
+                    bool pass = c.Comparison == "!=" ? io.Value != expected : io.Value == expected;
+                    if (!pass)
+                        fails.Add($"IO [{c.TargetName}] 期望「{c.ExpectedState}」实际「{io.Value}」");
+                }
+            }
+            return fails;
+        }
 
         /// <summary>把实时状态转化为人类可读文本（用于日志/界面提示）。</summary>
         public static string DescribeActual(string kind, string targetName)

@@ -672,7 +672,7 @@ namespace NoCodeMotion.Services
             Add("IO.类型", "输入 / 输出（仅展示用，不参与枚举解析）。");
 
             Add("== 合并页列说明 ==", "列数固定，勿增删。");
-            Add("点位表（17列）", "类型/名称/父项名称/时序/同步组/轴1位置/轴1速度/轴2位置/轴2速度/轴3位置/轴3速度/轴4位置/轴4速度/轴1名/轴2名/轴3名/轴4名。");
+            Add("点位表（18列）", "类型/名称/父项名称/时序/同步组/条件/轴1位置/轴1速度/轴2位置/轴2速度/轴3位置/轴3速度/轴4位置/轴4速度/轴1名/轴2名/轴3名/轴4名。条件列：多条以 ; 分隔，每条「类型|目标名|期望状态」，留空行不落盘。");
             Add("料盘（12列）", "类型/名称/父项名称/行数/列数/起点X/起点Y/间距X/间距Y/行号/列号/已占用。");
             Add("流程（51列）", "类型/名称/父项名称/类型标记/角色/Lua源码/状态 + 步骤列(逻辑/功能/属性/操作/设值/超时/时长ms/实际值) + 视步列(视步类型/使能/相机ID/保存路径/曝光ms/宽度/高度/源类型/文件夹路径/模板路径/分数阈值/角度范围/匹配模式/模板框X/模板框Y/模板框W/模板框H/算法/最小面积/最大面积/阈值/检测模式/测量模式/标定/单位/协议/目标/内容/预处理操作/预处理参数1/预处理参数2/预处理ROI/第二图路径/运行时长ms/上次成功/上次结果)。");
         }
@@ -688,6 +688,7 @@ namespace NoCodeMotion.Services
             dt.Columns.Add("父项名称", typeof(string));
             dt.Columns.Add("时序", typeof(string));
             dt.Columns.Add("同步组", typeof(string));
+            dt.Columns.Add("条件", typeof(string));
             for (int i = 1; i <= 4; i++) { dt.Columns.Add($"轴{i}位置", typeof(string)); dt.Columns.Add($"轴{i}速度", typeof(string)); }
             for (int i = 1; i <= 4; i++) dt.Columns.Add($"轴{i}名", typeof(string));
 
@@ -713,6 +714,8 @@ namespace NoCodeMotion.Services
                         // 时序/同步组
                         SetStr(r, "时序", pObj, "TimingMark");
                         SetStr(r, "同步组", pObj, "SyncGroup");
+                        // 移动条件（防撞机）：多条以 ';' 分隔，每条「类型|目标名|期望状态」；名称留空的行不落盘
+                        r["条件"] = EncodeConditions(pObj);
                         // 4 轴位置/速度
                         var posProp = pObj.GetType().GetProperty("Positions");
                         if (posProp?.GetValue(pObj) is IEnumerable positions)
@@ -793,6 +796,8 @@ namespace NoCodeMotion.Services
                             TimingMark = row["时序"]?.ToString() ?? "",
                             SyncGroup = row["同步组"]?.ToString() ?? "",
                         };
+                        // 移动条件（防撞机）
+                        LoadConditions(newP, row.Table.Columns.Contains("条件") ? row["条件"]?.ToString() : null);
                         // 4 轴位置/速度
                         var posProp = newP.GetType().GetProperty("Positions");
                         if (posProp?.GetValue(newP) is IEnumerable positions)
@@ -1200,6 +1205,48 @@ namespace NoCodeMotion.Services
         {
             var v = src.GetType().GetProperty(propName)?.GetValue(src);
             row[col] = v?.ToString() ?? "";
+        }
+
+        /// <summary>把点位的移动条件编码为 xlsx 文本：多条 ';' 分隔，每条「类型|目标名|期望状态」；名称留空的行不落盘。</summary>
+        private static string EncodeConditions(object pointObj)
+        {
+            if (pointObj.GetType().GetProperty("Conditions")?.GetValue(pointObj) is not System.Collections.IEnumerable conds)
+                return string.Empty;
+
+            var sb = new System.Text.StringBuilder();
+            foreach (var cObj in conds)
+            {
+                if (cObj == null) continue;
+                var t = cObj.GetType();
+                string target = t.GetProperty("TargetName")?.GetValue(cObj)?.ToString() ?? "";
+                if (string.IsNullOrWhiteSpace(target)) continue;   // 空行不参与判断，无需保存
+                string kind = t.GetProperty("Kind")?.GetValue(cObj)?.ToString() ?? "IO";
+                string state = t.GetProperty("ExpectedState")?.GetValue(cObj)?.ToString() ?? "0";
+                if (sb.Length > 0) sb.Append(';');
+                sb.Append(kind).Append('|').Append(target).Append('|').Append(state);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>解析 xlsx「条件」单元格并回填到点位的 Conditions 集合，最后补齐到固定 10 行。</summary>
+        private static void LoadConditions(PointItem point, string? text)
+        {
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                foreach (var seg in text.Split(';', System.StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var parts = seg.Split('|');
+                    if (parts.Length < 3) continue;
+                    point.Conditions.Add(new PointMoveCondition
+                    {
+                        Kind = parts[0],
+                        TargetName = parts[1],
+                        ExpectedState = parts[2],
+                        Comparison = "==",
+                    });
+                }
+            }
+            point.EnsureConditionRows();
         }
 
         private static int GetInt(object? src, string propName)
