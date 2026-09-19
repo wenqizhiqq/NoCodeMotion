@@ -2561,6 +2561,66 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
         private static FlowStep PointStep(string tableName, string pointName = "")
             => new() { Logic = "就", Function = "点位", Property = "移动到", Operation = "修改", SetValue = pointName, Name = tableName };
 
+        // ====================================================================
+        // 示例条件：让「新建工程」出来的示例点位自带一份可看的移动条件配置。
+        // 只挑「默认仿真态下就一定成立」的期望值，保证示例工程开箱即可正常移动，
+        // 同时让「移动条件」卡片和「实际值」列一打开就有内容可看。
+        // ====================================================================
+
+        /// <summary>
+        /// 给模板产出的示例工程挂上示范用的移动条件（IsUsed = true，
+        /// 与用户自己新增的行「默认不勾选」形成对照）：
+        ///   ① 气缸 —— 取工程里第一个气缸，要求「缩回」（枚举型 + == ）；
+        ///   ② 输出 IO —— 取第一个输出，要求「0」（枚举型 + == ）。
+        /// 两条在默认仿真态下都成立（SimRuntime 的气缸/输出初值就是 0），所以示例工程开箱即可正常移动，
+        /// 不会因为示范条件把机台拦住。
+        /// 刻意只用枚举型：数值型（变量 / 轴位置）的期望值随运行变化，做成示范条件会时灵时不灵。
+        /// 工程里没有气缸/输出时对应那条自动跳过——示例条件指向不存在的设备，
+        /// 界面上会显示红色「找不到」，反而像 bug。
+        /// 只挂在每张点位表的第一个点位上，保持示例清爽。
+        /// 由 ProjectTemplate.Build() 在模板实例化后调用。
+        /// </summary>
+        public static void SeedSampleConditions(ProjectData d)
+        {
+            if (d == null) return;
+
+            var conds = new List<PointMoveCondition>();
+
+            var cylinder = d.Cylinders.FirstOrDefault();
+            if (cylinder != null)
+                conds.Add(new PointMoveCondition
+                {
+                    IsUsed = true,
+                    Kind = ConditionKinds.Cylinder,
+                    TargetName = cylinder.Name,
+                    Comparison = "==",
+                    ExpectedState = "缩回",
+                });
+
+            var output = d.Outputs.FirstOrDefault();
+            if (output != null)
+                conds.Add(new PointMoveCondition
+                {
+                    IsUsed = true,
+                    Kind = ConditionKinds.Io,
+                    TargetName = output.Name,
+                    Comparison = "==",
+                    ExpectedState = "0",
+                });
+
+            if (conds.Count == 0) return;
+
+            foreach (var table in d.PointTables)
+            {
+                var point = table.Points.FirstOrDefault();
+                if (point == null) continue;
+                // 覆写最前面几行空条件（PointItem 构造时已补齐 6 行空行）。
+                // 不能 Append：追加到末尾会变成 7~8 行，且会被 EnsureConditionRows 的裁剪逻辑挡住。
+                for (int i = 0; i < conds.Count && i < point.Conditions.Count; i++)
+                    point.Conditions[i] = conds[i];
+            }
+        }
+
         // 点位构造助手
         private static PointItem MakePoint(string name, double x, double y, double z, double r = 0)
         {

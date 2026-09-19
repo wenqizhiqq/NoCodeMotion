@@ -37,7 +37,18 @@ namespace NoCodeMotion.Models
         public Func<ProjectData> Factory { get; init; } = () => new ProjectData();
 
         /// <summary>构建一份模板工程（永远返回新实例，调用方可放心修改）。</summary>
-        public ProjectData Build() => Factory();
+        /// <remarks>
+        /// 在工厂产出的内容之上，额外挂一份示范用的移动条件
+        /// （Services/ProjectTemplateCatalog.SeedSampleConditions），
+        /// 让「新建工程」出来的示例点位自带一套条件列表可供参考。
+        /// 空白模板没有任何点位表，这里自然空转，不受影响。
+        /// </remarks>
+        public ProjectData Build()
+        {
+            var data = Factory();
+            Services.ProjectTemplateCatalog.SeedSampleConditions(data);
+            return data;
+        }
     }
 }
 // ◇作者保留所有权利　请勿删除※⁣

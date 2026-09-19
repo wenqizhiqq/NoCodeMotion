@@ -20,8 +20,9 @@ namespace NoCodeMotion.Models
     {
         /// <summary>
         /// 是否启用本行条件（界面「使用」列的勾选框）。
-        /// 未勾选 = 本行完全不参与移动前判断，即使已填名称也忽略；
-        /// 默认勾选，保证旧工程（数据里没有这一位）升级后行为不变。
+        /// 未勾选 = 本行完全不参与移动前判断，即使已填名称也忽略。
+        /// <b>默认不勾选</b>——防撞条件需要用户显式勾选才生效，避免误配一条条件就把机台拦住。
+        /// （新建工程模板里的示例条件会显式置 true，作为对照示范。）
         /// </summary>
         public bool IsUsed
         {
@@ -31,7 +32,7 @@ namespace NoCodeMotion.Models
                 if (SetField(ref _isUsed, value)) RefreshActual();
             }
         }
-        private bool _isUsed = true;
+        private bool _isUsed = false;
 
         /// <summary>条件类型：见 <see cref="ConditionKinds.All"/>（IO / 气缸 / 变量 / 轴位置 / 轴使能 / 轴速度 / 轴正限位 / 轴负限位 / 相机）。</summary>
         public string Kind
