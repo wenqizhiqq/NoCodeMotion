@@ -1,0 +1,2 @@
+﻿D:\wqz\code\NoCodeMotion\build_cond.log FAIL: [safe-delete][SAFE_DELETE_FAIL_CLOSED] {"target":"D:\\wqz\\code\\NoCodeMotion\\build_cond.log","reason":"trash-failed","detail":"使用“3”个参数调用“DeleteFile”时发生异常:“无法找到指定文件。”"}
+D:\wqz\code\NoCodeMotion\build_cond_status.txt FAIL: [safe-delete][SAFE_DELETE_FAIL_CLOSED] {"target":"D:\\wqz\\code\\NoCodeMotion\\build_cond_status.txt","reason":"trash-failed","detail":"使用“3”个参数调用“DeleteFile”时发生异常:“无法找到指定文件。”"}
