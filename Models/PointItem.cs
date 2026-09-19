@@ -15,8 +15,8 @@ namespace NoCodeMotion.Models
 
         private ObservableCollection<PointAxis> _positions = new();
 
-        /// <summary>移动条件表格固定行数：每个点位恒有 10 行，名称留空的行不参与判断。</summary>
-        public const int ConditionRowCount = 10;
+        /// <summary>移动条件表格固定行数：每个点位恒有 6 行，名称留空的行不参与判断。</summary>
+        public const int ConditionRowCount = 6;
 
         public PointItem()
         {
@@ -69,7 +69,8 @@ namespace NoCodeMotion.Models
             }
         }
 
-        /// <summary>移动条件（防撞机）：固定 10 行，移动到本点位前「已填名称」的行必须全部满足。</summary>
+        /// <summary>移动条件（防撞机）：固定 6 行，移动到本点位前「已填名称」的行必须全部满足。
+        /// 每行可选类型见 <see cref="Services.ConditionKinds.All"/>。</summary>
         public ObservableCollection<PointMoveCondition> Conditions
         {
             get => _conditions;
@@ -85,10 +86,14 @@ namespace NoCodeMotion.Models
         }
         private ObservableCollection<PointMoveCondition> _conditions = new();
 
-        /// <summary>补齐到 10 行空条件（表格始终显示 10 行，留空行不参与判断）。</summary>
+        /// <summary>把条件行规整为固定 6 行：不足则补空行；
+        /// 超出 6 行的末尾空行（未填名称）裁掉，但**有内容的行一律保留**，避免丢用户配置。</summary>
         public void EnsureConditionRows()
         {
             while (_conditions.Count < ConditionRowCount) _conditions.Add(new PointMoveCondition());
+            while (_conditions.Count > ConditionRowCount &&
+                   string.IsNullOrWhiteSpace(_conditions[_conditions.Count - 1].TargetName))
+                _conditions.RemoveAt(_conditions.Count - 1);
         }
 
         /// <summary>补齐到 4 个轴槽（兼容旧工程中 Positions 为空的行，避免单元格空白且无法编辑）。</summary>

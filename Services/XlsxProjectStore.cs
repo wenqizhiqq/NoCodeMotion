@@ -1207,7 +1207,7 @@ namespace NoCodeMotion.Services
             row[col] = v?.ToString() ?? "";
         }
 
-        /// <summary>把点位的移动条件编码为 xlsx 文本：多条 ';' 分隔，每条「类型|目标名|期望状态」；名称留空的行不落盘。</summary>
+        /// <summary>把点位的移动条件编码为 xlsx 文本：多条 ';' 分隔，每条「类型|目标名|比较|期望状态」；名称留空的行不落盘。</summary>
         private static string EncodeConditions(object pointObj)
         {
             if (pointObj.GetType().GetProperty("Conditions")?.GetValue(pointObj) is not System.Collections.IEnumerable conds)
@@ -1221,14 +1221,17 @@ namespace NoCodeMotion.Services
                 string target = t.GetProperty("TargetName")?.GetValue(cObj)?.ToString() ?? "";
                 if (string.IsNullOrWhiteSpace(target)) continue;   // 空行不参与判断，无需保存
                 string kind = t.GetProperty("Kind")?.GetValue(cObj)?.ToString() ?? "IO";
+                string cmp = t.GetProperty("Comparison")?.GetValue(cObj)?.ToString() ?? "==";
+                if (string.IsNullOrWhiteSpace(cmp)) cmp = "==";
                 string state = t.GetProperty("ExpectedState")?.GetValue(cObj)?.ToString() ?? "0";
                 if (sb.Length > 0) sb.Append(';');
-                sb.Append(kind).Append('|').Append(target).Append('|').Append(state);
+                sb.Append(kind).Append('|').Append(target).Append('|').Append(cmp).Append('|').Append(state);
             }
             return sb.ToString();
         }
 
-        /// <summary>解析 xlsx「条件」单元格并回填到点位的 Conditions 集合，最后补齐到固定 10 行。</summary>
+        /// <summary>解析 xlsx「条件」单元格并回填到点位的 Conditions 集合，最后规整为固定 6 行。
+        /// 兼容两种格式：旧「类型|目标名|期望状态」（3 段，比较列默认 ==）与新「类型|目标名|比较|期望状态」（4 段）。</summary>
         private static void LoadConditions(PointItem point, string? text)
         {
             if (!string.IsNullOrWhiteSpace(text))
@@ -1237,12 +1240,13 @@ namespace NoCodeMotion.Services
                 {
                     var parts = seg.Split('|');
                     if (parts.Length < 3) continue;
+                    bool hasComparison = parts.Length >= 4;   // 4 段为新格式；3 段是旧工程（无比较列）
                     point.Conditions.Add(new PointMoveCondition
                     {
                         Kind = parts[0],
                         TargetName = parts[1],
-                        ExpectedState = parts[2],
-                        Comparison = "==",
+                        Comparison = hasComparison ? parts[2] : "==",
+                        ExpectedState = hasComparison ? parts[3] : parts[2],
                     });
                 }
             }

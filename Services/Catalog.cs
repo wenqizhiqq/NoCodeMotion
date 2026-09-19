@@ -18,6 +18,7 @@ namespace NoCodeMotion.Services
         public static ObservableCollection<string> AxisNames { get; } = new();
         public static ObservableCollection<string> IoNames { get; } = new();
         public static ObservableCollection<string> CylinderNames { get; } = new();
+        public static ObservableCollection<string> CameraNames { get; } = new();
         public static ObservableCollection<string> CommNames { get; } = new();
         public static ObservableCollection<string> VariableNames { get; } = new();
         public static ObservableCollection<string> AllNames { get; } = new();
@@ -29,6 +30,7 @@ namespace NoCodeMotion.Services
         public static void SetAxis(IEnumerable<string> names) => Set(AxisNames, names);
         public static void SetIo(IEnumerable<string> names) => Set(IoNames, names);
         public static void SetCylinder(IEnumerable<string> names) => Set(CylinderNames, names);
+        public static void SetCamera(IEnumerable<string> names) => Set(CameraNames, names);
         public static void SetComm(IEnumerable<string> names) => Set(CommNames, names);
         public static void SetVariable(IEnumerable<string> names) => Set(VariableNames, names);
         public static void SetPoint(IEnumerable<string> names) => Set(PointNames, names);
@@ -65,6 +67,7 @@ namespace NoCodeMotion.Services
             foreach (var n in AxisNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in IoNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in CylinderNames) if (!AllNames.Contains(n)) AllNames.Add(n);
+            foreach (var n in CameraNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in CommNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in VariableNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in PointNames) if (!AllNames.Contains(n)) AllNames.Add(n);
@@ -79,6 +82,7 @@ namespace NoCodeMotion.Services
             var ioNames = data.Inputs.Select(i => i.Name).Concat(data.Outputs.Select(i => i.Name));
             SetIo(ioNames);
             SetCylinder(data.Cylinders.Select(c => c.Name));
+            SetCamera(data.Cameras.Select(c => c.Name));
             SetComm(data.Comms.Select(c => c.Name));
             SetVariable(data.Variables.SelectMany(v => v.Names()));
             // 点位名称来自所有点位表（工位）下的全部点位行
