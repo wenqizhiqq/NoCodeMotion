@@ -795,7 +795,9 @@ namespace NoCodeMotion.ViewModels
             if (table == null || idx < 0 || idx >= table.Points.Count) return;
             var p = table.Points[idx];
 
-            // 防撞：移动到该点位前，其「已填名称」的条件必须全部满足，否则阻止移动
+            // 防撞：移动到该点位前，其「使用中且已填名称」的条件必须全部满足，否则阻止移动。
+            // 人工单步 → 弹窗提示（本方法跑在 OpStep 后台线程，闸门会自动切回 UI 线程同步弹出）；
+            // 同时写异常日志便于事后追溯。
             var fails = PointConditionService.Evaluate(p);
             if (fails.Count > 0)
             {
@@ -805,6 +807,7 @@ namespace NoCodeMotion.ViewModels
                     foreach (var f in fails) AddLog(LogLevel.Error, "[防撞] " + f);
                     StatusText = $"移动被防撞条件阻止：「{p.Name}」{fails.Count} 条条件未满足。";
                 });
+                PointConditionGate.ShowBlockedDialog(p, fails);
                 return;
             }
 
@@ -833,7 +836,7 @@ namespace NoCodeMotion.ViewModels
             if (table == null || idx < 0 || idx >= table.Points.Count) return;
             var p = table.Points[idx];
 
-            // 防撞：自动运行中条件未满足 → 阻止移动并安全停机
+            // 防撞：自动运行中条件未满足 → 写报警列表（无人值守，绝不弹窗）+ 阻止移动并安全停机
             var fails = PointConditionService.Evaluate(p);
             if (fails.Count > 0)
             {
@@ -843,6 +846,7 @@ namespace NoCodeMotion.ViewModels
                     foreach (var f in fails) AddLog(LogLevel.Error, "[防撞] " + f);
                     StatusText = $"移动被防撞条件阻止：「{p.Name}」{fails.Count} 条条件未满足，已停止运行。";
                 });
+                PointConditionGate.RaiseAlarms(p, fails, "自动运行", table.Name);
                 _stopRequested = true;
                 return;
             }

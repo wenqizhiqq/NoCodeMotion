@@ -125,9 +125,21 @@ namespace NoCodeMotion.Models
             OnPropertyChanged(nameof(Conditions));
         }
 
-        // 单条条件的字段变化 → 冒泡为 Conditions 变更，触发自动保存
+        // 单条条件的字段变化 → 冒泡为 Conditions 变更，触发自动保存。
+        // 但「实际值」是运行态只读读数（由点位页定时器每 250ms 刷一次），不参与落盘，
+        // 必须在这里挡掉：否则会以每秒几十次的频率触发 ScheduleSave 疯狂写盘。
         private void OnConditionChanged(object? sender, PropertyChangedEventArgs e)
-            => OnPropertyChanged(nameof(Conditions));
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(PointMoveCondition.ActualValue):
+                case nameof(PointMoveCondition.ActualOk):
+                case nameof(PointMoveCondition.IsActualOk):
+                case nameof(PointMoveCondition.IsActualFail):
+                    return;
+            }
+            OnPropertyChanged(nameof(Conditions));
+        }
 
         private void Attach(ObservableCollection<PointAxis> list)
         {

@@ -101,7 +101,10 @@ namespace NoCodeMotion.ViewModels
             set
             {
                 if (SetField(ref _selectedPoint, value))
+                {
                     OnPropertyChanged(nameof(CanDeletePoint));
+                    RefreshConditions();   // 换点位立刻刷一次「实际值」，不等定时器
+                }
             }
         }
 
@@ -545,6 +548,10 @@ namespace NoCodeMotion.ViewModels
         private void MoveToPoint(object? p)
         {
             if (p is not PointItem item) return;
+
+            // 防撞：移动前先判断该点位「使用中」的条件，不满足直接弹窗阻止（连确认框都不弹）
+            if (!PointConditionGate.EnsureInteractive(item)) return;
+
             var dlg = new ConfirmDialog(
                 "移动确认",
                 $"是否将 4 个轴移动到点位「{item.Name}」记录的目标位置？",
@@ -863,6 +870,45 @@ namespace NoCodeMotion.ViewModels
                 SelectedItem = Items[0];
             if (SelectedPoint == null && CurrentPoints is { Count: > 0 } points)
                 SelectedPoint = points[0];
+        }
+
+        // ===== 「移动条件」实际值实时刷新 =====
+        // 条件列表的「实际值」列要显示设备当前状态（IO / 气缸 / 变量 / 轴 / 相机），
+        // 用一个轻量定时器周期刷新——与本类 JOG、轨迹仿真同样的 DispatcherTimer 写法。
+        // 由页面 Loaded/Unloaded 启停，避免页面切走后定时器仍在空转。
+
+        private DispatcherTimer? _condTimer;
+
+        /// <summary>「实际值」刷新周期（毫秒）。</summary>
+        private const int CondRefreshMs = 250;
+
+        /// <summary>开始周期刷新当前点位条件的实际值（页面显示时调用）。</summary>
+        public void StartLiveRefresh()
+        {
+            if (_condTimer != null) return;
+            _condTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(CondRefreshMs) };
+            _condTimer.Tick += OnCondTick;
+            _condTimer.Start();
+            RefreshConditions();
+        }
+
+        /// <summary>停止周期刷新（页面隐藏时调用）。</summary>
+        public void StopLiveRefresh()
+        {
+            if (_condTimer == null) return;
+            _condTimer.Stop();
+            _condTimer.Tick -= OnCondTick;
+            _condTimer = null;
+        }
+
+        private void OnCondTick(object? _, EventArgs __) => RefreshConditions();
+
+        /// <summary>把当前点位每条条件的「实际值」拉一遍；名称留空的行显示为空白。</summary>
+        private void RefreshConditions()
+        {
+            var conds = SelectedPoint?.Conditions;
+            if (conds == null) return;
+            foreach (var c in conds) c.RefreshActual();
         }
     }
 

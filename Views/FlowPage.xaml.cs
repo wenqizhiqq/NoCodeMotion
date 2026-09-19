@@ -5,6 +5,7 @@ using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using NoCodeMotion.Services;
 using NoCodeMotion.ViewModels;
 
 namespace NoCodeMotion.Views
@@ -58,6 +59,9 @@ namespace NoCodeMotion.Views
             if (vm.IsKindVision) EnsureVision();
             if (vm.IsKindNodeGraph) EnsureNodeGraph();
         }
+
+        /// <summary>清空报警列表（面板「清空」按钮）。只清界面显示，已落盘的 CSV 不受影响。</summary>
+        private void ClearAlarms_Click(object sender, RoutedEventArgs e) => AlarmService.Clear();
 
         private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {

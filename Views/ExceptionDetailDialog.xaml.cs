@@ -18,6 +18,13 @@ namespace NoCodeMotion.Views
             set => MessageView.Text = value ?? string.Empty;
         }
 
+        /// <summary>弹窗标题。默认「错误详情」；移动条件未满足等场景可改为更贴切的标题。</summary>
+        public string Header
+        {
+            get => HeaderView.Text;
+            set => HeaderView.Text = value ?? string.Empty;
+        }
+
         public ExceptionDetailDialog()
         {
             InitializeComponent();

@@ -18,6 +18,21 @@ namespace NoCodeMotion.Models
     /// </summary>
     public class PointMoveCondition : EditorItemBase
     {
+        /// <summary>
+        /// 是否启用本行条件（界面「使用」列的勾选框）。
+        /// 未勾选 = 本行完全不参与移动前判断，即使已填名称也忽略；
+        /// 默认勾选，保证旧工程（数据里没有这一位）升级后行为不变。
+        /// </summary>
+        public bool IsUsed
+        {
+            get => _isUsed;
+            set
+            {
+                if (SetField(ref _isUsed, value)) RefreshActual();
+            }
+        }
+        private bool _isUsed = true;
+
         /// <summary>条件类型：见 <see cref="ConditionKinds.All"/>（IO / 气缸 / 变量 / 轴位置 / 轴使能 / 轴速度 / 轴正限位 / 轴负限位 / 相机）。</summary>
         public string Kind
         {
@@ -32,6 +47,7 @@ namespace NoCodeMotion.Models
                 OnPropertyChanged(nameof(IsNumericKind));
                 OnPropertyChanged(nameof(ValueHint));
                 NormalizeExpectedState();
+                RefreshActual();
             }
         }
         private string _kind = ConditionKinds.Io;
@@ -59,7 +75,10 @@ namespace NoCodeMotion.Models
         public string TargetName
         {
             get => _targetName;
-            set => SetField(ref _targetName, value);
+            set
+            {
+                if (SetField(ref _targetName, value)) RefreshActual();
+            }
         }
         private string _targetName = string.Empty;
 
@@ -71,7 +90,10 @@ namespace NoCodeMotion.Models
         public string ExpectedState
         {
             get => _expectedState;
-            set => SetField(ref _expectedState, value);
+            set
+            {
+                if (SetField(ref _expectedState, value)) RefreshActual();
+            }
         }
         private string _expectedState = "0";
 
@@ -79,7 +101,10 @@ namespace NoCodeMotion.Models
         public string Comparison
         {
             get => _comparison;
-            set => SetField(ref _comparison, value);
+            set
+            {
+                if (SetField(ref _comparison, value)) RefreshActual();
+            }
         }
         private string _comparison = "==";
 
@@ -99,6 +124,57 @@ namespace NoCodeMotion.Models
 
         /// <summary>期望值输入框的水印提示（如「位置」）。</summary>
         public string ValueHint => ConditionKinds.ValueHintFor(_kind);
+
+        // ===================== 「实际值」列（只读展示，界面定时刷新） =====================
+
+        /// <summary>
+        /// 当前设备的实际值文本（只读）：IO 为 0/1、气缸为 伸出/缩回、轴使能为 已使能/未使能、
+        /// 相机为 已连接/未连接，数值型为数字；目标在项目里找不到时为「找不到」。
+        /// 由 <see cref="RefreshActual"/> 写入，界面不提供编辑入口。
+        /// </summary>
+        public string ActualValue
+        {
+            get => _actualValue;
+            private set => SetField(ref _actualValue, value);
+        }
+        private string _actualValue = string.Empty;
+
+        /// <summary>
+        /// 实际值是否满足本条条件，用于「实际值」列着色：
+        /// true = 满足（绿）、false = 不满足或目标找不到（红）、null = 名称留空、该行不参与判断（灰）。
+        /// </summary>
+        public bool? ActualOk
+        {
+            get => _actualOk;
+            private set
+            {
+                if (!SetField(ref _actualOk, value)) return;
+                OnPropertyChanged(nameof(IsActualOk));
+                OnPropertyChanged(nameof(IsActualFail));
+            }
+        }
+        private bool? _actualOk;
+
+        /// <summary>
+        /// 供界面着色用的布尔投影（WPF 的 DataTrigger 直接比对 bool 最稳，
+        /// 比对 bool? 存在装箱/类型转换的歧义，故单独暴露）。
+        /// </summary>
+        public bool IsActualOk => _actualOk == true;
+
+        /// <summary>不满足或目标找不到（显示红色）。见 <see cref="IsActualOk"/>。</summary>
+        public bool IsActualFail => _actualOk == false;
+
+        /// <summary>
+        /// 拉取一次实时实际值并刷新 <see cref="ActualValue"/> / <see cref="ActualOk"/>。
+        /// 由点位页的定时器周期调用；本类自身在
+        /// 类型 / 名称 / 比较 / 期望值 变更时也会立即调一次，避免出现短暂旧值。
+        /// </summary>
+        public void RefreshActual()
+        {
+            var (text, ok) = PointConditionService.Probe(this);
+            ActualValue = text;
+            ActualOk = ok;
+        }
     }
 }
 // ◇作者保留所有权利　请勿删除※​⁣​

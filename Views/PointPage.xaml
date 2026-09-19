@@ -289,7 +289,7 @@
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="340"/>
+                        <ColumnDefinition Width="440"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- 左：点位表（占满剩余高度，内部滚动，列头固定） -->
@@ -435,9 +435,21 @@
                                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                       Margin="4,0,4,4">
                                 <DataGrid.Columns>
+                                    <!-- 使用：勾选后本行才参与「移动到该点位之前」的判断；
+                                         取消勾选的行即使填了名称也一律忽略（「实际值」列会显示为灰色）。 -->
+                                    <DataGridTemplateColumn Header="使用" Width="40">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsUsed, UpdateSourceTrigger=PropertyChanged}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          ToolTip="勾选 = 本行参与移动前判断；取消勾选 = 忽略本行"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
                                     <!-- 类型：IO / 气缸 / 变量 / 轴位置 / 轴使能 / 轴速度 / 轴正限位 / 轴负限位 / 相机。
                                          候选来自 Services/ConditionKinds.All，以后加类型只改那一个文件。 -->
-                                    <DataGridTemplateColumn Header="类型" Width="1.05*" MinWidth="68">
+                                    <DataGridTemplateColumn Header="类型" Width="0.95*" MinWidth="62">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ComboBox ItemsSource="{x:Static svc:ConditionKinds.All}"
@@ -449,7 +461,7 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- 名称：候选随「类型」切换（IO / 气缸 / 变量 / 轴 / 相机 各自的名称库） -->
-                                    <DataGridTemplateColumn Header="名称" Width="1.15*" MinWidth="78">
+                                    <DataGridTemplateColumn Header="名称" Width="1.15*" MinWidth="74">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ComboBox ItemsSource="{Binding TargetOptions}"
@@ -460,7 +472,7 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- 比较：枚举型只有 == / !=；数值型还有 &gt; &gt;= &lt; &lt;= -->
-                                    <DataGridTemplateColumn Header="比较" Width="0.6*" MinWidth="42">
+                                    <DataGridTemplateColumn Header="比较" Width="0.55*" MinWidth="42">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ComboBox ItemsSource="{Binding OperatorOptions}"
@@ -472,7 +484,7 @@
 
                                     <!-- 期望值：枚举型用下拉（0/1、伸出/缩回、已使能/未使能、已连接/未连接）；
                                          数值型（变量 / 轴位置 / 轴速度 / 轴限位）切换成自由输入。 -->
-                                    <DataGridTemplateColumn Header="期望值" Width="1.0*" MinWidth="68">
+                                    <DataGridTemplateColumn Header="期望值" Width="1.0*" MinWidth="66">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Grid>
@@ -504,6 +516,33 @@
                                                         </TextBox.Style>
                                                     </TextBox>
                                                 </Grid>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <!-- 实际值：只读展示设备当前状态（IO 为 0/1、气缸为 伸出/缩回、轴使能为 已使能/未使能、
+                                         相机为 已连接/未连接、数值型为数字），由 ViewModel 定时刷新，界面不可编辑。
+                                         绿=当前满足该条件、红=不满足或目标找不到、灰=该行未填名称（不参与判断）。 -->
+                                    <DataGridTemplateColumn Header="实际值" Width="0.95*" MinWidth="62">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding ActualValue}"
+                                                           Margin="6,0" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" FontWeight="SemiBold"
+                                                           ToolTip="设备当前实际状态（只读）；绿色=满足该条件，红色=不满足">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsActualOk}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsActualFail}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>

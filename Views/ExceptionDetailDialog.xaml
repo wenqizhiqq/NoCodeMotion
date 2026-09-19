@@ -15,7 +15,7 @@
             <Border Padding="22,18,22,14" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">
                 <StackPanel Orientation="Horizontal">
                     <Path Data="{StaticResource WarnIcon}" Width="20" Height="20" Stretch="Uniform" Fill="#DC2626" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="错误详情" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="HeaderView" Text="错误详情" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
             <!-- 正文：可滚动、可全选、可复制 -->

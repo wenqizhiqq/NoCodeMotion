@@ -13,6 +13,7 @@
 //   轴正/负限位→ AxisItem.PosLimitPlus / PosLimitMinus
 //   相机       → CameraItem.IsConnected
 // 返回未满足的条件说明列表；空列表表示全部满足（或无条件）。
+// 另提供 Probe()：给界面「实际值」列取实时读数（只读展示，不参与放行判断）。
 // =====================================================================
 using System;
 using System.Collections.Generic;
@@ -28,6 +29,9 @@ namespace NoCodeMotion.Services
     /// </summary>
     public static class PointConditionService
     {
+        /// <summary>目标名在项目配置里找不到时，「实际值」列显示的文本。</summary>
+        public const string NotFoundText = "找不到";
+
         /// <summary>
         /// 返回未满足的条件说明；空列表表示全部满足（或无条件）。
         /// 名称留空的行不参与判断；已填名称的行必须全部满足才允许移动。
@@ -39,6 +43,7 @@ namespace NoCodeMotion.Services
 
             foreach (var c in point.Conditions)
             {
+                if (!c.IsUsed) continue;                                 // 未勾选「使用」的行不参与判断
                 if (string.IsNullOrWhiteSpace(c.TargetName)) continue;   // 空行不参与判断
                 var fail = Check(c);
                 if (fail != null) fails.Add(fail);
@@ -46,127 +51,57 @@ namespace NoCodeMotion.Services
             return fails;
         }
 
+        /// <summary>
+        /// 探测一条条件的实时实际值，供界面「实际值」列显示（只读）。
+        /// Text：实际值文本，名称留空时为空串；
+        /// Ok  ：true = 当前满足该条条件，false = 不满足或目标找不到，null = 该行不参与判断。
+        /// </summary>
+        public static (string Text, bool? Ok) Probe(PointMoveCondition c)
+        {
+            if (c == null || string.IsNullOrWhiteSpace(c.TargetName)) return (string.Empty, null);
+
+            string kind = NormalizeKind(c.Kind);
+            string target = c.TargetName.Trim();
+
+            // 展示用读数：目标在项目里不存在时如实显示「找不到」，
+            // 避免把 SimRuntime 的兜底 0 当成真实读数展示给操作者。
+            if (!TryReadActual(kind, target, strictTarget: true, out _, out string text, out _, out _))
+                return (NotFoundText, c.IsUsed ? false : (bool?)null);
+
+            // 未勾选「使用」：照常显示实际值，但不参与判断（界面显示为灰色）
+            if (!c.IsUsed) return (text, null);
+
+            return (text, Check(c) == null);
+        }
+
         /// <summary>把某条条件的实际状态转成人类可读文本（用于日志/界面提示）。</summary>
         public static string DescribeActual(string kind, string targetName)
         {
-            switch (kind)
-            {
-                case ConditionKinds.Cylinder:
-                    return SimRuntime.GetCylinder(targetName) == 1 ? "伸出" : "缩回";
-                case ConditionKinds.Variable:
-                    return SimRuntime.GetVariableResolved(targetName).ToString("0.###", CultureInfo.InvariantCulture);
-                case ConditionKinds.Camera:
-                {
-                    var cam = FindCamera(targetName);
-                    return cam == null ? "找不到" : (cam.IsConnected ? "已连接" : "未连接");
-                }
-                case ConditionKinds.AxisPosition:
-                    return AxisRuntimeState.Get(targetName).ToString("0.###", CultureInfo.InvariantCulture);
-                case ConditionKinds.AxisEnabled:
-                case ConditionKinds.AxisSpeed:
-                case ConditionKinds.AxisLimitPlus:
-                case ConditionKinds.AxisLimitMinus:
-                {
-                    var axis = FindAxis(targetName);
-                    if (axis == null) return "找不到";
-                    double v = kind switch
-                    {
-                        ConditionKinds.AxisEnabled => axis.Enabled ? 1.0 : 0.0,
-                        ConditionKinds.AxisSpeed => axis.Speed,
-                        ConditionKinds.AxisLimitPlus => axis.PosLimitPlus,
-                        _ => axis.PosLimitMinus,
-                    };
-                    return kind == ConditionKinds.AxisEnabled ? (v == 1 ? "已使能" : "未使能")
-                                                              : v.ToString("0.###", CultureInfo.InvariantCulture);
-                }
-                default:
-                {
-                    var io = ResolveIo(targetName);
-                    return io.Found ? io.Value.ToString(CultureInfo.InvariantCulture) : "找不到";
-                }
-            }
+            if (string.IsNullOrWhiteSpace(targetName)) return string.Empty;
+            string k = NormalizeKind(kind);
+            return TryReadActual(k, targetName.Trim(), strictTarget: true, out _, out string text, out _, out _)
+                ? text
+                : NotFoundText;
         }
 
         // ===================== 内部实现 =====================
 
+        /// <summary>空/未填的类型一律按 IO 处理（与旧实现一致）。</summary>
+        private static string NormalizeKind(string? kind) =>
+            string.IsNullOrWhiteSpace(kind) ? ConditionKinds.Io : kind;
+
         /// <summary>校验单条条件：满足返回 null，不满足/无法校验返回说明文本。</summary>
         private static string? Check(PointMoveCondition c)
         {
-            string kind = string.IsNullOrWhiteSpace(c.Kind) ? ConditionKinds.Io : c.Kind;
+            string kind = NormalizeKind(c.Kind);
             string target = c.TargetName.Trim();
 
             // 1) 取实际值（数值统一成 double，便于和期望值比较）
-            double actual;
-            string actualText;
-            double tolerance = 0;
-
-            switch (kind)
-            {
-                case ConditionKinds.Cylinder:
-                    actual = SimRuntime.GetCylinder(target);
-                    actualText = actual == 1 ? "伸出" : "缩回";
-                    break;
-
-                case ConditionKinds.Variable:
-                    actual = SimRuntime.GetVariableResolved(target);
-                    actualText = actual.ToString("0.###", CultureInfo.InvariantCulture);
-                    break;
-
-                case ConditionKinds.Camera:
-                {
-                    var cam = FindCamera(target);
-                    if (cam == null) return $"相机 [{target}] 在项目相机列表中找不到，无法校验";
-                    actual = cam.IsConnected ? 1 : 0;
-                    actualText = cam.IsConnected ? "已连接" : "未连接";
-                    break;
-                }
-
-                case ConditionKinds.AxisPosition:
-                case ConditionKinds.AxisEnabled:
-                case ConditionKinds.AxisSpeed:
-                case ConditionKinds.AxisLimitPlus:
-                case ConditionKinds.AxisLimitMinus:
-                {
-                    var axis = FindAxis(target);
-                    if (axis == null) return $"轴 [{target}] 在项目轴配置中找不到，无法校验";
-                    switch (kind)
-                    {
-                        case ConditionKinds.AxisPosition:
-                            actual = AxisRuntimeState.Get(target);
-                            // 位置比较带容差：直接用轴的「到位误差 InPosError」，
-                            // 否则 == 在浮点/机械误差下永远不成立。
-                            tolerance = axis.InPosError;
-                            actualText = actual.ToString("0.###", CultureInfo.InvariantCulture);
-                            break;
-                        case ConditionKinds.AxisEnabled:
-                            actual = axis.Enabled ? 1 : 0;
-                            actualText = axis.Enabled ? "已使能" : "未使能";
-                            break;
-                        case ConditionKinds.AxisSpeed:
-                            actual = axis.Speed;
-                            actualText = actual.ToString("0.###", CultureInfo.InvariantCulture);
-                            break;
-                        case ConditionKinds.AxisLimitPlus:
-                            actual = axis.PosLimitPlus;
-                            actualText = actual.ToString("0.###", CultureInfo.InvariantCulture);
-                            break;
-                        default:
-                            actual = axis.PosLimitMinus;
-                            actualText = actual.ToString("0.###", CultureInfo.InvariantCulture);
-                            break;
-                    }
-                    break;
-                }
-
-                default: // IO
-                {
-                    var io = ResolveIo(target);
-                    if (!io.Found) return $"IO [{target}] 在项目 IO（输入/输出）中找不到，无法校验";
-                    actual = io.Value;
-                    actualText = io.Value.ToString(CultureInfo.InvariantCulture);
-                    break;
-                }
-            }
+            //    strictTarget: false —— 与改造前完全一致：气缸/变量名即使不在项目名称库里也照读，
+            //    避免历史工程因名称笔误突然被拦死（放行判断的行为不做任何变更）。
+            if (!TryReadActual(kind, target, strictTarget: false,
+                               out double actual, out string actualText, out double tolerance, out string error))
+                return error;
 
             // 2) 期望值文本 → 数值
             if (!TryParseExpected(kind, c.ExpectedState, out double expected))
@@ -176,6 +111,102 @@ namespace NoCodeMotion.Services
             bool pass = CompareWith(actual, expected, c.Comparison, tolerance);
             return pass ? null : $"{kind} [{target}] 期望「{c.ExpectedState}」实际「{actualText}」";
         }
+
+        /// <summary>
+        /// 读取一条条件的实际状态。
+        /// <paramref name="strictTarget"/> = true 时，气缸 / 变量也必须能在项目名称库里找到；
+        /// = false 时沿用旧行为（只对 相机 / 轴 / IO 做存在性校验）。
+        /// 返回 false 表示读不到，<paramref name="error"/> 给出原因。
+        /// </summary>
+        private static bool TryReadActual(string kind, string target, bool strictTarget,
+                                          out double value, out string text, out double tolerance, out string error)
+        {
+            value = 0;
+            text = string.Empty;
+            tolerance = 0;
+            error = string.Empty;
+
+            switch (kind)
+            {
+                case ConditionKinds.Cylinder:
+                    if (strictTarget && !Catalog.CylinderNames.Contains(target))
+                    {
+                        error = $"气缸 [{target}] 在项目气缸列表中找不到，无法校验";
+                        return false;
+                    }
+                    value = SimRuntime.GetCylinder(target);
+                    text = value == 1 ? "伸出" : "缩回";
+                    return true;
+
+                case ConditionKinds.Variable:
+                    if (strictTarget && !Catalog.VariableNames.Contains(target))
+                    {
+                        error = $"变量 [{target}] 在项目变量列表中找不到，无法校验";
+                        return false;
+                    }
+                    value = SimRuntime.GetVariableResolved(target);
+                    text = Format(value);
+                    return true;
+
+                case ConditionKinds.Camera:
+                {
+                    var cam = FindCamera(target);
+                    if (cam == null) { error = $"相机 [{target}] 在项目相机列表中找不到，无法校验"; return false; }
+                    value = cam.IsConnected ? 1.0 : 0.0;
+                    text = cam.IsConnected ? "已连接" : "未连接";
+                    return true;
+                }
+
+                case ConditionKinds.AxisPosition:
+                case ConditionKinds.AxisEnabled:
+                case ConditionKinds.AxisSpeed:
+                case ConditionKinds.AxisLimitPlus:
+                case ConditionKinds.AxisLimitMinus:
+                {
+                    var axis = FindAxis(target);
+                    if (axis == null) { error = $"轴 [{target}] 在项目轴配置中找不到，无法校验"; return false; }
+                    switch (kind)
+                    {
+                        case ConditionKinds.AxisPosition:
+                            value = AxisRuntimeState.Get(target);
+                            // 位置比较带容差：直接用轴的「到位误差 InPosError」，
+                            // 否则 == 在浮点/机械误差下永远不成立。
+                            tolerance = axis.InPosError;
+                            text = Format(value);
+                            break;
+                        case ConditionKinds.AxisEnabled:
+                            value = axis.Enabled ? 1.0 : 0.0;
+                            text = axis.Enabled ? "已使能" : "未使能";
+                            break;
+                        case ConditionKinds.AxisSpeed:
+                            value = axis.Speed;
+                            text = Format(value);
+                            break;
+                        case ConditionKinds.AxisLimitPlus:
+                            value = axis.PosLimitPlus;
+                            text = Format(value);
+                            break;
+                        default:
+                            value = axis.PosLimitMinus;
+                            text = Format(value);
+                            break;
+                    }
+                    return true;
+                }
+
+                default: // IO
+                {
+                    var io = ResolveIo(target);
+                    if (!io.Found) { error = $"IO [{target}] 在项目 IO（输入/输出）中找不到，无法校验"; return false; }
+                    value = io.Value;
+                    text = io.Value.ToString(CultureInfo.InvariantCulture);
+                    return true;
+                }
+            }
+        }
+
+        /// <summary>数值统一按 3 位小数显示（去掉多余的 0）。</summary>
+        private static string Format(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
 
         /// <summary>期望值文本解析：枚举型按状态词映射成 1/0，数值型按 double 解析。</summary>
         private static bool TryParseExpected(string kind, string? raw, out double value)

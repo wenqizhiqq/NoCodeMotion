@@ -823,6 +823,16 @@ namespace NoCodeMotion.ViewModels
             if (!string.IsNullOrEmpty(setv)) item = pt.Points.FirstOrDefault(p => p.Name == setv);
             if (item == null) item = pt.Points.FirstOrDefault();
             if (item == null) return;
+
+            // 防撞：流程属无人值守场景，条件不满足只写报警列表（绝不弹窗），
+            // 并中止整个流程——被拦下的移动说明机台状态与预期不符，继续跑后续步骤有撞机风险
+            // （与操作员页自动运行失败即 _stopRequested = true 的处理保持一致）。
+            if (!PointConditionGate.EnsureSilent(item, "流程", _flow?.Name))
+            {
+                _log?.Invoke($"点位「{item.Name}」移动条件未满足，已中止流程。", LogLevel.Error);
+                _ctrl.StopRequested = true;
+                return;
+            }
             for (int i = 0; i < PointTable.SlotCount; i++)
             {
                 var axisName = pt.AxisNames.Count > i ? pt.AxisNames[i] : "";

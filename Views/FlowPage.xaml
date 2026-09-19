@@ -6,6 +6,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
              xmlns:models="clr-namespace:NoCodeMotion.Models"
+             xmlns:svc="clr-namespace:NoCodeMotion.Services"
              xmlns:hc="https://handyorg.github.io/handycontrol"
              xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
@@ -205,6 +206,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <!-- Row 0：节标题 + 右上角当前流程类型 chip -->
@@ -492,6 +494,66 @@
                                     Content="{Binding NodeGraphContent, RelativeSource={RelativeSource AncestorType=local:FlowPage}}"/>
 
                 </Grid>
+                <!-- 报警列表：流程 / 自动运行中「点位移动条件未满足」等异常会写到这里。
+                     无人值守场景一律不弹窗、只进列表；没有报警时整块自动折叠，不占高度。 -->
+                <Border Grid.Row="2" Margin="0,10,0,0" SnapsToDevicePixels="True">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource CardBorderStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Source={x:Static svc:AlarmService.Entries}, Path=Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <DockPanel>
+                        <!-- 标题行：报警列表 + 条数角标 + 清空 -->
+                        <DockPanel DockPanel.Dock="Top" Margin="12,10,12,6" LastChildFill="False">
+                            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource DangerBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                                <TextBlock Text="报警列表" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                <Border Background="{StaticResource DangerBrush}" CornerRadius="9" Padding="7,1"
+                                        Margin="8,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Source={x:Static svc:AlarmService.Entries}, Path=Count}"
+                                               FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                </Border>
+                            </StackPanel>
+                            <Button DockPanel.Dock="Right" Content="清空" Style="{StaticResource TtGrayBtn}"
+                                    Click="ClearAlarms_Click"
+                                    ToolTip="清空报警列表（只清界面显示，已落盘的 Logs/exceptions_*.csv 不受影响）"/>
+                        </DockPanel>
+                        <!-- 报警条目：时间 / 等级 / 来源·流程 / 内容 -->
+                        <ListBox ItemsSource="{Binding Source={x:Static svc:AlarmService.Entries}}"
+                                 MaxHeight="150" BorderThickness="0" Background="Transparent"
+                                 HorizontalContentAlignment="Stretch"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 Margin="8,0,8,8">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="4,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding TimeText}" FontSize="12"
+                                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding LevelText}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource DangerBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding SourceText}" FontSize="12"
+                                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding Message}" FontSize="12"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0"
+                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Message}"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
             </Grid>
             </Border>
         </local:EditorPage.Detail>
