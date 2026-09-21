@@ -5,13 +5,16 @@
 // 新建工程弹窗所用的「项目模板」目录。
 // 每个模板是一个 ProjectTemplate，Factory() 每次返回全新的 ProjectData。
 //
-    // 模板总数：21 个（含 1 个空白）。
-    // 分类：空白 / 轴运动(6) / 气缸(2) / IO(2) / 综合(7) / 半导体(3)。
+    // 模板总数：23 个（含 1 个空白）。
+    // 分类：空白 / 轴运动(6) / 气缸(2) / IO(2) / 综合(9) / 半导体(3)。
     // 综合(7) 中「仿真演示」为专为 3D 仿真设计的示例：运行即可看到轴/气缸/相机动起来。
     // 半导体(3)：固晶机 / 探针台 / 平移式分选机。
     //   平移式分选机 共用 AddSemiEquipment（3自动盘+3手动盘+上料/下空盘+2高温中转盘+16吸嘴+搬运手臂+2 Z压力测+GPIB）；
     //   固晶机 / 探针台 各有专属配置（固晶头/顶针/点胶；真空吸盘/精密载台/探针Z + GPIB）。
 // 覆盖：控制器 / 轴 / IO(入+出) / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 变量 / 流程（主流程多个 + 复位流程）。
+// 流程：除空白模板外，每个模板都会经 ProjectTemplate.Build() → EnsureNodeGraphFlow() 自动补一条
+//       「示例(节点图)」节点图流程（本来就自带节点图的 3 个模板不重复加），
+//       保证新建出来的工程在流程页里一定能看到「节点图」这类流程长什么样。
 // =====================================================================
 using System;
 using System.Collections.Generic;
@@ -45,7 +48,7 @@ namespace NoCodeMotion.Services
             Io8x8(),
             Io16x16(),
 
-            // ---------- 综合 (7) ----------
+            // ---------- 综合 (9) ----------
             PointPick(),
             DualStation(),
             AssemblyLine(),
@@ -2580,6 +2583,142 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
         /// 只挂在每张点位表的第一个点位上，保持示例清爽。
         /// 由 ProjectTemplate.Build() 在模板实例化后调用。
         /// </summary>
+        /// <summary>
+        /// 给模板补一条「节点图」示例流程；模板里已经有一条节点图流程时直接跳过。
+        ///
+        /// 为什么放在这里统一补：节点图是四类流程（运控 / 脚本 / 视觉 / 节点图）里最不容易被
+        /// 用户自己拼出来的一类，但只有「仿真演示 / 视觉分拣线 / 点胶机」3 个模板自带；
+        /// 其余模板新建出来后在流程页里根本看不到节点图的例子。
+        /// 挂在 ProjectTemplate.Build() 这条公共出口上，一次覆盖全部模板，
+        /// 以后新增模板也不用记得单独补。
+        ///
+        /// 节点只引用模板里**真实存在**的对象（第一根轴 / 第二根轴 / 第一个输入 / 第一个输出 /
+        /// 第一台相机 / 第一个气缸 / 第一张点位表的第一个点位），缺哪类就少放哪个节点，
+        /// 不会造出属性指向不存在设备的图（那种图在节点图编辑器里会显示空属性）。
+        /// 空白模板没有任何可引用的对象，自然空转，保持「0 个流程」。
+        /// </summary>
+        public static void EnsureNodeGraphFlow(ProjectData d)
+        {
+            if (d == null) return;
+
+            // 已经自带节点图示例的模板不重复加
+            if (d.Flows.Any(f => f.Kind == FlowKind.NodeGraph)) return;
+
+            var axis = d.Axes.FirstOrDefault()?.Name;
+            var axis2 = d.Axes.Skip(1).FirstOrDefault()?.Name;
+            var waitIn = d.Inputs.FirstOrDefault()?.Name;
+            var outName = d.Outputs.FirstOrDefault()?.Name;
+            var cyl = d.Cylinders.FirstOrDefault()?.Name;
+            var cam = d.Cameras.FirstOrDefault()?.Name;
+            var tbl = d.PointTables.FirstOrDefault();
+
+            // 空白模板：一根轴 / 一个 IO / 一台相机 / 一个气缸 / 一张有点位的点位表都没有，保持空工程
+            // （气缸和点位表也算「可引用的对象」，只有气缸没轴的模板同样应该有节点图示例）
+            if (axis == null && axis2 == null && waitIn == null && outName == null
+                && cam == null && cyl == null && (tbl == null || tbl.Points.Count == 0)) return;
+
+            var ng = new NgDoc();
+            NgNode N(NgKind k, double x, double y, params (string name, string value)[] props)
+            {
+                var def = NgNodeDefinitions.All[k];
+                var n = new NgNode { Kind = k, X = x, Y = y };
+                foreach (var pd in def.Props)
+                    n.Props.Add(new NgProp { Name = pd.Name, Value = pd.Default, Options = pd.Options });
+                foreach (var (pn, pv) in props)
+                {
+                    var p = n.Props.FirstOrDefault(z => z.Name == pn);
+                    if (p != null) p.Value = pv;
+                }
+                ng.Nodes.Add(n);
+                return n;
+            }
+            void L(NgNode s, NgNode t) =>
+                ng.Connections.Add(new NgConnection { SourceId = s.Id, SourcePort = "Out", TargetId = t.Id });
+
+            // 横向排布：每加一个节点往右推一列，纵向按分支错开，打开节点图就是一条清楚的主线
+            const double Col = 260;
+            double cx = 60;
+            var prev = N(NgKind.Start, cx, 80);
+
+            if (axis != null)
+            {
+                cx += Col;
+                var home = N(NgKind.Home, cx, 20, ("轴", axis));
+                L(prev, home);
+                var move = N(NgKind.MoveAxis, cx, 150, ("轴", axis), ("模式", "绝对"), ("目标位置", "100"), ("速度", "100"));
+                L(home, move);
+                var wait = N(NgKind.WaitAxis, cx, 280, ("轴", axis));
+                L(move, wait);
+                prev = wait;
+            }
+
+            if (axis2 != null)
+            {
+                cx += Col;
+                var move2 = N(NgKind.MoveAxis, cx, 20, ("轴", axis2), ("模式", "绝对"), ("目标位置", "50"), ("速度", "100"));
+                L(prev, move2);
+                prev = move2;
+            }
+
+            if (tbl != null && tbl.Points.Count > 0)
+            {
+                cx += Col;
+                var pg = N(NgKind.PointGo, cx, 20, ("点位表", tbl.Name), ("点位", tbl.Points[0].Name));
+                L(prev, pg);
+                prev = pg;
+            }
+
+            if (cam != null)
+            {
+                cx += Col;
+                var shot = N(NgKind.CamCapture, cx, 20, ("图像源", "相机"), ("相机", cam), ("曝光ms", "10"));
+                L(prev, shot);
+                var match = N(NgKind.TemplateMatch, cx, 170, ("匹配模式", "灰度匹配"), ("分数阈值", "0.8"), ("角度范围", "360"));
+                L(shot, match);
+                prev = match;
+            }
+
+            if (waitIn != null)
+            {
+                cx += Col;
+                var w = N(NgKind.WaitInput, cx, 20, ("信号", waitIn), ("状态", "高电平"), ("超时ms", "3000"));
+                L(prev, w);
+                prev = w;
+            }
+
+            if (cyl != null)
+            {
+                cx += Col;
+                var cylOut = N(NgKind.Cylinder, cx, 20, ("气缸", cyl), ("动作", "伸出"));
+                L(prev, cylOut);
+                var delay = N(NgKind.Delay, cx, 160, ("时间ms", "300"));
+                L(cylOut, delay);
+                var cylIn = N(NgKind.Cylinder, cx, 300, ("气缸", cyl), ("动作", "缩回"));
+                L(delay, cylIn);
+                prev = cylIn;
+            }
+
+            if (outName != null)
+            {
+                cx += Col;
+                var io = N(NgKind.IoWrite, cx, 20, ("输出", outName), ("值", "1"));
+                L(prev, io);
+                prev = io;
+            }
+
+            cx += Col;
+            var end = N(NgKind.End, cx, 20);
+            L(prev, end);
+
+            d.Flows.Add(new FlowItem
+            {
+                Name = "示例(节点图)",
+                Kind = FlowKind.NodeGraph,
+                Role = FlowRole.Main,
+                GraphJson = ng.ToJson()
+            });
+        }
+
         public static void SeedSampleConditions(ProjectData d)
         {
             if (d == null) return;

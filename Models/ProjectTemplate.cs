@@ -38,15 +38,18 @@ namespace NoCodeMotion.Models
 
         /// <summary>构建一份模板工程（永远返回新实例，调用方可放心修改）。</summary>
         /// <remarks>
-        /// 在工厂产出的内容之上，额外挂一份示范用的移动条件
-        /// （Services/ProjectTemplateCatalog.SeedSampleConditions），
-        /// 让「新建工程」出来的示例点位自带一套条件列表可供参考。
-        /// 空白模板没有任何点位表，这里自然空转，不受影响。
+        /// 在工厂产出的内容之上，额外挂两样示范内容：
+        ///   1. 一份示范用的移动条件（Services/ProjectTemplateCatalog.SeedSampleConditions），
+        ///      让「新建工程」出来的示例点位自带一套条件列表可供参考；
+        ///   2. 一条「示例(节点图)」节点图流程（Services/ProjectTemplateCatalog.EnsureNodeGraphFlow），
+        ///      让每个模板新建出来都能在流程页里看到节点图这类流程长什么样。
+        /// 空白模板既没有点位表也没有轴 / IO / 相机，两道后处理都自然空转，保持「0 个流程」。
         /// </remarks>
         public ProjectData Build()
         {
             var data = Factory();
             Services.ProjectTemplateCatalog.SeedSampleConditions(data);
+            Services.ProjectTemplateCatalog.EnsureNodeGraphFlow(data);
             return data;
         }
     }

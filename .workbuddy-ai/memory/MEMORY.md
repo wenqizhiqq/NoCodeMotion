@@ -75,3 +75,36 @@
 - **`PrintWindow` 在这种状态下客户区全白**（标题栏正常），截图不能当视觉证据 —— 以 UIA 读到的文本为准。
 - 断言「计数标签是活的」不能只看一次结果：要**连粘两次不同条数**（如 7 → 3），
   否则工程里本来就是这个数，看不出标签是死的还是活的。
+
+## 流程页 AI 往返：提示词里的 Lua API（2026-09-21 新增）
+
+- **Lua 沙箱真实可用的 API 只有一个权威来源：`Services/HardwareApi.cs` 的 `Register()`。**
+  `Editing/LuaApi.HardwareList`（24 个硬件函数 + 中文说明）是编辑器的智能提示与 `Register` 的共同来源，
+  `Services/LuaTemplates.cs` 的类注释是第三份（手写）摘要。
+  **`Log` / `Camera` / `Vision` 曾经三处文档都在写、沙箱里却一个都没有** ——
+  `Log` 已补注册（`Info`/`Output`/`Warn`/`Error`/`Debug`），`Camera`/`Vision` **确定不注册**
+  （要真相机 SDK + 图像对象，是独立 feature）。
+- `AiProjectExchange.BuildLuaApiText()` 是提示词里那段【Lua 可用的 API】的生成器，
+  **轴/IO/气缸/通讯/料盘/硬件 六组直接从 `LuaApi.HardwareList` 生成**（签名 + 中文描述），
+  子表 / 日志 / 标准库 / 「沙箱里没有的 API」四节手写。
+  **往 `LuaApi` 加函数不用改提示词**；改手写那四节时记得同步冒烟 O2 的「24 个签名一个不漏」断言。
+- 视觉流程的契约是 **`视觉步骤` 数组**（`FillVisualSteps` 读 `视觉步骤`，类型取
+  图像采集 / 模板匹配 / 图像预处理 / 缺陷检测 / 测量 / 通讯），**不是 Lua**。
+  工程级 `SchemaText` 里的视觉样例曾经给的是 `"脚本": "... Camera.Grab ..."` —— 会被导入器整段丢掉。
+
+## 流程页 AI 往返：快照 / 回退（2026-09-21 新增）
+
+- `AiProjectExchange.SnapshotFlows(flows)` → JSON 数组；`RestoreFlows(sink, snapshot)` → bool。
+  **`RestoreFlows` 解析失败时返回 false 且绝不动 sink**；空快照 `"[]"` 是合法的「清空」目标。
+- **`ExportSteps` 必须导出 `FlowStep.DurationMs`（键名 `耗时`）**：`FillFlow` 会读它，
+  导出漏了就会在每次往返（粘贴生成 / 回退）把每步耗时清零。
+  **加 `FlowItem` / `FlowStep` 字段时的规矩：`Export*` 与 `Fill*` 两边必须同时改，
+  否则快照与 AI 往返都会静默丢字段。**
+- `FlowViewModel._pasteUndo` 是 `Stack<PasteUndo>`，栈顶 = 最近一次粘贴。
+  每项存 `Snapshot` / `FlowNames` / `SelectedIndex` / `Owner`（拍快照时的 `Items` 引用，
+  用来在工程重载后失效化，防止跨工程串数据）。
+  **只有快照真的变了才压栈**（`SnapshotFlows(Items) != undoSnapshot`）。
+- `Views.ConfirmDialog(title, message, confirmText)` 是通用二次确认框（Apple 风格透明窗）。
+  入口按钮叫「回退」、弹窗里的确认按钮叫「确定回退」——**刻意不同名**，既给用户区分，也让 UIA 测试能唯一定位。
+- `Views/FlowPage.xaml` 的 Row-0 `StackPanel` 是「复制JSON / 粘贴生成 / 回退」三个按钮的落点，
+  四种流程（运控/脚本/视觉/节点图）共用同一套。**该区域在 `EditorPage.Detail` 里，不能给元素起 `x:Name`（MC3093）。**
