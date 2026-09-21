@@ -137,6 +137,52 @@ namespace NoCodeMotion.ViewModels
         /// <summary>「清空」：删除全部流程，弹窗 ConfirmDialog 二次确认（避免误删）。</summary>
         public ICommand DeleteAllCommand { get; }
 
+        /// <summary>
+        /// 【复制JSON】把「当前流程 JSON + 本工程可用名称 + 输出契约 + 待填需求」整段提示词写进剪贴板，
+        /// 粘到豆包 / WorkBuddy 等 AI 对话软件即可让它生成流程。未选中流程时也能用（AI 会新生成一个）。
+        /// </summary>
+        public ICommand CopyFlowJsonCommand { get; }
+
+        /// <summary>【粘贴生成】读取剪贴板里 AI 返回的流程 JSON 并写入当前流程（或新增流程）。</summary>
+        public ICommand PasteFlowJsonCommand { get; }
+
+        /// <summary>粘贴生成覆盖了当前流程内容后触发：供 FlowPage 让节点图编辑器按新的 GraphJson 重新加载。</summary>
+        public event Action? FlowContentReplaced;
+
+        // ---------- 粘贴生成的【回退】 ----------
+
+        /// <summary>一次「粘贴生成」之前的快照，用于【回退】把流程列表恢复原样。</summary>
+        private sealed class PasteUndo
+        {
+            /// <summary>给用户看的说明，如「覆盖了流程「主流程」」/「新增了 2 个流程」。</summary>
+            public string Label = "";
+
+            /// <summary>粘贴前整份流程列表的快照（AiProjectExchange.SnapshotFlows 的产物）。</summary>
+            public string Snapshot = "[]";
+
+            /// <summary>粘贴前的流程名（只用于弹窗里列给用户看）。</summary>
+            public List<string> FlowNames = new();
+
+            /// <summary>粘贴前的选中项下标（-1 = 当时没选中任何流程）。</summary>
+            public int SelectedIndex = -1;
+
+            /// <summary>拍快照时的那份流程集合。工程重新加载后 Items 会换对象，靠它判断快照是否还有效。</summary>
+            public IList<FlowItem> Owner = null!;
+        }
+
+        /// <summary>
+        /// 粘贴生成的回退栈（栈顶 = 最近一次）。每回退一次弹一层，所以连点【回退】能一路退回更早的状态。
+        /// 快照用「导出 → 再导回」实现（AiProjectExchange.SnapshotFlows / RestoreFlows），
+        /// 与「粘贴生成」走同一条 FillFlow 路径，结果可预期。
+        /// </summary>
+        private readonly Stack<PasteUndo> _pasteUndo = new();
+
+        /// <summary>【回退】是否可用：有粘贴生成的历史才亮。</summary>
+        public bool CanRevertPaste => _pasteUndo.Count > 0;
+
+        /// <summary>【回退】把流程列表恢复到最近一次「粘贴生成」之前的状态（先弹窗确认）。</summary>
+        public ICommand RevertPasteCommand { get; }
+
         public bool IsKindTable => SelectedItem?.Kind == FlowKind.Table;
         public bool IsKindLua => SelectedItem?.Kind == FlowKind.Lua;
         public bool IsKindVision => SelectedItem?.Kind == FlowKind.Vision;
@@ -179,6 +225,13 @@ namespace NoCodeMotion.ViewModels
             AddVisionFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Vision));
             AddNodeGraphFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.NodeGraph));
             DeleteAllCommand = new RelayCommand(_ => DeleteAll(), _ => Items != null && Items.Count > 0);
+
+            // 复制JSON / 粘贴生成：两个按钮都不依赖「已选中流程」——未选中时复制的是「新生成一个流程」的提示词，
+            // 粘贴则把 AI 返回的流程追加进工程，这样空工程里也能直接用。
+            CopyFlowJsonCommand = new RelayCommand(_ => CopyFlowJson());
+            PasteFlowJsonCommand = new RelayCommand(_ => PasteFlowJson());
+            // 【回退】：没有粘贴历史时按钮自动置灰（RelayCommand 走 CommandManager.RequerySuggested）
+            RevertPasteCommand = new RelayCommand(_ => RevertPaste(), _ => CanRevertPaste);
 
             _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
             _runTimer.Tick += (_, _) => StepOnce();
@@ -313,6 +366,177 @@ namespace NoCodeMotion.ViewModels
             // 快照列表逐个 Remove（直接 Items.Clear() 会绕过单项 OnItemsChanged 的取消订阅逻辑）
             foreach (var item in Items.ToList()) Items.Remove(item);
             SelectedItem = null;
+        }
+
+        // ==================== 复制JSON / 粘贴生成（与 AI 往返） ====================
+
+        /// <summary>
+        /// 【复制JSON】把「当前流程 JSON + 本工程已配置名称 + 输出契约 + 待填需求」整段写进剪贴板。
+        /// 粘到 AI 对话软件里补一句需求，AI 就会回一个流程 JSON。
+        /// 未选中流程也能用——此时提示词会让 AI 新生成一个流程。
+        /// </summary>
+        private void CopyFlowJson()
+        {
+            try
+            {
+                var prompt = AiProjectExchange.BuildFlowPrompt(SelectedItem, null);
+                // 用全限定名：本工程隐式 using 不含 System.Windows，Clipboard 必须显式定位
+                System.Windows.Clipboard.SetText(prompt);
+                StatusBarService.ReportInfo(SelectedItem == null
+                    ? "流程 JSON 提示词已复制（当前未选中流程，AI 会新生成一个）。粘贴到 AI 对话软件即可。"
+                    : $"流程「{SelectedItem.Name}」的 JSON 提示词已复制。粘贴到 AI 对话软件并补一句需求即可生成流程。");
+            }
+            catch (Exception ex)
+            {
+                StatusBarService.ReportException("复制流程 JSON 失败：" + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// 【粘贴生成】弹出「粘贴生成流程」弹窗：弹窗里写了四步操作说明、带一个可编辑的 JSON 输入框
+        /// （自动填入剪贴板内容，也能点「重新读取剪贴板」），并实时预览识别到几个流程、会覆盖还是新增。
+        /// 用户点【确定生成】后才真正写入：
+        ///   · AI 只回 1 个流程且当前选中了流程 → 覆盖当前流程（保留原名称，工程里其它流程不受影响）；
+        ///   · 回了多个流程 / 当前没选中流程 → 追加为新流程。
+        /// </summary>
+        private void PasteFlowJson()
+        {
+            string clipboardText;
+            try
+            {
+                clipboardText = System.Windows.Clipboard.ContainsText()
+                    ? System.Windows.Clipboard.GetText()
+                    : string.Empty;
+            }
+            catch (Exception ex)
+            {
+                StatusBarService.ReportException("读取剪贴板失败：" + ex.Message);
+                return;
+            }
+
+            // 剪贴板为空也照常打开弹窗：弹窗里有操作说明和「重新读取剪贴板」，用户不用猜下一步该干什么
+            var dlg = new Views.PasteFlowDialog(clipboardText, SelectedItem?.Name)
+            {
+                Owner = System.Windows.Application.Current?.MainWindow
+            };
+            if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Json))
+            {
+                StatusBarService.ReportInfo("已取消粘贴生成。");
+                return;
+            }
+
+            // 覆盖还是新增由弹窗预览时算出的流程个数决定，与 ApplyFlowGenerated 的判定保持一致
+            bool overwrite = dlg.FlowCount == 1 && SelectedItem != null;
+            int before = Items.Count;
+
+            // 回退快照必须在写入之前拍下来（快照 = 粘贴前整份流程列表）
+            var undoSnapshot = AiProjectExchange.SnapshotFlows(Items);
+            var undoNames = Items.Select(f => f.Name).ToList();
+            int undoIndex = SelectedItem == null ? -1 : Items.IndexOf(SelectedItem);
+
+            var result = AiProjectExchange.ApplyFlowGenerated(SelectedItem, Items, dlg.Json!);
+
+            // 只有流程列表真的变了才记一条回退：解析失败、或 AI 回的内容与现状一模一样时
+            // 不该让【回退】亮起来（否则用户点了会发现「什么都没变」）。
+            if (AiProjectExchange.SnapshotFlows(Items) != undoSnapshot)
+            {
+                _pasteUndo.Push(new PasteUndo
+                {
+                    Label = overwrite
+                        ? $"覆盖了流程「{SelectedItem!.Name}」"
+                        : $"新增了 {Items.Count - before} 个流程",
+                    Snapshot = undoSnapshot,
+                    FlowNames = undoNames,
+                    SelectedIndex = undoIndex,
+                    Owner = Items
+                });
+                OnPropertyChanged(nameof(CanRevertPaste));
+                CommandManager.InvalidateRequerySuggested();
+            }
+
+            if (overwrite)
+            {
+                // 表格步骤 / 视觉步骤是原地清空重填，绑定会自动跟上；
+                // 节点图的 GraphJson 是字符串，需要显式通知宿主页重新加载。
+                FlowContentReplaced?.Invoke();
+            }
+            else if (Items.Count > before)
+            {
+                // 选中第一个新增的流程，让用户一眼看到生成结果
+                SelectedItem = Items[before];
+            }
+
+            StatusBarService.ReportInfo(result);
+        }
+
+        /// <summary>
+        /// 【回退】把流程列表恢复到最近一次「粘贴生成」之前的状态。
+        ///
+        /// 流程：先弹窗二次确认（回退会丢掉这次 AI 生成的内容）→ 确认后用
+        /// <see cref="AiProjectExchange.RestoreFlows"/> 整体替换流程列表 → 恢复原来的选中项 →
+        /// 通知宿主页（视觉步骤 / 节点图）按新内容重新加载。
+        /// 每回退一次弹一层，所以连续点【回退】可以一路退回更早的状态。
+        /// </summary>
+        private void RevertPaste()
+        {
+            if (_pasteUndo.Count == 0)
+            {
+                StatusBarService.ReportInfo("没有可回退的粘贴生成操作。");
+                return;
+            }
+
+            var top = _pasteUndo.Peek();
+
+            // 工程重新加载 / 页面重建后 Items 已经不是当初那个集合，快照恢复过去会串工程
+            if (!ReferenceEquals(top.Owner, Items))
+            {
+                _pasteUndo.Clear();
+                OnPropertyChanged(nameof(CanRevertPaste));
+                CommandManager.InvalidateRequerySuggested();
+                StatusBarService.ReportInfo("工程已重新加载，粘贴生成的回退记录已失效。");
+                return;
+            }
+
+            string what = top.FlowNames.Count == 0
+                ? "粘贴前工程里没有任何流程"
+                : $"粘贴前共 {top.FlowNames.Count} 个流程：" + string.Join("、", top.FlowNames);
+
+            var dlg = new Views.ConfirmDialog(
+                "回退粘贴生成",
+                $"确定回退上一次「粘贴生成」（{top.Label}）？\n\n"
+                + "流程列表会恢复成 —— " + what + "。\n"
+                + "这次 AI 生成的内容会被丢弃。",
+                // 按钮文案写「确定回退」而不是「回退」：跟页面上那个【回退】按钮区分开，
+                // 用户在弹窗里一眼就知道自己按的是「确认」而不是又点了一次入口。
+                "确定回退");
+            if (dlg.ShowDialog() != true)
+            {
+                StatusBarService.ReportInfo("已取消回退。");
+                return;
+            }
+
+            // 恢复失败时原样保留当前列表（RestoreFlows 保证解析不成功就不动 sink），
+            // 所以这里失败也不弹栈，用户还能重试。
+            if (!AiProjectExchange.RestoreFlows(Items, top.Snapshot))
+            {
+                StatusBarService.ReportException("回退失败：快照无法解析，流程列表未改动。");
+                return;
+            }
+
+            _pasteUndo.Pop();
+
+            SelectedItem = top.SelectedIndex >= 0 && top.SelectedIndex < Items.Count
+                ? Items[top.SelectedIndex]
+                : (Items.Count > 0 ? Items[0] : null);
+
+            // 视觉步骤 / 节点图是按 VisualSteps / GraphJson 渲染的，换成新对象后要重新加载
+            FlowContentReplaced?.Invoke();
+
+            OnPropertyChanged(nameof(CanRevertPaste));
+            CommandManager.InvalidateRequerySuggested();
+            StatusBarService.ReportInfo(
+                $"已回退上一次粘贴生成：流程列表恢复为 {Items.Count} 个流程"
+                + (_pasteUndo.Count > 0 ? $"（还能继续回退 {_pasteUndo.Count} 次）。" : "。"));
         }
 
         /// <summary>每个流程类型可选用的模板名（弹窗里单选）。</summary>

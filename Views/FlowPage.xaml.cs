@@ -55,6 +55,8 @@ namespace NoCodeMotion.Views
             var vm = new FlowViewModel();
             DataContext = vm;
             vm.PropertyChanged += OnVmPropertyChanged;
+            // 「粘贴生成」覆盖当前流程内容后，节点图 / 视觉流程页需要显式重新加载（表格 / 脚本靠绑定自动跟上）
+            vm.FlowContentReplaced += OnFlowContentReplaced;
             // 入场时若当前选中项已是视觉/节点图流程，立即建好对应页。
             if (vm.IsKindVision) EnsureVision();
             if (vm.IsKindNodeGraph) EnsureNodeGraph();
@@ -62,6 +64,18 @@ namespace NoCodeMotion.Views
 
         /// <summary>清空报警列表（面板「清空」按钮）。只清界面显示，已落盘的 CSV 不受影响。</summary>
         private void ClearAlarms_Click(object sender, RoutedEventArgs e) => AlarmService.Clear();
+
+        /// <summary>
+        /// 「粘贴生成」覆盖了当前流程内容后触发。
+        /// 表格步骤与视觉步骤都是原地清空重填，绑定会自动跟上；但
+        /// 节点图的 GraphJson 是字符串、视觉页的 SelectedStep 会指向已被清掉的旧对象，
+        /// 这两处必须显式让宿主页重新加载，否则画布/参数面板会停在旧内容。
+        /// </summary>
+        private void OnFlowContentReplaced()
+        {
+            if (NodeGraphContent is NodeGraphPage ng) ng.Reload();
+            if (VisionContent is VisualFlowPage vf) vf.Reload();
+        }
 
         private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {

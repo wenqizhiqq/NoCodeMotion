@@ -48,10 +48,19 @@ namespace NoCodeMotion.Services
   3. 流程有三类（FlowItem.Kind）：
        0 = 运控   —— 用 Steps 数组，逐行表格步骤（轴/IO/气缸/延时/变量…）
        1 = 脚本   —— 用 LuaSource 字段，Lua 源码
-       2 = 视觉   —— 用 LuaSource 字段，Lua 源码（调相机/视觉算子）
+       2 = 视觉   —— 用 VisualSteps 数组（图像采集/模板匹配/缺陷检测/测量/通讯 步骤），不是 Lua
   4. 点位表(PointTables)的 AxisNames 是 4 个槽位，对应每个点位 Positions 的
      4 组坐标；槽位留空字符串表示该槽不使用。
   5. 修改后请保持 JSON 语法合法（可以用注释，但不能有多余逗号）。
+  6. 脚本流程(Kind=1) 的 LuaSource 只能调用下面这些函数，其它一律不存在：
+       轴   AxisMove / SetAxisSpeed / AxisHome / StopAxis / WaitAxisDone / EnableAxis / MoveAxisRel / MoveAxisAbs
+       IO   ReadIO / WaitIO / SetIO / ToggleIO
+       气缸 CylinderMove / WaitCylinder / CylinderReset
+       通讯 CommSend / CommRecv　　料盘 TrayPick / TrayPlace
+       硬件 HardwareStatus / HardwareReady / HardwareReconnect / UseRealHardware / UseSimulation
+       表   Variable.Get/Set　IO.Get/Set　Axis.MoveAbs/MoveRel/Home/Stop/WaitDone/SetSpeed/Enable　Cylinder.Out/Back/Reset
+       其它 print / Print / Log.Info / Log.Warn / Log.Error / Log.Debug / Delay / WaitStep / EStop
+     没有 Camera / Vision / 文件读写的 Lua API；视觉流程用 VisualSteps，不要写 Lua。
  ============================================================
 ";
 
@@ -87,7 +96,7 @@ namespace NoCodeMotion.Services
             ["Cameras"] =
                 "【相机】IpAddress 是 GigE 相机的 IP；Port 默认 8000。\n" +
                 "  Width/Height: 分辨率宽/高；ExposureMs 曝光毫秒；Gain 增益\n" +
-                "  视觉流程的 Lua 里用 Camera.Grab(\"相机名\") 按 Name 取图",
+                "  视觉流程里按 Name 引用相机（用 VisualSteps 的「图像采集」步骤；Lua 沙箱里没有 Camera API）",
             ["Comms"] =
                 "【通讯】串口 / 网口 / Modbus。\n" +
                 "  CommType 类型: 串口 | Modbus主站 | Modbus从站 | TCP | UDP\n" +
@@ -101,7 +110,7 @@ namespace NoCodeMotion.Services
             ["Flows"] =
                 "【流程】Kind 类型: 0=运控(表格步骤) | 1=脚本(Lua) | 2=视觉(Lua)\n" +
                 "  Role 角色: 0=主流程 | 1=复位流程\n" +
-                "  Kind=0 用 Steps 数组；Kind=1/2 用 LuaSource 字段\n" +
+                "  Kind=0 用 Steps 数组；Kind=1 用 LuaSource 字段；Kind=2 用 VisualSteps 数组\n" +
                 "  Steps[].Function: 轴 | IO | 气缸 | modbus | 点位 | 变量 | 系统\n" +
                 "  Steps[].Property: 位置 | 回零 | 速度 | 输出 | 复位 | 伸出 | 缩回 | 延时\n" +
                 "  Steps[].Operation: 等于 | 加 | 减 | 乘 | 除 | 置位 | 复位 | 伸出 | 缩回 | 等待 | 回零\n" +

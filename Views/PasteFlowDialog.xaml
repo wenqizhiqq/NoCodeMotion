@@ -1,0 +1,62 @@
+﻿<Window x:Class="NoCodeMotion.Views.PasteFlowDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="粘贴生成流程"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight" WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+    <!-- 透明窗口 + 圆角白卡 + 柔和阴影 = Apple 风「粘贴生成流程」弹窗 -->
+    <Border CornerRadius="14" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Margin="16" Effect="{StaticResource SoftShadow}">
+        <StackPanel MinWidth="640" MaxWidth="820">
+            <!-- 标题区（与内容用发丝线分隔） -->
+            <Border Padding="22,18,22,14" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource PasteIcon}" Width="20" Height="20" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="粘贴生成流程" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 操作说明：把「复制JSON → 问 AI → 粘贴 → 生成」四步写在弹窗里，用户不用去翻文档 -->
+            <Border Margin="24,16,24,0" Padding="14,11" CornerRadius="8" Background="{StaticResource AccentSoftBrush}">
+                <StackPanel>
+                    <TextBlock Text="操作说明" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource AccentDarkBrush}" Margin="0,0,0,5"/>
+                    <TextBlock x:Name="StepText" FontSize="12" LineHeight="21" TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 输入区标题行：左「AI 返回的流程 JSON」，右「重新读取剪贴板」 -->
+            <Grid Margin="24,14,24,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="AI 返回的流程 JSON" VerticalAlignment="Center" FontSize="13"
+                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                <Button Grid.Column="1" x:Name="ReloadButton" Content="重新读取剪贴板" Style="{StaticResource TtGrayBtn}"
+                        FontSize="12" Height="30" MinWidth="112" Click="ReloadButton_Click"
+                        ToolTip="把当前剪贴板里的内容重新填进下面的输入框"/>
+            </Grid>
+
+            <!-- 输入框：剪贴板有内容时自动填入，也可以直接在框里 Ctrl+V / 手改 -->
+            <TextBox x:Name="JsonBox" Margin="24,7,24,0" Height="190" FontFamily="Consolas" FontSize="12"
+                     AcceptsReturn="True" TextWrapping="NoWrap"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                     VerticalContentAlignment="Top" Padding="8,6"
+                     BorderThickness="1" BorderBrush="{StaticResource LineBrush}" Background="{StaticResource SurfaceBrush}"
+                     Foreground="{StaticResource TextPrimaryBrush}"
+                     TextChanged="JsonBox_TextChanged"/>
+
+            <!-- 实时预览：识别到几个流程、分别是什么类型、多少步骤；不合法时说明原因 -->
+            <TextBlock x:Name="PreviewText" Margin="24,8,24,0" FontSize="12" TextWrapping="Wrap" LineHeight="19"
+                       Foreground="{StaticResource TextSecondaryBrush}"/>
+
+            <!-- 按钮区：右对齐，次要 + 主操作 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,14,16,16">
+                <Button x:Name="CancelButton" Content="取消" Style="{StaticResource TtGrayBtn}" Click="CancelButton_Click" IsCancel="True"/>
+                <Button x:Name="ConfirmButton" Content="确定生成" Style="{StaticResource TtBaseBtn}" Margin="8,0,0,0" Click="ConfirmButton_Click" IsDefault="True"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

@@ -80,6 +80,12 @@ public partial class NodeGraphPage : UserControl
         _fvmHandler = null;
     }
 
+    /// <summary>
+    /// 外部替换了当前流程的 GraphJson（流程页「粘贴生成」）后调用，按新的图重建画布。
+    /// GraphJson 是普通字符串属性，没有「集合变了」这种信号可订阅，只能由宿主显式通知。
+    /// </summary>
+    public void Reload() => ApplySelection();
+
     private void ApplySelection()
     {
         if (_flowPage?.DataContext is FlowViewModel fvm)

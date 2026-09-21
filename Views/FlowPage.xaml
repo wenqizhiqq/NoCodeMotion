@@ -220,6 +220,29 @@
                     <Border DockPanel.Dock="Right" Padding="10,3" CornerRadius="10" Background="{StaticResource AccentSoftBrush}" VerticalAlignment="Center">
                         <TextBlock Text="{Binding SelectedItem.Kind}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource AccentDarkBrush}"/>
                     </Border>
+
+                    <!-- 复制JSON / 粘贴生成：与 AI 对话软件往返生成流程。
+                         放在 Detail 标题行而不是左侧工具栏，这样「运控 / 脚本 / 视觉 / 节点图」四种流程页
+                         看到的是同一对按钮，不必每类各加一遍。
+                         DockPanel 按声明顺序分配空间，所以这一组声明在类型 chip 之后 → 显示在 chip 左侧。 -->
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                VerticalAlignment="Center" Margin="0,0,10,0">
+                        <!-- 一行操作说明：不点开任何东西就能看懂这两个按钮怎么配合 AI 用。
+                             注意：EditorPage.Detail 内容里不能给元素起 x:Name（会触发 MC3093 双重注册）。 -->
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,10,0" FontSize="12"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   Text="① 复制JSON → ② 贴给 AI 补一句需求 → ③ 粘贴生成 → ④ 生成不对可回退"
+                                   ToolTip="① 点【复制JSON】把提示词复制到剪贴板&#x0a;② 粘到豆包 / WorkBuddy 等 AI 对话，补一句需求，让它返回流程 JSON&#x0a;③ 点【粘贴生成】，把 AI 返回的 JSON 粘进弹窗，点【确定生成】写入流程&#x0a;④ 生成结果不满意，点【回退】把流程列表恢复到粘贴之前（会弹窗确认）"/>
+                        <Button Content="复制JSON" Style="{StaticResource TtBaseBtn}"
+                                Command="{Binding CopyFlowJsonCommand}"
+                                ToolTip="把当前流程的 JSON（含本工程可用名称、输出格式契约、需求待填行）复制到剪贴板。粘贴到豆包 / WorkBuddy 等 AI 并补一句需求，它就会返回流程 JSON。"/>
+                        <Button Content="粘贴生成" Style="{StaticResource TtBaseBtn}" Margin="8,0,0,0"
+                                Command="{Binding PasteFlowJsonCommand}"
+                                ToolTip="弹出「粘贴生成流程」弹窗：里面有四步操作说明、可编辑的 JSON 输入框（自动填入剪贴板内容）和实时预览。点【确定生成】后，AI 只回 1 个流程时覆盖当前流程（名称保留），回多个时追加为新流程。"/>
+                        <Button Content="回退" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0"
+                                Command="{Binding RevertPasteCommand}"
+                                ToolTip="把流程列表恢复到最近一次【粘贴生成】之前，点之前会弹窗确认（回退会丢掉这次 AI 生成的内容）。没有粘贴记录时按钮是灰的；连点可以一路退回更早的状态。"/>
+                    </StackPanel>
                 </DockPanel>
 
                 <!-- Row 1：编辑器主体（按 Kind 互斥可见） -->
@@ -236,7 +259,9 @@
                         <!-- 步骤表格工具栏（继承通用 TableToolbar：Excel编辑/添加/删除/上移/下移/复制/粘贴/回撤/重做）。
                              用 Grid 绑定 DataContext 到 StepPanel，使命令/计数都解析到步骤面板 VM。 -->
                         <Grid Grid.Row="0" Margin="0,0,0,8" DataContext="{Binding StepPanel}">
-                            <local:TableToolbar Count="{Binding Items.Count}" CountLabel="步"/>
+                            <!-- 计数必须绑当前流程的步骤集合：绑 Items.Count 会显示「流程个数」，
+                                 粘贴生成把步骤换成 4 条后仍显示「共 6 步」，一眼就看出不对。 -->
+                            <local:TableToolbar Count="{Binding StepPanel.Items.Count}" CountLabel="步"/>
                         </Grid>
 
                         <!-- 步骤列表（DataGrid）—— 卡片化外观 -->

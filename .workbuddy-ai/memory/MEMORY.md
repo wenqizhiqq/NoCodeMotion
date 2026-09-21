@@ -14,7 +14,12 @@
 
 **运行时冒烟测试**：`C:\Users\admin\AppData\Local\Temp\ncm_smoke\`（csproj + Program.cs），
 `ProjectReference` 指向本工程，`net10.0-windows` + `UseWPF=true`（控制台 Exe 也必须开 WPF）。
-必须放在工程目录**之外**——主工程默认 `**/*.cs` glob 不排除 `.bt/` 之类目录，写进去会被编进产品。
+必须放在工程目录**之外**（为了不污染产品源码树）。**修正（2026-09-21 实测）**：以前这里写的是
+「默认 `**/*.cs` glob 不排除 `.bt/` 之类目录」——**这个说法是错的**。实测：往 `.bt/` 放一个内容为
+`this is definitely not valid C# at all !!!` 的 `.cs`，再 `dotnet build -t:Rebuild`，结果仍是
+**0 错误 / 590 警告** → **点开头的目录（`.bt/`）默认就不参与编译**。
+真正会被编进去的是**不带点**的临时目录（`NoCodeMotion.csproj` 里只显式 `Remove` 了 `artifacts\**`，
+所以 `scratch/`、`tmp/` 这种名字会被 `**/*.cs` 收进去）。
 用 `env "APPDATA=..." ... dotnet run -v q --nologo` 跑。适合验证 `Models/` + `Services/` 的纯逻辑，
 不用起 GUI。
 
@@ -40,3 +45,33 @@
   **任何运行态/只读展示属性都必须在这条链上被过滤掉**，否则会形成每秒几十次的写盘风暴。
 - `PointItem.ConditionRowCount = 6`，`EnsureConditionRows()` 会把条件行规整为固定 6 行并裁掉尾部空行。
   **往条件集合里塞数据只能按下标覆写，不能 Append。**
+
+## 表格工具栏 / 流程页（2026-09-21 新增）
+
+- **`TableToolbar` 的「共 N 项/步」文案来自 `MatchInfo`，不是 `Count`。**
+  `Count` / `CountLabel` 两个 DP 只参与文案拼接，从不直接显示。
+  `MatchInfo` 曾在 `OnLoaded` / `SearchText` 变化时才重算，导致行数变化（粘贴生成换掉整个步骤集合、
+  点「添加」）后标签一直停在打开页面时的数字。现已在 `TargetGrid.ItemContainerGenerator.ItemsChanged`
+  上订阅刷新，并以 `TargetGrid.ItemsSource` 为行数权威来源（没挂上 grid 时才退回 `Count`）。
+  **给表格页加「计数」类展示时，先确认自己绑的是不是真正被显示的那个属性。**
+
+- **流程「名称」列是受限下拉**：`ComboBox ItemsSource` 走 `FunctionToNamesConverter` → `Catalog.*Names`，
+  值不在库里就**渲染成空白**（作者既定设计）。`Catalog` 只是下拉缓存，判断对象是否存在要读 `ProjectStore.Data`。
+  **不要为了让它显示未知值而把当前值并进 `ItemsSource`（MultiBinding）**：
+  `SelectedItem` 默认 TwoWay，ItemsSource 换实例会被 WPF 置空并回写 `null`，把用户刚选的名称清掉。
+  现在的做法是导入时提示「哪些对象在工程里不存在」。
+
+- `AiProjectExchange` 输出的 JSON 是给人看、要粘进 AI 对话的，
+  **必须用 `JavaScriptEncoder.UnsafeRelaxedJsonEscaping`**，否则中文全变成 `\uXXXX`。
+
+## 验证 UI 的硬约束（本机）
+
+- **这台机器的桌面没有交互式输入**：`GetForegroundWindow() == NULL`、`GetCursorPos() == (0,0)`。
+  合成鼠标（`mouse_event` / `uiautomation` 的 `.Click(simulateMove=True)`）**会打空**：
+  UIA 找得到控件、`IsEnabled=True`、坐标正常，但点了毫无反应。
+  → 一律改用 `ctrl.GetInvokePattern().Invoke()` 直接调 WPF 命令。
+  导航项是 `TextBlock`，要沿 `GetParentControl()` 上溯到外层 `ButtonControl` 再 Invoke。
+  `uiautomation` 2.0.29 **没有** `GetSupportedPatterns()`（那是裸 UIA COM API）。
+- **`PrintWindow` 在这种状态下客户区全白**（标题栏正常），截图不能当视觉证据 —— 以 UIA 读到的文本为准。
+- 断言「计数标签是活的」不能只看一次结果：要**连粘两次不同条数**（如 7 → 3），
+  否则工程里本来就是这个数，看不出标签是死的还是活的。

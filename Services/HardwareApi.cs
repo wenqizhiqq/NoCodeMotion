@@ -161,6 +161,22 @@ namespace NoCodeMotion.Services
         /// <summary>大写 <c>Print</c> 别名（与模板里 <c>Print(...)</c> 对应；标准 <c>print</c> 已由 Options.DebugPrint 接管）。</summary>
         public void LuaPrint(object value) => _log?.Invoke(value?.ToString() ?? string.Empty);
 
+        // Log.Info / Log.Warn / Log.Error / Log.Debug：日志面板输出的别名。
+        // 提示词与「视觉流程」的文档一直让 AI 写 Log.Info(...)，但早期版本从没注册过 Log，
+        // 脚本一运行就报 "attempt to call a nil value (field 'Log')"。这里补齐，
+        // 让 Log.* 与 print / Print 等价（print 由 Options.DebugPrint 接管）。
+        /// <summary>Log.Info(...) / Log.Output(...)：普通输出。</summary>
+        public void LuaLogInfo(object value) => _log?.Invoke(value?.ToString() ?? string.Empty);
+
+        /// <summary>Log.Warn(...)：警告输出，带 [警告] 前缀便于在日志里定位。</summary>
+        public void LuaLogWarn(object value) => _log?.Invoke("[警告] " + (value?.ToString() ?? string.Empty));
+
+        /// <summary>Log.Error(...)：错误输出，带 [错误] 前缀。</summary>
+        public void LuaLogError(object value) => _log?.Invoke("[错误] " + (value?.ToString() ?? string.Empty));
+
+        /// <summary>Log.Debug(...)：调试输出，带 [调试] 前缀。</summary>
+        public void LuaLogDebug(object value) => _log?.Invoke("[调试] " + (value?.ToString() ?? string.Empty));
+
         // ===================== 命名空间式 API（与“脚本流程示例”模板一致） =====================
 
         /// <summary>Variable.Get / Variable.Set：对接工程变量表（VariableRow）。</summary>
@@ -374,6 +390,16 @@ namespace NoCodeMotion.Services
             cylTable["Back"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<string>)capi.Back));
             cylTable["Reset"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<string>)capi.Reset));
             script.Globals["Cylinder"] = DynValue.NewTable(cylTable);
+
+            // Log 表：提示词/文档里一直用 Log.Info 的写法，但沙箱从来没注册过它，
+            // AI 照着写出来的 Lua 一运行就是 attempt to call a nil value。补上别名表。
+            var logTable = new Table(script);
+            logTable["Info"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<object>)api.LuaLogInfo));
+            logTable["Output"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<object>)api.LuaLogInfo));
+            logTable["Warn"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<object>)api.LuaLogWarn));
+            logTable["Error"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<object>)api.LuaLogError));
+            logTable["Debug"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<object>)api.LuaLogDebug));
+            script.Globals["Log"] = DynValue.NewTable(logTable);
 
             script.Globals["EStop"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Func<bool>)api.IsEStop));
             script.Globals["Delay"] = DynValue.NewCallback(CallbackFunction.FromDelegate(script, (Action<double>)api.Delay));

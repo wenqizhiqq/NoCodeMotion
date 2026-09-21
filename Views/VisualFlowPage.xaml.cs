@@ -152,6 +152,17 @@ namespace NoCodeMotion.Views
             _fvmHandler = null;
         }
 
+        /// <summary>
+        /// 外部替换了当前流程的视觉步骤（流程页「粘贴生成」）后调用。
+        /// 必须先把 SelectedStep 清空再重新同步：粘贴会把 VisualSteps 原地清空重填，
+        /// 旧 SelectedStep 指向的对象已不在集合里，参数面板会显示一条并不存在的步骤。
+        /// </summary>
+        public void Reload()
+        {
+            _vm.SelectedStep = null;
+            ApplySelection();
+        }
+
         private void ApplySelection()
         {
             if (_flowPage?.DataContext is FlowViewModel fvm)

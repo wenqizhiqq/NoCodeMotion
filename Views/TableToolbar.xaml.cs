@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -28,7 +29,8 @@ namespace NoCodeMotion.Views
 
         // ===== 原有依赖项属性 =====
         public static readonly DependencyProperty CountProperty =
-            DependencyProperty.Register(nameof(Count), typeof(int), typeof(TableToolbar), new PropertyMetadata(0));
+            DependencyProperty.Register(nameof(Count), typeof(int), typeof(TableToolbar),
+                new PropertyMetadata(0, OnCountChanged));
         public int Count
         {
             get => (int)GetValue(CountProperty);
@@ -36,21 +38,45 @@ namespace NoCodeMotion.Views
         }
 
         public static readonly DependencyProperty CountLabelProperty =
-            DependencyProperty.Register(nameof(CountLabel), typeof(string), typeof(TableToolbar), new PropertyMetadata("项"));
+            DependencyProperty.Register(nameof(CountLabel), typeof(string), typeof(TableToolbar),
+                new PropertyMetadata("项", OnCountChanged));
         public string CountLabel
         {
             get => (string)GetValue(CountLabelProperty);
             set => SetValue(CountLabelProperty, value);
         }
 
+        private static void OnCountChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is TableToolbar tb) tb.UpdateMatchInfo();
+        }
+
         // ===== 搜索相关依赖项属性 =====
         public static readonly DependencyProperty TargetGridProperty =
-            DependencyProperty.Register(nameof(TargetGrid), typeof(DataGrid), typeof(TableToolbar));
+            DependencyProperty.Register(nameof(TargetGrid), typeof(DataGrid), typeof(TableToolbar),
+                new PropertyMetadata(null, OnTargetGridChanged));
         /// <summary>搜索/导航目标的 DataGrid；缺省时自动沿可视化树查找最近一个。</summary>
         public DataGrid TargetGrid
         {
             get => (DataGrid)GetValue(TargetGridProperty);
             set => SetValue(TargetGridProperty, value);
+        }
+
+        // 行数变化必须跟着刷新「共 N 项/步」：粘贴生成会整批换掉步骤集合，
+        // 只在 Loaded 里算一次的话，标签会一直停在打开页面时的数字（看起来像没生效）。
+        private static void OnTargetGridChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is not TableToolbar tb) return;
+            if (e.OldValue is DataGrid oldGrid) oldGrid.ItemContainerGenerator.ItemsChanged -= tb.OnGridItemsChanged;
+            if (e.NewValue is DataGrid newGrid) newGrid.ItemContainerGenerator.ItemsChanged += tb.OnGridItemsChanged;
+            tb.UpdateMatchInfo();
+        }
+
+        private void OnGridItemsChanged(object? sender, ItemsChangedEventArgs e)
+        {
+            // 有关键字时命中集合也变了，走完整重算（含上一条/下一条的匹配列表）
+            if (string.IsNullOrEmpty(_lastKeyword)) UpdateMatchInfo();
+            else ApplySearch();
         }
 
         public static readonly DependencyProperty SearchTextProperty =
@@ -159,12 +185,19 @@ namespace NoCodeMotion.Views
 
         private void UpdateMatchInfo()
         {
-            if (TargetGrid == null) { MatchInfo = ""; return; }
+            // 行数以 DataGrid 实际的 ItemsSource 为准（用户看到的就是它），
+            // 因此粘贴生成换掉整个集合后数字一定是对的。
             int total = -1;
-            if (TargetGrid.ItemsSource is IEnumerable src)
+            if (TargetGrid?.ItemsSource is IEnumerable src)
             {
                 if (src is ICollection col) total = col.Count;
                 else { int n = 0; foreach (var _ in src) n++; total = n; }
+            }
+            else if (Count > 0)
+            {
+                // 还没挂上 DataGrid（或表格为空）时退回显式绑定的 Count：
+                // IoPage / VariablePage / FlowPage 都写了 Count="{Binding Items.Count}"。
+                total = Count;
             }
 
             if (string.IsNullOrEmpty(_lastKeyword))
