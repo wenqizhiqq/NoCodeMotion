@@ -1,0 +1,292 @@
+﻿diff --git a/Views/AxisPage.xaml b/Views/AxisPage.xaml
+index 72cf1d9..b8be7fb 100644
+--- a/Views/AxisPage.xaml
++++ b/Views/AxisPage.xaml
+@@ -11,7 +11,7 @@
+         HintOperation="宸︿晶閫夋嫨杞村悗鍦ㄥ彸渚у～鍐欏悕绉般€佽酱绫诲瀷銆佽酱鍙蜂笌杩愬姩鍙傛暟锛涚偣銆屾坊鍔犮€嶆柊寤鸿酱銆併€屽垹闄ゃ€嶇Щ闄ら€変腑杞淬€併€岄噸鍛藉悕銆嶆敼鍚嶇О銆?
+         HintPrecaution="淇敼鑴夊啿褰撻噺銆佽蒋闄愪綅鎴栧洖闆跺弬鏁板悗闇€閲嶆柊鍥為浂锛涗娇鑳藉墠纭鏈烘鏃犲共娑夛紝鎬ュ仠蹇呴』鏈夋晥銆?>
+         <local:EditorPage.Detail>
+-            <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}">
++            
+                 <!-- 椤垫爣棰?-->
+                 <StackPanel DockPanel.Dock="Top" Style="{StaticResource PageHeaderPanel}">
+                     <Path Style="{StaticResource PageHeaderIcon}" Data="{StaticResource AxisIcon}"/>
+@@ -24,45 +24,57 @@
+                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="鍩烘湰淇℃伅"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鍚嶇О"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鍞竴鏍囪瘑鍚嶇О锛屼緵鐐逛綅涓庢祦绋嬪紩鐢?>
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="杞寸被鍨?/>
+-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.AxisType}" SelectedValuePath="Content">
+-                                    <ComboBoxItem Content="鑴夊啿"/>
+-                                    <ComboBoxItem Content="鎬荤嚎"/>
+-                                    <ComboBoxItem Content="EtherCAT"/>
+-                                    <ComboBoxItem Content="CANopen"/>
+-                                    <ComboBoxItem Content="妯℃嫙閲?/>
+-                                    <ComboBoxItem Content="铏氭嫙杞?/>
+-                                </ComboBox>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鑴夊啿/鎬荤嚎/EtherCAT 绛夐┍鍔ㄦ柟寮?>
++    <ComboBox Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.AxisType}" SelectedValuePath="Content">
++                                        <ComboBoxItem Content="鑴夊啿"/>
++                                        <ComboBoxItem Content="鎬荤嚎"/>
++                                        <ComboBoxItem Content="EtherCAT"/>
++                                        <ComboBoxItem Content="CANopen"/>
++                                        <ComboBoxItem Content="妯℃嫙閲?/>
++                                        <ComboBoxItem Content="铏氭嫙杞?/>
++                                    </ComboBox>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="杞村彿"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.AxisNo}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鎺у埗鍣ㄤ腑璇ヨ酱鐨勭墿鐞嗘垨閫昏緫缂栧彿">
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.AxisNo}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鍗曚綅"/>
+-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.Unit}" SelectedValuePath="Content">
+-                                    <ComboBoxItem Content="mm"/>
+-                                    <ComboBoxItem Content="掳"/>
+-                                    <ComboBoxItem Content="鑴夊啿"/>
+-                                    <ComboBoxItem Content="um"/>
+-                                    <ComboBoxItem Content="鑷畾涔?/>
+-                                </ComboBox>
++                                                                <local:Field DockPanel.Dock="Right" Hint="浣嶇疆鏄剧ず涓庤瀹氱殑璁￠噺鍗曚綅">
++    <ComboBox Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.Unit}" SelectedValuePath="Content">
++                                        <ComboBoxItem Content="mm"/>
++                                        <ComboBoxItem Content="掳"/>
++                                        <ComboBoxItem Content="鑴夊啿"/>
++                                        <ComboBoxItem Content="um"/>
++                                        <ComboBoxItem Content="鑷畾涔?/>
++                                    </ComboBox>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鎺у埗鍣?/>
+-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" ItemsSource="{x:Static svc:Catalog.ControllerNames}" SelectedItem="{Binding SelectedItem.Controller, UpdateSourceTrigger=PropertyChanged}" ToolTip="閫夋嫨璇ヨ酱鎵€灞炵殑鎺у埗鍣紙鍦ㄣ€屾帶鍒跺櫒銆嶉〉闈㈡坊鍔狅級"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="璇ヨ酱鎵€灞炵殑鎺у埗鍣ㄨ澶?>
++    <ComboBox Style="{StaticResource CellComboStyle}" ItemsSource="{x:Static svc:Catalog.ControllerNames}" SelectedItem="{Binding SelectedItem.Controller, UpdateSourceTrigger=PropertyChanged}" ToolTip="閫夋嫨璇ヨ酱鎵€灞炵殑鎺у埗鍣紙鍦ㄣ€屾帶鍒跺櫒銆嶉〉闈㈡坊鍔狅級"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="浣胯兘"/>
+-                                <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.Enabled}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鏄惁鍏佽璇ヨ酱涓婄數浣胯兘">
++    <CheckBox Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.Enabled}"/>
++                                </local:Field>
+                             </DockPanel>
+                         </StackPanel>
+                     </Border>
+@@ -73,27 +85,37 @@
+                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="杩愬姩鍙傛暟"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鑴夊啿褰撻噺"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PulsePerUnit}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="姣忓崟浣嶄綅绉诲搴旂殑鑴夊啿鏁?>
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PulsePerUnit}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="杩愯閫熷害"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Speed}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="姝ｅ父杩愯鐨勭洰鏍囬€熷害锛堝崟浣?绉掞級">
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Speed}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鍔犻€熷害"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Accel}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="杩愬姩鍔犻€熸椂鐨勫姞閫熷害鍙傛暟">
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Accel}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鍑忛€熷害"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Decel}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="杩愬姩鍑忛€熸椂鐨勫噺閫熷害鍙傛暟">
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Decel}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鍔犲姞閫熷害"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Jerk}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鍔犲姞閫熷害 jerk锛岀敤浜庡钩婊戝姞鍑忛€?>
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Jerk}"/>
++                                </local:Field>
+                             </DockPanel>
+                         </StackPanel>
+                     </Border>
+@@ -104,31 +126,39 @@
+                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="鍥為浂鍙傛暟"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鍥為浂鏂瑰紡"/>
+-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.HomeMode}" SelectedValuePath="Content">
+-                                    <ComboBoxItem Content="鍘熺偣寮€鍏?闄愪綅"/>
+-                                    <ComboBoxItem Content="浠呮闄愪綅"/>
+-                                    <ComboBoxItem Content="浠呰礋闄愪綅"/>
+-                                    <ComboBoxItem Content="缂栫爜鍣╖鐩?/>
+-                                    <ComboBoxItem Content="褰撳墠浣嶇疆璁鹃浂"/>
+-                                    <ComboBoxItem Content="璐熷悜闄愪綅鍥為浂"/>
+-                                    <ComboBoxItem Content="姝ｅ悜闄愪綅鍥為浂"/>
+-                                    <ComboBoxItem Content="绱㈠紩鍥為浂"/>
+-                                </ComboBox>
++                                                                <local:Field DockPanel.Dock="Right" Hint="瀵绘壘鏈烘闆剁偣鐨勬柟寮?>
++    <ComboBox Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.HomeMode}" SelectedValuePath="Content">
++                                        <ComboBoxItem Content="鍘熺偣寮€鍏?闄愪綅"/>
++                                        <ComboBoxItem Content="浠呮闄愪綅"/>
++                                        <ComboBoxItem Content="浠呰礋闄愪綅"/>
++                                        <ComboBoxItem Content="缂栫爜鍣╖鐩?/>
++                                        <ComboBoxItem Content="褰撳墠浣嶇疆璁鹃浂"/>
++                                        <ComboBoxItem Content="璐熷悜闄愪綅鍥為浂"/>
++                                        <ComboBoxItem Content="姝ｅ悜闄愪綅鍥為浂"/>
++                                        <ComboBoxItem Content="绱㈠紩鍥為浂"/>
++                                    </ComboBox>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鍥為浂閫熷害"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.HomeSpeed}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鍥為浂杩愬姩閫熷害锛堝崟浣?绉掞級">
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.HomeSpeed}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鐖閫熷害"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.CreepSpeed}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鎺ヨ繎闆剁偣鏃剁殑浣庨€燂紙鍗曚綅/绉掞級">
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.CreepSpeed}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鍘熺偣鍋忕Щ"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.HomeOffset}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鍥為浂鍚庣浉瀵规満姊伴浂鐐圭殑鍋忕Щ閲?>
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.HomeOffset}"/>
++                                </local:Field>
+                             </DockPanel>
+                         </StackPanel>
+                     </Border>
+@@ -139,17 +169,23 @@
+                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="闄愪綅涓庝繚鎶?/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="杞闄愪綅"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PosLimitPlus}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="杞欢姝ｆ柟鍚戣绋嬩繚鎶よ竟鐣?>
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PosLimitPlus}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="杞礋闄愪綅"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PosLimitMinus}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="杞欢璐熸柟鍚戣绋嬩繚鎶よ竟鐣?>
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PosLimitMinus}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鍒颁綅璇樊"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.InPosError}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鍒ゅ畾鍒拌揪鐩爣鐨勫厑璁镐綅缃亸宸?>
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.InPosError}"/>
++                                </local:Field>
+                             </DockPanel>
+                         </StackPanel>
+                     </Border>
+@@ -160,46 +196,58 @@
+                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="鐢靛钩涓庣紪鐮佸櫒"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="浣胯兘鐢靛钩"/>
+-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.EnableLevel}" SelectedValuePath="Content">
+-                                    <ComboBoxItem Content="楂樼數骞?/>
+-                                    <ComboBoxItem Content="浣庣數骞?/>
+-                                </ComboBox>
++                                                                <local:Field DockPanel.Dock="Right" Hint="浣胯兘淇″彿鐨勬湁鏁堢數骞?>
++    <ComboBox Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.EnableLevel}" SelectedValuePath="Content">
++                                        <ComboBoxItem Content="楂樼數骞?/>
++                                        <ComboBoxItem Content="浣庣數骞?/>
++                                    </ComboBox>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鏂瑰悜鐢靛钩"/>
+-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.DirLevel}" SelectedValuePath="Content">
+-                                    <ComboBoxItem Content="姝ｅ悜"/>
+-                                    <ComboBoxItem Content="璐熷悜"/>
+-                                </ComboBox>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鏂瑰悜淇″彿鐨勬湁鏁堢數骞?>
++    <ComboBox Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.DirLevel}" SelectedValuePath="Content">
++                                        <ComboBoxItem Content="姝ｅ悜"/>
++                                        <ComboBoxItem Content="璐熷悜"/>
++                                    </ComboBox>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鎶ヨ鐢靛钩"/>
+-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.AlarmLevel}" SelectedValuePath="Content">
+-                                    <ComboBoxItem Content="楂樼數骞?/>
+-                                    <ComboBoxItem Content="浣庣數骞?/>
+-                                    <ComboBoxItem Content="鏃?/>
+-                                </ComboBox>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鎶ヨ淇″彿鐨勬湁鏁堢數骞?>
++    <ComboBox Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.AlarmLevel}" SelectedValuePath="Content">
++                                        <ComboBoxItem Content="楂樼數骞?/>
++                                        <ComboBoxItem Content="浣庣數骞?/>
++                                        <ComboBoxItem Content="鏃?/>
++                                    </ComboBox>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缂栫爜鍣ㄧ被鍨?/>
+-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.EncoderType}" SelectedValuePath="Content">
+-                                    <ComboBoxItem Content="鏃?/>
+-                                    <ComboBoxItem Content="澧為噺寮?/>
+-                                    <ComboBoxItem Content="缁濆寮?/>
+-                                </ComboBox>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鍙嶉缂栫爜鍣ㄧ被鍨嬶紙鏃?澧為噺/缁濆锛?>
++    <ComboBox Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.EncoderType}" SelectedValuePath="Content">
++                                        <ComboBoxItem Content="鏃?/>
++                                        <ComboBoxItem Content="澧為噺寮?/>
++                                        <ComboBoxItem Content="缁濆寮?/>
++                                    </ComboBox>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缂栫爜鍣ㄥ垎杈ㄧ巼"/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.EncoderRes}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="缂栫爜鍣ㄧ嚎鏁帮紙姣忚浆鑴夊啿鏁帮級">
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.EncoderRes}"/>
++                                </local:Field>
+                             </DockPanel>
+                             <Rectangle Style="{StaticResource AppleHairline}"/>
+                             <DockPanel Style="{StaticResource AppleRow}">
+                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="鎬ュ仠鍑忛€?/>
+-                                <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.EStopDecel}"/>
++                                                                <local:Field DockPanel.Dock="Right" Hint="鎬ュ仠鏃剁殑鍑忛€熷害">
++    <TextBox Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.EStopDecel}"/>
++                                </local:Field>
+                             </DockPanel>
+                         </StackPanel>
+                     </Border>

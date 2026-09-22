@@ -1,0 +1,21 @@
+﻿==== Views/AxisPage.xaml
+名称 | 轴类型 | 轴号 | 单位 | 控制器 | 使能 | 脉冲当量 | 运行速度 | 加速度 | 减速度 | 加加速度 | 回零方式 | 回零速度 | 爬行速度 | 原点偏移 | 软正限位 | 软负限位 | 到位误差 | 使能电平 | 方向电平 | 报警电平 | 编码器类型 | 编码器分辨率 | 急停减速
+count=24
+==== Views/IoPage.xaml
+
+count=0
+==== Views/CylinderPage.xaml
+名称 | 设备编号 | 气缸类型 | 默认动作 | 初始状态 | 备注 | 动作延时 | 伸出延时 | 缩回延时 | 伸出速度 | 缩回速度 | 到位容差 | 输出点 | 伸出感应 | 缩回感应 | 感应类型 | 备用感应 | 互锁使能 | 双线圈 | 报警使能 | 手动使能 | 动作超时 | 脉冲输出 | 脉冲宽度 | 关联轴
+count=25
+==== Views/VariablePage.xaml
+
+count=0
+==== Views/CommPage.xaml
+
+count=0
+==== Views/TrayPage.xaml
+名称 | 行数 | 列数 | 起始X | 起始Y | 间距X | 间距Y
+count=7
+==== Views/CameraPage.xaml
+名称 | 品牌 | IP 地址 | 端口 | 分辨率 | 曝光 (ms) | 增益 | 触发模式 | 备注
+count=9

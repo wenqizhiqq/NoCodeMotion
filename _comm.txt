@@ -1,0 +1,264 @@
+   1: <UserControl x:Class="NoCodeMotion.Views.CommPage"
+   2:              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+   3:              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+   4:              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+   5:              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+   6:              xmlns:local="clr-namespace:NoCodeMotion.Views"
+   7:              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+   8:              xmlns:hc="https://handyorg.github.io/handycontrol"
+   9:              mc:Ignorable="d" d:DesignHeight="720" d:DesignWidth="820">
+  10: 
+  11:     <UserControl.Resources>
+  12:         <local:CommTypeVisibilityConverter x:Key="TypeVisible"/>
+  13: 
+  14:     </UserControl.Resources>
+  15: 
+  16:     <local:EditorPage
+  17:         HintOperation="配置串口 / 网口参数与协议；在日志区查看收发；点「清空日志」清理输出。"
+  18:         HintPrecaution="端口被占用会打不开；Modbus 从站地址与寄存器范围勿越界；修改参数后重新连接。">
+  19:         <local:EditorPage.Detail>
+  20:             <Border Background="{StaticResource CanvasBrush}">
+  21:                 <StackPanel Margin="14">
+  22:                     <!-- 页标题 -->
+  23:                     <StackPanel Style="{StaticResource PageHeaderPanel}">
+  24:                         <Path Style="{StaticResource PageHeaderIcon}" Data="{StaticResource CommIcon}"/>
+  25:                         <TextBlock Style="{StaticResource PageHeaderTitle}" Text="通讯"/>
+  26:                     </StackPanel>
+  27: 
+  28:                     <!-- 通讯类型（驱动其余参数显隐）-->
+  29:                     <Border Style="{StaticResource AppleGroupCard}" Padding="12,10">
+  30:                         <StackPanel>
+  31:                             <TextBlock Text="通讯类型" Style="{StaticResource AppleSectionHeader}"/>
+  32:                             <ListBox ItemsSource="{Binding CommTypeOptions}"
+  33:                                     SelectedItem="{Binding SelectedItem.CommType}"
+  34:                                     Style="{StaticResource ApplePillList}"/>
+  35:                         </StackPanel>
+  36:                     </Border>
+  37: 
+  38:                     <!-- 参数芯片流（按类型动态显隐）-->
+  39:                     <WrapPanel Margin="0,0,0,4">
+  40:                         <!-- 通用 -->
+  41:                         <Border Style="{StaticResource AppleChip}">
+  42:                             <StackPanel>
+  43:                                 <TextBlock Text="名称" Style="{StaticResource AppleChipLabel}"/>
+  44:                                 <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
+  45:                             </StackPanel>
+  46:                         </Border>
+  47:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
+  48:                             <StackPanel>
+  49:                                 <TextBlock Text="串口号" Style="{StaticResource AppleChipLabel}"/>
+  50:                                 <TextBox Text="{Binding SelectedItem.PortOrIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
+  51:                             </StackPanel>
+  52:                         </Border>
+  53:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口|西门子S7|三菱MC'}">
+  54:                             <StackPanel>
+  55:                                 <TextBlock Text="端口 / IP" Style="{StaticResource AppleChipLabel}"/>
+  56:                                 <TextBox Text="{Binding SelectedItem.PortOrIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
+  57:                             </StackPanel>
+  58:                         </Border>
+  59:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
+  60:                             <StackPanel>
+  61:                                 <TextBlock Text="波特率" Style="{StaticResource AppleChipLabel}"/>
+  62:                                 <TextBox Text="{Binding SelectedItem.BaudOrPort}" Style="{StaticResource AppleNumField}"/>
+  63:                             </StackPanel>
+  64:                         </Border>
+  65:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口|西门子S7|三菱MC'}">
+  66:                             <StackPanel>
+  67:                                 <TextBlock Text="端口号" Style="{StaticResource AppleChipLabel}"/>
+  68:                                 <TextBox Text="{Binding SelectedItem.BaudOrPort}" Style="{StaticResource AppleNumField}"/>
+  69:                             </StackPanel>
+  70:                         </Border>
+  71:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
+  72:                             <StackPanel>
+  73:                                 <TextBlock Text="数据位" Style="{StaticResource AppleChipLabel}"/>
+  74:                                 <ComboBox ItemsSource="{Binding DataBitsOptions}" MinWidth="90" HorizontalAlignment="Left"
+  75:                                           SelectedValue="{Binding SelectedItem.DataBits, TargetNullValue=8}" SelectedValuePath="."/>
+  76:                             </StackPanel>
+  77:                         </Border>
+  78:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
+  79:                             <StackPanel>
+  80:                                 <TextBlock Text="校验位" Style="{StaticResource AppleChipLabel}"/>
+  81:                                 <ComboBox ItemsSource="{Binding ParityOptions}" MinWidth="90" HorizontalAlignment="Left"
+  82:                                           SelectedValue="{Binding SelectedItem.Parity}" SelectedValuePath="."/>
+  83:                             </StackPanel>
+  84:                         </Border>
+  85:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
+  86:                             <StackPanel>
+  87:                                 <TextBlock Text="停止位" Style="{StaticResource AppleChipLabel}"/>
+  88:                                 <ComboBox ItemsSource="{Binding StopBitsOptions}" MinWidth="90" HorizontalAlignment="Left"
+  89:                                           SelectedValue="{Binding SelectedItem.StopBits}" SelectedValuePath="."/>
+  90:                             </StackPanel>
+  91:                         </Border>
+  92:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
+  93:                             <StackPanel>
+  94:                                 <TextBlock Text="流控" Style="{StaticResource AppleChipLabel}"/>
+  95:                                 <ListBox ItemsSource="{Binding FlowControlOptions}" SelectedItem="{Binding FlowControl}" Style="{StaticResource ApplePillList}"/>
+  96:                             </StackPanel>
+  97:                         </Border>
+  98:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='ModbusTCP|ModbusRTU'}">
+  99:                             <StackPanel>
+ 100:                                 <TextBlock Text="从站地址" Style="{StaticResource AppleChipLabel}"/>
+ 101:                                 <TextBox Text="{Binding SlaveAddress, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
+ 102:                             </StackPanel>
+ 103:                         </Border>
+ 104:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='ModbusTCP|ModbusRTU'}">
+ 105:                             <StackPanel>
+ 106:                                 <TextBlock Text="字节序" Style="{StaticResource AppleChipLabel}"/>
+ 107:                                 <ListBox ItemsSource="{Binding EndianOptions}" SelectedItem="{Binding Endian}" Style="{StaticResource ApplePillList}"/>
+ 108:                             </StackPanel>
+ 109:                         </Border>
+ 110:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='西门子S7'}">
+ 111:                             <StackPanel>
+ 112:                                 <TextBlock Text="机架 Rack" Style="{StaticResource AppleChipLabel}"/>
+ 113:                                 <TextBox Text="{Binding Rack}" Style="{StaticResource AppleNumField}"/>
+ 114:                             </StackPanel>
+ 115:                         </Border>
+ 116:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='西门子S7'}">
+ 117:                             <StackPanel>
+ 118:                                 <TextBlock Text="槽位 Slot" Style="{StaticResource AppleChipLabel}"/>
+ 119:                                 <TextBox Text="{Binding Slot}" Style="{StaticResource AppleNumField}"/>
+ 120:                             </StackPanel>
+ 121:                         </Border>
+ 122:                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='三菱MC'}">
+ 123:                             <StackPanel>
+ 124:                                 <TextBlock Text="网络号" Style="{StaticResource AppleChipLabel}"/>
+ 125:                                 <TextBox Text="{Binding NetworkNo}" Style="{StaticResource AppleNumField}"/>
+ 126:                             </StackPanel>
+ 127:                         </Border>
+ 128:                         <Border Style="{StaticResource AppleChip}">
+ 129:                             <StackPanel>
+ 130:                                 <TextBlock Text="超时" Style="{StaticResource AppleChipLabel}"/>
+ 131:                                 <DockPanel LastChildFill="False">
+ 132:                                     <TextBox DockPanel.Dock="Right" Text="{Binding SelectedItem.TimeoutMs}" Style="{StaticResource AppleNumField}"/>
+ 133:                                     <TextBlock DockPanel.Dock="Right" Text="ms" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
+ 134:                                 </DockPanel>
+ 135:                             </StackPanel>
+ 136:                         </Border>
+ 137:                         <Border Style="{StaticResource AppleChip}">
+ 138:                             <StackPanel>
+ 139:                                 <TextBlock Text="重试次数" Style="{StaticResource AppleChipLabel}"/>
+ 140:                                 <DockPanel LastChildFill="False">
+ 141:                                     <TextBox DockPanel.Dock="Right" Text="{Binding RetryCount}" Style="{StaticResource AppleNumField}"/>
+ 142:                                     <TextBlock DockPanel.Dock="Right" Text="次" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
+ 143:                                 </DockPanel>
+ 144:                             </StackPanel>
+ 145:                         </Border>
+ 146:                         <Border Style="{StaticResource AppleChip}">
+ 147:                             <StackPanel>
+ 148:                                 <TextBlock Text="轮询间隔" Style="{StaticResource AppleChipLabel}"/>
+ 149:                                 <DockPanel LastChildFill="False">
+ 150:                                     <TextBox DockPanel.Dock="Right" Text="{Binding PollIntervalMs}" Style="{StaticResource AppleNumField}"/>
+ 151:                                     <TextBlock DockPanel.Dock="Right" Text="ms" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
+ 152:                                 </DockPanel>
+ 153:                             </StackPanel>
+ 154:                         </Border>
+ 155:                         <Border Style="{StaticResource AppleChip}">
+ 156:                             <DockPanel LastChildFill="False">
+ 157:                                 <TextBlock DockPanel.Dock="Left" Text="自动重连" Style="{StaticResource AppleLabel}"/>
+ 158:                                 <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding AutoReconnect}"/>
+ 159:                             </DockPanel>
+ 160:                         </Border>
+ 161:                         <Border Style="{StaticResource AppleChip}">
+ 162:                             <DockPanel LastChildFill="False">
+ 163:                                 <TextBlock DockPanel.Dock="Left" Text="详细日志" Style="{StaticResource AppleLabel}"/>
+ 164:                                 <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding VerboseLog}"/>
+ 165:                             </DockPanel>
+ 166:                         </Border>
+ 167:                         <Border Style="{StaticResource AppleChip}">
+ 168:                             <DockPanel LastChildFill="False">
+ 169:                                 <TextBlock DockPanel.Dock="Left" Text="保活心跳" Style="{StaticResource AppleLabel}"/>
+ 170:                                 <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding KeepAlive}"/>
+ 171:                             </DockPanel>
+ 172:                         </Border>
+ 173:                     </WrapPanel>
+ 174: 
+ 175:                     <!-- 调试操作 -->
+ 176:                     <Border Style="{StaticResource AppleGroupCard}" Padding="12,10">
+ 177:                         <StackPanel>
+ 178:                             <TextBlock Text="调试操作" Style="{StaticResource AppleSectionHeader}"/>
+ 179: 
+ 180:                             <DockPanel Margin="0,0,0,8" LastChildFill="False">
+ 181:                                 <TextBlock DockPanel.Dock="Left" Text="连接状态" Style="{StaticResource AppleLabel}"/>
+ 182:                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+ 183:                                     <Border Background="{StaticResource AccentSoftBrush}" CornerRadius="14" Padding="10,4" VerticalAlignment="Center">
+ 184:                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+ 185:                                             <Ellipse Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,7,0">
+ 186:                                                 <Ellipse.Style>
+ 187:                                                     <Style TargetType="Ellipse">
+ 188:                                                         <Setter Property="Fill" Value="{StaticResource TextMutedBrush}"/>
+ 189:                                                         <Style.Triggers>
+ 190:                                                             <DataTrigger Binding="{Binding IsConnected}" Value="True">
+ 191:                                                                 <Setter Property="Fill" Value="{StaticResource SuccessBrush}"/>
+ 192:                                                             </DataTrigger>
+ 193:                                                         </Style.Triggers>
+ 194:                                                     </Style>
+ 195:                                                 </Ellipse.Style>
+ 196:                                             </Ellipse>
+ 197:                                             <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource AccentBrush}" FontSize="13" VerticalAlignment="Center"/>
+ 198:                                         </StackPanel>
+ 199:                                     </Border>
+ 200:                                     <TextBlock Text="{Binding PingResult, StringFormat='延迟 {0}'}" Margin="10,0,0,0"
+ 201:                                                Foreground="{StaticResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center"/>
+ 202:                                 </StackPanel>
+ 203:                             </DockPanel>
+ 204: 
+ 205:                             <WrapPanel Margin="0,0,0,8">
+ 206:                                 <Button Style="{StaticResource AppleBtn}" Command="{Binding TestConnectionCommand}">
+ 207:                                     <StackPanel Orientation="Horizontal">
+ 208:                                         <Path Data="{StaticResource SignalIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+ 209:                                         <TextBlock Text="测试连接" VerticalAlignment="Center"/>
+ 210:                                     </StackPanel>
+ 211:                                 </Button>
+ 212:                                 <Button Style="{StaticResource AppleBtn}" Command="{Binding OpenCommand}">
+ 213:                                     <StackPanel Orientation="Horizontal">
+ 214:                                         <Path Data="{StaticResource LinkIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+ 215:                                         <TextBlock Text="打开连接" VerticalAlignment="Center"/>
+ 216:                                     </StackPanel>
+ 217:                                 </Button>
+ 218:                                 <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding CloseCommand}">
+ 219:                                     <StackPanel Orientation="Horizontal">
+ 220:                                         <Path Data="{StaticResource StopIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+ 221:                                         <TextBlock Text="关闭连接" VerticalAlignment="Center"/>
+ 222:                                     </StackPanel>
+ 223:                                 </Button>
+ 224:                                 <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding AutoScanCommand}">
+ 225:                                     <StackPanel Orientation="Horizontal">
+ 226:                                         <Path Data="{StaticResource SearchIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+ 227:                                         <TextBlock Text="自动扫描端口" VerticalAlignment="Center"/>
+ 228:                                     </StackPanel>
+ 229:                                 </Button>
+ 230:                                 <Button Style="{StaticResource TtDeleteBtn}" Command="{Binding ClearLogCommand}">
+ 231:                                     <StackPanel Orientation="Horizontal">
+ 232:                                         <Path Data="{StaticResource EraserIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+ 233:                                         <TextBlock Text="清空日志" VerticalAlignment="Center"/>
+ 234:                                     </StackPanel>
+ 235:                                 </Button>
+ 236:                             </WrapPanel>
+ 237: 
+ 238:                             <DockPanel LastChildFill="True" Margin="0,0,0,8">
+ 239:                                 <TextBlock DockPanel.Dock="Left" Text="命令预设" Style="{StaticResource AppleLabel}" Margin="0,0,10,0"/>
+ 240:                                 <Button DockPanel.Dock="Right" Content="应用预设" Style="{StaticResource AppleBtnSecondary}" Margin="8,0,0,0" Command="{Binding ApplyPresetCommand}"/>
+ 241:                                 <ComboBox ItemsSource="{Binding CommandPresets}"
+ 242:                                           SelectedItem="{Binding SelectedPreset, UpdateSourceTrigger=PropertyChanged}"
+ 243:                                           BorderThickness="1" BorderBrush="{StaticResource LineBrush}"
+ 244:                                           Background="{StaticResource SurfaceBrush}" VerticalAlignment="Center" Padding="6"
+ 245:                                           ToolTip="选中常用报文模板，点「应用预设」填入发送框后再编辑发送。"/>
+ 246:                             </DockPanel>
+ 247: 
+ 248:                             <DockPanel LastChildFill="True" Margin="0,0,0,8">
+ 249:                                 <TextBlock DockPanel.Dock="Left" Text="发送" Style="{StaticResource AppleLabel}" Margin="0,0,10,0"/>
+ 250:                                 <Button DockPanel.Dock="Right" Content="发送" Style="{StaticResource AppleBtn}" Margin="8,0,0,0" Command="{Binding SendCommand}"/>
+ 251:                                 <TextBox Text="{Binding SendText, UpdateSourceTrigger=PropertyChanged}" BorderThickness="1"
+ 252:                                          BorderBrush="{StaticResource LineBrush}" Background="{StaticResource SurfaceBrush}"
+ 253:                                          VerticalAlignment="Center" Padding="8,6" FontSize="13"/>
+ 254:                             </DockPanel>
+ 255: 
+ 256:                             <ListBox ItemsSource="{Binding DebugLog}" Height="110" Style="{StaticResource AppleTerminal}"/>
+ 257:                         </StackPanel>
+ 258:                     </Border>
+ 259:                 </StackPanel>
+ 260:             </Border>
+ 261:         </local:EditorPage.Detail>
+ 262:     </local:EditorPage>
+ 263: </UserControl>
+ 264: 

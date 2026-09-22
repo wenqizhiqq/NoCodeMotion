@@ -6,6 +6,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using MoonSharp.Interpreter;
 using NoCodeMotion.Models;
@@ -26,16 +27,45 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
     ///   - 控制卡不在（没插卡 / 没装驱动 / 库位数不符）时不崩：轴 IO 动作只记警告日志，
     ///     通讯部分照样真实可用，方便先接 PLC 调流程。
     ///   - 出错信息全中文，直接显示在 Lua 输出面板。
+    ///
+    /// ★ 脉冲卡与总线卡（EtherCAT，DMC-E 3000 / 5000 系列）的差异
+    ///   —— 下面每条都对着官方例程核过，不是猜的：
+    ///
+    ///   1) 运动指令两卡通用，都走 dmc_ 族（官方例 1「定长运动」、例 7「回原点运动」实测）：
+    ///      dmc_set_profile_unit → dmc_pmove_unit / dmc_vmove、dmc_get_position_unit(带 ref 出参)、
+    ///      dmc_check_done、dmc_set_position_unit、dmc_change_speed_unit、dmc_stop。
+    ///      也就是说总线卡上「轴号」仍然是一个整数索引，不需要换算成从站地址。
+    ///
+    ///   2) 伺服使能不一样（这是「指令返回 0 但轴不动」的头号原因）：
+    ///      总线卡 → nmc_set_axis_enable / nmc_set_axis_disable（CiA402 状态机，总线伺服没有本地使能脚）；
+    ///      脉冲卡 → dmc_write_sevon_pin（本地使能脚，雷赛默认低电平有效）。
+    ///      总线轴只有在状态机 = 4（操作使能）时才会动，本类会在使能后与超时时把这个值打出来。
+    ///
+    ///   3) 回零参数下发不一样：
+    ///      总线卡 → nmc_set_home_profile(卡号, 轴号, 回零模式, 低速, 高速, 加速时间, 减速时间, 零点偏移)
+    ///               + nmc_home_move(卡号, 轴号)；
+    ///      脉冲卡 → dmc_set_home_profile_unit + dmc_home_move。
+    ///      回零是否完成统一读 dmc_get_home_result（state=1 为成功；LTDMC.dll 里没有 dmc_check_home_done）。
+    ///      以上分派由 <see cref="LtdmcCard.Home"/> 自动完成。
+    ///
+    ///   4) IO 寻址：官方例 8 在总线卡上仍然是 dmc_read_inbit(卡号, 位号) / dmc_write_outbit(卡号, 位号)
+    ///      按「整卡位号」逐位访问，点数从 nmc_get_total_ionum 读。
+    ///      官方 19 个例程里没有任何一个用 nmc_read_inbit，所以本类默认沿用整卡位号，
+    ///      不擅自改成「从站节点号 + 站内位号」，免得现有接线静默读错点。
+    ///      若你的 EtherCAT IO 从站必须按节点号访问，把 <see cref="Options.BusIoAddressing"/> 设为 true。
+    ///
+    ///   5) 诊断：总线卡看 nmc_get_axis_state_machine + nmc_get_axis_errcode + nmc_get_errcode(卡号, 2)，
+    ///      脉冲卡看 dmc_axis_io_status + dmc_get_stop_reason。超时异常里会带上这些读数。
     /// </summary>
     public sealed class LeadshineHardwareBridge : IHardwareBridge, IDisposable
     {
         /// <summary>可调参数（按现场接线习惯改这里即可）。</summary>
         public static class Options
         {
-            /// <summary>默认卡号（单卡系统固定 0）。</summary>
+            /// <summary>默认卡号（单卡系统固定 0）。卡初始化成功后会自动改用探测到的实际卡号。</summary>
             public static ushort DefaultCardNo = 0;
 
-            /// <summary>每个 IO 扩展模块占多少位（用于把「模块号 + 序号」换算成雷赛位号）。</summary>
+            /// <summary>每个 IO 扩展模块占多少位（用于把「模块号 + 序号」换算成雷赛整卡位号）。</summary>
             public static ushort BitsPerModule = 16;
 
             /// <summary>等待轴到位的最长时间。</summary>
@@ -44,11 +74,20 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             /// <summary>等待 IO / 气缸的默认最长时间。</summary>
             public static int IoWaitTimeoutMs = 30000;
 
-            /// <summary>伺服使能脚是否低电平有效（雷赛默认写 0 使能）。</summary>
+            /// <summary>伺服使能脚是否低电平有效（雷赛脉冲卡默认写 0 使能）。总线卡不使用该脚。</summary>
             public static bool ServoLowActive = true;
 
             /// <summary>轮询间隔。</summary>
             public static int PollIntervalMs = 5;
+
+            /// <summary>
+            /// 总线 IO 寻址方式。
+            ///   null / false（默认）= 整卡位号：位号 = 模块号 × <see cref="BitsPerModule"/> + 序号，
+            ///                        调 dmc_read_inbit / dmc_write_outbit（与官方例 8 一致）；
+            ///   true              = 从站节点号 + 站内位号：节点号取「模块」列、位号取「序号」列，
+            ///                        调 nmc_read_inbit / nmc_write_outbit。
+            /// </summary>
+            public static bool? BusIoAddressing = null;
         }
 
         private readonly LtdmcCard _card = new LtdmcCard();
@@ -57,6 +96,7 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
         private readonly ConcurrentDictionary<string, int> _trayIndex = new ConcurrentDictionary<string, int>();
         private bool _cardReady;
         private bool _warnedNoCard;
+        private bool _warnedBusIo;
 
         public LeadshineHardwareBridge(Action<string> log = null)
         {
@@ -66,16 +106,29 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
 
             _cardReady = _card.TryInitialize(out string message);
             Log(_cardReady ? "[雷赛] " + message : "[雷赛] " + message + "（轴 / IO 动作将只记录日志，通讯功能仍然可用）");
+
+            if (_cardReady)
+            {
+                Log("[雷赛] 寻址方式：轴运动走 dmc_ 族（脉冲卡 / 总线卡通用）；伺服使能与回零走 "
+                    + (LtdmcCard.IsBusCard ? "nmc_ 族（总线卡）" : "dmc_ 族（脉冲卡）"));
+            }
         }
 
         /// <summary>控制卡是否可用（供界面显示对接状态）。</summary>
         public bool IsCardReady => _cardReady;
+
+        /// <summary>探测到的第一张卡的信息（卡号 / 卡型 / 轴数 / 从站数 / 总线错误码），未初始化时为 null。</summary>
+        public LtdmcCard.CardInfo Card => LtdmcCard.FirstCard;
+
+        /// <summary>当前卡是否为总线卡（EtherCAT / CANopen 主站）。</summary>
+        public bool IsBusCard => LtdmcCard.IsBusCard;
 
         /// <summary>重新初始化控制卡（插好卡 / 装好驱动后可在界面上点“重连”）。</summary>
         public bool Reconnect(out string message)
         {
             _cardReady = _card.TryInitialize(out message);
             _warnedNoCard = false;
+            _warnedBusIo = false;
             Log("[雷赛] 重连结果：" + message);
             return _cardReady;
         }
@@ -109,12 +162,19 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             var (card, no) = Addr(axis);
             ushort mode = ParseHomeMode(axis.HomeMode);
 
+            WarnIfAxisCardMismatch(axis, card);
+            WarnIfBusAxisNotEnabled(axis, card, no);
+
             Guard(() =>
             {
                 EnsureProfile(axis, card, no);
-                _card.Home(card, no, mode, axis.CreepSpeed, axis.HomeSpeed, axis.Accel, axis.Decel);
+                // 总线卡 / 脉冲卡的回零参数下发函数不同，由 LtdmcCard.Home 按卡型自动分派：
+                //   总线卡：nmc_set_home_profile(含回零模式与零点偏移) + nmc_home_move
+                //   脉冲卡：dmc_set_home_profile_unit + dmc_home_move
+                _card.Home(card, no, mode, axis.CreepSpeed, axis.HomeSpeed, axis.Accel, axis.Decel, axis.HomeOffset);
             });
-            Log($"[雷赛] 轴「{axis.Name}」开始回零（模式={axis.HomeMode}→{mode} 高速={axis.HomeSpeed} 爬行={axis.CreepSpeed}）");
+            Log($"[雷赛] 轴「{axis.Name}」开始回零（模式={axis.HomeMode}→{mode} 高速={axis.HomeSpeed} 爬行={axis.CreepSpeed}，"
+                + (LtdmcCard.IsBusCard ? "总线卡：nmc_set_home_profile + nmc_home_move）" : "脉冲卡：dmc_set_home_profile_unit + dmc_home_move）"));
 
             // 等回零完成，再按配置的零点偏移重定义坐标
             var sw = Stopwatch.StartNew();
@@ -130,7 +190,9 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                 }
                 Thread.Sleep(Options.PollIntervalMs);
             }
-            throw new ScriptRuntimeException($"轴「{axis.Name}」回零超时（{Options.AxisWaitTimeoutMs}ms）。请检查原点 / 限位感应是否接好、回零模式与速度是否合理。");
+            throw new ScriptRuntimeException(
+                $"轴「{axis.Name}」回零超时（{Options.AxisWaitTimeoutMs}ms）。请检查原点 / 限位感应是否接好、回零模式与速度是否合理。"
+                + DiagnoseAxis(axis, card, no));
         }
 
         public void StopAxis(AxisItem axis)
@@ -160,23 +222,38 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                 }
                 Thread.Sleep(Options.PollIntervalMs);
             }
-            throw new ScriptRuntimeException($"等待轴「{axis.Name}」到位超时（{Options.AxisWaitTimeoutMs}ms）。请检查伺服是否使能、是否报警、目标位置是否超出行程。");
+            throw new ScriptRuntimeException(
+                $"等待轴「{axis.Name}」到位超时（{Options.AxisWaitTimeoutMs}ms）。"
+                + DiagnoseAxis(axis, card, no));
         }
 
         public void EnableAxis(AxisItem axis)
         {
             if (!Ready(axis.Name, "使能")) return;
             var (card, no) = Addr(axis);
-            ConfigureAxisForMachine(card, no, axis.Name);   // 机上必做：脉冲模式 / 减速停止 / 状态自检
+            WarnIfAxisCardMismatch(axis, card);
+            ConfigureAxisForMachine(axis, card, no);   // 机上必做：上电自检 / 参数下发
+
             bool lowActive = IsLowActive(axis.EnableLevel);
-            Guard(() => _card.ServoOn(card, no, enable: true, lowActive: lowActive));
-            Log($"[雷赛] 轴「{axis.Name}」已使能（{(lowActive ? "低电平有效" : "高电平有效")}）");
+            string path = null;
+            Guard(() => path = _card.SetServoEnable(card, no, enable: true, lowActive: lowActive));
+            string how = LtdmcCard.IsBusCard ? string.Empty : (lowActive ? "，低电平有效" : "，高电平有效");
+            Log($"[雷赛] 轴「{axis.Name}」已使能（{path}{how}）");
+
+            if (LtdmcCard.IsBusCard)
+            {
+                // CiA402 状态机 2→3→4 不是瞬间完成的，立刻读往往还停在 2，等一下再报。
+                Thread.Sleep(200);
+                ReportBusAxisState(axis.Name, card, no, "使能后");
+            }
         }
 
         public void MoveAxisRel(AxisItem axis, double distance)
         {
             if (!Ready(axis.Name, $"相对移动 {distance}")) return;
             var (card, no) = Addr(axis);
+            WarnIfAxisCardMismatch(axis, card);
+            WarnIfBusAxisNotEnabled(axis, card, no);
             Guard(() =>
             {
                 EnsureProfile(axis, card, no);
@@ -190,6 +267,8 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             if (!Ready(axis.Name, $"绝对移动到 {position}")) return;
             CheckSoftLimit(axis, position);
             var (card, no) = Addr(axis);
+            WarnIfAxisCardMismatch(axis, card);
+            WarnIfBusAxisNotEnabled(axis, card, no);
             Guard(() =>
             {
                 EnsureProfile(axis, card, no);
@@ -198,15 +277,62 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             Log($"[雷赛] 轴「{axis.Name}」定位到 {position} {axis.Unit}（卡{card} 轴{no}）");
         }
 
+        /// <summary>
+        /// 读取编码器反馈位置（单位同 axis.Unit）。
+        /// 官方例 1 用「指令位置 vs 编码器位置」判断电机到底动没动：
+        /// 指令位置在变、编码器不变 → 没使能 / 动力线没接 / 编码器线松。
+        /// </summary>
+        public double GetAxisEncoder(AxisItem axis)
+        {
+            if (!Ready(axis.Name, "读编码器")) return 0;
+            var (card, no) = Addr(axis);
+            double v = 0;
+            Guard(() => v = _card.GetEncoder(card, no));
+            return v;
+        }
+
+        /// <summary>
+        /// 读取当前指令位置（单位同 axis.Unit）。
+        /// 与 <see cref="GetAxisEncoder"/> 一起用可判断「轴是不是真的在走」。
+        /// </summary>
+        public double GetAxisPosition(AxisItem axis)
+        {
+            if (!Ready(axis.Name, "读位置")) return 0;
+            var (card, no) = Addr(axis);
+            double v = 0;
+            Guard(() => v = _card.GetPosition(card, no));
+            return v;
+        }
+
+        /// <summary>读取总线轴状态机（CiA402，4 = 操作使能）；脉冲卡返回 -1。</summary>
+        public int GetAxisStateMachine(AxisItem axis)
+        {
+            var (card, no) = Addr(axis);
+            return _card.GetAxisStateMachine(card, no);
+        }
+
+        /// <summary>把 <see cref="GetAxisStateMachine"/> 的读数翻译成中文。</summary>
+        public static string DescribeAxisState(int state) => LtdmcCard.DescribeAxisState(state);
+
         // ===================== IO =====================
 
         public double ReadInput(IoItem io)
         {
             if (!_cardReady) { WarnNoCard($"读输入「{io.Name}」"); return io.Value; }
-            ushort card = (ushort)Math.Max(io.CardNo, 0);
-            ushort bit = BitNo(io);
+            HintBusIoOnce();
+            ushort card = CardNoOf(io);
             int raw = 0;
-            Guard(() => raw = _card.ReadInBit(card, bit));
+            if (UseBusIo(io))
+            {
+                ushort node = (ushort)Math.Max(io.ModuleNo, 0);
+                ushort bit = (ushort)Math.Max(io.Sequence, 0);
+                Guard(() => raw = _card.ReadInBitBus(card, node, bit));
+            }
+            else
+            {
+                ushort bit = BitNo(io);
+                Guard(() => raw = _card.ReadInBit(card, bit));
+            }
             int value = ApplyLevel(raw, io.Level);
             io.Value = value;
             return value;
@@ -225,31 +351,62 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                 }
                 Thread.Sleep(Options.PollIntervalMs);
             }
-            throw new ScriptRuntimeException($"等待输入「{io.Name}」= {value} 超时（{Options.IoWaitTimeoutMs}ms）。请检查传感器接线、电平设置（当前 {io.Level}）与卡号 / 模块 / 序号是否正确。");
+            string where = UseBusIo(io)
+                ? $"从站节点 {io.ModuleNo} 的位 {io.Sequence}"
+                : $"整卡位号 {BitNo(io)}（模块 {io.ModuleNo} × {Options.BitsPerModule} + 序号 {io.Sequence}）";
+            throw new ScriptRuntimeException(
+                $"等待输入「{io.Name}」= {value} 超时（{Options.IoWaitTimeoutMs}ms）。"
+                + $"请检查传感器接线、电平设置（当前 {io.Level}）与卡号 / 寻址是否正确（当前按 {where} 读，读到的原始值 {io.Value}）。");
         }
 
         public void WriteOutput(IoItem io, int value)
         {
             if (!_cardReady) { WarnNoCard($"写输出「{io.Name}」= {value}"); return; }
-            ushort card = (ushort)Math.Max(io.CardNo, 0);
-            ushort bit = BitNo(io);
+            HintBusIoOnce();
+            ushort card = CardNoOf(io);
             int raw = ApplyLevel(value, io.Level);
-            Guard(() => _card.WriteOutBit(card, bit, raw));
+            if (UseBusIo(io))
+            {
+                ushort node = (ushort)Math.Max(io.ModuleNo, 0);
+                ushort bit = (ushort)Math.Max(io.Sequence, 0);
+                Guard(() => _card.WriteOutBitBus(card, node, bit, raw));
+                Log($"[雷赛] 输出「{io.Name}」= {value}（卡{card} 从站{node} 位{bit}）");
+            }
+            else
+            {
+                ushort bit = BitNo(io);
+                Guard(() => _card.WriteOutBit(card, bit, raw));
+                Log($"[雷赛] 输出「{io.Name}」= {value}（卡{card} 位{bit}）");
+            }
             io.Value = value;
-            Log($"[雷赛] 输出「{io.Name}」= {value}（卡{card} 位{bit}）");
         }
 
         public void ToggleOutput(IoItem io)
         {
             if (!_cardReady) { WarnNoCard($"取反输出「{io.Name}」"); return; }
-            ushort card = (ushort)Math.Max(io.CardNo, 0);
-            ushort bit = BitNo(io);
-            int raw = 0;
-            Guard(() => raw = _card.ReadOutBit(card, bit));
-            int next = raw != 0 ? 0 : 1;
-            Guard(() => _card.WriteOutBit(card, bit, next));
+            HintBusIoOnce();
+            ushort card = CardNoOf(io);
+            int next;
+            if (UseBusIo(io))
+            {
+                ushort node = (ushort)Math.Max(io.ModuleNo, 0);
+                ushort bit = (ushort)Math.Max(io.Sequence, 0);
+                int cur = 0;
+                Guard(() => cur = _card.ReadOutBitBus(card, node, bit));
+                next = cur != 0 ? 0 : 1;
+                Guard(() => _card.WriteOutBitBus(card, node, bit, next));
+                Log($"[雷赛] 输出「{io.Name}」已取反 → {ApplyLevel(next, io.Level)}（卡{card} 从站{node} 位{bit}）");
+            }
+            else
+            {
+                ushort bit = BitNo(io);
+                int cur = 0;
+                Guard(() => cur = _card.ReadOutBit(card, bit));
+                next = cur != 0 ? 0 : 1;
+                Guard(() => _card.WriteOutBit(card, bit, next));
+                Log($"[雷赛] 输出「{io.Name}」已取反 → {ApplyLevel(next, io.Level)}（卡{card} 位{bit}）");
+            }
             io.Value = ApplyLevel(next, io.Level);
-            Log($"[雷赛] 输出「{io.Name}」已取反 → {io.Value}（卡{card} 位{bit}）");
         }
 
         // ===================== 气缸（通过 IO 点驱动） =====================
@@ -376,28 +533,97 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             Log($"[雷赛] 料盘「{tray.Name}」{action}：第 {index + 1}/{total} 格（行{row + 1} 列{col + 1}）坐标 X={x:F3} Y={y:F3}");
         }
 
-        // ===================== 内部辅助 =====================
+        // ===================== 寻址 / 卡型分派 =====================
 
-        private (ushort card, ushort axis) Addr(AxisItem axis) =>
-            (Options.DefaultCardNo, (ushort)Math.Max(axis.AxisNo, 0));
+        /// <summary>
+        /// 轴的卡号：优先用「控制器」页面里给该轴配置的卡号，其次用实际探测到的第一张卡，
+        /// 最后退回 <see cref="Options.DefaultCardNo"/>。
+        /// </summary>
+        private static ushort CardNoOf(AxisItem axis)
+        {
+            var ctl = FindController(axis?.Controller);
+            if (ctl != null) return (ushort)Math.Max(ctl.CardNo, 0);
+            return LtdmcCard.IsReady ? LtdmcCard.FirstCardNo : Options.DefaultCardNo;
+        }
+
+        /// <summary>IO 的卡号：优先用归属控制器，其次用该 IO 自己填的卡号，最后用实际探测到的卡号。</summary>
+        private static ushort CardNoOf(IoItem io)
+        {
+            var ctl = FindController(io?.Controller);
+            if (ctl != null) return (ushort)Math.Max(ctl.CardNo, 0);
+            if (io != null && io.CardNo > 0) return (ushort)io.CardNo;
+            return LtdmcCard.IsReady ? LtdmcCard.FirstCardNo : Options.DefaultCardNo;
+        }
+
+        /// <summary>在工程里按名称找控制器；找不到（或工程还没加载）返回 null，不抛异常。</summary>
+        private static AxisControllerItem FindController(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            try
+            {
+                var list = ProjectStore.Data?.Controllers;
+                return list?.FirstOrDefault(c => c != null && c.Name == name);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// 按轴自己的配置判断是不是总线轴（AxisType：脉冲 / 总线 / EtherCAT / CANopen / 模拟量 / 虚拟轴）。
+        /// 没标注（或标注为模拟量 / 虚拟轴）时跟随控制卡探测结果。
+        /// </summary>
+        private static bool IsBusAxis(AxisItem axis)
+        {
+            string t = axis?.AxisType ?? string.Empty;
+            if (t.Contains("脉冲")) return false;
+            if (t.Contains("总线") || Contains(t, "EtherCAT") || Contains(t, "CANopen")) return true;
+            return LtdmcCard.IsBusCard;
+        }
+
+        /// <summary>
+        /// IO 是否走「总线寻址」（从站节点号 + 站内位号）。
+        /// 默认 false：沿用官方例 8 的整卡位号，不改变现有接线行为。
+        /// </summary>
+        private static bool UseBusIo(IoItem io) => Options.BusIoAddressing == true;
+
+        private static bool Contains(string s, string what) =>
+            s.IndexOf(what, StringComparison.OrdinalIgnoreCase) >= 0;
+
+        /// <summary>把「模块号 + 序号」换算成雷赛的整卡位号。</summary>
+        private static ushort BitNo(IoItem io)
+        {
+            int bit = Math.Max(io.ModuleNo, 0) * Options.BitsPerModule + Math.Max(io.Sequence, 0);
+            return (ushort)bit;
+        }
+
+        private (ushort card, ushort axis) Addr(AxisItem axis) => (CardNoOf(axis), (ushort)Math.Max(axis.AxisNo, 0));
 
         private void EnsureProfile(AxisItem axis, ushort card, ushort no) =>
             _card.ApplyAxisProfile(card, no, axis.PulsePerUnit, axis.Speed, axis.Accel, axis.Decel, axis.Jerk);
 
+        // ===================== 诊断 =====================
+
         /// <summary>
-        /// 轴上电时一次性初始化（移植自 SamsunMotion 的 LTDMC 完整 SDK）：设置脉冲输出模式、
-        /// 减速停止时间，并读取轴 IO 状态做诊断日志。全部按“最佳努力”下发——任一函数不被
-        /// 当前卡型号支持（返回非 0 / 抛 EntryPointNotFound）都只记日志、不中断上电。
+        /// 轴上电时一次性初始化（移植自官方例 1 / 例 7 的机上做法）：
+        ///   - 脉冲卡：设置脉冲输出模式、减速停止时间，并读轴 IO 状态位做自检；
+        ///   - 总线卡：脉冲输出模式 / 减速停止时间都是本地资源，对总线轴没有意义（下发会返回 0
+        ///     但不起作用），所以只报 CiA402 状态机与错误码。
+        /// 全部按“最佳努力”下发——任一函数不被当前卡型号支持都只记日志、不中断上电。
         /// </summary>
-        private void ConfigureAxisForMachine(ushort card, ushort no, string axisName)
+        private void ConfigureAxisForMachine(AxisItem axis, ushort card, ushort no)
         {
-            TryConfig(() => _card.SetPulseOutmode(card, no, 0), $"轴「{axisName}」脉冲输出模式=脉冲+方向(0)");
-            TryConfig(() => _card.SetDecStopTime(card, no, 0.1), $"轴「{axisName}」减速停止时间=0.1s");
+            if (LtdmcCard.IsBusCard)
+            {
+                ReportBusAxisState(axis.Name, card, no, "上电自检");
+                return;
+            }
+
+            TryConfig(() => _card.SetPulseOutmode(card, no, 0), $"轴「{axis.Name}」脉冲输出模式=脉冲+方向(0)");
+            TryConfig(() => _card.SetDecStopTime(card, no, 0.1), $"轴「{axis.Name}」减速停止时间=0.1s");
             TryConfig(() =>
             {
                 uint st = _card.ReadAxisIoStatus(card, no);
-                Log($"[雷赛] 轴「{axisName}」上电自检 IO 状态位 = 0x{st:X}（bit0负限位/bit1正限位/bit2原点/bit3 EZ/bit4伺服报警/bit5急停，详见雷赛手册）");
-            }, $"轴「{axisName}」读取 IO 状态");
+                Log($"[雷赛] 轴「{axis.Name}」上电自检 IO 状态位 = 0x{st:X}（bit0负限位/bit1正限位/bit2原点/bit3 EZ/bit4伺服报警/bit5急停，详见雷赛手册）");
+            }, $"轴「{axis.Name}」读取 IO 状态");
         }
 
         /// <summary>轴上电配置按最佳努力执行：失败只记日志，不阻断伺服使能与后续流程。</summary>
@@ -410,12 +636,102 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             }
         }
 
-        /// <summary>把「模块号 + 序号」换算成雷赛的位号。</summary>
-        private static ushort BitNo(IoItem io)
+        /// <summary>
+        /// 打印总线轴的 CiA402 状态机 + 错误码。
+        /// 现场「指令返回 0 但轴不动」九成是状态机不在 4（操作使能），所以使能后必打这一行。
+        /// </summary>
+        private void ReportBusAxisState(string axisName, ushort card, ushort no, string when)
         {
-            int bit = Math.Max(io.ModuleNo, 0) * Options.BitsPerModule + Math.Max(io.Sequence, 0);
-            return (ushort)bit;
+            try
+            {
+                int st = _card.GetAxisStateMachine(card, no);
+                int axisErr = _card.GetAxisErrCode(card, no);
+                int busErr = _card.GetBusErrCode(card);
+
+                var sb = new StringBuilder();
+                sb.Append($"[雷赛] 轴「{axisName}」{when}：状态机={st}（{LtdmcCard.DescribeAxisState(st)}）");
+                if (axisErr > 0) sb.Append($"，★伺服错误码 {axisErr}");
+                if (busErr > 0) sb.Append($"，★总线错误码 {busErr}（EtherCAT 未正常通信，先查网线 / 从站上电）");
+                if (st >= 0 && st != 4) sb.Append("；★只有状态机=4（操作使能）轴才会运动");
+                Log(sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                Log($"[雷赛] 轴「{axisName}」读取总线状态失败：{ex.Message}");
+            }
         }
+
+        /// <summary>总线轴运动前先看一眼状态机：不是 4 就提前警告，别让操作员对着「指令成功但轴不动」猜。</summary>
+        private void WarnIfBusAxisNotEnabled(AxisItem axis, ushort card, ushort no)
+        {
+            if (!LtdmcCard.IsBusCard) return;
+            try
+            {
+                int st = _card.GetAxisStateMachine(card, no);
+                if (st >= 0 && st != 4)
+                    Log($"[雷赛·警告] 轴「{axis.Name}」当前状态机={st}（{LtdmcCard.DescribeAxisState(st)}），"
+                        + "不是「操作使能(4)」——运动指令会正常返回，但轴不会动。请先执行 轴使能。");
+            }
+            catch { /* 读不到就算了，不干扰运动 */ }
+        }
+
+        /// <summary>
+        /// 轴配置与卡型对不上时给出提示：轴写成「总线」但卡是脉冲卡（或反之）。
+        /// 这是现场最常见的配置错误，直接点出来省得排查半天。
+        /// </summary>
+        private void WarnIfAxisCardMismatch(AxisItem axis, ushort card)
+        {
+            if (!LtdmcCard.IsReady) return;
+            bool axisBus = IsBusAxis(axis);
+            bool cardBus = LtdmcCard.IsBusCard;
+            if (axisBus == cardBus) return;
+            Log($"[雷赛·警告] 轴「{axis.Name}」配置为{(axisBus ? "总线轴" : "脉冲轴")}，"
+                + $"但探测到的是{(cardBus ? "总线卡" : "脉冲卡")}——轴类型与卡型不一致，"
+                + "请到「轴」页面把「轴类型」改成与实物一致，否则使能与回零会走错分支。");
+        }
+
+        /// <summary>轴超时 / 不动时的现场诊断串，直接拼进异常消息，让操作员一眼看到该查什么。</summary>
+        private string DiagnoseAxis(AxisItem axis, ushort card, ushort no)
+        {
+            var sb = new StringBuilder("请检查伺服是否使能、是否报警、目标位置是否超出行程。");
+            try
+            {
+                if (LtdmcCard.IsBusCard)
+                {
+                    int st = _card.GetAxisStateMachine(card, no);
+                    int axisErr = _card.GetAxisErrCode(card, no);
+                    int busErr = _card.GetBusErrCode(card);
+                    sb.Append($" 当前总线状态：状态机={st}（{LtdmcCard.DescribeAxisState(st)}）");
+                    if (st != 4) sb.Append("——★不是「操作使能」，轴不会运动：请先调用 轴使能，或检查伺服上电 / 报警 / 急停。");
+                    if (axisErr > 0) sb.Append($" 伺服错误码={axisErr}。");
+                    if (busErr > 0) sb.Append($" 总线错误码={busErr}（先查 EtherCAT 网线 / 从站上电）。");
+                }
+                else
+                {
+                    int reason = _card.GetStopReason(card, no);
+                    if (reason != 0) sb.Append($" 停止原因码={reason}（撞限位 / 急停 / 报警，详见雷赛手册）。");
+                    uint io = _card.ReadAxisIoStatus(card, no);
+                    sb.Append($" 轴 IO 状态位=0x{io:X}（bit0 负限位 / bit1 正限位 / bit2 原点 / bit4 伺服报警 / bit5 急停）。");
+                }
+            }
+            catch { /* 诊断本身失败不影响原始异常 */ }
+            return sb.ToString();
+        }
+
+        /// <summary>总线卡上第一次读写 IO 时提示一次寻址方式，现场要切换时知道去哪儿改。</summary>
+        private void HintBusIoOnce()
+        {
+            if (_warnedBusIo || !LtdmcCard.IsBusCard) return;
+            _warnedBusIo = true;
+            if (Options.BusIoAddressing == true)
+                Log("[雷赛] 总线 IO 寻址：从站节点号 + 站内位号（nmc_read_inbit / nmc_write_outbit）——节点号取「模块」列、位号取「序号」列。");
+            else
+                Log($"[雷赛] 总线 IO 寻址：整卡位号 = 模块 × {Options.BitsPerModule} + 序号"
+                    + "（dmc_read_inbit / dmc_write_outbit，与官方例 8 一致）。"
+                    + "若你的 EtherCAT IO 从站要按「节点号 + 站内位号」访问，把 LeadshineHardwareBridge.Options.BusIoAddressing 设为 true。");
+        }
+
+        // ===================== 其它辅助 =====================
 
         /// <summary>按电平配置决定是否取反（常闭 / 低电平有效 → 取反）。</summary>
         private static int ApplyLevel(int value, string level)

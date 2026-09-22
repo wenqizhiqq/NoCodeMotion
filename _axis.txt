@@ -1,0 +1,211 @@
+   1: <UserControl x:Class="NoCodeMotion.Views.AxisPage"
+   2:              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+   3:              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+   4:              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+   5:              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+   6:              xmlns:local="clr-namespace:NoCodeMotion.Views"
+   7:              xmlns:svc="clr-namespace:NoCodeMotion.Services"
+   8:              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
+   9: 
+  10:     <local:EditorPage
+  11:         HintOperation="左侧选择轴后在右侧填写名称、轴类型、轴号与运动参数；点「添加」新建轴、「删除」移除选中轴、「重命名」改名称。"
+  12:         HintPrecaution="修改脉冲当量、软限位或回零参数后需重新回零；使能前确认机械无干涉，急停必须有效。">
+  13:         <local:EditorPage.Detail>
+  14:             <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}">
+  15:                 <!-- 页标题 -->
+  16:                 <StackPanel DockPanel.Dock="Top" Style="{StaticResource PageHeaderPanel}">
+  17:                     <Path Style="{StaticResource PageHeaderIcon}" Data="{StaticResource AxisIcon}"/>
+  18:                     <TextBlock Style="{StaticResource PageHeaderTitle}" Text="轴"/>
+  19:                 </StackPanel>
+  20:                 <WrapPanel Orientation="Horizontal" Margin="14" ItemWidth="372">
+  21:                     <!-- ============ 基本信息 ============ -->
+  22:                     <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+  23:                         <StackPanel>
+  24:                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="基本信息"/>
+  25:                             <DockPanel Style="{StaticResource AppleRow}">
+  26:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称"/>
+  27:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
+  28:                             </DockPanel>
+  29:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+  30:                             <DockPanel Style="{StaticResource AppleRow}">
+  31:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="轴类型"/>
+  32:                                 <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.AxisType}" SelectedValuePath="Content">
+  33:                                     <ComboBoxItem Content="脉冲"/>
+  34:                                     <ComboBoxItem Content="总线"/>
+  35:                                     <ComboBoxItem Content="EtherCAT"/>
+  36:                                     <ComboBoxItem Content="CANopen"/>
+  37:                                     <ComboBoxItem Content="模拟量"/>
+  38:                                     <ComboBoxItem Content="虚拟轴"/>
+  39:                                 </ComboBox>
+  40:                             </DockPanel>
+  41:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+  42:                             <DockPanel Style="{StaticResource AppleRow}">
+  43:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="轴号"/>
+  44:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.AxisNo}"/>
+  45:                             </DockPanel>
+  46:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+  47:                             <DockPanel Style="{StaticResource AppleRow}">
+  48:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="单位"/>
+  49:                                 <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.Unit}" SelectedValuePath="Content">
+  50:                                     <ComboBoxItem Content="mm"/>
+  51:                                     <ComboBoxItem Content="°"/>
+  52:                                     <ComboBoxItem Content="脉冲"/>
+  53:                                     <ComboBoxItem Content="um"/>
+  54:                                     <ComboBoxItem Content="自定义"/>
+  55:                                 </ComboBox>
+  56:                             </DockPanel>
+  57:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+  58:                             <DockPanel Style="{StaticResource AppleRow}">
+  59:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="控制器"/>
+  60:                                 <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" ItemsSource="{x:Static svc:Catalog.ControllerNames}" SelectedItem="{Binding SelectedItem.Controller, UpdateSourceTrigger=PropertyChanged}" ToolTip="选择该轴所属的控制器（在「控制器」页面添加）"/>
+  61:                             </DockPanel>
+  62:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+  63:                             <DockPanel Style="{StaticResource AppleRow}">
+  64:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="使能"/>
+  65:                                 <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.Enabled}"/>
+  66:                             </DockPanel>
+  67:                         </StackPanel>
+  68:                     </Border>
+  69: 
+  70:                     <!-- ============ 运动参数 ============ -->
+  71:                     <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+  72:                         <StackPanel>
+  73:                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="运动参数"/>
+  74:                             <DockPanel Style="{StaticResource AppleRow}">
+  75:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="脉冲当量"/>
+  76:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PulsePerUnit}"/>
+  77:                             </DockPanel>
+  78:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+  79:                             <DockPanel Style="{StaticResource AppleRow}">
+  80:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="运行速度"/>
+  81:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Speed}"/>
+  82:                             </DockPanel>
+  83:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+  84:                             <DockPanel Style="{StaticResource AppleRow}">
+  85:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="加速度"/>
+  86:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Accel}"/>
+  87:                             </DockPanel>
+  88:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+  89:                             <DockPanel Style="{StaticResource AppleRow}">
+  90:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="减速度"/>
+  91:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Decel}"/>
+  92:                             </DockPanel>
+  93:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+  94:                             <DockPanel Style="{StaticResource AppleRow}">
+  95:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="加加速度"/>
+  96:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Jerk}"/>
+  97:                             </DockPanel>
+  98:                         </StackPanel>
+  99:                     </Border>
+ 100: 
+ 101:                     <!-- ============ 回零参数 ============ -->
+ 102:                     <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+ 103:                         <StackPanel>
+ 104:                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="回零参数"/>
+ 105:                             <DockPanel Style="{StaticResource AppleRow}">
+ 106:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="回零方式"/>
+ 107:                                 <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.HomeMode}" SelectedValuePath="Content">
+ 108:                                     <ComboBoxItem Content="原点开关+限位"/>
+ 109:                                     <ComboBoxItem Content="仅正限位"/>
+ 110:                                     <ComboBoxItem Content="仅负限位"/>
+ 111:                                     <ComboBoxItem Content="编码器Z相"/>
+ 112:                                     <ComboBoxItem Content="当前位置设零"/>
+ 113:                                     <ComboBoxItem Content="负向限位回零"/>
+ 114:                                     <ComboBoxItem Content="正向限位回零"/>
+ 115:                                     <ComboBoxItem Content="索引回零"/>
+ 116:                                 </ComboBox>
+ 117:                             </DockPanel>
+ 118:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+ 119:                             <DockPanel Style="{StaticResource AppleRow}">
+ 120:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="回零速度"/>
+ 121:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.HomeSpeed}"/>
+ 122:                             </DockPanel>
+ 123:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+ 124:                             <DockPanel Style="{StaticResource AppleRow}">
+ 125:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="爬行速度"/>
+ 126:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.CreepSpeed}"/>
+ 127:                             </DockPanel>
+ 128:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+ 129:                             <DockPanel Style="{StaticResource AppleRow}">
+ 130:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="原点偏移"/>
+ 131:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.HomeOffset}"/>
+ 132:                             </DockPanel>
+ 133:                         </StackPanel>
+ 134:                     </Border>
+ 135: 
+ 136:                     <!-- ============ 限位与保护 ============ -->
+ 137:                     <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+ 138:                         <StackPanel>
+ 139:                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="限位与保护"/>
+ 140:                             <DockPanel Style="{StaticResource AppleRow}">
+ 141:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="软正限位"/>
+ 142:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PosLimitPlus}"/>
+ 143:                             </DockPanel>
+ 144:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+ 145:                             <DockPanel Style="{StaticResource AppleRow}">
+ 146:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="软负限位"/>
+ 147:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PosLimitMinus}"/>
+ 148:                             </DockPanel>
+ 149:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+ 150:                             <DockPanel Style="{StaticResource AppleRow}">
+ 151:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="到位误差"/>
+ 152:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.InPosError}"/>
+ 153:                             </DockPanel>
+ 154:                         </StackPanel>
+ 155:                     </Border>
+ 156: 
+ 157:                     <!-- ============ 电平与编码器 ============ -->
+ 158:                     <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+ 159:                         <StackPanel>
+ 160:                             <TextBlock Style="{StaticResource AppleSectionHeader}" Text="电平与编码器"/>
+ 161:                             <DockPanel Style="{StaticResource AppleRow}">
+ 162:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="使能电平"/>
+ 163:                                 <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.EnableLevel}" SelectedValuePath="Content">
+ 164:                                     <ComboBoxItem Content="高电平"/>
+ 165:                                     <ComboBoxItem Content="低电平"/>
+ 166:                                 </ComboBox>
+ 167:                             </DockPanel>
+ 168:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+ 169:                             <DockPanel Style="{StaticResource AppleRow}">
+ 170:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="方向电平"/>
+ 171:                                 <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.DirLevel}" SelectedValuePath="Content">
+ 172:                                     <ComboBoxItem Content="正向"/>
+ 173:                                     <ComboBoxItem Content="负向"/>
+ 174:                                 </ComboBox>
+ 175:                             </DockPanel>
+ 176:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+ 177:                             <DockPanel Style="{StaticResource AppleRow}">
+ 178:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="报警电平"/>
+ 179:                                 <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.AlarmLevel}" SelectedValuePath="Content">
+ 180:                                     <ComboBoxItem Content="高电平"/>
+ 181:                                     <ComboBoxItem Content="低电平"/>
+ 182:                                     <ComboBoxItem Content="无"/>
+ 183:                                 </ComboBox>
+ 184:                             </DockPanel>
+ 185:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+ 186:                             <DockPanel Style="{StaticResource AppleRow}">
+ 187:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="编码器类型"/>
+ 188:                                 <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.EncoderType}" SelectedValuePath="Content">
+ 189:                                     <ComboBoxItem Content="无"/>
+ 190:                                     <ComboBoxItem Content="增量式"/>
+ 191:                                     <ComboBoxItem Content="绝对式"/>
+ 192:                                 </ComboBox>
+ 193:                             </DockPanel>
+ 194:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+ 195:                             <DockPanel Style="{StaticResource AppleRow}">
+ 196:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="编码器分辨率"/>
+ 197:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.EncoderRes}"/>
+ 198:                             </DockPanel>
+ 199:                             <Rectangle Style="{StaticResource AppleHairline}"/>
+ 200:                             <DockPanel Style="{StaticResource AppleRow}">
+ 201:                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="急停减速"/>
+ 202:                                 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.EStopDecel}"/>
+ 203:                             </DockPanel>
+ 204:                         </StackPanel>
+ 205:                     </Border>
+ 206:                 </WrapPanel>
+ 207:             </DockPanel>
+ 208:         </local:EditorPage.Detail>
+ 209:     </local:EditorPage>
+ 210: </UserControl>
+ 211: 

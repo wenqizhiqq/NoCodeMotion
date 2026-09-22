@@ -1,0 +1,27 @@
+﻿CylinderPage totalDock=26 fails=9
+   fail#6: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#7: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#8: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#9: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#10: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#11: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#21: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#23: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#25: <DockPanel Margin="2,8,2,0">                             <TextBlock DockPanel.Do
+CameraPage   totalDock=11 fails=2
+   fail#5: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#10: <DockPanel Grid.Row="0" LastChildFill="False">                                 <
+CommPage     totalDock=9 fails=1
+   fail#6: <DockPanel Margin="0,0,0,8" LastChildFill="False">                              
+AxisPage     totalDock=25 fails=7
+   fail#0: <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}">      
+   fail#2: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#4: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#12: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#19: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#20: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+   fail#21: <DockPanel Style="{StaticResource AppleRow}">                                 <T
+TrayPage     totalDock=10 fails=3
+   fail#0: <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}" Margin
+   fail#1: <DockPanel LastChildFill="True">                                 <StackPanel Doc
+   fail#9: <DockPanel LastChildFill="True">                                 <TextBlock Dock

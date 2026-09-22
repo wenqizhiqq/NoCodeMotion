@@ -1,0 +1,14 @@
+﻿LEAF_SELF count 17
+LEAF_PAIR count 17
+PAIR 0 <TextBox  Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Na
+PAIR 1 <ComboBox  Style="{StaticResource CellComboStyle}" SelectedValue="{Binding Selec
+PAIR 2 <TextBox  Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Ax
+PAIR 3 <ComboBox  Style="{StaticResource CellComboStyle}" SelectedValue="{Binding Selec
+PAIR 4 <ComboBox  Style="{StaticResource CellComboStyle}" ItemsSource="{x:Static svc:Ca
+PAIR 5 <TextBox  Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Ho
+SELF 0 <TextBox  Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Na
+SELF 1 <TextBox  Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Ax
+SELF 2 <ComboBox  Style="{StaticResource CellComboStyle}" ItemsSource="{x:Static svc:Ca
+SELF 3 <CheckBox  Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem
+SELF 4 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{B
+SELF 5 <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{B

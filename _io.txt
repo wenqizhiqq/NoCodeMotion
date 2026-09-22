@@ -1,0 +1,301 @@
+   1: <UserControl x:Class="NoCodeMotion.Views.IoPage"
+   2:              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+   3:              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+   4:              xmlns:hc="https://handyorg.github.io/handycontrol"
+   5:              xmlns:sys="clr-namespace:System;assembly=mscorlib"
+   6:              xmlns:vm="clr-namespace:NoCodeMotion.ViewModels"
+   7:              xmlns:model="clr-namespace:NoCodeMotion.Models"
+   8:              xmlns:local="clr-namespace:NoCodeMotion.Views"
+   9:              xmlns:conv="clr-namespace:NoCodeMotion.Views"
+  10:              xmlns:svc="clr-namespace:NoCodeMotion.Services"
+  11:              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  12:              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  13:              mc:Ignorable="d"
+  14:              d:DesignHeight="600" d:DesignWidth="1100"
+  15:              Background="Transparent">
+  16: 
+  17:     <UserControl.Resources>
+  18:         <x:Array x:Key="LevelOptions" Type="sys:String">
+  19:             <sys:String>取反</sys:String>
+  20:             <sys:String>原点</sys:String>
+  21:         </x:Array>
+  22: 
+  23:         <x:Array x:Key="FunctionOptions" Type="sys:String">
+  24:             <sys:String>动点</sys:String>
+  25:             <sys:String>原点</sys:String>
+  26:             <sys:String>光栅</sys:String>
+  27:             <sys:String>安全门</sys:String>
+  28:             <sys:String>启动按钮</sys:String>
+  29:             <sys:String>复位按钮</sys:String>
+  30:             <sys:String>停止按钮</sys:String>
+  31:             <sys:String>急停按钮</sys:String>
+  32:             <sys:String>到位点</sys:String>
+  33:         </x:Array>
+  34: 
+  35:         <Style x:Key="IoCellTextBoxStyle" TargetType="TextBox">
+  36:             <Setter Property="Padding" Value="6,0"/>
+  37:             <Setter Property="VerticalAlignment" Value="Center"/>
+  38:             <Setter Property="VerticalContentAlignment" Value="Center"/>
+  39:             <Setter Property="Height" Value="24"/>
+  40:             <Setter Property="Margin" Value="1"/>
+  41:             <Setter Property="BorderThickness" Value="0"/>
+  42:             <Setter Property="Background" Value="Transparent"/>
+  43:             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+  44:             <Style.Triggers>
+  45:                 <Trigger Property="IsMouseOver" Value="True">
+  46:                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+  47:                 </Trigger>
+  48:                 <Trigger Property="IsKeyboardFocused" Value="True">
+  49:                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+  50:                 </Trigger>
+  51:             </Style.Triggers>
+  52:         </Style>
+  53: 
+  54:         <Style x:Key="IoCellStyle" TargetType="DataGridCell">
+  55:             <Setter Property="Padding" Value="2,0"/>
+  56:             <Setter Property="BorderThickness" Value="0,0,1,1"/>
+  57:             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+  58:             <Setter Property="Background" Value="Transparent"/>
+  59:             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+  60:             <Setter Property="Template">
+  61:                 <Setter.Value>
+  62:                     <ControlTemplate TargetType="DataGridCell">
+  63:                         <Border Padding="{TemplateBinding Padding}"
+  64:                                 Background="{TemplateBinding Background}"
+  65:                                 BorderBrush="{TemplateBinding BorderBrush}"
+  66:                                 BorderThickness="{TemplateBinding BorderThickness}">
+  67:                             <ContentPresenter VerticalAlignment="Center"/>
+  68:                         </Border>
+  69:                     </ControlTemplate>
+  70:                 </Setter.Value>
+  71:             </Setter>
+  72:             <Style.Triggers>
+  73:                 <Trigger Property="IsMouseOver" Value="True">
+  74:                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+  75:                 </Trigger>
+  76:                 <Trigger Property="IsSelected" Value="True">
+  77:                     <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+  78:                 </Trigger>
+  79:             </Style.Triggers>
+  80:         </Style>
+  81: 
+  82:         <Style x:Key="IoRowStyle" TargetType="DataGridRow">
+  83:             <Setter Property="Background" Value="Transparent"/>
+  84:             <Style.Triggers>
+  85:                 <Trigger Property="IsMouseOver" Value="True">
+  86:                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+  87:                 </Trigger>
+  88:             </Style.Triggers>
+  89:         </Style>
+  90: 
+  91:         <Style x:Key="IoHeaderStyle" TargetType="DataGridColumnHeader">
+  92:             <Setter Property="Background" Value="{StaticResource HeaderBrush}"/>
+  93:             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+  94:             <Setter Property="FontWeight" Value="Medium"/>
+  95:             <Setter Property="FontSize" Value="12"/>
+  96:             <Setter Property="Padding" Value="8,8"/>
+  97:             <Setter Property="BorderThickness" Value="0,0,0,1"/>
+  98:             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+  99:             <Setter Property="HorizontalContentAlignment" Value="Center"/>
+ 100:         </Style>
+ 101: 
+ 102:         <Style x:Key="IoSectionTitleStyle" TargetType="TextBlock">
+ 103:             <Setter Property="FontSize" Value="15"/>
+ 104:             <Setter Property="FontWeight" Value="SemiBold"/>
+ 105:             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+ 106:             <Setter Property="Margin" Value="0,0,0,6"/>
+ 107:         </Style>
+ 108: 
+ 109:         <conv:IoRuntimeStateConverter x:Key="IoRuntimeState"/>
+ 110:         <conv:IoRuntimeBrushConverter x:Key="IoRuntimeBrush"/>
+ 111:     </UserControl.Resources>
+ 112: 
+ 113:     <Grid Margin="8">
+ 114:         <Grid.ColumnDefinitions>
+ 115:             <ColumnDefinition Width="1*"/>
+ 116:             <ColumnDefinition Width="1.2*"/>
+ 117:         </Grid.ColumnDefinitions>
+ 118:         <Grid.RowDefinitions>
+ 119:             <RowDefinition Height="*"/>
+ 120:             <RowDefinition Height="Auto"/>
+ 121:         </Grid.RowDefinitions>
+ 122: 
+ 123:         <!-- ============== 输入 IO 面板 ============== -->
+ 124:         <DockPanel Grid.Column="0" Grid.Row="0" Margin="0,0,4,0">
+ 125:             <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
+ 126:                 <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+ 127:                 <TextBlock Text="输入IO" Style="{StaticResource SectionHeaderText}"/>
+ 128:             </StackPanel>
+ 129: 
+ 130:             <!-- 工具栏（继承通用 TableToolbar），用 Grid 绑定 DataContext 到 InputPanel，使命令解析到面板 VM -->
+ 131:             <Grid DockPanel.Dock="Top" Margin="0,0,0,6" DataContext="{Binding InputPanel}">
+ 132:                 <local:TableToolbar Count="{Binding Items.Count}"/>
+ 133:             </Grid>
+ 134: 
+ 135:             <!-- IO 表格（白色卡片包裹） -->
+ 136:             <Border Style="{StaticResource CardBorderStyle}">
+ 137:                 <DataGrid x:Name="InputGrid" ItemsSource="{Binding InputPanel.Items}"
+ 138:                           SelectedItem="{Binding InputPanel.SelectedItem, Mode=TwoWay}"
+ 139:                           RowStyle="{StaticResource IoRowStyle}"
+ 140:                           CellStyle="{StaticResource IoCellStyle}"
+ 141:                           ColumnHeaderStyle="{StaticResource IoHeaderStyle}"
+ 142:                           AutoGenerateColumns="False"
+ 143:                           HeadersVisibility="Column"
+ 144:                           GridLinesVisibility="None"
+ 145:                           BorderThickness="0"
+ 146:                           Background="Transparent"
+ 147:                           SelectionMode="Single" SelectionUnit="CellOrRowHeader"
+ 148:                           RowHeight="30"
+ 149:                           FontSize="13">
+ 150:                     <DataGrid.Columns>
+ 151:                         <DataGridTextColumn Header="卡类" Binding="{Binding CardType}" Width="56" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 152:                         <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 153:                         <DataGridTemplateColumn Header="控制器" Width="104">
+ 154:                             <DataGridTemplateColumn.CellTemplate>
+ 155:                                 <DataTemplate>
+ 156:                                     <ComboBox ItemsSource="{x:Static svc:Catalog.ControllerNames}"
+ 157:                                               SelectedItem="{Binding Controller, UpdateSourceTrigger=PropertyChanged}"
+ 158:                                               Style="{StaticResource CellComboStyle}"/>
+ 159:                                 </DataTemplate>
+ 160:                             </DataGridTemplateColumn.CellTemplate>
+ 161:                         </DataGridTemplateColumn>
+ 162:                         <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 163:                         <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 164:                         <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="*" MinWidth="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 165:                         <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="58" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 166:                         <DataGridTemplateColumn Header="电平" Width="58">
+ 167:                             <DataGridTemplateColumn.CellTemplate>
+ 168:                                 <DataTemplate>
+ 169:                                     <ComboBox ItemsSource="{StaticResource LevelOptions}"
+ 170:                                              SelectedItem="{Binding Level, UpdateSourceTrigger=PropertyChanged}"
+ 171:                                              Style="{StaticResource CellComboStyle}"/>
+ 172:                                 </DataTemplate>
+ 173:                             </DataGridTemplateColumn.CellTemplate>
+ 174:                         </DataGridTemplateColumn>
+ 175:                         <DataGridTemplateColumn Header="功能" Width="76">
+ 176:                             <DataGridTemplateColumn.CellTemplate>
+ 177:                                 <DataTemplate>
+ 178:                                     <ComboBox ItemsSource="{StaticResource FunctionOptions}"
+ 179:                                              SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}"
+ 180:                                              Style="{StaticResource CellComboStyle}"/>
+ 181:                                 </DataTemplate>
+ 182:                             </DataGridTemplateColumn.CellTemplate>
+ 183:                         </DataGridTemplateColumn>
+ 184:                         <DataGridTextColumn Header="值" Binding="{Binding Value}" Width="36" IsReadOnly="True"/>
+ 185:                     </DataGrid.Columns>
+ 186:                 </DataGrid>
+ 187:             </Border>
+ 188:         </DockPanel>
+ 189: 
+ 190:         <!-- ============== 输出 IO 面板 ============== -->
+ 191:         <DockPanel Grid.Column="1" Grid.Row="0" Margin="4,0,0,0">
+ 192:             <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
+ 193:                 <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+ 194:                 <TextBlock Text="输出IO" Style="{StaticResource SectionHeaderText}"/>
+ 195:             </StackPanel>
+ 196: 
+ 197:             <Grid DockPanel.Dock="Top" Margin="0,0,0,6" DataContext="{Binding OutputPanel}">
+ 198:                 <local:TableToolbar Count="{Binding Items.Count}"/>
+ 199:             </Grid>
+ 200: 
+ 201:             <Border Style="{StaticResource CardBorderStyle}">
+ 202:                 <DataGrid x:Name="OutputGrid" ItemsSource="{Binding OutputPanel.Items}"
+ 203:                           SelectedItem="{Binding OutputPanel.SelectedItem, Mode=TwoWay}"
+ 204:                           RowStyle="{StaticResource IoRowStyle}"
+ 205:                           CellStyle="{StaticResource IoCellStyle}"
+ 206:                           ColumnHeaderStyle="{StaticResource IoHeaderStyle}"
+ 207:                           AutoGenerateColumns="False"
+ 208:                           HeadersVisibility="Column"
+ 209:                           GridLinesVisibility="None"
+ 210:                           BorderThickness="0"
+ 211:                           Background="Transparent"
+ 212:                           SelectionMode="Single" SelectionUnit="CellOrRowHeader"
+ 213:                           RowHeight="30"
+ 214:                           FontSize="13">
+ 215:                     <DataGrid.Columns>
+ 216:                         <DataGridTextColumn Header="卡类" Binding="{Binding CardType}" Width="56" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 217:                         <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 218:                         <DataGridTemplateColumn Header="控制器" Width="104">
+ 219:                             <DataGridTemplateColumn.CellTemplate>
+ 220:                                 <DataTemplate>
+ 221:                                     <ComboBox ItemsSource="{x:Static svc:Catalog.ControllerNames}"
+ 222:                                               SelectedItem="{Binding Controller, UpdateSourceTrigger=PropertyChanged}"
+ 223:                                               Style="{StaticResource CellComboStyle}"/>
+ 224:                                 </DataTemplate>
+ 225:                             </DataGridTemplateColumn.CellTemplate>
+ 226:                         </DataGridTemplateColumn>
+ 227:                         <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 228:                         <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 229:                         <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="*" MinWidth="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 230:                         <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="58" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+ 231:                         <DataGridTemplateColumn Header="电平" Width="58">
+ 232:                             <DataGridTemplateColumn.CellTemplate>
+ 233:                                 <DataTemplate>
+ 234:                                     <ComboBox ItemsSource="{StaticResource LevelOptions}"
+ 235:                                              SelectedItem="{Binding Level, UpdateSourceTrigger=PropertyChanged}"
+ 236:                                              Style="{StaticResource CellComboStyle}"/>
+ 237:                                 </DataTemplate>
+ 238:                             </DataGridTemplateColumn.CellTemplate>
+ 239:                         </DataGridTemplateColumn>
+ 240:                         <DataGridTemplateColumn Header="功能" Width="76">
+ 241:                             <DataGridTemplateColumn.CellTemplate>
+ 242:                                 <DataTemplate>
+ 243:                                     <ComboBox ItemsSource="{StaticResource FunctionOptions}"
+ 244:                                              SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}"
+ 245:                                              Style="{StaticResource CellComboStyle}"/>
+ 246:                                 </DataTemplate>
+ 247:                             </DataGridTemplateColumn.CellTemplate>
+ 248:                         </DataGridTemplateColumn>
+ 249:                         <DataGridTextColumn Header="值" Binding="{Binding Value}" Width="36" IsReadOnly="True"/>
+ 250:                         <!-- 切换：输出点手动开 / 关，当前状态用按钮底色高亮 -->
+ 251:                         <DataGridTemplateColumn Header="切换" Width="84" IsReadOnly="True">
+ 252:                             <DataGridTemplateColumn.CellTemplate>
+ 253:                                 <DataTemplate>
+ 254:                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+ 255:                                         <Button Content="开" FontSize="11" Height="22" MinWidth="32" Margin="0,0,4,0"
+ 256:                                                 Command="{Binding DataContext.OutputHighCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+ 257:                                                 CommandParameter="{Binding}">
+ 258:                                             <Button.Style>
+ 259:                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+ 260:                                                     <Setter Property="Background" Value="#E2E8F0"/>
+ 261:                                                     <Setter Property="Foreground" Value="#334155"/>
+ 262:                                                     <Setter Property="BorderThickness" Value="0"/>
+ 263:                                                     <Setter Property="Padding" Value="8,2"/>
+ 264:                                                     <Style.Triggers>
+ 265:                                                         <DataTrigger Binding="{Binding Value}" Value="1">
+ 266:                                                             <Setter Property="Background" Value="#22C55E"/>
+ 267:                                                             <Setter Property="Foreground" Value="White"/>
+ 268:                                                         </DataTrigger>
+ 269:                                                     </Style.Triggers>
+ 270:                                                 </Style>
+ 271:                                             </Button.Style>
+ 272:                                         </Button>
+ 273:                                         <Button Content="关" FontSize="11" Height="22" MinWidth="32"
+ 274:                                                 Command="{Binding DataContext.OutputLowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+ 275:                                                 CommandParameter="{Binding}">
+ 276:                                             <Button.Style>
+ 277:                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+ 278:                                                     <Setter Property="Background" Value="#E2E8F0"/>
+ 279:                                                     <Setter Property="Foreground" Value="#334155"/>
+ 280:                                                     <Setter Property="BorderThickness" Value="0"/>
+ 281:                                                     <Setter Property="Padding" Value="8,2"/>
+ 282:                                                     <Style.Triggers>
+ 283:                                                         <DataTrigger Binding="{Binding Value}" Value="0">
+ 284:                                                             <Setter Property="Background" Value="#EF4444"/>
+ 285:                                                             <Setter Property="Foreground" Value="White"/>
+ 286:                                                         </DataTrigger>
+ 287:                                                     </Style.Triggers>
+ 288:                                                 </Style>
+ 289:                                             </Button.Style>
+ 290:                                         </Button>
+ 291:                                     </StackPanel>
+ 292:                                 </DataTemplate>
+ 293:                             </DataGridTemplateColumn.CellTemplate>
+ 294:                         </DataGridTemplateColumn>
+ 295:                     </DataGrid.Columns>
+ 296:                 </DataGrid>
+ 297:             </Border>
+ 298:         </DockPanel>
+ 299:         <local:PageHintBar Grid.Row="1" Grid.ColumnSpan="2" OperationText="选择 IO 点后设置名称、方向、电平、对应轴或气缸；「添加 / 删除」管理点位；输出点可在列表行内直接点「开 / 关」手动触发。" PrecautionText="接线前确认负载避免短路；输入滤波时间影响响应，误触发时适当加大；输出点勿带大功率直接驱动。"/>
+ 300:     </Grid>
+ 301: </UserControl>

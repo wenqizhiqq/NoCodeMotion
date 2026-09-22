@@ -1,0 +1,7 @@
+﻿AxisPage       open=0 close=0
+IoPage         open=0 close=0
+CylinderPage   open=6 close=6
+VariablePage   open=0 close=0
+CommPage       open=6 close=6
+TrayPage       open=0 close=0
+CameraPage     open=4 close=4

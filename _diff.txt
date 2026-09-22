@@ -1,0 +1,4 @@
+﻿ Views/CameraPage.xaml   | 71 +++++++++++++++----------------------------------
+ Views/CommPage.xaml     | 24 ++++++++++++-----
+ Views/CylinderPage.xaml | 24 ++++++++++++-----
+ 3 files changed, 57 insertions(+), 62 deletions(-)

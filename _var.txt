@@ -1,0 +1,217 @@
+   1: <UserControl x:Class="NoCodeMotion.Views.VariablePage"
+   2:              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+   3:              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+   4:              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+   5:              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+   6:              xmlns:local="clr-namespace:NoCodeMotion.Views"
+   7:              xmlns:conv="clr-namespace:NoCodeMotion.Views"
+   8:              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="1000"
+   9:              Background="Transparent">
+  10: 
+  11:     <UserControl.Resources>
+  12:         <Style x:Key="VarCellTextBoxStyle" TargetType="TextBox">
+  13:             <Setter Property="Padding" Value="6,0"/>
+  14:             <Setter Property="VerticalAlignment" Value="Center"/>
+  15:             <Setter Property="VerticalContentAlignment" Value="Center"/>
+  16:             <Setter Property="Height" Value="24"/>
+  17:             <Setter Property="Margin" Value="1"/>
+  18:             <Setter Property="BorderThickness" Value="0"/>
+  19:             <Setter Property="Background" Value="Transparent"/>
+  20:             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+  21:             <Style.Triggers>
+  22:                 <Trigger Property="IsMouseOver" Value="True">
+  23:                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+  24:                 </Trigger>
+  25:                 <Trigger Property="IsKeyboardFocused" Value="True">
+  26:                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+  27:                 </Trigger>
+  28:             </Style.Triggers>
+  29:         </Style>
+  30: 
+  31:         <Style x:Key="VarCellStyle" TargetType="DataGridCell">
+  32:             <Setter Property="Padding" Value="2,0"/>
+  33:             <Setter Property="BorderThickness" Value="0,0,1,1"/>
+  34:             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+  35:             <Setter Property="Background" Value="Transparent"/>
+  36:             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+  37:             <Setter Property="Template">
+  38:                 <Setter.Value>
+  39:                     <ControlTemplate TargetType="DataGridCell">
+  40:                         <Border Padding="{TemplateBinding Padding}"
+  41:                                 Background="{TemplateBinding Background}"
+  42:                                 BorderBrush="{TemplateBinding BorderBrush}"
+  43:                                 BorderThickness="{TemplateBinding BorderThickness}">
+  44:                             <ContentPresenter VerticalAlignment="Center"/>
+  45:                         </Border>
+  46:                     </ControlTemplate>
+  47:                 </Setter.Value>
+  48:             </Setter>
+  49:             <Style.Triggers>
+  50:                 <Trigger Property="IsMouseOver" Value="True">
+  51:                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+  52:                 </Trigger>
+  53:                 <Trigger Property="IsSelected" Value="True">
+  54:                     <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+  55:                 </Trigger>
+  56:             </Style.Triggers>
+  57:         </Style>
+  58: 
+  59:         <Style x:Key="VarRowStyle" TargetType="DataGridRow">
+  60:             <Setter Property="Background" Value="Transparent"/>
+  61:             <Style.Triggers>
+  62:                 <Trigger Property="IsMouseOver" Value="True">
+  63:                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+  64:                 </Trigger>
+  65:             </Style.Triggers>
+  66:         </Style>
+  67: 
+  68:         <Style x:Key="VarHeaderStyle" TargetType="DataGridColumnHeader">
+  69:             <Setter Property="Background" Value="{StaticResource HeaderBrush}"/>
+  70:             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+  71:             <Setter Property="FontWeight" Value="Medium"/>
+  72:             <Setter Property="FontSize" Value="12"/>
+  73:             <Setter Property="Padding" Value="8,8"/>
+  74:             <Setter Property="BorderThickness" Value="0,0,0,1"/>
+  75:             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+  76:             <Setter Property="HorizontalContentAlignment" Value="Center"/>
+  77:         </Style>
+  78: 
+  79:         <conv:VarResolveSummaryConverter x:Key="VarResolveSummary"/>
+  80:     </UserControl.Resources>
+  81: 
+  82:     <Grid Margin="8">
+  83:         <Grid.RowDefinitions>
+  84:             <RowDefinition Height="Auto"/>
+  85:             <RowDefinition Height="Auto"/>
+  86:             <RowDefinition Height="*"/>
+  87:             <RowDefinition Height="Auto"/>
+  88:         </Grid.RowDefinitions>
+  89: 
+  90:         <!-- 页标题 -->
+  91:         <StackPanel Grid.Row="0" Style="{StaticResource PageHeaderPanel}">
+  92:             <Path Style="{StaticResource PageHeaderIcon}" Data="{StaticResource VariableIcon}"/>
+  93:             <TextBlock Style="{StaticResource PageHeaderTitle}" Text="变量"/>
+  94:         </StackPanel>
+  95: 
+  96:         <!-- 工具栏（继承通用 TableToolbar：Excel编辑/添加/删除/上移/下移/复制/粘贴/回撤/重做） -->
+  97:         <local:TableToolbar Grid.Row="1" Margin="0,0,0,6"
+  98:                             Count="{Binding Items.Count}"
+  99:                             CountLabel="行"/>
+ 100: 
+ 101:         <!-- 变量表格（白色卡片包裹）：每行 5 组 (名称 / 字符串值) -->
+ 102:         <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}">
+ 103:             <DataGrid x:Name="VarGrid" ItemsSource="{Binding Items}"
+ 104:                       SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+ 105:                       RowStyle="{StaticResource VarRowStyle}"
+ 106:                       CellStyle="{StaticResource VarCellStyle}"
+ 107:                       ColumnHeaderStyle="{StaticResource VarHeaderStyle}"
+ 108:                       AutoGenerateColumns="False"
+ 109:                       HeadersVisibility="Column"
+ 110:                       GridLinesVisibility="None"
+ 111:                       BorderThickness="0"
+ 112:                       Background="Transparent"
+ 113:                       IsReadOnly="True"
+ 114:                       SelectionMode="Single" SelectionUnit="CellOrRowHeader"
+ 115:                       RowHeight="30"
+ 116:                       FontSize="13">
+ 117:                 <DataGrid.Columns>
+ 118:                     <DataGridTemplateColumn Header="名称 1" Width="120">
+ 119:                         <DataGridTemplateColumn.CellTemplate>
+ 120:                             <DataTemplate>
+ 121:                                 <TextBox Text="{Binding Name1, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+ 122:                             </DataTemplate>
+ 123:                         </DataGridTemplateColumn.CellTemplate>
+ 124:                     </DataGridTemplateColumn>
+ 125:                     <DataGridTemplateColumn Header="字符串值 1" Width="120">
+ 126:                         <DataGridTemplateColumn.CellTemplate>
+ 127:                             <DataTemplate>
+ 128:                                 <TextBox Text="{Binding Value1, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+ 129:                             </DataTemplate>
+ 130:                         </DataGridTemplateColumn.CellTemplate>
+ 131:                     </DataGridTemplateColumn>
+ 132: 
+ 133:                     <DataGridTemplateColumn Header="名称 2" Width="120">
+ 134:                         <DataGridTemplateColumn.CellTemplate>
+ 135:                             <DataTemplate>
+ 136:                                 <TextBox Text="{Binding Name2, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+ 137:                             </DataTemplate>
+ 138:                         </DataGridTemplateColumn.CellTemplate>
+ 139:                     </DataGridTemplateColumn>
+ 140:                     <DataGridTemplateColumn Header="字符串值 2" Width="120">
+ 141:                         <DataGridTemplateColumn.CellTemplate>
+ 142:                             <DataTemplate>
+ 143:                                 <TextBox Text="{Binding Value2, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+ 144:                             </DataTemplate>
+ 145:                         </DataGridTemplateColumn.CellTemplate>
+ 146:                     </DataGridTemplateColumn>
+ 147: 
+ 148:                     <DataGridTemplateColumn Header="名称 3" Width="120">
+ 149:                         <DataGridTemplateColumn.CellTemplate>
+ 150:                             <DataTemplate>
+ 151:                                 <TextBox Text="{Binding Name3, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+ 152:                             </DataTemplate>
+ 153:                         </DataGridTemplateColumn.CellTemplate>
+ 154:                     </DataGridTemplateColumn>
+ 155:                     <DataGridTemplateColumn Header="字符串值 3" Width="120">
+ 156:                         <DataGridTemplateColumn.CellTemplate>
+ 157:                             <DataTemplate>
+ 158:                                 <TextBox Text="{Binding Value3, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+ 159:                             </DataTemplate>
+ 160:                         </DataGridTemplateColumn.CellTemplate>
+ 161:                     </DataGridTemplateColumn>
+ 162: 
+ 163:                     <DataGridTemplateColumn Header="名称 4" Width="120">
+ 164:                         <DataGridTemplateColumn.CellTemplate>
+ 165:                             <DataTemplate>
+ 166:                                 <TextBox Text="{Binding Name4, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+ 167:                             </DataTemplate>
+ 168:                         </DataGridTemplateColumn.CellTemplate>
+ 169:                     </DataGridTemplateColumn>
+ 170:                     <DataGridTemplateColumn Header="字符串值 4" Width="120">
+ 171:                         <DataGridTemplateColumn.CellTemplate>
+ 172:                             <DataTemplate>
+ 173:                                 <TextBox Text="{Binding Value4, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+ 174:                             </DataTemplate>
+ 175:                         </DataGridTemplateColumn.CellTemplate>
+ 176:                     </DataGridTemplateColumn>
+ 177: 
+ 178:                     <DataGridTemplateColumn Header="名称 5" Width="120">
+ 179:                         <DataGridTemplateColumn.CellTemplate>
+ 180:                             <DataTemplate>
+ 181:                                 <TextBox Text="{Binding Name5, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+ 182:                             </DataTemplate>
+ 183:                         </DataGridTemplateColumn.CellTemplate>
+ 184:                     </DataGridTemplateColumn>
+ 185:                     <DataGridTemplateColumn Header="字符串值 5" Width="120">
+ 186:                         <DataGridTemplateColumn.CellTemplate>
+ 187:                             <DataTemplate>
+ 188:                                 <TextBox Text="{Binding Value5, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource VarCellTextBoxStyle}"/>
+ 189:                             </DataTemplate>
+ 190:                         </DataGridTemplateColumn.CellTemplate>
+ 191:                     </DataGridTemplateColumn>
+ 192: 
+ 193:                     <!-- 解析值：值为表达式（如 计数+1）时实时显示计算结果，仿真运行时随依赖变量刷新 -->
+ 194:                     <DataGridTemplateColumn Header="解析值" Width="170" IsReadOnly="True">
+ 195:                         <DataGridTemplateColumn.CellTemplate>
+ 196:                             <DataTemplate>
+ 197:                                 <TextBlock VerticalAlignment="Center" Margin="8,0" FontSize="12"
+ 198:                                            Foreground="{StaticResource AccentDarkBrush}" TextTrimming="CharacterEllipsis">
+ 199:                                     <TextBlock.Text>
+ 200:                                         <MultiBinding Converter="{StaticResource VarResolveSummary}">
+ 201:                                             <Binding Path="Name1"/><Binding Path="Value1"/>
+ 202:                                             <Binding Path="Name2"/><Binding Path="Value2"/>
+ 203:                                             <Binding Path="Name3"/><Binding Path="Value3"/>
+ 204:                                             <Binding Path="Name4"/><Binding Path="Value4"/>
+ 205:                                             <Binding Path="Name5"/><Binding Path="Value5"/>
+ 206:                                         </MultiBinding>
+ 207:                                     </TextBlock.Text>
+ 208:                                 </TextBlock>
+ 209:                             </DataTemplate>
+ 210:                         </DataGridTemplateColumn.CellTemplate>
+ 211:                     </DataGridTemplateColumn>
+ 212:                 </DataGrid.Columns>
+ 213:             </DataGrid>
+ 214:         </Border>
+ 215:         <local:PageHintBar Grid.Row="3" OperationText="表格内增删变量，填写名称与初始值；值可写算术表达式（如 计数+1、A*2），右侧&quot;解析值&quot;实时显示结果；流程用 {变量名} 引用。" PrecautionText="变量名勿用中文或空格；表达式支持 + - * / % 与括号及引用其它变量；运行期修改即时生效。"/>
+ 216:     </Grid>
+ 217: </UserControl>

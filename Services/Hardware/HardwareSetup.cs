@@ -84,8 +84,11 @@ namespace NoCodeMotion.Services.Hardware
             HardwareBridge.SetBridge(_leadshine);
             Mode = HardwareMode.Leadshine;
             _initialized = true;
+            // 这个串同时被 Lua 的 HardwareStatus() 读走，所以把卡型 / 总线状态一起说清楚：
+            // 现场「轴不动」第一个要确认的就是「探测到的是脉冲卡还是总线卡、总线通不通」。
+            string cardInfo = LtdmcCard.FirstCard?.Summary ?? "未能读取卡信息";
             StatusMessage = _leadshine.IsCardReady
-                ? $"雷赛控制卡已连接（卡数量 {LtdmcCard.CardCount}），通讯：串口 / 网口 / Modbus 已就绪"
+                ? $"雷赛控制卡已连接（卡数量 {LtdmcCard.CardCount}）：{cardInfo}；通讯：串口 / 网口 / Modbus 已就绪"
                 : "雷赛控制卡未检测到：轴 / IO 只记录日志；通讯（串口 / 网口 / Modbus）可正常使用";
             HardwareLog.Write("[硬件] " + StatusMessage);
             return StatusMessage;

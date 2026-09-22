@@ -437,7 +437,13 @@
                                 <DataGrid.Columns>
                                     <!-- 使用：勾选后本行才参与「移动到该点位之前」的判断；
                                          取消勾选的行即使填了名称也一律忽略（「实际值」列会显示为灰色）。 -->
-                                    <DataGridTemplateColumn Header="使用" Width="40">
+                                    <DataGridTemplateColumn Width="40">
+                                        <DataGridTemplateColumn.Header>
+                                            <StackPanel Margin="1,2">
+                                                <TextBlock Text="使用" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="勾选才判断" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                            </StackPanel>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <CheckBox IsChecked="{Binding IsUsed, UpdateSourceTrigger=PropertyChanged}"
@@ -449,7 +455,13 @@
 
                                     <!-- 类型：IO / 气缸 / 变量 / 轴位置 / 轴使能 / 轴速度 / 轴正限位 / 轴负限位 / 相机。
                                          候选来自 Services/ConditionKinds.All，以后加类型只改那一个文件。 -->
-                                    <DataGridTemplateColumn Header="类型" Width="0.95*" MinWidth="62">
+                                    <DataGridTemplateColumn Width="0.95*" MinWidth="62">
+                                        <DataGridTemplateColumn.Header>
+                                            <StackPanel Margin="1,2">
+                                                <TextBlock Text="类型" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="IO/气缸/轴等" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                            </StackPanel>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ComboBox ItemsSource="{x:Static svc:ConditionKinds.All}"
@@ -461,7 +473,13 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- 名称：候选随「类型」切换（IO / 气缸 / 变量 / 轴 / 相机 各自的名称库） -->
-                                    <DataGridTemplateColumn Header="名称" Width="1.15*" MinWidth="74">
+                                    <DataGridTemplateColumn Width="1.15*" MinWidth="74">
+                                        <DataGridTemplateColumn.Header>
+                                            <StackPanel Margin="1,2">
+                                                <TextBlock Text="名称" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="目标对象" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                            </StackPanel>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ComboBox ItemsSource="{Binding TargetOptions}"
@@ -472,7 +490,13 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- 比较：枚举型只有 == / !=；数值型还有 &gt; &gt;= &lt; &lt;= -->
-                                    <DataGridTemplateColumn Header="比较" Width="0.55*" MinWidth="42">
+                                    <DataGridTemplateColumn Width="0.55*" MinWidth="42">
+                                        <DataGridTemplateColumn.Header>
+                                            <StackPanel Margin="1,2">
+                                                <TextBlock Text="比较" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="==/!=等" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                            </StackPanel>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ComboBox ItemsSource="{Binding OperatorOptions}"
@@ -484,7 +508,13 @@
 
                                     <!-- 期望值：枚举型用下拉（0/1、伸出/缩回、已使能/未使能、已连接/未连接）；
                                          数值型（变量 / 轴位置 / 轴速度 / 轴限位）切换成自由输入。 -->
-                                    <DataGridTemplateColumn Header="期望值" Width="1.0*" MinWidth="66">
+                                    <DataGridTemplateColumn Width="1.0*" MinWidth="66">
+                                        <DataGridTemplateColumn.Header>
+                                            <StackPanel Margin="1,2">
+                                                <TextBlock Text="期望值" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="要满足的状态" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                            </StackPanel>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Grid>
@@ -522,7 +552,13 @@
                                     <!-- 实际值：只读展示设备当前状态（IO 为 0/1、气缸为 伸出/缩回、轴使能为 已使能/未使能、
                                          相机为 已连接/未连接、数值型为数字），由 ViewModel 定时刷新，界面不可编辑。
                                          绿=当前满足该条件、红=不满足或目标找不到、灰=该行未填名称（不参与判断）。 -->
-                                    <DataGridTemplateColumn Header="实际值" Width="0.95*" MinWidth="62">
+                                    <DataGridTemplateColumn Width="0.95*" MinWidth="62">
+                                        <DataGridTemplateColumn.Header>
+                                            <StackPanel Margin="1,2">
+                                                <TextBlock Text="实际值" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="设备当前值" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                            </StackPanel>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding ActualValue}"

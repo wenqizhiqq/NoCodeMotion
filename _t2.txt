@@ -1,0 +1,7 @@
+﻿AxisPage.xaml   dockWrap=24/25 chipWrap= 0/ 0 Field(o=48,c=48) wf=ERR:mismatched tag: line 255, column 14
+IoPage.xaml     dockWrap= 0/ 2 chipWrap= 0/ 0 Field(o=0,c=0) wf=ERR:mismatched tag: line 188, column 10
+CylinderPage.xaml dockWrap=25/26 chipWrap= 0/ 0 Field(o=25,c=25) wf=ERR:mismatched tag: line 480, column 26
+VariablePage.xaml dockWrap= 0/ 0 chipWrap= 0/ 0 Field(o=0,c=0) wf=OK
+CommPage.xaml   dockWrap= 6/ 9 chipWrap=14/20 Field(o=14,c=14) wf=ERR:mismatched tag: line 192, column 30
+TrayPage.xaml   dockWrap= 7/10 chipWrap= 0/ 0 Field(o=7,c=7) wf=ERR:mismatched tag: line 134, column 30
+CameraPage.xaml dockWrap= 9/11 chipWrap= 0/ 0 Field(o=9,c=9) wf=ERR:mismatched tag: line 34, column 22

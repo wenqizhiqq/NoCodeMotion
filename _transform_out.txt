@@ -1,0 +1,7 @@
+﻿AxisPage.xaml    dockWrap= 0/ 0  chipWrap= 0/ 0  Field(open=18,close=28)  wf=XML-ERR: mismatched tag: line 27, column 269  enc=utf-8-sig
+IoPage.xaml      dockWrap= 0/ 0  chipWrap= 0/ 0  Field(open=0,close=0)  wf=OK  enc=utf-8-sig
+CylinderPage.xaml dockWrap= 0/ 0  chipWrap= 0/ 0  Field(open=6,close=6)  wf=OK  enc=utf-8-sig
+VariablePage.xaml dockWrap= 0/ 0  chipWrap= 0/ 0  Field(open=0,close=0)  wf=OK  enc=utf-8-sig
+CommPage.xaml    dockWrap= 0/ 0  chipWrap= 0/ 0  Field(open=6,close=6)  wf=OK  enc=utf-8-sig
+TrayPage.xaml    dockWrap= 0/ 0  chipWrap= 0/ 0  Field(open=0,close=0)  wf=OK  enc=utf-8-sig
+CameraPage.xaml  dockWrap= 0/ 0  chipWrap= 0/ 0  Field(open=4,close=4)  wf=XML-ERR: not well-formed (invalid token): line 2, column 17  enc=utf-8-sig

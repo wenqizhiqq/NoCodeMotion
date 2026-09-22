@@ -108,3 +108,50 @@
   入口按钮叫「回退」、弹窗里的确认按钮叫「确定回退」——**刻意不同名**，既给用户区分，也让 UIA 测试能唯一定位。
 - `Views/FlowPage.xaml` 的 Row-0 `StackPanel` 是「复制JSON / 粘贴生成 / 回退」三个按钮的落点，
   四种流程（运控/脚本/视觉/节点图）共用同一套。**该区域在 `EditorPage.Detail` 里，不能给元素起 `x:Name`（MC3093）。**
+
+## 雷赛硬件层：脉冲卡 vs 总线卡（2026-09-22 新增，务必先读）
+
+- **`LtdmcNative.cs` 是全项目唯一的 P/Invoke 声明处**（63 个声明）。`LtdmcSdk.cs`（774 个声明）
+  **零外部引用**，已整体被取代；里面 3 个声明在 DLL 里根本不存在，已加警示注释。
+- **LTDMC.dll 有两套互不相通的函数族，这是「函数返回 0 但轴不动」的总根源**：
+  - `dmc_*` = 板卡本地资源 → **脉冲卡**。轴 = 卡上第几路，IO = 卡上第几位，伺服使能 = 物理引脚。
+  - `nmc_*` = 总线主站资源 → **EtherCAT / CANopen 卡（DMC-E 3000/5000）**。
+- **关键反直觉点：总线卡上「运动」仍然用 `dmc_*`**（官方例 1 / 例 7 实测）——
+  `dmc_set_profile_unit`(7 参) / `dmc_pmove_unit` / `dmc_get_position_unit(card, axis, ref double)` /
+  `dmc_check_done`(**0=运动中, 1=到位**) / `dmc_set_position_unit` / `dmc_stop`。
+  **轴号就是整数索引，不用换算成从站地址。** 只有三件事分族：
+  **伺服使能**（总线必须 `nmc_set_axis_enable`，CiA402）、**回零参数**（`nmc_set_home_profile` +
+  `nmc_home_move`）、**总线诊断**（状态机 / 错误码）。
+- **EtherCAT 端口号固定为 2**（`nmc_get_errcode(card, 2, ref …)`）。
+  **CiA402 状态机只有 4（操作使能）能动**；0–7 的中文文案见 `LtdmcCard.DescribeAxisState`。
+  回零完成读 `dmc_get_home_result(…, ref state)`，**`state == 1` 才算成功**。
+- **IO 寻址默认「整卡位号」= 模块 × `Options.BitsPerModule` + 序号**（与官方例 8 一致，总线卡上也这么用）。
+  官方 19 个例程**没有一个**用 `nmc_read_inbit`。需要「从站节点号 + 站内位号」时把
+  `LeadshineHardwareBridge.Options.BusIoAddressing = true`。**这是全链路唯一没有例程依据的地方。**
+- `LtdmcCard.Home` / `SetServoEnable` 已按卡型自动分派；桥接层加 `WarnIfAxisCardMismatch`
+  （轴类型与卡型不一致会明确报警）与 `DiagnoseAxis`（超时异常里直接带上状态机 / 错误码读数）。
+- **验收靠 `ncm_smoke` 的 R/S/T 三节，不需要插卡**：`PeExports(path)` 用纯 C# 解析 PE 导出表，
+  断言每个声明都在 DLL 里、`nmc_*` 齐全、全部 `StdCall`、签名形状正确；
+  并断言无卡时 `dmc_board_init()` 返回 0 且轴 / IO 动作只记日志不抛异常。
+
+## 构建陷阱（2026-09-22 新增）
+
+- **不带点前缀的临时目录会被 MSBuild 默认 glob 收进产品编译**。`_out/`（`.gitignore` 里忽略的
+  临时 / 发布目录）里的残留 XAML 曾把构建打挂（12 条 `MC3000`/`MC3089`）。
+  已在 csproj 里按 `artifacts\**` 的写法补了 `_out\**` 的 5 条 `Remove`。
+  **新建 `scratch/`、`tmp/`、`test/` 之类目录前先想清楚 —— 它们会被 `**/*.cs`、`**/*.xaml` 收走。**
+  （`.bt/` 这种带点的不会。）
+
+## 受限下拉字段：写入值必须落在 Catalog 候选集里（2026-09-22 新增）
+
+- **`Catalog.BusTypeNames` 是从 `CardVendorRegistry.Vendors[].BusTypes` 生成的**
+  （`Catalog.RefreshControllerStandards()`，由 `SyncAllFromData` 调用），
+  下拉框只认这些值 —— **写出候选之外的值会被 WPF 渲染成空白，看起来像「功能坏了」**。
+- 已知踩坑：`CardBusType.Other`（→「其它」）**曾经没有任何厂商声明**，
+  所以「其它」不在候选里；而 `AxisControllerItem.BusType` 的文档取值集却写着它合法。已给雷赛条目补上。
+  **给受限下拉字段写值时，先断言 `Catalog.*Names.Contains(值)`。**
+- `AxisControllerViewModel.AutoDetect()` 曾经把 `BusType` **写死成「脉冲」** ——
+  插 DMC-E 总线卡也会登记成脉冲卡，用户会照着错的分支接线。
+  现在读 `LtdmcCard.FirstCard` 照实登记（`LtdmcCard.DescribeBusType` 负责卡型 → 总线类型）。
+- `HardwareSetup.StatusMessage` 同时被 Lua 的 `HardwareStatus()` 读走，
+  所以卡型 / 总线状态要写在这个串里。

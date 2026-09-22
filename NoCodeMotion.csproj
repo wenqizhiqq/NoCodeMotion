@@ -21,6 +21,14 @@
     <EmbeddedResource Remove="artifacts\**" />
     <None Remove="artifacts\**" />
     <Page Remove="artifacts\**" />
+    <!-- _out 是 .gitignore 里的临时 / 发布目录（dotnet publish -o _out）。
+         SDK 默认的 **/*.xaml 会把它一起当 <Page> 编译，里面的旧副本会把构建打挂，
+         这里显式剔除，和上面的 artifacts 同样处理。 -->
+    <Compile Remove="_out\**" />
+    <EmbeddedResource Remove="_out\**" />
+    <None Remove="_out\**" />
+    <Page Remove="_out\**" />
+    <Content Remove="_out\**" />
   </ItemGroup>
 
   <!-- 复用 GrayMatch 的旋转不变 NCC 匹配核心（纯算法/C#：RotatedTemplateMatcher + MatchResult + DefectResult，无 WPF/WinForms 依赖）。

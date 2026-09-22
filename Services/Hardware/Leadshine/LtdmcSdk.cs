@@ -116,6 +116,8 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
         [DllImport("LTDMC.dll", EntryPoint = "dmc_download_configfile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_download_configfile(UInt16 CardNo, String FileName);
         //下载轴翻转参数文件（适用于所有脉冲/总线卡）
+        // ★ LTDMC.dll 里没有导出这个函数（已用 PE 导出表逐条核对过，2060 个导出里找不到）——
+        //   调用它必抛 EntryPointNotFoundException。保留声明只为不改动这份历史 SDK 的编号，实际请勿调用。
         [DllImport("LTDMC.dll", EntryPoint = "dmc_download_configfile_ex", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_download_configfile_ex(UInt16 CardNo, String FileName);
         
@@ -250,8 +252,12 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_vector_profile_multicoor", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_vector_profile_multicoor(UInt16 CardNo, UInt16 Crd, ref double Min_Vel, ref double Max_Vel, ref double Taccdec, ref double Tdec, ref double Stop_Vel);
         //设置读取平滑速度曲线参数（适用于DMC3000系列脉冲卡）
+        // ★ LTDMC.dll 里没有导出这个函数（已用 PE 导出表逐条核对过，2060 个导出里找不到）——
+        //   调用它必抛 EntryPointNotFoundException。保留声明只为不改动这份历史 SDK 的编号，实际请勿调用。
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_vector_s_profile_multicoor(UInt16 CardNo, UInt16 Crd, UInt16 s_mode, double s_para);
+        // ★ LTDMC.dll 里没有导出这个函数（已用 PE 导出表逐条核对过，2060 个导出里找不到）——
+        //   调用它必抛 EntryPointNotFoundException。保留声明只为不改动这份历史 SDK 的编号，实际请勿调用。
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_vector_s_profile_multicoor(UInt16 CardNo, UInt16 Crd, UInt16 s_mode, ref double s_para);
         //插补速度参数(当量)（适用于EtherCAT总线卡、RTEX总线卡、DMC5000/5X10系列脉冲卡）

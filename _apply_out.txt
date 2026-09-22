@@ -1,0 +1,7 @@
+﻿AxisPage.xaml   dock=24/25 chip= 0/ 0 opens=24 closes=24
+IoPage.xaml     dock= 0/ 2 chip= 0/ 0 opens=0 closes=0
+CylinderPage.xaml dock=25/26 chip= 0/ 0 opens=25 closes=25
+VariablePage.xaml dock= 0/ 0 chip= 0/ 0 opens=0 closes=0
+CommPage.xaml   dock= 6/ 9 chip=14/20 opens=20 closes=20
+TrayPage.xaml   dock= 7/10 chip= 0/ 0 opens=7 closes=7
+CameraPage.xaml dock= 9/11 chip= 0/ 0 opens=9 closes=9

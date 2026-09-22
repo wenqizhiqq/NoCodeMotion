@@ -1,0 +1,6 @@
+﻿DockPanel open(incl-self) 24 close 25 selfclose 0 net -1
+local:Field open(incl-self) 24 close 24 selfclose 0 net 0
+ComboBox open(incl-self) 8 close 7 selfclose 1 net 1
+TextBox open(incl-self) 15 close 0 selfclose 15 net 15
+StackPanel open(incl-self) 6 close 6 selfclose 0 net 0
+Border open(incl-self) 5 close 5 selfclose 0 net 0

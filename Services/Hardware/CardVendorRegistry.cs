@@ -62,7 +62,9 @@ namespace NoCodeMotion.Services.Hardware
         {
             new CardVendorInfo {
                 Vendor = "雷赛", DisplayName = "雷赛 Leadshine", Category = "综合型（脉冲+总线）",
-                BusTypes = new[] { CardBusType.Pulse, CardBusType.EtherCAT, CardBusType.CANopen },
+                // Other（「其它」）也要声明：自动识别在「是总线卡但没扫到 EtherCAT 从站」时会如实填它，
+                // 而 Catalog.BusTypeNames 是从这里生成的 —— 不声明就会写出下拉框候选之外的值、渲染成空白。
+                BusTypes = new[] { CardBusType.Pulse, CardBusType.EtherCAT, CardBusType.CANopen, CardBusType.Other },
                 DllNames = new[] { "LTDMC.dll", "LTDmcCom.dll" }, HasLiveBridge = true,
                 Note = "DMC 系列脉冲卡 + EtherCAT/CANopen 总线主站，已集成真实对接（LTDMC.dll）。" },
 

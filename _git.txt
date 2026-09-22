@@ -1,0 +1,30 @@
+﻿ M Resources/AppStyles.xaml
+ M Views/AxisPage.xaml
+ M Views/CameraPage.xaml
+ M Views/CommPage.xaml
+ M Views/CylinderPage.xaml
+ M Views/PointPage.xaml
+?? .workbuddy/memory/2026-09-22.md
+?? Views/Controls/Field.cs
+?? _axis.txt
+?? _comm.txt
+?? _count.py
+?? _count_out.txt
+?? _cyldump.py
+?? _cyldump.txt
+?? _dbg.py
+?? _dbg_out.txt
+?? _dump.py
+?? _dump.txt
+?? _git.txt
+?? _inspect.py
+?? _inspect_out.txt
+?? _io.txt
+?? _scan.py
+?? _scan_out.txt
+?? _transform.py
+?? _transform_out.txt
+?? _var.txt
+?? apply_field.py
+?? "d\357\200\202\302\231$\357\200\213\303\203R\302\202\303\276\302\272t\303\205\303\243\357\200\205\302\217\303\254\303\262u"
+?? nul

@@ -55,19 +55,37 @@ namespace NoCodeMotion.ViewModels
             int leadCards = LtdmcCard.CardCount;
             if (leadCards > 0)
             {
+                // ★ 卡型不能写死「脉冲」：DMC-E 3000/5000 是总线卡，轴与 IO 走 nmc_ 族，
+                //   写死脉冲会让用户照着错的分支接线。脉冲 / 总线由 LtdmcCard 探测得出
+                //   （卡型取自 dmc_get_CardInfList，轴数与从站数取自 nmc_get_total_axes /
+                //   nmc_get_total_slaves，总线状态取自 nmc_get_errcode），这里照实登记。
+                var info = LtdmcCard.FirstCard;
+                bool isBus = info != null && info.IsBusCard;
+                int axisCount = info == null ? 0 : (int)(isBus ? info.BusAxes : info.LocalAxes);
+
                 for (int i = 0; i < leadCards; i++)
                 {
                     Items.Add(new AxisControllerItem
                     {
                         Kind = "控制卡",
                         Vendor = "雷赛",
-                        BusType = "脉冲",
+                        CardType = info == null || info.CardType == 0 ? "DMC" : $"0x{info.CardType:X}",
+                        BusType = LtdmcCard.DescribeBusType(info),
+                        Connection = isBus ? "EtherCAT" : "PCI",
+                        AxisCount = axisCount > 0 ? axisCount : 4,
                         CardNo = i,
-                        Name = $"控制卡{Items.Count + 1}"
+                        Name = $"控制卡{Items.Count + 1}",
+                        Description = info == null ? string.Empty : info.Summary
                     });
                     added++;
                 }
                 sb.AppendLine($"雷赛：检测到 {leadCards} 张控制卡，已登记。");
+                if (info != null)
+                {
+                    sb.AppendLine("　" + info.Summary);
+                    if (info.IsBusCard && info.BusErrCode != 0)
+                        sb.AppendLine("　★总线错误码非 0：EtherCAT 没在正常通信，请先查网线 / 从站上电，再试轴。");
+                }
             }
             else
             {

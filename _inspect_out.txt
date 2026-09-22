@@ -1,0 +1,8 @@
+﻿Views/Controls/Field.cs noBOM utf-8 LF size 1324
+Views/AxisPage.xaml BOM utf-8 CRLF size 17208
+Views/IoPage.xaml BOM utf-8 CRLF size 20227
+Views/CylinderPage.xaml BOM utf-8 CRLF size 34874
+Views/VariablePage.xaml BOM utf-8 CRLF size 13066
+Views/CommPage.xaml BOM utf-8 CRLF size 21925
+Views/TrayPage.xaml BOM utf-8 CRLF size 12066
+Views/CameraPage.xaml BOM utf-8 CRLF size 20625

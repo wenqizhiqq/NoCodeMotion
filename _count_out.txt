@@ -1,0 +1,7 @@
+﻿Views/AxisPage.xaml    dockRight=24 controls=24 appleChipLabel=0
+Views/IoPage.xaml      dockRight=0 controls=6 appleChipLabel=0
+Views/CylinderPage.xaml dockRight=26 controls=19 appleChipLabel=0
+Views/VariablePage.xaml dockRight=0 controls=10 appleChipLabel=0
+Views/CommPage.xaml    dockRight=12 controls=24 appleChipLabel=17
+Views/TrayPage.xaml    dockRight=7 controls=7 appleChipLabel=0
+Views/CameraPage.xaml  dockRight=10 controls=10 appleChipLabel=0
