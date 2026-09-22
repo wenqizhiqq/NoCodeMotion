@@ -138,6 +138,17 @@ namespace NoCodeMotion.Services
             return msg;
         }
 
+        /// <summary>
+        /// 切换到「已移植运动控制卡族」（升立德 / 恒昱 / 研控 / 未分类 / 模拟卡，
+        /// 也可显式选雷赛的卡族实现），返回中文结果。
+        /// </summary>
+        public string UseCardFamilies()
+        {
+            string msg = Hardware.HardwareSetup.UseCardFamilies();
+            _log?.Invoke("[硬件] " + msg);
+            return msg;
+        }
+
         /// <summary>切换到仿真（不碰任何设备），返回中文结果。</summary>
         public string UseSimulation()
         {
@@ -412,6 +423,7 @@ namespace NoCodeMotion.Services
             script.Globals["HardwareReady"] = (Func<double>)api.HardwareReady;
             script.Globals["HardwareReconnect"] = (Func<string>)api.HardwareReconnect;
             script.Globals["UseRealHardware"] = (Func<string>)api.UseRealHardware;
+            script.Globals["UseCardFamilies"] = (Func<string>)api.UseCardFamilies;
             script.Globals["UseSimulation"] = (Func<string>)api.UseSimulation;
         }
     }

@@ -6,6 +6,7 @@ using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 using NoCodeMotion.Services.Hardware;
+using NoCodeMotion.Services.Hardware.Cards;
 using NoCodeMotion.Services.Hardware.Leadshine;
 
 namespace NoCodeMotion.ViewModels
@@ -92,10 +93,35 @@ namespace NoCodeMotion.ViewModels
                 sb.AppendLine("雷赛：未检测到控制卡。" + leadStatus);
             }
 
-            // 2) 其它主流厂商：按驱动库（DLL）是否存在识别，驱动在即登记控制器并提示待接入对接
+            // 2) 已移植的运动控制卡族：按底层库（DLL）是否存在识别，登记为该卡族的控制器。
+            //    只探库、不初始化卡 —— 真正初始化推迟到首次轴 / IO 动作时懒加载（见 SamsunCardBridge），
+            //    免得自动识别阶段去碰一个没插卡的驱动把界面卡住。
+            foreach (var fam in CardFamilyCatalog.DetectPresent())
+            {
+                if (fam.Vendor == "雷赛") continue;          // 雷赛已在上面按实物卡真实扫描
+                string busName = fam.BusTypes.Length > 0
+                    ? CardVendorRegistry.BusTypeName(fam.BusTypes[0])
+                    : "其它";
+                Items.Add(new AxisControllerItem
+                {
+                    Kind = "控制卡",
+                    Vendor = string.IsNullOrEmpty(fam.Vendor) ? "未分类" : fam.Vendor,
+                    CardType = fam.Key,
+                    BusType = busName,
+                    Connection = fam.BusTypes.Contains(CardBusType.EtherCAT) ? "EtherCAT" : "PCI",
+                    Name = $"控制卡{Items.Count + 1}",
+                    Description = fam.DisplayName + "（已移植卡族，底层库：" + string.Join(" / ", fam.NativeDlls) + "）"
+                });
+                added++;
+                sb.AppendLine($"{fam.DisplayName}：底层库已就位（{string.Join(" / ", fam.NativeDlls)}），"
+                            + $"已登记为卡族 {fam.Key}，首次动作时初始化控制卡。");
+            }
+
+            // 3) 其它主流厂商：按驱动库（DLL）是否存在识别，驱动在即登记控制器并提示待接入对接
             foreach (var v in CardVendorRegistry.Vendors)
             {
                 if (v.Vendor == "雷赛") continue;            // 雷赛已在上面真实扫描
+                if (v.HasLiveBridge) continue;               // 已移植卡族已在上面登记
                 if (!CardVendorRegistry.DllPresent(v)) continue;
                 string bus = v.BusTypes.Length > 0 ? CardVendorRegistry.BusTypeName(v.BusTypes[0]) : "其它";
                 Items.Add(new AxisControllerItem

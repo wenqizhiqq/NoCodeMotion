@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services.Hardware;
+using NoCodeMotion.Services.Hardware.Cards;
 
 namespace NoCodeMotion.Services
 {
@@ -45,6 +46,14 @@ namespace NoCodeMotion.Services
             var buses = new List<string>();
             foreach (var v in CardVendorRegistry.Vendors)
                 foreach (var b in v.BusTypes)
+                {
+                    string n = CardVendorRegistry.BusTypeName(b);
+                    if (!buses.Contains(n)) buses.Add(n);
+                }
+            // 已移植卡族声明的总线类型也要并进来：自动识别登记控制器时是按卡族写 BusType 的，
+            // 候选里没有这个值，单元格就会渲染成空白（下拉只认候选内的值）。
+            foreach (var f in CardFamilyCatalog.Families)
+                foreach (var b in f.BusTypes)
                 {
                     string n = CardVendorRegistry.BusTypeName(b);
                     if (!buses.Contains(n)) buses.Add(n);

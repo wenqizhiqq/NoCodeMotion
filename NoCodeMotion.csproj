@@ -64,6 +64,9 @@
     <PackageReference Include="Aspose.CAD" Version="26.7.0" />
     <!-- BepuPhysics v2：纯 C# 3D 物理引擎（无原生 DLL），用于仿真工件物理化（重力/碰撞/被气缸与轴推动）。 -->
     <PackageReference Include="BepuPhysics" Version="2.5.0-beta.29" />
+    <!-- Newtonsoft.Json：移植进来的 DMC1000S / MCN42Series / DigitalTwinCard 三个卡家族
+         用 JsonConvert 做配置与状态快照的序列化，原参考实现即依赖此库。 -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup>
@@ -78,11 +81,63 @@
        LTDMC.dll 是统一驱动（Hardware/Leadshine/LtdmcNative.cs P/Invoke 的目标）；
        Dmc1000/IMC100API/ecat_motion 是各卡型的后端，插对应实物卡时由 LTDMC.dll 按需加载。
        注：DMC2210.dll 在参考实现里是 x86，与 x64 进程不兼容，DMC2210 卡型需另取 x64 版本。 -->
+  <!-- 运动控制卡层（移植自 SamsunMotion / SMotorse 参考实现）所需的原生运行时。
+       全部为 x64，与 NoCodeMotion.exe(x64) 位数一致；各卡家族的 P/Invoke 目标见
+       Services\Hardware\Cards\Native\*.cs。未随附的库（MCC.dll / Dmc2410.dll /
+       SLD9014PTP.dll 缺件，DMC2210.dll 为 x86）对应的卡家族仍可编译，但插卡后无法驱动。 -->
   <ItemGroup>
     <None Include="Native\LTDMC.dll" Link="LTDMC.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\Dmc1000.dll" Link="Dmc1000.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\IMC100API.dll" Link="IMC100API.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\ecat_motion.dll" Link="ecat_motion.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\MCC1C00.dll" Link="MCC1C00.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\MCC800S.dll" Link="MCC800S.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\MCCE135.dll" Link="MCCE135.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\MCN420.dll" Link="MCN420.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\MCX08.dll" Link="MCX08.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\PCI400.dll" Link="PCI400.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\PLT.dll" Link="PLT.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\Pci9014.dll" Link="Pci9014.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\Pci9016.dll" Link="Pci9016.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\PCI1230.dll" Link="PCI1230.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\sldmv.dll" Link="sldmv.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- SoftServo 卡家族依赖的厂商托管 SDK（WMX3 实时软伺服）。
+       这些是托管程序集：既要 Reference 才能编译，也要随输出目录复制才能运行。 -->
+  <ItemGroup>
+    <None Include="Native\WMX3Api_CLRLib.dll" Link="WMX3Api_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\RtMotionApiNET.dll" Link="RtMotionApiNET.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\EcApi_CLRLib.dll" Link="EcApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\CoreMotionApi_CLRLib.dll" Link="CoreMotionApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\IOApi_CLRLib.dll" Link="IOApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\EventApi_CLRLib.dll" Link="EventApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="RtMotionApiNET">
+      <HintPath>Native\RtMotionApiNET.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="WMX3Api_CLRLib">
+      <HintPath>Native\WMX3Api_CLRLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="EcApi_CLRLib">
+      <HintPath>Native\EcApi_CLRLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="CoreMotionApi_CLRLib">
+      <HintPath>Native\CoreMotionApi_CLRLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="IOApi_CLRLib">
+      <HintPath>Native\IOApi_CLRLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="EventApi_CLRLib">
+      <HintPath>Native\EventApi_CLRLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <!-- 真实机台 3D 模型（WaveFront .obj，直接嵌入输出目录，运行时按路径加载） -->

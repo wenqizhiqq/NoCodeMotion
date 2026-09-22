@@ -66,15 +66,24 @@
 
 ## 验证 UI 的硬约束（本机）
 
-- **这台机器的桌面没有交互式输入**：`GetForegroundWindow() == NULL`、`GetCursorPos() == (0,0)`。
-  合成鼠标（`mouse_event` / `uiautomation` 的 `.Click(simulateMove=True)`）**会打空**：
-  UIA 找得到控件、`IsEnabled=True`、坐标正常，但点了毫无反应。
-  → 一律改用 `ctrl.GetInvokePattern().Invoke()` 直接调 WPF 命令。
+- **驱动 UI 一律用 `ctrl.GetInvokePattern().Invoke()`**，不要合成鼠标。
   导航项是 `TextBlock`，要沿 `GetParentControl()` 上溯到外层 `ButtonControl` 再 Invoke。
   `uiautomation` 2.0.29 **没有** `GetSupportedPatterns()`（那是裸 UIA COM API）。
-- **`PrintWindow` 在这种状态下客户区全白**（标题栏正常），截图不能当视觉证据 —— 以 UIA 读到的文本为准。
+  ~~（2026-09-22 更正）~~ 早先记的「本机没有交互式桌面：`GetForegroundWindow()==NULL`、
+  `GetCursorPos()==(0,0)`」**已经不成立了**：实测 `GetForegroundWindow()` 返回非 0、
+  光标在 (1203,453)。会话状态会变，**每次跑之前先打印这三个值再决定**，别照搬旧结论。
+- **`PrintWindow` 的可靠性不能假定**（无交互桌面时客户区全白，标题栏正常）。
+  截图不能直接当视觉证据 —— 以 UIA 读到的文本为准。
+- **读 ComboBox 候选要取它自己的 `ListItemControl` 子孙**，别用「标签之后一路读到下一个有名字的
+  TextControl」这种取法：ComboBox 内部那个可编辑文本框本身就是个有名字的 TextControl
+  （显示当前选中值），会让你刚读到第一项就以为结束了（v1 脚本就栽在这，只报出「雷赛」一项）。
+  ComboBox 自己 `Name` 通常是空的，靠标签的 y 坐标就近配对即可。
 - 断言「计数标签是活的」不能只看一次结果：要**连粘两次不同条数**（如 7 → 3），
   否则工程里本来就是这个数，看不出标签是死的还是活的。
+- 现成脚本：`%TEMP%\ncm_ui\verify_dropdowns2.py`（启动 exe → UIA Invoke 导航到「控制器」页
+  → 断言品牌 / 总线类型 / 连接方式三个下拉的候选）。用
+  `%TEMP%\ncm_patch\..` 旁边的 managed python 跑（`C:\Users\admin\.workbuddy-ai\binaries\python\versions\3.13.12\python.exe -u`），
+  它同时装了 `PIL` 与 `uiautomation`；系统 Python 3.12 **没有** uiautomation。
 
 ## 流程页 AI 往返：提示词里的 Lua API（2026-09-21 新增）
 
@@ -142,6 +151,15 @@
   **新建 `scratch/`、`tmp/`、`test/` 之类目录前先想清楚 —— 它们会被 `**/*.cs`、`**/*.xaml` 收走。**
   （`.bt/` 这种带点的不会。）
 
+- **冒烟测试与 `--no-incremental` 构建绝对不能并行**：两者都写工程根下的 `obj\`，
+  并行会互删中间产物，报出成片的**假错**（`CS0103 InitializeComponent` / `CS5001 没有 Main` /
+  `CS2001 缺 *.g.cs`）。而且**不会自愈** —— 之后单独跑，增量构建认为 obj 是最新的、
+  不重新生成 XAML 的 `*.g.cs`，于是继续报同样的错。
+  **看到这三类错误先怀疑 obj 被污染，不要改代码**；修法 `rm -rf obj bin` 再全量 build（约 37 秒）。
+- **`-t:Rebuild` 会跳过 CoreCompile 并报假的「0 警告」**（日志里有
+  `正在跳过目标"CoreCompile"`）。要真实警告清单必须用 `--no-incremental -v n`；
+  且 WPF 的 `_wpftmp` 那一遍会把分析器警告**重复计一次**，原始 `grep -c` 约为真实值的 2 倍，比对前要归一化去重。
+
 ## 受限下拉字段：写入值必须落在 Catalog 候选集里（2026-09-22 新增）
 
 - **`Catalog.BusTypeNames` 是从 `CardVendorRegistry.Vendors[].BusTypes` 生成的**
@@ -155,3 +173,67 @@
   现在读 `LtdmcCard.FirstCard` 照实登记（`LtdmcCard.DescribeBusType` 负责卡型 → 总线类型）。
 - `HardwareSetup.StatusMessage` 同时被 Lua 的 `HardwareStatus()` 读走，
   所以卡型 / 总线状态要写在这个串里。
+
+## 已移植运动控制卡族层（2026-09-22 新增，动硬件前先读）
+
+代码在 `Services/Hardware/Cards/`：`Interfaces/`（`ICard` 22 项 / `IAxis` 201 项 / `IIOInPut` /
+`IIOOutPut` / `IEIOInPut` / `IEIOOutPut`）、`Native/`（共享 P/Invoke 包装类）、
+`Families/<26 个卡族>/`（每族固定 5~7 个文件：`CardRealization` / `AxisRealization` /
+`InioRealization` / `OutioRealization` / 可选 `Expand*Realizetion` / `XXXSDK.cs`）、`Compat/`（参考实现
+自带的应用层服务的替身）。命名空间**保持参考工程原样** `Samsun.Domain.MotionCard.Common.*`。
+
+- **入口**：`Services/Hardware/Cards/CardFamilyCatalog.cs`（26 个卡族注册表 + 卡族匹配 + dll 清单）
+  与 `Services/Hardware/Cards/SamsunCardBridge.cs`（`IHardwareBridge` 实现）。
+  `HardwareSetup.AutoDetectFromProject()` 决定用哪套：**只有雷赛的工程仍走
+  `LeadshineHardwareBridge`（既有行为不变），出现非雷赛卡族才切 `SamsunCardBridge`。**
+- **`Families` 目录名 ≠ 真实命名空间**，别按目录名猜。已知不同名：`E64IOSeries`→`.SLDIOE64`、
+  `MCN42Series`→`.YKMCN42Series`、`SoftServo`→`.SoftServo_EtherCAT`、
+  `YKMCCE3032`→`.YKMCC_E3032_EtherCAT`、`YMCC1200P`→`.YKMCC1200P`、`EC600`→`.EC600_EtherCAT`、
+  `DMC1000S`→`.DMC1000S`（只有同目录的 `dmc1000SConfig.cs` 还在 `MotionCardRes.DMC1000S`）。
+- **`NativeDlls` 清单必须「剥注释后扫 `DllImport` + 扫调用了哪个 Native 包装类」得出，不能按目录名猜。**
+  曾经猜错 11 个：**`HY7X00`（恒昱）的真实驱动是 `PCI400.dll` 不是 LTDMC.dll**；
+  `DMC1000S`/`E64IOSeries`/`EC600`/`HYMC608`/`PLTEI400H`/`SLD1230`/`SLD1232`/`VirtualMotionCard`
+  都额外 P/Invoke `LTDMC.dll`；`SoftServo` 的 EtherCAT 复位还调 `MCCE135.dll`。
+  不剥注释会出事：`//return LTDMC.xxx(...)` 这种注释调用满仓都是。
+- **`Aliases` 必须同时收录「型号名」和「固件卡型码」**：自动识别对雷赛卡写进「卡型号」的是
+  `$"0x{固件卡型码:X}"`（见 `AxisControllerViewModel.AutoDetect`），不是型号名。
+  26 个卡族共登记了 48 个固件码（如 DMC1000S=`0x2711`、EC600=`0xEC600`、虚拟卡=`0x1B198`），
+  码值抄自参考实现 `SystemHardwareData.cs` 的「卡型码 → 卡族」switch。
+  缺了固件码，混装工程里这张卡会掉到「品牌 + 总线」兜底分支、**被配上一张不相干的同品牌卡**。
+  别名是**子串**匹配，所以短数字码（如 MCN42 的 `420`）只登记十六进制形式，避免串味。
+  注意参考实现自己把 `MCC400S` 与 `MCC800S` 都上报成 `0x8076`，该码归 MCC800S。
+- **品牌归属照参考实现的分组规则算**（`SelectControllerDialog.xaml.cs` `BuildCardTree`）：
+  含 DMC+E→雷赛总线；DMC 不含 E→雷赛脉冲；前缀 PCI/E/F→升立德；前缀 HY→恒昱；
+  前缀 MCC 含 E→研控总线；MCC 不含 E→研控脉冲；含 虚拟/仿真→模拟卡。
+  按此规则 `MCC141C`→研控、`EC600`→升立德（后者的枚举位置也紧挨升立德 E64xx 区块）；
+  真正覆盖不到的只剩 `PLTEI400H`（前缀 PLT）与 `SoftServo`（前缀 S），挂「未分类」。
+- **轴必须一轴一个 `IAxis` 实例**：`AxisWhichCardNo` / `AxisID` 是实例字段，而
+  `GetCardAxisCurrentPosition(cntr_no)` / `CardAxisHomeMove()` / `GetCardAxisCurrentState()`
+  都不带卡号/轴号参数 → `CardFamilyRuntime.NewAxis` 是**工厂**，不是单例。
+- **`GetCardAxisCurrentState()` 返回 0 = 停止 / 1 = 运行中**（看着像反的，但全族一致）。
+- **`ListCardParam` 必须预置**：部分卡族在 `OpenCard` 里按下标访问它，空表直接
+  `IndexOutOfRange` → `SamsunCardBridge.SeedCardParams` 兜底。
+- **模拟卡族**（`VirtualMotionCard` / `DigitalTwinCard`）把 `IsVitualCard = true` 后跳过真实开卡，
+  直接返回成功 —— 脱机调试用这个，也是冒烟 Z 段的做法。
+- **`SamsunCardBridge.Guard` 捕获所有异常**（不只是 `HardwareOperationException`）并包成
+  中文 `ScriptRuntimeException`：移植过来的族里 `throw new NotImplementedException()` 很常见，
+  不能让脚本因此中断。
+- 参考实现自带的 `GTS800PG` 族**没有移植**（它不在参考工程 csproj 的编译集里）。
+  缺的底层库：`MCC.dll`（研控 4 个脉冲族）、`Dmc2410.dll`、`SLD9014PTP.dll`；`Dmc2210.dll` 是 x86。
+
+## 冒烟测试工程（2026-09-22 补全）
+
+`C:/Users/admin/AppData/Local/Temp/ncm_smoke/`（`ProjectReference` 指向本工程，
+`NoWarn=NU1701;CA1416;CS8632`，`GenerateAssemblyInfo=true`；`net10.0-windows` + `UseWPF=true`）。
+**必须放在工程目录之外**，否则会被 `**/*.cs` glob 收进产品源码树。
+跑法：`env "APPDATA=..." "ProgramFiles=..." "ProgramFiles(x86)=..." dotnet run -v q --nologo`。
+
+现有段落：`A~D` 移动条件、`E~N` 流程 JSON 往返、`O~Q` 节点图模板、`R~U` 雷赛硬件层
+（含「PE 导出表 vs P/Invoke 声明」比对）、`V~AB` 卡族层（注册表完整性 / dll 清单双向对齐 /
+缺库清单 / 卡族匹配规则 / 虚拟卡端到端往返 / 模式自动选择 / Lua `UseCardFamilies`）。
+**当前 708 PASS / 0 FAIL。加断言时别把 `_fail` 计数弄乱。**
+
+两个容易踩的断言坑：
+- C# 委托注册进 `script.Globals` 后 `Type` 是 `DataType.ClrFunction`，**不是** `DataType.Function`。
+- `HardwareApi` 的构造函数是 `(IHardwareBridge, Action<string>)`，注册方法是
+  `static HardwareApi.Register(Script, HardwareApi)`。

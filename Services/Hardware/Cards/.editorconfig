@@ -1,0 +1,30 @@
+# 本目录（Services/Hardware/Cards）是从 SamsunMotion / SMotorse 参考实现
+# 整体移植进来的运动控制卡层：6 个接口 + 10 个原生 DLL 包装类 + 26 个卡家族，
+# 共约 19 万行第三方既有代码，逐字节保持原样（只把行尾归一化为 LF、加了
+# #nullable disable），目的是将来仍能与参考实现对照。
+#
+# 因此这里保留的厂商写法会触发一批噪音警告。它们全部来自厂商代码，
+# 不是本项目的缺陷，且对 26 个卡家族逐个改写风险远大于收益，故在本目录内
+# 关闭这些规则；工程其余部分的告警基线（590 条 CA1416）不受影响。
+#
+# 本文件只作用于 Services/Hardware/Cards/ 及其子目录（不设 root，
+# 以便将来工程根目录若新增 .editorconfig 时仍能向下继承）。
+[*.cs]
+
+# ── 厂商代码遗留 ──
+# CS0162 检测到无法访问的代码
+dotnet_diagnostic.CS0162.severity = none
+# CS0219 变量已赋值但从未使用
+dotnet_diagnostic.CS0219.severity = none
+# CS0168 变量已声明但从未使用
+dotnet_diagnostic.CS0168.severity = none
+# CS0414 字段已赋值但从未使用
+dotnet_diagnostic.CS0414.severity = none
+# CS0105 using 指令重复出现
+dotnet_diagnostic.CS0105.severity = none
+# CS8981 类型名仅含小写 ascii（厂商底层包装类名，如 sldmv / fn）
+dotnet_diagnostic.CS8981.severity = none
+
+# ── 分析器规则 ──
+# CA2200 重新引发捕获到的异常会更改堆栈信息（厂商在各卡的错误分支里普遍如此写）
+dotnet_diagnostic.CA2200.severity = none
