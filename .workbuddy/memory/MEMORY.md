@@ -11,7 +11,15 @@
 - .NET 10 `_wpftmp` CS0579：csproj 加 `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>`+`<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>`；`[assembly:ThemeInfo]` 留根 AssemblyInfo.cs。勿用 UseArtifactsOutput。
 - **WPF 重复 XAML 编译陷阱**：SDK `EnableDefaultPageItems` 会把 `Views/*.xaml` 全部当 `<Page>` 自动编译。编码转换/探针脚本若生成 `XXX_utf8.xaml` 且与 `XXX.xaml` **同 `x:Class`**，会 CS0102（成员重复）+ CS8646（partial 冲突），整工程编译失败。删除 `_utf8` 副本即可；删前先 Grep 该 class 是否另有唯一改动。本工程 NodeGraphPage 曾因此被 `_utf8` 副本拖崩。
 
+## xlsx 工程存储（反射式序列化）
+- `Services/XlsxProjectStore.cs` 反射式读写：根对象 public 集合属性 → sheet（列=元素标量属性）；标量 → 「项目管理」表；IO 由 `BuildIoSheet`/`SplitIoToRoot` 合并。
+- **嵌套子集合**（父项有子集合）走通用「父表.子表」分页：`CollectNestedSheets`（导出，列=父项名称+子项标量）与 `RestoreNestedCollections`（导入，按父项名称分组 Clear+Add）。**注意**：这是后接线的能力，早期是死代码；点位表/料盘/流程 用「合并块单页」（`AddMergedBlockSheets`/`RestoreMergedBlockSheets`），故通用分页用 `MergedBlockParents={PointTables,Trays,Flows}` 跳过它们，避免重复建表。
+- 新增子集合属性要求：①元素类型继承 `EditorItemBase`；②集合属性**必须带 set**（`{ get; set; } = new()`）——`RestoreNestedCollections` 要求 `cp.CanWrite`；③子表中文名可选，加进 `ChildSheetNameOverrides`（如 `ExpansionModules=扩展模块` → sheet「控制器.扩展模块」）。
+- **只读计算属性不要放在数据模型上**：`CollectionToTable`/`CollectNestedSheets` 会把只读标量属性也当列写进 sheet（导入时忽略、但脏列）。汇总/派生值放 ViewModel。
+- 新增标量字段（如 `AxisControllerItem.InIoCount`）零改动落盘，旧工程缺列 → 默认值，向后兼容。
+
 ## 全局 UI 约定
+- **资源字典真相**：`App.xaml` 只合并 `Resources/AppStyles.xaml`（它内部只再合 HandyControl）。`Themes/AppleControls.xaml` **未被任何地方合并**，里面的 `AppleSubLabel`/`AppleTextFieldInline`/`AppleIconBtn`/`AppleDivider`/`AppleComboBox*` 等**运行时不存在**——用它们会 XamlParseException「找不到名为 X 的资源」。可用键以 `Resources/AppStyles.xaml` 为准（Apple 表单样式见 ~825-1024 行：AppleGroupCard/AppleSectionHeader/AppleRow/AppleLabel/AppleTextField/AppleUnit/AppleHairline/AppleNumBox/AppleCombo/AppleChip/AppleChipLabel/AppleNumField/AppleBtn/AppleBtnSecondary/AppleToggle；按钮 Tt*/TtPill*；下拉 CellComboStyle；刷子见文件头 29-44 行）。需要小字说明/窄数字框等 AppStyles 没有的，在页面 `<UserControl.Resources>` 里本地补（如 AxisControllerPage 的 SubLabel/MiniNumBox）。
 - 所有删除/清空按钮红色：`TtDeleteBtn`（大）/ `TtPillRedBtn`（小）；色彩编码 红=破坏/橙=反向非破坏/蓝=正向/绿=保存/灰=次要。改前先 Grep 列全清单。
 - 每页底 `PageHintBar`（OperationText/PrecautionText）：EditorPage 子页第3行绑 Hint*；独立根页末尾 Auto 行加。
 - 视觉数值参数用 `NumericSliderRow.xaml`（Value 双向）；Grid `*` 列必须 MaxWidth 封顶防渲染出视口。

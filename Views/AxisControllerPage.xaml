@@ -7,8 +7,20 @@
              xmlns:svc="clr-namespace:NoCodeMotion.Services"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
+    <UserControl.Resources>
+        <!-- 本页小字说明 + 窄数字框（全局 AppStyles 无 AppleSubLabel / AppleTextFieldInline，故本地补） -->
+        <Style x:Key="SubLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+        </Style>
+        <Style x:Key="MiniNumBox" TargetType="TextBox" BasedOn="{StaticResource AppleTextField}">
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="TextAlignment" Value="Right"/>
+        </Style>
+    </UserControl.Resources>
+
     <local:EditorPage ShowDefaultAddButton="False"
-        HintOperation="添加控制器并填写类型、通道与通讯参数；轴页通过「控制器」下拉关联到此处。"
+        HintOperation="添加控制卡并填写型号、总线与通讯参数；卡内可选择扩展 IO 模块，自动汇总输入 / 输出 IO 数与轴数；轴页通过「控制器」下拉关联到此处。"
         HintPrecaution="通讯参数（波特率 / 站号 / IP）须与硬件一致；修改后重新连接，掉线时检查线缆与供电。">
         <local:EditorPage.LeftToolbarContent>
             <StackPanel Orientation="Horizontal">
@@ -16,12 +28,6 @@
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                         <TextBlock Text="添加控制卡" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-                <Button Command="{Binding AddExpansionIoCommand}" Style="{StaticResource ToolButtonStyle}">
-                    <StackPanel Orientation="Horizontal">
-                        <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                        <TextBlock Text="添加扩展IO" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Command="{Binding AutoDetectCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="重新连接控制卡并自动登记检测到的硬件">
@@ -101,6 +107,109 @@
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="备注"/>
                             <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Description}"/>
                         </DockPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ============ 扩展 IO 模块（挂在控制卡内） ============ -->
+                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource AppleSectionHeader}" Text="扩展 IO 模块"/>
+                        <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
+                                   Text="先填控制卡主板自带的 IO 数，再逐个添加 CAN / EtherCAT 扩展模块（选型号自动带出 IO / 轴数）；输入 / 输出 / 轴数量自动汇总到「数量汇总」。"/>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="主板输入IO数"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.InIoCount, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="主板输出IO数"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.OutIoCount, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+
+                        <TextBlock Style="{StaticResource SubLabel}" Margin="16,8,16,0" Text="已挂扩展模块（型号 / 数量 / 单模块输入 / 单模块输出 / 单模块轴数）"/>
+                        <ItemsControl ItemsSource="{Binding SelectedItem.ExpansionModules}" Margin="16,4,16,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="0,5" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="42"/>
+                                                    <ColumnDefinition Width="42"/>
+                                                    <ColumnDefinition Width="42"/>
+                                                    <ColumnDefinition Width="38"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ComboBox Grid.Column="0" Style="{StaticResource CellComboStyle}" IsEditable="True"
+                                                          ItemsSource="{Binding DataContext.ExpansionModuleOptions, RelativeSource={RelativeSource AncestorType={x:Type local:AxisControllerPage}}}"
+                                                          SelectedItem="{Binding ModuleType, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBox Grid.Column="1" Margin="4,0,0,0" Style="{StaticResource MiniNumBox}" Text="{Binding Count, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBox Grid.Column="2" Margin="4,0,0,0" Style="{StaticResource MiniNumBox}" Text="{Binding InIo, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBox Grid.Column="3" Margin="4,0,0,0" Style="{StaticResource MiniNumBox}" Text="{Binding OutIo, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBox Grid.Column="4" Margin="4,0,0,0" Style="{StaticResource MiniNumBox}" Text="{Binding AxisCount, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <Button Grid.Column="5" Style="{StaticResource TtPillRedBtn}" Margin="6,0,0,0" Content="删除"
+                                                        Command="{Binding DataContext.RemoveExpansionModuleCommand, RelativeSource={RelativeSource AncestorType={x:Type local:AxisControllerPage}}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </Grid>
+                                            <Grid Margin="0,3,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="42"/>
+                                                    <ColumnDefinition Width="42"/>
+                                                    <ColumnDefinition Width="42"/>
+                                                    <ColumnDefinition Width="38"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Style="{StaticResource SubLabel}" Text="模块型号"/>
+                                                <TextBlock Grid.Column="1" Style="{StaticResource SubLabel}" Text="数量" HorizontalAlignment="Right"/>
+                                                <TextBlock Grid.Column="2" Style="{StaticResource SubLabel}" Text="单入" HorizontalAlignment="Right"/>
+                                                <TextBlock Grid.Column="3" Style="{StaticResource SubLabel}" Text="单出" HorizontalAlignment="Right"/>
+                                                <TextBlock Grid.Column="4" Style="{StaticResource SubLabel}" Text="单轴" HorizontalAlignment="Right"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <Button DockPanel.Dock="Left" Style="{StaticResource TtPillBlueBtn}" Content="＋ 添加扩展模块"
+                                    Command="{Binding AddExpansionModuleCommand}"/>
+                            <ComboBox DockPanel.Dock="Right" Width="210" Style="{StaticResource CellComboStyle}" IsEditable="True"
+                                      ItemsSource="{Binding ExpansionModuleOptions}"
+                                      SelectedItem="{Binding SelectedModuleType, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ============ 数量汇总（自动生成） ============ -->
+                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource AppleSectionHeader}" Text="数量汇总（自动生成）"/>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="输入 IO 总数"/>
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource AccentBrush}" Text="{Binding TotalInIo}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="输出 IO 总数"/>
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource AccentBrush}" Text="{Binding TotalOutIo}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="轴总数"/>
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource AccentBrush}" Text="{Binding TotalAxis}"/>
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource SubLabel}" Margin="16,2,16,12" TextWrapping="Wrap"
+                                   Text="输入 / 输出 IO 总数 = 主板 IO + Σ(模块数量 × 单模块 IO)；轴总数 = 卡自身轴数 + Σ(模块数量 × 单模块附加轴数)。"/>
                     </StackPanel>
                 </Border>
             </WrapPanel>

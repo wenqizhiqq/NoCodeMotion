@@ -1,0 +1,133 @@
+﻿410: 	{
+411: 		config.DeviceConfigData[taskName].HardwareListTreeControlConfig = data;
+412: 	}
+413: 
+414: 	public List<DebugNodeStruct> GetHardwareTreeDataFormConfig(string taskName)
+415: 	{
+416: 		return config.DeviceConfigData[taskName].HardwareListTreeControlConfig;
+417: 	}
+418: 
+419: 	public List<string> GetIOInfo()
+420: 	{
+421: 		return new List<string>();
+422: 	}
+423: 
+424: 	private int getInIOCountByCardName(string cardName)
+425: 	{
+426: 		for (int i = 0; i < config.MainCardInIOInfo.Count; i++)
+427: 		{
+428: 			if (config.MainCardInIOInfo[i].CardName == cardName)
+429: 			{
+430: 				return config.MainCardInIOInfo[i].InIONums;
+431: 			}
+432: 		}
+433: 		return 0;
+434: 	}
+435: 
+436: 	private int getOutIOCountByCardName(string cardName, string taskName)
+437: 	{
+438: 		for (int i = 0; i < config.MainCardOutIOInfo.Count; i++)
+439: 		{
+440: 			if (config.MainCardOutIOInfo[i].CardName == cardName)
+441: 			{
+442: 				return config.MainCardOutIOInfo[i].OutIONums;
+443: 			}
+444: 		}
+445: 		return 0;
+446: 	}
+447: 
+448: 	public string GetHardwareInfoString(string taskName)
+449: 	{
+450: 		StringBuilder stringBuilder = new StringBuilder();
+451: 		int num = 0;
+452: 		foreach (KeyValuePair<string, CardConfigDataStruct> item in config.CardConfig)
+453: 		{
+454: 			KeyValuePair<string, CardConfigDataStruct> keyValuePair = config.CardConfig.ElementAt(num);
+455: 			stringBuilder.Append(item.Key + "\n");
+456: 			stringBuilder.Append("------------\n");
+457: 			stringBuilder.Append($"主板IO: 输入IO {getInIOCountByCardName(keyValuePair.Key)},输出IO {getOutIOCountByCardName(keyValuePair.Key, taskName)}\n");
+458: 			stringBuilder.Append($"扩展IO: 输入IO {getInIOCountByCardName(keyValuePair.Key)},输出IO {getOutIOCountByCardName(keyValuePair.Key, taskName)}\n");
+459: 			stringBuilder.Append("\n");
+460: 			num++;
+461: 		}
+462: 		stringBuilder.Append("使用中的轴\n");
+463: 		stringBuilder.Append("------------\n");
+464: 		foreach (AxisConfigDataStruct item2 in config.DeviceConfigData[taskName].UserSelectAxisInfo)
+465: 		{
+466: 			stringBuilder.Append(item2.AxisName + "," + item2.AxisNotes + "," + item2.AxisWhichCardName + "\n");
+467: 		}
+468: 		stringBuilder.Append("\n");
+469: 		return stringBuilder.ToString();
+470: 	}
+4025: 		{
+4026: 			list.Add(config.DeviceConfigData[taskName].UserSelectAxisInfo[i].AxisInfoStr + "," + config.DeviceConfigData[taskName].UserSelectAxisInfo[i].AxisNotes + "," + config.DeviceConfigData[taskName].UserSelectAxisInfo[i].AxisNotes2);
+4027: 		}
+4028: 		return list;
+4029: 	}
+4030: 
+4031: 	public string GetCardInfo()
+4032: 	{
+4033: 		StringBuilder stringBuilder = new StringBuilder();
+4034: 		foreach (KeyValuePair<string, CardConfigDataStruct> item in config.CardConfig)
+4035: 		{
+4036: 			stringBuilder.Append("卡：" + item.Key + "\n");
+4037: 			stringBuilder.Append($"输入IO数量：{item.Value.CardInputIOSum}\n");
+4038: 			stringBuilder.Append($"输出IO数量：{item.Value.CardOutputIOSum}\n");
+4039: 			stringBuilder.Append($"扩展IO模块数量：{item.Value.ExtendIOSum}\n");
+4040: 			stringBuilder.Append("扩展模块类型：" + item.Value.ExtendMode.ToString() + "\n");
+4041: 			stringBuilder.Append("卡参数：\n");
+4042: 			for (int i = 0; i < item.Value.ListCardParam.Count; i++)
+4043: 			{
+4044: 				stringBuilder.Append("\t=================\n");
+4045: 				stringBuilder.Append("\t卡名字：" + item.Value.ListCardParam[i].CardName.ToString() + "\n");
+4046: 				stringBuilder.Append("\t卡NO：" + item.Value.ListCardParam[i].CardNo + "\n");
+4047: 				stringBuilder.Append("\t卡注释：" + item.Value.ListCardParam[i].CardRemarks.ToString() + "\n");
+4048: 				stringBuilder.Append("\t卡支持的轴数量：" + item.Value.ListCardParam[i].CardSuportAxisNum + "\n");
+4049: 				stringBuilder.Append("\t卡类型：" + item.Value.ListCardParam[i].CardType + "\n");
+4050: 			}
+4051: 		}
+4052: 		return stringBuilder.ToString();
+4053: 	}
+4054: 
+4055: 	public string GetMainBoardInOutIOInfo()
+4056: 	{
+4057: 		return GetMainBoardInIOInfoFromConfigdata() + GetMainBoardOutIOInfoFromConfigdata();
+4058: 	}
+4059: 
+4060: 	public string GetCardSimpleIONumInfo()
+4061: 	{
+4062: 		string text = "";
+4063: 		ushort num = 0;
+4064: 		ushort num2 = 0;
+4065: 		for (int i = 0; i < config.MainCardInIOInfo.Count; i++)
+4066: 		{
+4067: 			num += config.MainCardInIOInfo[i].InIONums;
+4068: 		}
+4069: 		for (int j = 0; j < config.MainCardOutIOInfo.Count; j++)
+4070: 		{
+4071: 			num2 += config.MainCardOutIOInfo[j].OutIONums;
+4072: 		}
+4073: 		return $"输入IO数量：{num}；输出IO数量：{num2}；总数：{num + num2}";
+4074: 	}
+4075: 
+4076: 	public string GetMainBoardInIOInfoFromConfigdata()
+4077: 	{
+4078: 		StringBuilder stringBuilder = new StringBuilder();
+4079: 		for (int i = 0; i < config.MainCardInIOInfo.Count; i++)
+4080: 		{
+4081: 			stringBuilder.Append($"卡：{config.MainCardInIOInfo[i].CardName},{config.MainCardInIOInfo[i].InIOName}\n IO数量：{config.MainCardInIOInfo[i].InIONums}\n IO起始索引：{config.MainCardInIOInfo[i].IOIndexStart}\r\n");
+4082: 		}
+4083: 		return stringBuilder.ToString();
+4084: 	}
+4085: 
+4086: 	public string GetMainBoardOutIOInfoFromConfigdata()
+4087: 	{
+4088: 		StringBuilder stringBuilder = new StringBuilder();
+4089: 		for (int i = 0; i < config.MainCardOutIOInfo.Count; i++)
+4090: 		{
+4091: 			stringBuilder.Append($"卡：{config.MainCardOutIOInfo[i].CardName},{config.MainCardOutIOInfo[i].OutIOName}\n IO数量：{config.MainCardOutIOInfo[i].OutIONums}\n IO起始索引：{config.MainCardOutIOInfo[i].IOIndexStart}\r\n");
+4092: 		}
+4093: 		return stringBuilder.ToString();
+4094: 	}
+4095: 
+DONE

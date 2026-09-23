@@ -82,6 +82,7 @@ namespace NoCodeMotion.Services
             ["Cells"] = "格子",
             ["Points"] = "点位",
             ["AxisNames"] = "轴名",
+            ["ExpansionModules"] = "扩展模块",
         };
 
         /// <summary>顶部菜单页顺序（用于文档/占位对齐，不强制建空表）。</summary>
@@ -96,6 +97,14 @@ namespace NoCodeMotion.Services
 
         /// <summary>合并进「IO」表的属性（Inputs / Outputs）。</summary>
         private static readonly HashSet<string> MergedIoProperties = new() { "Inputs", "Outputs" };
+
+        /// <summary>
+        /// 已改用「合并块单页」格式的父表属性（点位表 / 料盘 / 流程）。
+        /// <para>这些父表的嵌套子集合在 ExportToDataTables 里由 <see cref="AddMergedBlockSheets"/> 专门处理，
+        /// 故通用「父表.子表」分页（<see cref="CollectNestedSheets"/> / <see cref="RestoreNestedCollections"/>）
+        /// 必须跳过它们，否则会重复建表（如「点位表.点位」）并在导入时重复回填。</para>
+        /// </summary>
+        private static readonly HashSet<string> MergedBlockParents = new() { "PointTables", "Trays", "Flows" };
 
         private static readonly HashSet<Type> ScalarTypes = new()
         {
@@ -293,6 +302,10 @@ namespace NoCodeMotion.Services
             // 合并的嵌套子表（点位表/料盘/流程 → 各自一页，含父行 + 子行 + 轴名行 + 空行分隔）
             AddMergedBlockSheets(root, dict);
 
+            // 其它父表的嵌套子集合（如 控制器.扩展模块）→ 通用「父表.子表」分页（空表不落盘）
+            foreach (var kv in CollectNestedSheets(root))
+                if (kv.Value.Rows.Count > 0 && !dict.ContainsKey(kv.Key)) dict[kv.Key] = kv.Value;
+
             // IO 合并表
             dict["IO"] = BuildIoSheet(root);
 
@@ -357,6 +370,9 @@ namespace NoCodeMotion.Services
             // 3) 合并嵌套块还原（点位表/料盘/流程 → 按 类型 列拆回父/子集合）
             RestoreMergedBlockSheets(root, tables);
 
+            // 3.5) 其它父表的嵌套子集合还原（如 控制器.扩展模块 → 按 父项名称 挂回控制卡）
+            RestoreNestedCollections(root, tables);
+
             // 4) 标量（项目管理信息表）
             if (tables.TryGetValue("项目管理", out var meta))
                 foreach (DataRow dr in meta.Rows)
@@ -387,6 +403,7 @@ namespace NoCodeMotion.Services
             foreach (var p in root.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if (!p.CanRead || ExcludedProperties.Contains(p.Name) || MergedIoProperties.Contains(p.Name)) continue;
+                if (MergedBlockParents.Contains(p.Name)) continue;   // 点位表/料盘/流程 走合并块单页，跳过通用分页
                 if (!IsCollection(p.PropertyType)) continue;
                 var itemType = CollectionItemType(p.PropertyType);
                 if (itemType == null || IsScalar(itemType)) continue;
@@ -447,6 +464,7 @@ namespace NoCodeMotion.Services
             foreach (var p in root.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if (!p.CanRead || !p.CanWrite || ExcludedProperties.Contains(p.Name) || MergedIoProperties.Contains(p.Name)) continue;
+                if (MergedBlockParents.Contains(p.Name)) continue;   // 点位表/料盘/流程 由 RestoreMergedBlockSheets 还原
                 if (!IsCollection(p.PropertyType)) continue;
                 var itemType = CollectionItemType(p.PropertyType);
                 if (itemType == null || IsScalar(itemType)) continue;
@@ -650,6 +668,7 @@ namespace NoCodeMotion.Services
             Add("== 文件结构总览 ==", "本 xlsx 是工程的唯一存储（不再使用 JSON）。每个菜单页写入一个 worksheet；本说明已合并在「项目管理」页末尾。");
             Add("sheet 顺序", "与顶部菜单一致：项目管理→控制器→轴→IO→气缸→点位表→通讯→料盘→相机→变量→流程（工程师/操作员无数据则不生成 sheet）。");
             Add("合并页", "点位表 / 料盘 / 流程 为有子集合的父表，已合并为「一页含父行+子行+空行分隔」格式（不再分页）。");
+            Add("控制器.扩展模块", "控制卡的扩展 IO 子表（通用父.子分页）：父项名称 = 控制卡名；列 = 模块型号 / 数量 / 单模块输入 / 单模块输出 / 单模块轴数。输入·输出 IO 总数与轴总数由软件按「主板 + Σ(数量×单模块)」汇总，不入表。");
             Add("说明位置", "本段说明位于「项目管理」页（属性=主题 / 值=说明），导入时自动忽略：只回填与根对象属性同名的行，说明行的中文标题不会命中，故被跳过；请勿担心误改数据，保存工程会自动重建。");
 
             Add("== 行类型约定（类型 列） ==", "合并页用「类型」列区分父行/子行，用「父项名称」列把子行挂回父行。");

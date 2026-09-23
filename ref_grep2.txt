@@ -1,0 +1,27 @@
+﻿E:\smotorseNew\bin2\MCN420_X64_202511051752\MCN420.cs
+  189: public uint nAxisNum;                                  //轴数量
+  212: public uint nAxisNum;                                    //轴数量
+  529: public uint AxisNum;                                 //轴数量  （设置5和0时更新）
+  1288: nAxisNum：轴数量；
+  2497: axis_num:pwm轴数量；
+  2516: axis_num: 返回pwm轴数量；
+  2632: axis_num:pwm轴数量；
+  2646: axis_num: 返回pwm轴数量；
+  3207: axis_num:线性运动轴数量;
+E:\smotorseNew\SMotorseWpfSlate2\shd_decomp.cs
+  424: private int getInIOCountByCardName(string cardName)
+  436: private int getOutIOCountByCardName(string cardName, string taskName)
+  457: stringBuilder.Append($"主板IO: 输入IO {getInIOCountByCardName(keyValuePair.Key)},输出IO {getOutIOCountByCardName(keyValuePair.Key, taskName)}\n");
+  458: stringBuilder.Append($"扩展IO: 输入IO {getInIOCountByCardName(keyValuePair.Key)},输出IO {getOutIOCountByCardName(keyValuePair.Key, taskName)}\n");
+  3108: msg = $"控制卡[{_CardObjectList[item.Key].HardwareName.ToString()}]--卡号[{_CardObjectList[item.Key].ListCardParam[i].CardNo}]  扩展IO [id={k + 1}]打开失败！[state={state.ToString()}]";
+  3122: msg = $"查询扩展IO状态GetCardCANIOConnectState函数执行失败！错误码：【{NodeNum}】【{state}】";
+  4037: stringBuilder.Append($"输入IO数量：{item.Value.CardInputIOSum}\n");
+  4038: stringBuilder.Append($"输出IO数量：{item.Value.CardOutputIOSum}\n");
+  4039: stringBuilder.Append($"扩展IO模块数量：{item.Value.ExtendIOSum}\n");
+  4040: stringBuilder.Append("扩展模块类型：" + item.Value.ExtendMode.ToString() + "\n");
+  4048: stringBuilder.Append("\t卡支持的轴数量：" + item.Value.ListCardParam[i].CardSuportAxisNum + "\n");
+  4073: return $"输入IO数量：{num}；输出IO数量：{num2}；总数：{num + num2}";
+  4081: stringBuilder.Append($"卡：{config.MainCardInIOInfo[i].CardName},{config.MainCardInIOInfo[i].InIOName}\n IO数量：{config.MainCardInIOInfo[i].InIONums}\n IO起始索引：{config.MainCardInIOInfo[i].IOIndexStart}\r\n");
+  4091: stringBuilder.Append($"卡：{config.MainCardOutIOInfo[i].CardName},{config.MainCardOutIOInfo[i].OutIOName}\n IO数量：{config.MainCardOutIOInfo[i].OutIONums}\n IO起始索引：{config.MainCardOutIOInfo[i].IOIndexStart}\r\n");
+E:\smotorseNew\SMotorse_Editor_UI2\SamsunMotion\SMotorseWpf\NodeRegion\EngineeringCommissioning\DbgAxisGroupView.xaml
+  97: <!-- 轴数量 -->

@@ -1,6 +1,9 @@
 ﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ◆温‏启‏志‌◆‍编‎写‌◇‌微‎信⁠﹕‌1‍8‍7⁣◆⁣1‍9‍3⁠6⁣◇‌1‌3‎9​9‏　‍※‎保‌留‎所‍有‍权⁣利‎请‎勿⁠删‌除‍◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Linq;
 using System.Text;
 using System.Windows.Input;
 using NoCodeMotion.Models;
@@ -11,7 +14,11 @@ using NoCodeMotion.Services.Hardware.Leadshine;
 
 namespace NoCodeMotion.ViewModels
 {
-    /// <summary>控制器页面：增删改控制器实例（控制卡 / 扩展IO），供轴页面选择归属。</summary>
+    /// <summary>
+    /// 控制器页面：增删改控制卡实例，供轴页面选择归属。
+    /// <para>扩展 IO 现在挂在控制卡内部（<see cref="AxisControllerItem.ExpansionModules"/>）：
+    /// 选模块型号 + 填数量即可，页面自动汇总「输入 IO 总数 / 输出 IO 总数 / 轴总数」。</para>
+    /// </summary>
     public class AxisControllerViewModel : ListEditorViewModel<AxisControllerItem>, IEnsureDefaultSelection
     {
         public AxisControllerViewModel()
@@ -20,22 +27,151 @@ namespace NoCodeMotion.ViewModels
             Items = ProjectStore.Data.Controllers;
             Counter = Items.Count;
             AttachAutoSave();
+
+            // 选中项切换时重挂总汇订阅（基类 SelectedItem 不是虚属性，靠自身 PropertyChanged 感知）。
+            PropertyChanged += OnSelfPropertyChanged;
+            WireSelected(SelectedItem);
         }
 
         protected override AxisControllerItem CreateNewItem() => new AxisControllerItem { Kind = "控制卡", Name = $"控制卡{Counter + 1}" };
 
         /// <summary>添加一张控制卡。</summary>
-        public ICommand AddCardCommand => new RelayCommand(_ => AddItem("控制卡", "控制卡"));
+        public ICommand AddCardCommand => new RelayCommand(_ => AddCard());
 
-        /// <summary>添加一个扩展IO模块。</summary>
-        public ICommand AddExpansionIoCommand => new RelayCommand(_ => AddItem("扩展IO", "扩展IO"));
-
-        private void AddItem(string kind, string namePrefix)
+        private void AddCard()
         {
-            var item = new AxisControllerItem { Kind = kind, Name = $"{namePrefix}{Counter + 1}" };
+            var item = CreateNewItem();
             Counter++;
             Items.Add(item); // 触发 OnItemsChanged -> 订阅 + 保存
             SelectedItem = item;
+        }
+
+        // ============ 扩展 IO 模块（挂在控制卡内部） ============
+
+        private static readonly string[] _moduleOptions = ExpansionModuleCatalog.Modules.Select(m => m.Name).ToArray();
+
+        /// <summary>可选扩展 IO 模块型号（供下拉框绑定）。</summary>
+        public string[] ExpansionModuleOptions => _moduleOptions;
+
+        private string _selectedModuleType = ExpansionModuleCatalog.Modules[0].Name;
+        /// <summary>「添加扩展模块」时选用的型号。</summary>
+        public string SelectedModuleType { get => _selectedModuleType; set => SetField(ref _selectedModuleType, value); }
+
+        /// <summary>向当前控制卡添加一个扩展 IO 模块（型号取 <see cref="SelectedModuleType"/>，数量默认 1）。</summary>
+        public ICommand AddExpansionModuleCommand => new RelayCommand(_ => AddExpansionModule());
+
+        private void AddExpansionModule()
+        {
+            if (SelectedItem == null) return;
+            var module = new ExpansionModuleItem { ModuleType = SelectedModuleType, Count = 1 };
+            ApplySpec(module);                       // 先按型号带出默认 IO / 轴数
+            SelectedItem.ExpansionModules.Add(module); // 触发 CollectionChanged -> 订阅 + 汇总 + 保存
+        }
+
+        /// <summary>删除一个扩展 IO 模块（命令参数为模块对象）。</summary>
+        public ICommand RemoveExpansionModuleCommand => new RelayCommand(m => RemoveExpansionModule(m));
+
+        private void RemoveExpansionModule(object? parameter)
+        {
+            if (SelectedItem == null || parameter is not ExpansionModuleItem module) return;
+            SelectedItem.ExpansionModules.Remove(module);
+        }
+
+        // ============ 汇总：输入 / 输出 IO 总数、轴总数 ============
+
+        /// <summary>输入 IO 总数 = 主板输入 + Σ(扩展模块数量 × 单模块输入)。</summary>
+        public int TotalInIo => SelectedItem == null ? 0 : SelectedItem.InIoCount + SelectedItem.ExpansionModules.Sum(m => m.Count * m.InIo);
+
+        /// <summary>输出 IO 总数 = 主板输出 + Σ(扩展模块数量 × 单模块输出)。</summary>
+        public int TotalOutIo => SelectedItem == null ? 0 : SelectedItem.OutIoCount + SelectedItem.ExpansionModules.Sum(m => m.Count * m.OutIo);
+
+        /// <summary>轴总数 = 卡自身轴数 + Σ(扩展模块数量 × 单模块附加轴数)。</summary>
+        public int TotalAxis => SelectedItem == null ? 0 : SelectedItem.AxisCount + SelectedItem.ExpansionModules.Sum(m => m.Count * m.AxisCount);
+
+        private AxisControllerItem? _tracked;
+
+        private void OnSelfPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(SelectedItem))
+                WireSelected(SelectedItem);
+        }
+
+        /// <summary>把总汇订阅挂到当前选中卡上，并解除旧卡的订阅。</summary>
+        private void WireSelected(AxisControllerItem? item)
+        {
+            if (ReferenceEquals(_tracked, item)) return;
+
+            if (_tracked != null)
+            {
+                _tracked.ExpansionModules.CollectionChanged -= OnModulesChanged;
+                foreach (var m in _tracked.ExpansionModules) m.PropertyChanged -= OnModulePropertyChanged;
+                _tracked.PropertyChanged -= OnTrackedCardChanged;
+            }
+
+            _tracked = item;
+
+            if (_tracked != null)
+            {
+                _tracked.ExpansionModules.CollectionChanged += OnModulesChanged;
+                foreach (var m in _tracked.ExpansionModules) m.PropertyChanged += OnModulePropertyChanged;
+                _tracked.PropertyChanged += OnTrackedCardChanged;
+            }
+
+            RaiseTotals();
+        }
+
+        private void OnTrackedCardChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(AxisControllerItem.InIoCount)
+                || e.PropertyName == nameof(AxisControllerItem.OutIoCount)
+                || e.PropertyName == nameof(AxisControllerItem.AxisCount))
+                RaiseTotals();
+        }
+
+        private void OnModulesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.NewItems != null)
+                foreach (ExpansionModuleItem m in e.NewItems)
+                {
+                    m.PropertyChanged += OnModulePropertyChanged;
+                    ApplySpec(m);
+                }
+            if (e.OldItems != null)
+                foreach (ExpansionModuleItem m in e.OldItems)
+                    m.PropertyChanged -= OnModulePropertyChanged;
+
+            RaiseTotals();
+            ProjectStore.ScheduleSave();
+        }
+
+        private bool _applyingSpec;
+
+        private void OnModulePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // 换型号时自动带出该型号的输入 / 输出 / 轴数（带出的值仍可手工微调）。
+            if (!_applyingSpec && sender is ExpansionModuleItem m && e.PropertyName == nameof(ExpansionModuleItem.ModuleType))
+                ApplySpec(m);
+
+            RaiseTotals();
+            ProjectStore.ScheduleSave();
+        }
+
+        private void ApplySpec(ExpansionModuleItem module)
+        {
+            var spec = ExpansionModuleCatalog.ByName(module.ModuleType);
+            if (spec == null) return;
+            _applyingSpec = true;
+            module.InIo = spec.InIo;
+            module.OutIo = spec.OutIo;
+            module.AxisCount = spec.AxisCount;
+            _applyingSpec = false;
+        }
+
+        private void RaiseTotals()
+        {
+            OnPropertyChanged(nameof(TotalInIo));
+            OnPropertyChanged(nameof(TotalOutIo));
+            OnPropertyChanged(nameof(TotalAxis));
         }
 
         /// <summary>自动识别硬件：重新连接控制卡，把检测到的每张卡登记为一个控制器。</summary>
