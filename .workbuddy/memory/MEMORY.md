@@ -19,6 +19,7 @@
 - 新增标量字段（如 `AxisControllerItem.InIoCount`）零改动落盘，旧工程缺列 → 默认值，向后兼容。
 
 ## 全局 UI 约定
+- **下拉框不要设 `IsEditable="True"`**：`CellComboStyle` 的模板里可编辑输入框盖住整块，点击文字区只聚焦、**不展开下拉**（只有右侧很小的箭头能展开），用户会以为「点了没反应」。全工程其它页的下拉都是非编辑态（点哪都展开）。选值来自固定候选（Catalog/目录）时一律不写 IsEditable；确需手输用 TextBox。
 - **资源字典真相**：`App.xaml` 只合并 `Resources/AppStyles.xaml`（它内部只再合 HandyControl）。`Themes/AppleControls.xaml` **未被任何地方合并**，里面的 `AppleSubLabel`/`AppleTextFieldInline`/`AppleIconBtn`/`AppleDivider`/`AppleComboBox*` 等**运行时不存在**——用它们会 XamlParseException「找不到名为 X 的资源」。可用键以 `Resources/AppStyles.xaml` 为准（Apple 表单样式见 ~825-1024 行：AppleGroupCard/AppleSectionHeader/AppleRow/AppleLabel/AppleTextField/AppleUnit/AppleHairline/AppleNumBox/AppleCombo/AppleChip/AppleChipLabel/AppleNumField/AppleBtn/AppleBtnSecondary/AppleToggle；按钮 Tt*/TtPill*；下拉 CellComboStyle；刷子见文件头 29-44 行）。需要小字说明/窄数字框等 AppStyles 没有的，在页面 `<UserControl.Resources>` 里本地补（如 AxisControllerPage 的 SubLabel/MiniNumBox）。
 - 所有删除/清空按钮红色：`TtDeleteBtn`（大）/ `TtPillRedBtn`（小）；色彩编码 红=破坏/橙=反向非破坏/蓝=正向/绿=保存/灰=次要。改前先 Grep 列全清单。
 - 每页底 `PageHintBar`（OperationText/PrecautionText）：EditorPage 子页第3行绑 Hint*；独立根页末尾 Auto 行加。

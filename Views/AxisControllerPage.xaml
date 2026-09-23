@@ -66,14 +66,14 @@
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="品牌"/>
-                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" IsEditable="True"
+                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                       ItemsSource="{x:Static svc:Catalog.VendorNames}"
                                       SelectedItem="{Binding SelectedItem.Vendor, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="总线类型"/>
-                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" IsEditable="True"
+                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                       ItemsSource="{x:Static svc:Catalog.BusTypeNames}"
                                       SelectedItem="{Binding SelectedItem.BusType, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
@@ -143,7 +143,7 @@
                                                     <ColumnDefinition Width="38"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <ComboBox Grid.Column="0" Style="{StaticResource CellComboStyle}" IsEditable="True"
+                                                <ComboBox Grid.Column="0" Style="{StaticResource CellComboStyle}"
                                                           ItemsSource="{Binding DataContext.ExpansionModuleOptions, RelativeSource={RelativeSource AncestorType={x:Type local:AxisControllerPage}}}"
                                                           SelectedItem="{Binding ModuleType, UpdateSourceTrigger=PropertyChanged}"/>
                                                 <TextBox Grid.Column="1" Margin="4,0,0,0" Style="{StaticResource MiniNumBox}" Text="{Binding Count, UpdateSourceTrigger=PropertyChanged}"/>
@@ -179,7 +179,7 @@
                         <DockPanel Style="{StaticResource AppleRow}">
                             <Button DockPanel.Dock="Left" Style="{StaticResource TtPillBlueBtn}" Content="＋ 添加扩展模块"
                                     Command="{Binding AddExpansionModuleCommand}"/>
-                            <ComboBox DockPanel.Dock="Right" Width="210" Style="{StaticResource CellComboStyle}" IsEditable="True"
+                            <ComboBox DockPanel.Dock="Right" Width="210" Style="{StaticResource CellComboStyle}"
                                       ItemsSource="{Binding ExpansionModuleOptions}"
                                       SelectedItem="{Binding SelectedModuleType, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
