@@ -579,6 +579,64 @@ namespace NoCodeMotion.Services.Hardware.Cards
             lock (_gate) return _slots.Values.Select(s => $"{s.ControllerName}：{s.Status}").ToList();
         }
 
+        /// <summary>
+        /// 立即「连接」某个控制器（供「控制器」页的连接按钮调用）：匹配卡族 → 创建实现 →
+        /// InitCard / OpenCard，并把结果写入该控制器的状态。<para>返回是否就绪；<paramref name="status"/> 为中文状态说明。</para>
+        /// <para>与 <see cref="SlotOf"/> 的懒加载共用同一份 slot 状态，连接后轴 / IO 动作会直接复用，不会重复初始化。</para>
+        /// </summary>
+        public bool TryConnect(AxisControllerItem ctl, out string status)
+        {
+            status = "未指定控制器";
+            if (ctl == null) return false;
+
+            CardSlot slot;
+            lock (_gate)
+            {
+                if (!_slots.TryGetValue(ctl.Name, out slot))
+                {
+                    slot = new CardSlot { ControllerName = ctl.Name, Config = ctl };
+                    _slots[ctl.Name] = slot;
+                }
+                // 已经初始化成功过就不重复碰硬件；失败过也允许再试（现场插好卡后点连接）。
+                if (slot.Runtime == null || !slot.Ready) Initialize(slot, "连接");
+            }
+
+            bool exp = slot.Runtime?.HasExpansionIo == true;
+            status = slot.Status + (slot.Family != null ? $"；扩展IO模块：{(exp ? "支持" : "不支持")}" : string.Empty);
+            return slot.Ready;
+        }
+
+        /// <summary>断开某个控制器（关闭卡并清除其连接状态），下次连接 / 动作会重新初始化。</summary>
+        public void Disconnect(AxisControllerItem ctl)
+        {
+            if (ctl == null) return;
+            lock (_gate)
+            {
+                if (_slots.TryGetValue(ctl.Name, out var slot))
+                {
+                    try { slot.Runtime?.Card?.CloseCard(); } catch { /* 关闭失败不影响断开 */ }
+                    _slots.Remove(ctl.Name);
+                }
+            }
+            Log($"[卡族] 控制器「{ctl.Name}」已断开连接。");
+        }
+
+        /// <summary>
+        /// 该控制器匹配到的卡族是否支持扩展 IO 模块（供界面「获取 / 是否可加模块」判断）。
+        /// <para>只创建卡族实现对象判断 <see cref="CardFamilyRuntime.HasExpansionIo"/>，不碰硬件。</para>
+        /// </summary>
+        public static bool SupportsExpansionIo(AxisControllerItem ctl)
+        {
+            var fam = CardFamilyCatalog.Resolve(ctl?.Vendor, ctl?.CardType, ctl?.BusType);
+            if (fam == null) return false;
+            try { return fam.Create()?.HasExpansionIo == true; }
+            catch { return false; }
+        }
+
+        /// <summary>控制器匹配到的卡族（供界面显示；匹配不到返回 null）。</summary>
+        public static CardFamilyDescriptor ResolveFamily(AxisControllerItem ctl)
+            => CardFamilyCatalog.Resolve(ctl?.Vendor, ctl?.CardType, ctl?.BusType);
+
         /// <summary>清掉已初始化的卡族实例（改完控制器配置后可重新探测）。</summary>
         public void Reset()
         {

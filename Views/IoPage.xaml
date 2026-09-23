@@ -148,8 +148,6 @@
                           RowHeight="30"
                           FontSize="13">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="卡类" Binding="{Binding CardType}" Width="56" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
-                        <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTemplateColumn Header="控制器" Width="104">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -181,7 +179,41 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="值" Binding="{Binding Value}" Width="36" IsReadOnly="True"/>
+                        <!-- 电平状态：按当前值显示 高 / 低（绿色=高电平） -->
+                        <DataGridTemplateColumn Header="电平状态" Width="76" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Ellipse Width="8" Height="8" Margin="0,0,5,0" VerticalAlignment="Center">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill" Value="#CBD5E1"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Value}" Value="1">
+                                                            <Setter Property="Fill" Value="#22C55E"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                        <TextBlock FontSize="11" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="低"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Value}" Value="1">
+                                                            <Setter Property="Text" Value="高"/>
+                                                            <Setter Property="Foreground" Value="#16A34A"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
@@ -213,8 +245,6 @@
                           RowHeight="30"
                           FontSize="13">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="卡类" Binding="{Binding CardType}" Width="56" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
-                        <DataGridTextColumn Header="卡号" Binding="{Binding CardNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTemplateColumn Header="控制器" Width="104">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -246,49 +276,64 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="值" Binding="{Binding Value}" Width="36" IsReadOnly="True"/>
-                        <!-- 切换：输出点手动开 / 关，当前状态用按钮底色高亮 -->
-                        <DataGridTemplateColumn Header="切换" Width="84" IsReadOnly="True">
+                        <!-- 电平状态：按当前值显示 高 / 低（绿色=高电平） -->
+                        <DataGridTemplateColumn Header="电平状态" Width="76" IsReadOnly="True">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <Button Content="开" FontSize="11" Height="22" MinWidth="32" Margin="0,0,4,0"
-                                                Command="{Binding DataContext.OutputHighCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                CommandParameter="{Binding}">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                    <Setter Property="Background" Value="#E2E8F0"/>
-                                                    <Setter Property="Foreground" Value="#334155"/>
-                                                    <Setter Property="BorderThickness" Value="0"/>
-                                                    <Setter Property="Padding" Value="8,2"/>
+                                        <Ellipse Width="8" Height="8" Margin="0,0,5,0" VerticalAlignment="Center">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill" Value="#CBD5E1"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding Value}" Value="1">
-                                                            <Setter Property="Background" Value="#22C55E"/>
-                                                            <Setter Property="Foreground" Value="White"/>
+                                                            <Setter Property="Fill" Value="#22C55E"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </Button.Style>
-                                        </Button>
-                                        <Button Content="关" FontSize="11" Height="22" MinWidth="32"
-                                                Command="{Binding DataContext.OutputLowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                CommandParameter="{Binding}">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                    <Setter Property="Background" Value="#E2E8F0"/>
-                                                    <Setter Property="Foreground" Value="#334155"/>
-                                                    <Setter Property="BorderThickness" Value="0"/>
-                                                    <Setter Property="Padding" Value="8,2"/>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                        <TextBlock FontSize="11" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="低"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Value}" Value="0">
-                                                            <Setter Property="Background" Value="#EF4444"/>
-                                                            <Setter Property="Foreground" Value="White"/>
+                                                        <DataTrigger Binding="{Binding Value}" Value="1">
+                                                            <Setter Property="Text" Value="高"/>
+                                                            <Setter Property="Foreground" Value="#16A34A"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </Button.Style>
-                                        </Button>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <!-- 开关：单击切换该输出点电平，真正下发到控制卡（开=绿 / 关=灰） -->
+                        <DataGridTemplateColumn Header="开关" Width="72" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding DataContext.ToggleOutputCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}" FontSize="11" Height="22" MinWidth="52" Padding="8,2"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center" Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                <Setter Property="Background" Value="#E2E8F0"/>
+                                                <Setter Property="Foreground" Value="#334155"/>
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Content" Value="关"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Value}" Value="1">
+                                                        <Setter Property="Background" Value="#22C55E"/>
+                                                        <Setter Property="Foreground" Value="White"/>
+                                                        <Setter Property="Content" Value="开"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

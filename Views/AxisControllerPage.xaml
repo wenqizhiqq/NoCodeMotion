@@ -80,7 +80,10 @@
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="卡型号"/>
-                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.CardType}"/>
+                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                      ToolTip="候选按上面已选的「品牌 + 总线类型」自动过滤"
+                                      ItemsSource="{Binding CardTypeOptions}"
+                                      SelectedItem="{Binding SelectedItem.CardType, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
@@ -116,6 +119,42 @@
                         <TextBlock Style="{StaticResource AppleSectionHeader}" Text="扩展 IO 模块"/>
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
                                    Text="先填控制卡主板自带的 IO 数，再逐个添加 CAN / EtherCAT 扩展模块（选型号自动带出 IO / 轴数）；输入 / 输出 / 轴数量自动汇总到「数量汇总」。"/>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+
+                        <!-- 连接 / 获取 + 在线离线状态 -->
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="连接状态"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border CornerRadius="10" Padding="10,3" Margin="0,0,6,0" VerticalAlignment="Center">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource SuccessSoftBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="{Binding ConnectionText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                        <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Border>
+                                <Button Style="{StaticResource TtPillBlueBtn}" Content="获取" Margin="0,0,4,0" ToolTip="探测卡族与扩展IO能力，刷新可添加的型号" Command="{Binding FetchModulesCommand}"/>
+                                <Button Style="{StaticResource TtPillGreenBtn}" Content="连接" Margin="0,0,4,0" ToolTip="初始化 / 打开该控制卡（含扩展模块）" Command="{Binding ConnectCommand}"/>
+                                <Button Style="{StaticResource TtPillGrayBtn}" Content="断开" ToolTip="关闭该控制卡连接" Command="{Binding DisconnectCommand}"/>
+                            </StackPanel>
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap" Text="{Binding ConnectMessage}"/>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="主板输入IO数"/>

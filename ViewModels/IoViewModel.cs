@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using NoCodeMotion.Services.Hardware;
 
 namespace NoCodeMotion.ViewModels
 {
@@ -56,23 +57,47 @@ namespace NoCodeMotion.ViewModels
         protected override void OnAfterExcelReplace(IList<IoItem> imported)
             => SyncIoCatalog();
 
-        // ===== 输出 IO 行内手动切换：开 / 关（点哪行驱动哪行，无需先选中） =====
+        // ===== 输出 IO 行内手动开关：真正下发到控制卡（点哪行驱动哪行，无需先选中） =====
 
         /// <summary>置位指定输出点（参数为当前行 IoItem）。</summary>
-        public ICommand OutputHighCommand => new RelayCommand(p =>
-        {
-            if (p is not IoItem item || Title != "输出") return;
-            item.Value = 1;
-            HardwareBridge.Current.WriteOutput(item, 1);
-        });
+        public ICommand OutputHighCommand => new RelayCommand(p => { if (p is IoItem item) ApplyOutput(item, 1); });
 
         /// <summary>复位指定输出点（参数为当前行 IoItem）。</summary>
-        public ICommand OutputLowCommand => new RelayCommand(p =>
+        public ICommand OutputLowCommand => new RelayCommand(p => { if (p is IoItem item) ApplyOutput(item, 0); });
+
+        /// <summary>单个开关：在当前值上取反并下发（参数为当前行 IoItem）。</summary>
+        public ICommand ToggleOutputCommand => new RelayCommand(p =>
         {
-            if (p is not IoItem item || Title != "输出") return;
-            item.Value = 0;
-            HardwareBridge.Current.WriteOutput(item, 0);
+            if (p is IoItem item) ApplyOutput(item, item.Value != 0 ? 0 : 1);
         });
+
+        /// <summary>
+        /// 真正把输出电平下发到控制卡：先按工程装配硬件层（卡族 / 雷赛），再写输出，并同步仿真状态。
+        /// <para>写失败时把界面值回退，避免「看着已开、其实没下发」。</para>
+        /// </summary>
+        private void ApplyOutput(IoItem item, int value)
+        {
+            if (item == null || Title != "输出") return;
+            value = value != 0 ? 1 : 0;
+
+            int previous = item.Value;
+            item.Value = value;                       // 界面先行（开关 / 电平状态立即高亮）
+            SimRuntime.SetOutput(item.Name, value);   // 同步仿真（3D / 运行时高亮）
+
+            try
+            {
+                HardwareSetup.EnsureInitialized();    // 按工程选真实硬件层（卡族 / 雷赛），未初始化时只装配一次
+                HardwareBridge.Current.WriteOutput(item, value);
+                HardwareLog.Write($"[IO] 输出「{item.Name}」={value}（{(value != 0 ? "高" : "低")}电平）已下发"
+                                  + $"（{HardwareSetup.Mode}）");
+            }
+            catch (System.Exception ex)
+            {
+                item.Value = previous;                // 下发失败 → 回退，界面与实际一致
+                SimRuntime.SetOutput(item.Name, previous);
+                HardwareLog.Write($"[IO] 输出「{item.Name}」下发失败：{ex.Message}");
+            }
+        }
     }
 
     /// <summary>IO 页面顶层 ViewModel：包含两个面板（输入/输出）。</summary>

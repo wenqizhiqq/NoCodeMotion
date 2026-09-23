@@ -1,6 +1,7 @@
 ﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ◆温‏启‏志‌◆‍编‎写‌◇‌微‎信⁠﹕‌1‍8‍7⁣◆⁣1‍9‍3⁠6⁣◇‌1‌3‎9​9‏　‍※‎保‌留‎所‍有‍权⁣利‎请‎勿⁠删‌除‍◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
@@ -35,7 +36,7 @@ namespace NoCodeMotion.ViewModels
 
         protected override AxisControllerItem CreateNewItem() => new AxisControllerItem { Kind = "控制卡", Name = $"控制卡{Counter + 1}" };
 
-        /// <summary>添加一张控制卡。</summary>
+        /// <summary>添加一张控制卡（品牌 / 总线类型 / 卡型号都在详情里用下拉框选择）。</summary>
         public ICommand AddCardCommand => new RelayCommand(_ => AddCard());
 
         private void AddCard()
@@ -44,6 +45,40 @@ namespace NoCodeMotion.ViewModels
             Counter++;
             Items.Add(item); // 触发 OnItemsChanged -> 订阅 + 保存
             SelectedItem = item;
+        }
+
+        /// <summary>
+        /// 卡型号候选：按当前「品牌 + 总线类型」过滤 CardFamilyCatalog（供卡型号下拉框）。
+        /// <para>品牌优先；品牌下没有匹配卡型时忽略品牌过滤，避免下拉为空。总线类型同理。</para>
+        /// </summary>
+        public IReadOnlyList<string> CardTypeOptions => BuildCardTypeOptions();
+
+        private IReadOnlyList<string> BuildCardTypeOptions()
+        {
+            var result = new List<string>();
+            var ctl = SelectedItem;
+            if (ctl == null) return result;
+
+            IEnumerable<CardFamilyDescriptor> list = CardFamilyCatalog.Families;
+
+            // ① 品牌
+            string v = CardFamilyCatalog.NormalizeVendor(ctl.Vendor);
+            if (!string.IsNullOrWhiteSpace(v) && v != "自定义")
+            {
+                var byVendor = list.Where(f => f.Vendor == v).ToList();
+                if (byVendor.Count > 0) list = byVendor;
+            }
+
+            // ② 总线类型（脉冲 / EtherCAT / CANopen …）
+            if (!string.IsNullOrWhiteSpace(ctl.BusType))
+            {
+                var byBus = list.Where(f => f.BusTypes != null
+                                            && f.BusTypes.Any(b => CardVendorRegistry.BusTypeName(b) == ctl.BusType)).ToList();
+                if (byBus.Count > 0) list = byBus;
+            }
+
+            foreach (var f in list) result.Add(f.Key);
+            return result;
         }
 
         // ============ 扩展 IO 模块（挂在控制卡内部） ============
@@ -75,6 +110,104 @@ namespace NoCodeMotion.ViewModels
         {
             if (SelectedItem == null || parameter is not ExpansionModuleItem module) return;
             SelectedItem.ExpansionModules.Remove(module);
+        }
+
+        // ============ 连接状态（运行期，不落盘） ============
+
+        private readonly Dictionary<AxisControllerItem, bool> _online = new();
+
+        /// <summary>当前选中控制卡的在线状态。</summary>
+        public bool IsOnline => SelectedItem != null && _online.TryGetValue(SelectedItem, out var b) && b;
+
+        /// <summary>在线 / 离线文字（给状态药丸用）。</summary>
+        public string ConnectionText => IsOnline ? "在线" : "离线";
+
+        private string _connectMessage = string.Empty;
+        /// <summary>连接 / 获取 的结果说明（显示在扩展IO卡片下）。</summary>
+        public string ConnectMessage { get => _connectMessage; set => SetField(ref _connectMessage, value); }
+
+        /// <summary>获取：探测该控制卡匹配的卡族与扩展IO能力，刷新可添加的型号候选。</summary>
+        public ICommand FetchModulesCommand => new RelayCommand(_ => FetchModules());
+
+        private void FetchModules()
+        {
+            var ctl = SelectedItem;
+            if (ctl == null) return;
+
+            var fam = SamsunCardBridge.ResolveFamily(ctl);
+            bool exp = SamsunCardBridge.SupportsExpansionIo(ctl);
+            int n = ExpansionModuleCatalog.Modules.Length;
+
+            ConnectMessage = IsOnline
+                ? $"已获取：{(fam == null ? "未匹配到已移植卡族" : "卡族 " + fam.Key)}；"
+                  + $"{(exp ? "支持扩展 IO 模块" : "未声明支持扩展 IO 模块")}；可选型号 {n} 种。"
+                : $"未连接控制卡：{(fam == null ? "卡型号未匹配到已移植卡族" : "卡族 " + fam.Key)}；"
+                  + $"{(exp ? "支持扩展 IO 模块" : "未声明支持扩展 IO 模块")}。已载入内置型号 {n} 种，请先点「连接」。";
+            HardwareLog.Write("[控制器] " + ConnectMessage);
+        }
+
+        /// <summary>连接：初始化 / 打开该控制卡（含其扩展 IO 模块），成功后在线。</summary>
+        public ICommand ConnectCommand => new RelayCommand(_ => Connect());
+
+        private void Connect()
+        {
+            var ctl = SelectedItem;
+            if (ctl == null) return;
+
+            bool ok;
+            string msg;
+            try
+            {
+                HardwareSetup.EnsureInitialized();   // 按工程自动装配：卡族层 / 雷赛封装
+                if (HardwareSetup.Mode == HardwareMode.CardFamilies && HardwareSetup.CardFamilies != null)
+                {
+                    ok = HardwareSetup.CardFamilies.TryConnect(ctl, out msg);
+                }
+                else
+                {
+                    // 雷赛自有封装：重连并看卡是否就绪
+                    msg = HardwareSetup.Reconnect();
+                    ok = HardwareSetup.IsCardReady;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ok = false;
+                msg = "连接异常：" + ex.Message;
+            }
+
+            var fam = SamsunCardBridge.ResolveFamily(ctl);
+            SetOnline(ctl, ok);
+            ConnectMessage = (ok ? "● 已连接：" : "○ 未连接：") + ctl.Name + " —— " + msg
+                + (fam == null ? "。★卡型号未匹配到已移植卡族，轴 / IO 不会真实下发。" : string.Empty);
+            HardwareLog.Write("[控制器] " + ConnectMessage);
+        }
+
+        /// <summary>断开：关闭该控制卡的硬件连接，回到离线。</summary>
+        public ICommand DisconnectCommand => new RelayCommand(_ => Disconnect());
+
+        private void Disconnect()
+        {
+            var ctl = SelectedItem;
+            if (ctl == null) return;
+
+            try { HardwareSetup.CardFamilies?.Disconnect(ctl); } catch { /* 断开失败也置离线 */ }
+            SetOnline(ctl, false);
+            ConnectMessage = $"○ 已断开「{ctl.Name}」。";
+            HardwareLog.Write("[控制器] " + ConnectMessage);
+        }
+
+        private void SetOnline(AxisControllerItem ctl, bool online)
+        {
+            if (ctl == null) return;
+            _online[ctl] = online;
+            RaiseConnection();
+        }
+
+        private void RaiseConnection()
+        {
+            OnPropertyChanged(nameof(IsOnline));
+            OnPropertyChanged(nameof(ConnectionText));
         }
 
         // ============ 汇总：输入 / 输出 IO 总数、轴总数 ============
@@ -118,6 +251,8 @@ namespace NoCodeMotion.ViewModels
             }
 
             RaiseTotals();
+            RaiseConnection();   // 切换选中卡时同步在线/离线显示
+            OnPropertyChanged(nameof(CardTypeOptions));   // 切换选中卡时刷新卡型号候选
         }
 
         private void OnTrackedCardChanged(object? sender, PropertyChangedEventArgs e)
@@ -126,6 +261,16 @@ namespace NoCodeMotion.ViewModels
                 || e.PropertyName == nameof(AxisControllerItem.OutIoCount)
                 || e.PropertyName == nameof(AxisControllerItem.AxisCount))
                 RaiseTotals();
+
+            // 品牌 / 总线类型变了 → 卡型号候选跟着变；型号若不在新候选里则清空，避免与实际不符。
+            if (e.PropertyName == nameof(AxisControllerItem.Vendor)
+                || e.PropertyName == nameof(AxisControllerItem.BusType))
+            {
+                OnPropertyChanged(nameof(CardTypeOptions));
+                if (SelectedItem != null && !string.IsNullOrEmpty(SelectedItem.CardType)
+                    && !CardTypeOptions.Contains(SelectedItem.CardType))
+                    SelectedItem.CardType = string.Empty;
+            }
         }
 
         private void OnModulesChanged(object? sender, NotifyCollectionChangedEventArgs e)
