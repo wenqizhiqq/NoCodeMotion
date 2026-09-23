@@ -178,10 +178,64 @@ namespace NoCodeMotion.ViewModels
 
             var fam = SamsunCardBridge.ResolveFamily(ctl);
             SetOnline(ctl, ok);
+            string ioMsg = GenerateIoPoints(ctl);   // 连接后按「主板 + 扩展模块」的 IO 数自动生成 IO 点
             ConnectMessage = (ok ? "● 已连接：" : "○ 未连接：") + ctl.Name + " —— " + msg
-                + (fam == null ? "。★卡型号未匹配到已移植卡族，轴 / IO 不会真实下发。" : string.Empty);
+                + (fam == null ? "。★卡型号未匹配到已移植卡族，轴 / IO 不会真实下发。" : string.Empty)
+                + " " + ioMsg;
             HardwareLog.Write("[控制器] " + ConnectMessage);
         }
+
+        /// <summary>
+        /// 按控制卡的 IO 配置自动生成 IO 点：主板（模块=0）+ 各扩展模块（模块号=第几个模块，从 1 起）。
+        /// <para>只清理 / 重建「本控制卡名下的」IO 点（按 Controller 名匹配），不动其它控制卡或手工配置的点。</para>
+        /// </summary>
+        private static string GenerateIoPoints(AxisControllerItem ctl)
+        {
+            var data = ProjectStore.Data;
+            if (data == null) return "（工程未加载，未生成 IO 点）";
+
+            string tag = ctl.Name;
+
+            foreach (var i in data.Inputs.Where(x => x.Controller == tag).ToList()) data.Inputs.Remove(i);
+            foreach (var o in data.Outputs.Where(x => x.Controller == tag).ToList()) data.Outputs.Remove(o);
+
+            int nIn = 0, nOut = 0;
+
+            // 主板 IO：模块=0，序号 1..N
+            for (int s = 1; s <= System.Math.Max(ctl.InIoCount, 0); s++)
+                data.Inputs.Add(MakeIo(tag, "输入", ++nIn, 0, s));
+            for (int s = 1; s <= System.Math.Max(ctl.OutIoCount, 0); s++)
+                data.Outputs.Add(MakeIo(tag, "输出", ++nOut, 0, s));
+
+            // 扩展模块 IO：模块号从 1 起，按「数量」逐个模块实例展开（与卡族扩展IO寻址一致：模块=从站号、序号=位号）
+            int moduleOrdinal = 0;
+            foreach (var m in ctl.ExpansionModules)
+            {
+                int units = System.Math.Max(m.Count, 1);
+                for (int u = 0; u < units; u++)
+                {
+                    moduleOrdinal++;
+                    for (int s = 1; s <= System.Math.Max(m.InIo, 0); s++)
+                        data.Inputs.Add(MakeIo(tag, "输入", ++nIn, moduleOrdinal, s));
+                    for (int s = 1; s <= System.Math.Max(m.OutIo, 0); s++)
+                        data.Outputs.Add(MakeIo(tag, "输出", ++nOut, moduleOrdinal, s));
+                }
+            }
+
+            Catalog.SetIo(data.Inputs.Select(x => x.Name).Concat(data.Outputs.Select(x => x.Name)));
+            ProjectStore.ScheduleSave();
+            return $"已按配置自动生成 IO 点：输入 {nIn} / 输出 {nOut}（控制器「{tag}」）。";
+        }
+
+        private static IoItem MakeIo(string controller, string prefix, int index, int moduleNo, int seq) => new IoItem
+        {
+            Name = $"{prefix}{index}",
+            Controller = controller,   // 自动绑定到本控制卡（IO 表不再显示该列，但桥接寻址要用）
+            ModuleNo = moduleNo,       // 0=主板，>0=扩展模块从站号
+            Sequence = seq,            // 位号
+            Level = "取反",
+            Function = "动点",
+        };
 
         /// <summary>断开：关闭该控制卡的硬件连接，回到离线。</summary>
         public ICommand DisconnectCommand => new RelayCommand(_ => Disconnect());

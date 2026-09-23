@@ -148,15 +148,6 @@
                           RowHeight="30"
                           FontSize="13">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="控制器" Width="104">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{x:Static svc:Catalog.ControllerNames}"
-                                              SelectedItem="{Binding Controller, UpdateSourceTrigger=PropertyChanged}"
-                                              Style="{StaticResource CellComboStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="*" MinWidth="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
@@ -245,15 +236,6 @@
                           RowHeight="30"
                           FontSize="13">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="控制器" Width="104">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{x:Static svc:Catalog.ControllerNames}"
-                                              SelectedItem="{Binding Controller, UpdateSourceTrigger=PropertyChanged}"
-                                              Style="{StaticResource CellComboStyle}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="*" MinWidth="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
