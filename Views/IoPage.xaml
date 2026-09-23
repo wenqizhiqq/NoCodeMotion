@@ -151,8 +151,8 @@
                         <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="*" MinWidth="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
-                        <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="58" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
-                        <DataGridTemplateColumn Header="电平" Width="58">
+                        <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="96" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTemplateColumn Header="电平" Width="88">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox ItemsSource="{StaticResource LevelOptions}"
@@ -239,8 +239,8 @@
                         <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="*" MinWidth="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
-                        <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="58" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
-                        <DataGridTemplateColumn Header="电平" Width="58">
+                        <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="96" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
+                        <DataGridTemplateColumn Header="电平" Width="88">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox ItemsSource="{StaticResource LevelOptions}"
