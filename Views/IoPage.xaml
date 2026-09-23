@@ -297,7 +297,7 @@
                         <DataGridTemplateColumn Header="开关" Width="72" IsReadOnly="True">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Command="{Binding DataContext.ToggleOutputCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                    <Button Command="{Binding DataContext.OutputPanel.ToggleOutputCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                             CommandParameter="{Binding}" FontSize="11" Height="22" MinWidth="52" Padding="8,2"
                                             HorizontalAlignment="Center" VerticalAlignment="Center" Cursor="Hand">
                                         <Button.Style>

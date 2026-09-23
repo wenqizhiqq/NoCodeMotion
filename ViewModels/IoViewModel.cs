@@ -8,6 +8,7 @@ using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 using NoCodeMotion.Services.Hardware;
+using NoCodeMotion.Services.Hardware.Cards;
 
 namespace NoCodeMotion.ViewModels
 {
@@ -86,17 +87,31 @@ namespace NoCodeMotion.ViewModels
 
             try
             {
-                HardwareSetup.EnsureInitialized();    // 按工程选真实硬件层（卡族 / 雷赛），未初始化时只装配一次
+                EnsureHardwareLayer();
                 HardwareBridge.Current.WriteOutput(item, value);
                 HardwareLog.Write($"[IO] 输出「{item.Name}」={value}（{(value != 0 ? "高" : "低")}电平）已下发"
-                                  + $"（{HardwareSetup.Mode}）");
+                                  + $"（{HardwareSetup.Mode} / {HardwareBridge.Current.GetType().Name}）");
+                StatusBarService.ReportInfo($"输出「{item.Name}」→ {(value != 0 ? "高电平(开)" : "低电平(关)")}");
             }
             catch (System.Exception ex)
             {
                 item.Value = previous;                // 下发失败 → 回退，界面与实际一致
                 SimRuntime.SetOutput(item.Name, previous);
                 HardwareLog.Write($"[IO] 输出「{item.Name}」下发失败：{ex.Message}");
+                StatusBarService.ReportException($"输出「{item.Name}」下发失败：{ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 确保硬件层与当前工程一致：<see cref="HardwareSetup.EnsureInitialized"/> 只装配一次，
+        /// 若此前已按旧工程（或无工程）装成雷赛 / 仿真层，而当前工程里有非雷赛卡族（含虚拟卡），
+        /// 这里补一次切换到卡族层，否则虚拟卡 / 已移植卡的点会发不出去。
+        /// </summary>
+        private static void EnsureHardwareLayer()
+        {
+            HardwareSetup.EnsureInitialized();
+            if (HardwareSetup.Mode != HardwareMode.CardFamilies && SamsunCardBridge.CanServeProject(out _))
+                HardwareSetup.UseCardFamilies();
         }
     }
 
