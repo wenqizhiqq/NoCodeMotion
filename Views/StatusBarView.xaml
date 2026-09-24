@@ -42,6 +42,11 @@
                 <TextBlock Text="控制器" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,6,0" FontSize="12" VerticalAlignment="Center"/>
                 <Ellipse Width="9" Height="9" Fill="{Binding ControllerColor}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding ControllerStatusText}" Foreground="{Binding ControllerColor}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                <ProgressBar Visibility="{Binding ControllerConnecting, Converter={StaticResource BoolToVis}}"
+                             IsIndeterminate="True" Width="56" Height="4" Margin="8,0,0,0" VerticalAlignment="Center"
+                             Foreground="#1D4ED8" Background="{StaticResource SurfaceBrush}"/>
+                <TextBlock Text="{Binding ControllerConnectingText}" Visibility="{Binding ControllerConnecting, Converter={StaticResource BoolToVis}}"
+                           Foreground="#1D4ED8" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
             </StackPanel>
 
             <!-- 异常情况：点击错误文本可弹窗查看完整内容（状态栏空间有限会截断显示） -->

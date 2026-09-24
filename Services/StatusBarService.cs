@@ -63,6 +63,20 @@ namespace NoCodeMotion.Services
             Raise();
         }
 
+        /// <summary>控制器是否正在后台连接（用于状态栏进度条显隐）。</summary>
+        public static bool ControllerConnecting { get; private set; }
+
+        /// <summary>状态栏「控制器」连接中提示文本。</summary>
+        public static string ControllerConnectingText => ControllerConnecting ? "正在连接…" : "";
+
+        /// <summary>由 AxisControllerViewModel 在连接 / 自动连接开始与结束时调用，控制状态栏进度条显隐。</summary>
+        public static void SetControllerConnecting(bool connecting)
+        {
+            if (ControllerConnecting == connecting) return;
+            ControllerConnecting = connecting;
+            Raise();
+        }
+
         /// <summary>运行状态圆点/文本颜色。</summary>
         public static string RunColor => EStopped ? "#DC2626" : (IsRunning ? "#16A34A" : "#64748B");
 

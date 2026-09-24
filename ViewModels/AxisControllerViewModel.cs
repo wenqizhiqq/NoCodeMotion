@@ -36,8 +36,8 @@ namespace NoCodeMotion.ViewModels
             WireSelected(SelectedItem);
 
             // 打开软件 / 切换工程后自动后台连接控制卡，并刷新状态栏在线指示
-            ProjectManager.DataReloaded += () => AutoConnectAll();
-            if (Items.Count > 0) AutoConnectAll();
+            ProjectManager.DataReloaded += () => RequestAutoConnect();
+            if (Items.Count > 0) RequestAutoConnect();
             else UpdateStatusBar();
         }
 
@@ -193,6 +193,17 @@ namespace NoCodeMotion.ViewModels
             RaiseStatusLines();   // 刷新底层连接总览
         }
 
+        /// <summary>
+        /// 把自动连接请求投递到 UI 消息循环末尾（低优先级），确保「打开 / 切换工程」的加载遮罩已隐藏后
+        /// 再开始后台连接——控制器连接全程在后台线程跑，绝不阻塞载入项目的进度条。
+        /// </summary>
+        private void RequestAutoConnect()
+        {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher == null) { AutoConnectAll(); return; }
+            dispatcher.BeginInvoke(new Action(AutoConnectAll), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
         /// <summary>连接：初始化 / 打开该控制卡（含其扩展 IO 模块），成功后在线。</summary>
         public ICommand ConnectCommand => new RelayCommand(_ => Connect());
 
@@ -205,6 +216,7 @@ namespace NoCodeMotion.ViewModels
             var dispatcher = System.Windows.Application.Current.Dispatcher;
             IsConnecting = true;
             ConnectStatusText = "正在初始化硬件层...";
+            StatusBarService.SetControllerConnecting(true);
 
             System.Threading.Tasks.Task.Run(() =>
             {
@@ -276,7 +288,7 @@ namespace NoCodeMotion.ViewModels
                         ConnectMessage = "● 连接异常：" + ex.Message;
                         HardwareLog.Write("[控制器] " + ConnectMessage);
                     }
-                    finally { IsConnecting = false; }
+                    finally { IsConnecting = false; StatusBarService.SetControllerConnecting(false); }
                 });
             });
         }
@@ -391,6 +403,7 @@ namespace NoCodeMotion.ViewModels
             var dispatcher = System.Windows.Application.Current.Dispatcher;
             IsConnecting = true;
             ConnectStatusText = "正在自动连接控制卡...";
+            StatusBarService.SetControllerConnecting(true);
             StatusBarService.ReportInfo("正在后台自动连接控制卡…");
             System.Threading.Tasks.Task.Run(() =>
             {
@@ -433,7 +446,7 @@ namespace NoCodeMotion.ViewModels
                 }
                 finally
                 {
-                    dispatcher.Invoke(() => IsConnecting = false);
+                    dispatcher.Invoke(() => { IsConnecting = false; StatusBarService.SetControllerConnecting(false); });
                 }
             });
         }

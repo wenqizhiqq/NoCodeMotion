@@ -32,6 +32,8 @@ namespace NoCodeMotion.ViewModels
             OnPropertyChanged(nameof(HasInfo));
             OnPropertyChanged(nameof(ControllerStatusText));
             OnPropertyChanged(nameof(ControllerColor));
+            OnPropertyChanged(nameof(ControllerConnecting));
+            OnPropertyChanged(nameof(ControllerConnectingText));
         }
 
         public string ProjectName => StatusBarService.ProjectName;
@@ -50,6 +52,10 @@ namespace NoCodeMotion.ViewModels
         public string ControllerStatusText => StatusBarService.ControllerStatusText;
         /// <summary>控制器状态圆点颜色。</summary>
         public string ControllerColor => StatusBarService.ControllerColor;
+        /// <summary>控制器是否正在后台连接（状态栏进度条显隐）。</summary>
+        public bool ControllerConnecting => StatusBarService.ControllerConnecting;
+        /// <summary>控制器连接中提示文本。</summary>
+        public string ControllerConnectingText => StatusBarService.ControllerConnectingText;
     }
 }
 // ◇作者保留所有权利　请勿删除※​⁣​
