@@ -30,6 +30,8 @@ namespace NoCodeMotion.Services.Hardware
         public uint IoWord;
         /// <summary>总线轴 CiA402 状态机；-1 = 不适用 / 读不到。</summary>
         public int StateMachine;
+        /// <summary>伺服使能端口电平（true = 高 / 已使能）。读得到时优先用它判定「使能」，比状态字 bit8 可信。</summary>
+        public bool? ServoOn;
     }
 
     /// <summary>
@@ -65,8 +67,14 @@ namespace NoCodeMotion.Services.Hardware
         public string EmgText => Fmt(Emg);
         public string EnabledText => Fmt(Enabled);
 
-        /// <summary>原始报警码文字（现场清报警 / 对卡手册要用）。</summary>
-        public string AlarmCodeText => !Connected ? "—" : (AlarmCode == 0 ? "0（无报警）" : AlarmCode.ToString());
+        /// <summary>
+        /// 原始报警码文字（现场清报警 / 对卡手册要用）。
+        /// ★ 有「轴状态字」时不再展示返回码 —— 因为状态字本身就是权威信号（报警看 bit0），
+        ///   而某些卡（尤其模拟卡 / 数字孪生卡）的 GetCardAxisAlarmState 返回的**就是状态字**，
+        ///   把它当「报警码」显示会变成一串看不懂的大数字，误导排查方向。
+        /// </summary>
+        public string AlarmCodeText => !Connected ? "—"
+            : (HasIoWord ? "—（见状态字 bit0）" : (AlarmCode == 0 ? "0（无报警）" : AlarmCode.ToString()));
 
         /// <summary>该轴是否明确处于「报警且未清除」——报警状态下轴通常不会运动。</summary>
         public bool HasAlarm => Connected && Alarm == true;
@@ -145,10 +153,16 @@ namespace NoCodeMotion.Services.Hardware
                 s.Org = (w & (1u << 4)) != 0;
                 s.Enabled = (w & (1u << 8)) != 0;
             }
-            else if (raw.AlarmCode != 0)
+            else if (raw.AlarmCode == 1)
             {
-                s.Alarm = true;   // 没有状态字时，报警退化成「错误码是否非 0」
+                // 没有状态字时**不猜**：`GetCardAxisAlarmState` 各卡族语义不同 ——
+                // 文档写的是「0 无效 / 1 有效」的报警状态，可有的卡族实现里返回的是错误码（如 4102）。
+                // 只有明确等于 1 才当报警；其它非 0 值只作为「底层返回码」原样展示，不谎报报警。
+                s.Alarm = true;
             }
+
+            // 伺服使能端口电平（模拟卡 / 雷赛读得到）：它是**专门**表示使能的信号，优先于状态字 bit8。
+            if (raw.ServoOn.HasValue) s.Enabled = raw.ServoOn.Value;
 
             // 总线轴：CiA402 状态机 = 4（操作使能）才算真正使能，优先用它覆盖位读数。
             if (raw.StateMachine >= 0) s.Enabled = raw.StateMachine == 4;

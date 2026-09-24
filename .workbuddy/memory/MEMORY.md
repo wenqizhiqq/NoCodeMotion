@@ -48,6 +48,16 @@
 - 卡型选择器 SelectCardTypeDialog；Native/ 已是 x64 DLL 全集（csproj `Native\*.dll`→PreserveNewest），缺 Dmc2210(x86)/MCC/SLD9014PTP。
 - 容量兜底：硬件 API 不报容量时，在 `CardFamilyDescriptor` 填 AxisCount/InIoCount/OutIoCount（如 MCN420=8/16/16）。
 
+## 模拟卡（虚拟运动卡 / DigitalTwinCard）适配（2026-09-24）
+- 判定：`CardFamilyDescriptor.IsSimulation`（`Vendor=="模拟卡" || BusKind=="虚拟" || Key 含 Virtual/DigitalTwin`）。这两族是**进程内仿真**、不依赖任何原生 dll，是「手上没硬件时自测整条链路」的正途。
+- ★★ 模拟卡与真实卡的**四条语义差异**（不处理就会看成「指令成功但轴不动」「状态全是 —」）：
+  1. **行程范围 spacing 默认全 0**：仿真器的点位/连续运动把**任何**非 0 目标夹回 0 并置正/负限位 → 每轴首次运动前必须 `SetSpacing(轴, 0, ±1e8)`。**「正负限位同时为 1 的状态字大数字（如 4102 = 4096|2|4）不是错误码，是轴状态字」**。
+  2. **设速只认 `SetCardAxisTProfile`**（→ `SetCardAxisProfile` 写仿真器参数缓冲）；`SetCardAxisMotionalVel` / `SetCardVectorProfileMulticoor` 在模拟卡里是**空实现**（返回 0 不做任何事）。
+  3. **连续运动按「每 1ms 前进 `(int)(pps/1000)` 个脉冲」整数步进**：pps < 1000 ⇒ 每拍 +0，但 `isRun` 照置 ⇒ **状态显示「运动中」而位置一动不动**。速度须换算成 pps（×脉冲当量）并给 1000pps 下限；`MinVel = MaxVel` 走恒速分支最可预期。
+  4. **没有无参 `GetAxisCurrentState()`**（状态字）：要用 `GetCardAxisAlarmState`（模拟卡的该方法内部就是 `GetCardAxisIOStatus`）；**`OpenCardAxisEnable` 未实现（恒 -1）**，使能走 `CardAxisWriteSevonPin(1)`、读 `GetCardAxisSevonPin()`。
+- 位置/距离按脉冲下发、读回 ÷脉冲当量（模拟卡没有卡内脉冲当量换算层）；脉冲当量未填时 `EquivOf` 按 1:1。桥内收口：`IsSimulation / EquivOf / BuildSimParam / EnsureSimReady / SendPointMove`。
+- `AxisRawRead.ServoOn`（`bool?`）优先于状态字 bit8 判「使能」；**有状态字时 `AlarmCode` 置 0**（bit0 才是权威），`AlarmCodeText` 显示「—（见状态字 bit0）」，避免把状态字当错误码误导排查。
+
 ## 控制器连接体验增强（2026-09-23，本轮）
 - 连接按钮后台化：`AxisControllerViewModel.Connect()` 改 `Task.Run` 后台，分步 `ConnectStatusText`（初始化/连接卡/读真实轴IO/生成点/完成/失败），`IsConnecting` 防重复点击，`Application.Current.Dispatcher.Invoke` 回 UI。`AxisControllerPage.xaml` 加 `IsConnecting` 绑定的不确定进度条 + 状态文字。
 - 状态栏在线指示：`StatusBarService` 加 `ControllerOnlineCount/TotalCount`+`SetControllerStatus(online,total)`+`ControllerStatusText/ControllerColor`（全在线绿/部分橙/全离线红/无控制器灰）；`StatusBarViewModel` 转发 INPC；`StatusBarView.xaml` 加第 3 列「控制器」圆点+文字（Grid 改 6 列）。VM 每次连接/断开/自动连接后调 `UpdateStatusBar()`。
@@ -81,7 +91,8 @@
 - ★ **CS1628 铁律**：`out` 参数不能出现在 lambda / 本地函数里 —— 读硬件时先写本地变量，最后再组装 `out` 结构体。
 - **VM**：`ViewModels/AxisRowViewModel.cs`（**一个轴一个实例**；状态只读属性 + **颜色用 hex 字符串**，与状态栏 `RunColor/ControllerColor` 同套路由 WPF 自动转 Brush；点动距离/手动速度；使能·点动·Jog·回零·停止·设零点命令，全部 `Task.Run` 后台 + 回 UI 报状态栏；`NotConnected(action)` 前置检查——没连卡直接报「未执行：控制器未连接」，**不谎报「已下发」**；`NotEnabledHint()` 只在明确读到「未使能」时**追加提醒但不拦截**）。`AxisViewModel` 暴露 **`AxisRowViewModel? Monitor` + `HasMonitor`**，用 `override OnPropertyChanged` 捕捉 `nameof(SelectedItem)` 重建（选中/新增/删除轴都覆盖），**只服务当前选中的那一个轴**；`SetStatusRefreshEnabled(bool)` + **300ms `DispatcherTimer`** 后台读该轴 → `BeginInvoke` 回 UI 赋值；`Interlocked` 防重入；`!HardwareSetup.IsCardReady` 直接置「未连接」不读卡；`ReferenceEquals(Monitor, m)` 防期间换轴回填。**轮询只在轴页可见时开**（`AxisPage.xaml.cs` 的 `Loaded/Unloaded` 开关）。
 - **页面**（`Views/AxisPage.xaml`）：**`WrapPanel ItemWidth="250"` + 每张卡 `VerticalAlignment="Top"`**（紧凑：每张卡只有自身内容那么高；该宽度下正好 4 列，窗口更宽自动多排）。★ **别用 `UniformGrid Columns="4"` 追求「正好 4 列」** —— UniformGrid 所有单元格等高 = 全局最高那张卡的高度，矮卡下方会留大片空白（用户明确抱怨过）。8 张卡 = 基本信息 / 运动参数 / 回零参数 / 限位与保护 / 电平与编码器 / 轴权限 / **轴状态** / **轴控制**。**状态与控制是 2 个独立容器**（用户要求），样式/颜色/字号全部复用 `AppleGroupCard` + `AppleSectionHeader` + `AppleRow` + 全局药丸按钮。轴控制里 2 列按钮组：使能|停止、点动−|点动+、Jog−|Jog+（`beh:JogHoldBehavior`）、回零|设零点。卡片里的长说明一律放 `AppleSectionHeader.ToolTip`，不要占一行高度。**页内不定义任何本地样式**。
-- **轴状态卡必须带「报警码」行**（原始错误码）：很多卡族没有无参 `GetAxisCurrentState()`，报警只能靠 `GetCardAxisAlarmState` 的错误码非 0 推出；现场「指令下发成功但轴不动」九成是**有报警未清 / 未使能**，`MoveHint()` 会把这两条追加到点动/Jog 的成功提示里（**只提醒不拦截**）。位置/编码器显示精度 `0.####`。
+- **轴状态卡必须带「报警码」行**（原始返回值，原样显示不翻译）：很多卡族没有无参 `GetAxisCurrentState()`，报警只能靠 `GetCardAxisAlarmState` 的返回值推。★ **但各卡族语义不统一**（接口文档写「0 无效 / 1 有效」，有的实现返回错误码，如用户那台的 4102）→ **只有 `== 1` 才算报警**，其它非 0 值只显示不判定，别谎报伺服报警。现场「指令下发成功但轴不动」九成是**有报警未清 / 未使能**，`MoveHint()` 会把这两条追加到点动/Jog 的成功提示里（**只提醒不拦截**）。位置/编码器显示精度 `0.####`。
+- **状态栏胶囊（`Views/StatusBarView.xaml`）长提示会截断**（`MaxWidth=420` + `CharacterEllipsis`）：必须用 `Border.ToolTip` 包 `StackPanel` 给出**全文**（信息胶囊原本 ToolTip 只写「点击清除提示」，用户根本看不到全文）。提示文案本身也要短。
 - **Jog 是「按住才走」**：单击只走一瞬（用户会误报「点 Jog 没反应」）。要按设定距离走一步必须用「点动 −/+」。UI 文案与 ToolTip 都要写清这一点。
 - **使能只有两处，职责分开**：基本信息里的「**上电使能**」（工程配置项，改值会实时下发使能）+ 轴控制容器里的「使能」按钮（唯一的动作）。轴权限里的「允许使能」已删（`AllowEnable` 字段保留不用）。
 - 改完页面 XAML 后**务必脚本校验所有 `StaticResource` 键都存在**（AppStyles 全局 + 页内局部）；页面级键在 Window 弹窗里取不到会运行时炸。

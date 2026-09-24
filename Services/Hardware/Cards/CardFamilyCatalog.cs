@@ -130,6 +130,20 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <summary>该卡族依赖的任意一个原生库在程序目录 / 系统路径中是否可见。</summary>
         public bool DllPresent => CardFamilyCatalog.AnyDllPresent(NativeDlls);
 
+        /// <summary>
+        /// 该卡族是否为「模拟卡」—— 实现是进程内仿真，不依赖任何真实硬件 / 原生 dll。
+        /// <para>判据用登记时的品牌与总线（见文件头规则「含『虚拟』或『仿真』→ 模拟卡」）：
+        /// <c>VirtualMotionCard</c>（虚拟运动卡）与 <c>DigitalTwinCard</c>（数字孪生卡）
+        /// 都登记为 <c>Vendor = 模拟卡</c> / <c>BusKind = 虚拟</c>。</para>
+        /// <para>★ 模拟卡与真实卡在几处语义不同，桥里必须分开处理，否则会出现
+        /// 「指令返回 0 但轴不动」「状态全是 —」这类看起来像 bug 的现象，详见
+        /// <c>WenQiZhiCardBridge.EnsureSimReady / BuildSimParam</c>。</para>
+        /// </summary>
+        public bool IsSimulation =>
+            Vendor == "模拟卡" || BusKind == "虚拟" ||
+            (Key != null && (Key.IndexOf("Virtual", StringComparison.OrdinalIgnoreCase) >= 0
+                          || Key.IndexOf("DigitalTwin", StringComparison.OrdinalIgnoreCase) >= 0));
+
         public override string ToString() => Key;
     }
 

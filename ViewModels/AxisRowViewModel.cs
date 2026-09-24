@@ -130,6 +130,11 @@ namespace NoCodeMotion.ViewModels
         public string OrgColor => SigColor(_snap.Org, ColBlue);
         public string EmgColor => SigColor(_snap.Emg, ColRed);
         public string AlarmColor => SigColor(_snap.Alarm, ColRed);
+
+        /// <summary>「报警码」文字颜色：确认报警=红；只是「底层返回非 0」（语义不定）=琥珀；无=灰。</summary>
+        public string AlarmCodeColor => !_snap.Connected ? ColOff
+            : (_snap.Alarm == true ? ColRed
+               : ((!_snap.HasIoWord && _snap.AlarmCode != 0) ? ColAmber : ColOff));
         public string EnabledColor => SigColor(_snap.Enabled, ColGreen);
         public string MovingColor => !_snap.Connected ? ColOff : (_snap.Moving ? ColBlue : ColOff);
         public string PosColor => _snap.Connected ? "#0F172A" : ColOff;
@@ -146,7 +151,7 @@ namespace NoCodeMotion.ViewModels
                 nameof(PelOn), nameof(MelOn), nameof(OrgOn), nameof(EmgOn), nameof(AlarmOn),
                 nameof(EnabledOn), nameof(Moving),
                 nameof(PelColor), nameof(MelColor), nameof(OrgColor), nameof(EmgColor),
-                nameof(AlarmColor), nameof(EnabledColor), nameof(MovingColor), nameof(PosColor),
+                nameof(AlarmColor), nameof(EnabledColor), nameof(MovingColor), nameof(PosColor), nameof(AlarmCodeColor),
             }) OnPropertyChanged(p);
         }
 
@@ -202,12 +207,13 @@ namespace NoCodeMotion.ViewModels
         {
             if (!_snap.Connected) return string.Empty;
             var parts = new List<string>();
-            if (_snap.HasAlarm)
-                parts.Add(_snap.AlarmCode != 0
-                    ? $"该轴有报警（码 {_snap.AlarmCode}），报警未清除前轴通常不会动，请先排除并清报警"
-                    : "该轴报警信号有效，未清除前轴通常不会动");
-            if (_snap.Enabled == false) parts.Add("状态显示该轴未使能，若不动请先点「使能」");
-            return parts.Count == 0 ? string.Empty : "（注意：" + string.Join("；", parts) + "）";
+            if (_snap.Alarm == true)
+                parts.Add(_snap.AlarmCode > 1 ? $"底层报报警（码 {_snap.AlarmCode}）" : "底层报报警");
+            else if (_snap.AlarmCode != 0)
+                parts.Add($"底层返回码 {_snap.AlarmCode}");
+            if (_snap.Enabled == false) parts.Add("该轴未使能");
+            if (parts.Count == 0) return string.Empty;
+            return "（注意：" + string.Join("；", parts) + "，若轴不动请先处理）";
         }
 
         /// <summary>点动一段距离（正负决定方向）。「手动速度」作为本次点动速度下发。</summary>
@@ -245,7 +251,7 @@ namespace NoCodeMotion.ViewModels
             {
                 string err = AxisMonitorService.StartJog(_item, positive, speed);
                 if (string.IsNullOrEmpty(err))
-                    Report($"轴「{name}」Jog {(positive ? "正向" : "反向")} 已启动 —— Jog 是「按住才走」，松开即停；只点一下就松开只会走一瞬（要按「点动距离」走一步请用「点动 −/+」）。{hint}", false);
+                    Report($"轴「{name}」Jog {(positive ? "正向" : "反向")} 已启动（按住才走，松开即停）{hint}", false);
                 else
                     Report($"轴「{name}」Jog 失败：{err}", true);
             });

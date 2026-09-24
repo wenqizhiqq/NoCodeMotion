@@ -369,7 +369,8 @@
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="报警"/>
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="报警"
+                                               ToolTip="有轴状态字的卡族：取状态字 bit0。没有状态字的卡族读不到，显示「—」，请改看下面「报警码」。"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.AlarmText}" Foreground="{Binding Monitor.AlarmColor}"/>
                                 </DockPanel>
@@ -377,8 +378,8 @@
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="报警码"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" VerticalAlignment="Center" FontFamily="Consolas"
-                                               Text="{Binding Monitor.AlarmCodeText}" Foreground="{Binding Monitor.AlarmColor}"
-                                               ToolTip="底层原始报警 / 错误码；非 0 时轴通常不会运动，清报警可参考卡手册"/>
+                                               Text="{Binding Monitor.AlarmCodeText}" Foreground="{Binding Monitor.AlarmCodeColor}"
+                                               ToolTip="底层 GetCardAxisAlarmState 的原始返回值，原样显示不翻译（各卡族语义不同：有的是报警状态 0/1，有的是错误码）。非 0 时若轴不动，请按卡手册清报警。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">

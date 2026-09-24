@@ -405,6 +405,16 @@ namespace NoCodeMotion.Services.Hardware.Cards
             var (slot, a) = AxisOf(axis);
             if (a == null) { WarnNoAxis(axis, "使能"); return; }
 
+            if (IsSimulation(slot))
+            {
+                // 模拟卡的 OpenCardAxisEnable 未实现（恒返回 -1），使能要走「伺服使能端口」——
+                // 它有状态（CardAxisWriteSevonPin / GetCardAxisSevonPin），状态卡的「使能」行读的也是它。
+                int sevon = 0;
+                Guard(() => sevon = a.CardAxisWriteSevonPin(1));
+                Report("轴使能", sevon, $"[卡族·模拟卡] 轴「{axis.Name}」已使能（伺服使能端口置 1）");
+                return;
+            }
+
             int res = 0;
             Guard(() => res = a.OpenCardAxisEnable(slot.CardNo, Math.Max(axis.AxisNo, 0)));
             Report("轴使能", res, $"[卡族] 轴「{axis.Name}」已使能（卡{slot.CardNo} 轴{axis.AxisNo}，卡族 {slot.Family.Key}）");
@@ -423,11 +433,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         {
             var (slot, a) = AxisOf(axis);
             if (a == null) { WarnNoAxis(axis, $"相对移动 {distance}"); return; }
-            Guard(() =>
-            {
-                a.SetCardAxisMotionalVel(BuildMotionParam(axis, slot.CardNo, 0, 1, axis.Speed));
-                a.CardAxisPointMovement(BuildMotionParam(axis, slot.CardNo, distance, 0, axis.Speed));   // 0 = 相对
-            });
+            Guard(() => SendPointMove(slot, a, axis, distance, 0, axis.Speed));   // 0 = 相对
             Log($"[卡族] 轴「{axis.Name}」相对移动 {distance} {axis.Unit}（卡{slot.CardNo} 轴{axis.AxisNo}）");
         }
 
@@ -436,11 +442,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             CheckSoftLimit(axis, position);
             var (slot, a) = AxisOf(axis);
             if (a == null) { WarnNoAxis(axis, $"绝对移动到 {position}"); return; }
-            Guard(() =>
-            {
-                a.SetCardAxisMotionalVel(BuildMotionParam(axis, slot.CardNo, 0, 1, axis.Speed));
-                a.CardAxisPointMovement(BuildMotionParam(axis, slot.CardNo, position, 1, axis.Speed));   // 1 = 绝对
-            });
+            Guard(() => SendPointMove(slot, a, axis, position, 1, axis.Speed));   // 1 = 绝对
             Log($"[卡族] 轴「{axis.Name}」定位到 {position} {axis.Unit}（卡{slot.CardNo} 轴{axis.AxisNo}）");
         }
 
@@ -573,12 +575,15 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
             int axisNo = Math.Max(axis.AxisNo, 0);
             int cardNo = slot != null ? slot.CardNo : 0;
+            bool sim = IsSimulation(slot);
+            double equiv = EquivOf(axis);
 
             // ★ 不能把 out 参数写进 lambda（CS1628），先读到本地变量，最后再组装。
             double pos = 0, enc = 0;
             bool moving = false, hasWord = false;
             int alarm = 0;
             uint word = 0;
+            bool? servoOn = null;
 
             // 单项读失败不影响其它项（卡族里不少接口在参考实现里是未完成的）。
             void Try(Action act) { try { act(); } catch { /* 该项读不到就留默认值 */ } }
@@ -591,17 +596,37 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 st = a.GetCardAxisCurrentState();               // 0 = 停止 / 1 = 运行中
                 moving = st != 0;
             });
-            Try(() => alarm = a.GetCardAxisAlarmState(cardNo, axisNo));
-            try { hasWord = TryReadIoWord(a, out uint w); word = w; } catch { }
+
+            if (sim)
+            {
+                // 模拟卡：位置计数器是**脉冲**，界面按轴配置的「单位」显示 → 除回脉冲当量。
+                pos /= equiv;
+                enc /= equiv;
+
+                // 模拟卡的 GetCardAxisAlarmState 返回的**就是轴状态字**（内部 GetCardAxisIOStatus），
+                // 而它没有无参 GetAxisCurrentState()，反射取不到 → 直接用这个字当状态字。
+                Try(() => { alarm = a.GetCardAxisAlarmState(cardNo, axisNo); word = unchecked((uint)alarm); hasWord = true; });
+
+                // 使能：模拟卡用「伺服使能端口」（有状态、可读），它的状态字里没有使能位。
+                Try(() => servoOn = a.GetCardAxisSevonPin() != 0);
+            }
+            else
+            {
+                Try(() => alarm = a.GetCardAxisAlarmState(cardNo, axisNo));
+                try { hasWord = TryReadIoWord(a, out uint w); word = w; } catch { }
+            }
 
             raw.Position = pos;
             raw.Encoder = enc;
             raw.Moving = moving;
-            raw.AlarmCode = alarm;
+            // 有「轴状态字」时，bit0 才是报警的权威判据；这个字段只留给「语义不定的返回码」。
+            raw.AlarmCode = hasWord ? 0 : alarm;
             raw.IoWord = word;
             raw.HasIoWord = hasWord;
+            raw.ServoOn = servoOn;
             raw.Ok = true;
-            raw.Message = "已连接";
+            // 模拟卡要标明，免得把「软件仿真出来的状态」当成真机状态。
+            raw.Message = sim ? "已连接（模拟卡·仿真）" : "已连接";
             return true;
         }
 
@@ -633,6 +658,96 @@ namespace NoCodeMotion.Services.Hardware.Cards
             return false;
         }
 
+        // ===================== 模拟卡（虚拟运动卡 / 数字孪生卡）适配 =====================
+        //
+        // 模拟卡的实现是进程内仿真（VirtualMotionCardSDK / DigitalTwinCardSDK），与真实卡有三处语义差异。
+        // 不处理就会出现「指令返回 0 但轴不动」「状态全是 —」这类看起来像 bug、其实是仿真器模型约定的现象：
+        //
+        //   ① 行程范围（spacing）默认全 0：仿真器的点位运动 / 连续运动都会做限位判断，
+        //      把**任何**非 0 目标夹回 0 并置「正 / 负限位」位。现场表现：点动返回成功、位置却不变，
+        //      而且限位位亮、状态字变成一个看不懂的大数字。
+        //      → 每根轴首次运动前 SetSpacing 给一个宽行程。
+        //   ② 速度曲线只认 SetCardAxisProfile（= 接口 SetCardAxisTProfile）；
+        //      模拟卡里 SetCardAxisMotionalVel / SetCardVectorProfileMulticoor 是**空实现**（返回 0 但什么都不做）。
+        //   ③ 连续运动按「每 1ms 前进 (int)(pps / 1000) 个脉冲」整数步进：pps < 1000 会被截断成 0，
+        //      于是仿真器的 isRun 一直为真 —— 状态显示「运动中」而位置永远不变（用户实测到的现象）。
+        //      → 速度换算成 pps（× 脉冲当量）并给 1000pps 下限。
+        //
+        // 另外：模拟卡没有无参 GetAxisCurrentState()（状态字），但它的 GetCardAxisAlarmState 返回的**就是**
+        // 轴状态字（内部 GetCardAxisIOStatus）；使能也没实现 OpenCardAxisEnable（恒 -1），要走伺服使能端口。
+
+        /// <summary>模拟卡虚拟行程范围（脉冲）。取值在 DMC 位置计数器量程（±1.34e8）以内。</summary>
+        private const int SimTravelRange = 100_000_000;
+
+        /// <summary>已做过「行程范围」初始化的轴（键 = 控制器名#轴号）。每轴只做一次，之后每次只下发速度。</summary>
+        private readonly HashSet<string> _simReady = new HashSet<string>();
+
+        private static bool IsSimulation(CardSlot slot) => slot != null && slot.Family != null && slot.Family.IsSimulation;
+
+        /// <summary>脉冲当量（每单位脉冲数）；未填（&lt;=0）时按 1:1 处理，避免乘 0 / 除 0。</summary>
+        private static double EquivOf(AxisItem axis) => axis != null && axis.PulsePerUnit > 0 ? axis.PulsePerUnit : 1;
+
+        /// <summary>
+        /// 拼一个「模拟卡」用的运动参数：距离与速度都换算成脉冲 / pps。
+        /// 真实卡是卡内按脉冲当量换算的，模拟卡没有这一层，得由我们换算；读回位置时再除回来（见 TryReadAxisRaw）。
+        /// </summary>
+        private static MotionParamModel BuildSimParam(AxisItem axis, int cardNo, double dist, int posiMode, double speed)
+        {
+            double equiv = EquivOf(axis);
+            double v = (speed > 0 ? speed : (axis.Speed > 0 ? axis.Speed : 1)) * equiv;
+            if (v < 1000) v = 1000;          // 仿真器步进下限：< 1000pps 会被整数截断成「一点都不走」
+            double d = dist * equiv;
+
+            var mpm = BuildMotionParam(axis, cardNo, d, posiMode, v);
+            mpm.Equiv = (int)Math.Round(equiv);
+            mpm.Pos = (int)Math.Round(d);
+            mpm.Dist = d;
+            mpm.MinVel = v;                  // 恒速：MinVel = MaxVel ⇒ 仿真器走「无加减速段」分支，行为最可预期
+            mpm.MaxVel = v;
+            mpm.TaccVel = 0.001;
+            mpm.TdecVel = 0.001;
+            mpm.StopVel = 0;
+            return mpm;
+        }
+
+        /// <summary>
+        /// 模拟卡每次运动前的准备：首次给该轴设宽行程，每次都把速度曲线写进仿真器的参数缓冲
+        /// （模拟卡里 <c>SetCardAxisTProfile</c> 才是真正生效的设速接口）。
+        /// </summary>
+        private void EnsureSimReady(CardSlot slot, IAxis a, AxisItem axis, MotionParamModel mpm)
+        {
+            int axisNo = Math.Max(axis.AxisNo, 0);
+            string key = (slot != null ? slot.ControllerName : "?") + "#" + axisNo;
+
+            bool first;
+            lock (_simReady) first = _simReady.Add(key);
+
+            if (first)
+            {
+                int res = a.SetSpacing(axisNo, 0, SimTravelRange, -SimTravelRange);
+                Log($"[卡族·模拟卡] 轴「{axis.Name}」行程范围已设为 ±{SimTravelRange} 脉冲（SetSpacing 返回 {res}）——否则仿真器会把任何移动夹到 0。");
+            }
+
+            a.SetCardAxisTProfile(mpm);
+        }
+
+        /// <summary>
+        /// 下发一次点位（相对 / 绝对）运动。模拟卡与真实卡的距离 / 速度换算不同，这里统一收口。
+        /// posiMode：0 = 相对坐标，1 = 绝对坐标。返回底层返回码（0 = 成功，模拟卡恒为 0）。
+        /// </summary>
+        private int SendPointMove(CardSlot slot, IAxis a, AxisItem axis, double target, int posiMode, double speed)
+        {
+            if (IsSimulation(slot))
+            {
+                var mpm = BuildSimParam(axis, slot.CardNo, target, posiMode, speed);
+                EnsureSimReady(slot, a, axis, mpm);
+                return a.CardAxisPointMovement(mpm);
+            }
+
+            a.SetCardAxisMotionalVel(BuildMotionParam(axis, slot.CardNo, 0, 1, speed));
+            return a.CardAxisPointMovement(BuildMotionParam(axis, slot.CardNo, target, posiMode, speed));
+        }
+
         /// <summary>
         /// 点动一段距离（可指定速度，用于「手动速度」）。返回 null 表示成功，否则是失败原因。
         /// 与桥接口的 MoveAxisRel 等价，但那条路会把速度写死成 axis.Speed，手动速度不生效。
@@ -647,16 +762,28 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
             int cardNo = slot != null ? slot.CardNo : 0;
             double v = speed > 0 ? speed : (axis.Speed > 0 ? axis.Speed : 1);
+            bool sim = IsSimulation(slot);
 
             try
             {
-                int r1 = a.SetCardAxisMotionalVel(BuildMotionParam(axis, cardNo, 0, 1, v));
-                if (r1 != 0) return $"点动失败：下发速度曲线返回 {r1}（检查脉冲当量 / 加减速是否合理）";
+                if (sim)
+                {
+                    // 模拟卡：宽行程 + 速度曲线都在 EnsureSimReady 里，距离按脉冲下发
+                    var mpm = BuildSimParam(axis, cardNo, distance, 0, v);
+                    EnsureSimReady(slot, a, axis, mpm);
+                    int rs = a.CardAxisPointMovement(mpm);
+                    if (rs != 0) return $"点动下发失败（卡返回 {rs}）";
+                }
+                else
+                {
+                    int r1 = a.SetCardAxisMotionalVel(BuildMotionParam(axis, cardNo, 0, 1, v));
+                    if (r1 != 0) return $"点动失败：下发速度曲线返回 {r1}（检查脉冲当量 / 加减速是否合理）";
 
-                int res = a.CardAxisPointMovement(BuildMotionParam(axis, cardNo, distance, 0, v));   // 0 = 相对
-                if (res != 0) return $"点动下发失败（卡返回 {res}）";
+                    int res = a.CardAxisPointMovement(BuildMotionParam(axis, cardNo, distance, 0, v));   // 0 = 相对
+                    if (res != 0) return $"点动下发失败（卡返回 {res}）";
+                }
 
-                Log($"[卡族] 轴「{axis.Name}」点动 {distance} {axis.Unit}（速度 {v} {axis.Unit}/s）");
+                Log($"[卡族{(sim ? "·模拟卡" : "")}] 轴「{axis.Name}」点动 {distance} {axis.Unit}（速度 {v} {axis.Unit}/s）");
                 return null;
             }
             catch (Exception ex) { return "点动异常：" + ex.Message; }
@@ -677,18 +804,30 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
             int cardNo = slot != null ? slot.CardNo : 0;
             double v = speed > 0 ? speed : (axis.Speed > 0 ? axis.Speed : 1);
+            bool sim = IsSimulation(slot);
 
             try
             {
-                int r1 = a.SetCardAxisMotionalVel(BuildMotionParam(axis, cardNo, 0, 1, v));
-                if (r1 != 0) return $"Jog 失败：下发速度曲线返回 {r1}（检查脉冲当量 / 加减速是否合理）";
+                MotionParamModel mpm;
+                if (sim)
+                {
+                    // 模拟卡的连续运动读的是它自己的「速度参数缓冲」，只有 SetCardAxisTProfile 会写进去；
+                    // 少了这一步（或 pps < 1000）就会出现「状态显示运动中、位置一动不动」。
+                    mpm = BuildSimParam(axis, cardNo, 0, 0, v);
+                    EnsureSimReady(slot, a, axis, mpm);
+                }
+                else
+                {
+                    int r1 = a.SetCardAxisMotionalVel(BuildMotionParam(axis, cardNo, 0, 1, v));
+                    if (r1 != 0) return $"Jog 失败：下发速度曲线返回 {r1}（检查脉冲当量 / 加减速是否合理）";
+                    mpm = BuildMotionParam(axis, cardNo, 0, 0, v);
+                }
 
-                var mpm = BuildMotionParam(axis, cardNo, 0, 0, v);
                 mpm.Dir = positive ? 1 : 0;                 // 0 = 负方向，1 = 正方向
                 int res = a.CardAxisSerialMovement(mpm);
                 if (res != 0) return $"Jog 下发失败（卡返回 {res}）";
 
-                Log($"[卡族] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动（速度 {v} {axis.Unit}/s），松开按钮停止");
+                Log($"[卡族{(sim ? "·模拟卡" : "")}] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动（速度 {v} {axis.Unit}/s），松开按钮停止");
                 return null;
             }
             catch (Exception ex) { return "Jog 异常：" + ex.Message; }
