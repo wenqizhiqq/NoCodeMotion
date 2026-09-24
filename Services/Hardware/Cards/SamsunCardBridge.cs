@@ -606,6 +606,16 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
             try { if (slot.Runtime.InIo != null) inIo = slot.Runtime.InIo.InIONums; } catch { /* 部分卡族未维护该字段 */ }
             try { if (slot.Runtime.OutIo != null) outIo = slot.Runtime.OutIo.OutIONums; } catch { /* 部分卡族未维护该字段 */ }
+
+            // 卡族标准规格优先：移植卡族的底层 API 经常不回报容量
+            //（轴返回 0、IO 返回占位默认值 24），目录里人工核对过的「设计容量」才是可信来源。
+            // 仅当该字段在目录中已人工设定（> 0）时覆盖硬件读数；未设定的卡族继续走硬件真实值。
+            if (slot.Family != null)
+            {
+                if (slot.Family.AxisCount > 0) axisCount = slot.Family.AxisCount;
+                if (slot.Family.InIoCount > 0) inIo = slot.Family.InIoCount;
+                if (slot.Family.OutIoCount > 0) outIo = slot.Family.OutIoCount;
+            }
             return true;
         }
 

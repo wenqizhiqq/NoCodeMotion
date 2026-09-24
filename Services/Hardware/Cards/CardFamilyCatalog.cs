@@ -110,6 +110,20 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <summary>备注 / 对接说明。</summary>
         public string Note { get; set; }
 
+        /// <summary>
+        /// 该卡族的标准规格（设计容量），在底层硬件 API 不回报容量时作为可信兜底。
+        /// 0 = 未知（不兜底，沿用硬件返回值或用户配置）。当前仅个别卡族人工核对此值，
+        /// 其余卡族保持 0，继续走底层 API 的真实读数。例如研控 MCN42 系列固定为 8 轴 / 16 入 / 16 出，
+        /// 但其移植实现 <c>GetCardTotalAxisNum</c> 离线时返回 0、IO 实体默认填 24，故需目录规格兜底。
+        /// </summary>
+        public int AxisCount { get; set; }
+
+        /// <summary>该卡族标准规格：主板输入 IO 数（兜底用，0 = 未知）。</summary>
+        public int InIoCount { get; set; }
+
+        /// <summary>该卡族标准规格：主板输出 IO 数（兜底用，0 = 未知）。</summary>
+        public int OutIoCount { get; set; }
+
         /// <summary>工厂：new 出一整套实现类。</summary>
         public Func<CardFamilyRuntime> Create { get; set; }
 
@@ -480,7 +494,8 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 NativeDlls = new[] { "MCN420.dll" },
                 BusTypes = new[] { CardBusType.Pulse },
                 Aliases = new[] { "MCN42", "MCC42", "MCN420", "42系列", "0x1A4", "0x1A5" },
-                Note = "MCN420.dll。",
+                Note = "MCN420.dll。固定规格：8 轴 / 16 入 / 16 出（底层实现离线返回 0、IO 默认填 24，需目录规格兜底）。",
+                AxisCount = 8, InIoCount = 16, OutIoCount = 16,
                 Create = F(() => new Samsun.Domain.MotionCard.Common.YKMCN42Series.CardRealization(),
                            () => new Samsun.Domain.MotionCard.Common.YKMCN42Series.AxisRealization(),
                            () => new Samsun.Domain.MotionCard.Common.YKMCN42Series.InioRealization(),
