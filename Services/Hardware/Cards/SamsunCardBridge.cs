@@ -633,8 +633,41 @@ namespace NoCodeMotion.Services.Hardware.Cards
             return false;
         }
 
-        /// <summary>启动连续点动（Jog）。返回 null 表示成功，否则是失败原因。</summary>
-        public string StartAxisJog(AxisItem axis, bool positive)
+        /// <summary>
+        /// 点动一段距离（可指定速度，用于「手动速度」）。返回 null 表示成功，否则是失败原因。
+        /// 与桥接口的 MoveAxisRel 等价，但那条路会把速度写死成 axis.Speed，手动速度不生效。
+        /// </summary>
+        public string InchAxis(AxisItem axis, double distance, double speed)
+        {
+            if (axis == null) return "无轴";
+            CardSlot slot = null; IAxis a = null;
+            try { (slot, a) = AxisOf(axis); }
+            catch (Exception ex) { return "寻址失败：" + ex.Message; }
+            if (a == null) { WarnNoAxis(axis, "点动"); return "控制器未连接或轴号越界"; }
+
+            int cardNo = slot != null ? slot.CardNo : 0;
+            double v = speed > 0 ? speed : (axis.Speed > 0 ? axis.Speed : 1);
+
+            try
+            {
+                int r1 = a.SetCardAxisMotionalVel(BuildMotionParam(axis, cardNo, 0, 1, v));
+                if (r1 != 0) return $"点动失败：下发速度曲线返回 {r1}（检查脉冲当量 / 加减速是否合理）";
+
+                int res = a.CardAxisPointMovement(BuildMotionParam(axis, cardNo, distance, 0, v));   // 0 = 相对
+                if (res != 0) return $"点动下发失败（卡返回 {res}）";
+
+                Log($"[卡族] 轴「{axis.Name}」点动 {distance} {axis.Unit}（速度 {v} {axis.Unit}/s）");
+                return null;
+            }
+            catch (Exception ex) { return "点动异常：" + ex.Message; }
+        }
+
+        /// <summary>
+        /// 启动连续点动（Jog）。返回 null 表示成功，否则是失败原因。
+        /// ★ **必须先下发速度曲线再发连续运动指令**：正常定位（<see cref="MoveAxisRel"/>）就是这么做的；
+        /// 少了这一步，卡会「收下指令但按无效 profile 跑」—— 现场表现就是「点了 Jog 轴不动」。
+        /// </summary>
+        public string StartAxisJog(AxisItem axis, bool positive, double speed)
         {
             if (axis == null) return "无轴";
             CardSlot slot = null; IAxis a = null;
@@ -642,13 +675,20 @@ namespace NoCodeMotion.Services.Hardware.Cards
             catch (Exception ex) { return "寻址失败：" + ex.Message; }
             if (a == null) { WarnNoAxis(axis, "Jog"); return "控制器未连接或轴号越界"; }
 
+            int cardNo = slot != null ? slot.CardNo : 0;
+            double v = speed > 0 ? speed : (axis.Speed > 0 ? axis.Speed : 1);
+
             try
             {
-                var mpm = BuildMotionParam(axis, slot != null ? slot.CardNo : 0, 0, 0, axis.Speed);
+                int r1 = a.SetCardAxisMotionalVel(BuildMotionParam(axis, cardNo, 0, 1, v));
+                if (r1 != 0) return $"Jog 失败：下发速度曲线返回 {r1}（检查脉冲当量 / 加减速是否合理）";
+
+                var mpm = BuildMotionParam(axis, cardNo, 0, 0, v);
                 mpm.Dir = positive ? 1 : 0;                 // 0 = 负方向，1 = 正方向
                 int res = a.CardAxisSerialMovement(mpm);
                 if (res != 0) return $"Jog 下发失败（卡返回 {res}）";
-                Log($"[卡族] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动，松开按钮停止");
+
+                Log($"[卡族] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动（速度 {v} {axis.Unit}/s），松开按钮停止");
                 return null;
             }
             catch (Exception ex) { return "Jog 异常：" + ex.Message; }

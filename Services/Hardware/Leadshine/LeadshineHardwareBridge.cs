@@ -356,16 +356,51 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             return true;
         }
 
-        /// <summary>启动连续点动（Jog）：雷赛 dmc_vmove。返回 null 表示成功，否则是失败原因。</summary>
-        public string StartAxisJog(AxisItem axis, bool positive)
+        /// <summary>
+        /// 点动一段距离（可指定速度，用于「手动速度」）。返回 null 表示成功，否则是失败原因。
+        /// 与桥接口的 MoveAxisRel 等价，但那条路会把速度写死成 axis.Speed，手动速度不生效。
+        /// </summary>
+        public string InchAxis(AxisItem axis, double distance, double speed)
         {
             if (axis == null) return "无轴";
             if (!_cardReady || !LtdmcCard.IsReady) return "雷赛控制卡未就绪";
             var (card, no) = Addr(axis);
+            WarnIfAxisCardMismatch(axis, card);
+            WarnIfBusAxisNotEnabled(axis, card, no);
+
+            double v = speed > 0 ? speed : (axis.Speed > 0 ? axis.Speed : 1);
             try
             {
+                _card.ApplyAxisProfile(card, no, axis.PulsePerUnit, v, axis.Accel, axis.Decel, axis.Jerk);
+                _card.MoveRelative(card, no, distance);
+                Log($"[雷赛] 轴「{axis.Name}」点动 {distance} {axis.Unit}（速度 {v} {axis.Unit}/s）");
+                return null;
+            }
+            catch (Exception ex) { return "点动异常：" + ex.Message; }
+        }
+
+        /// <summary>
+        /// 启动连续点动（Jog）：雷赛 dmc_vmove。返回 null 表示成功，否则是失败原因。
+        /// ★ **必须先下发速度曲线（EnsureProfile）再发 vmove**：和 <see cref="MoveAxisRel"/> 一样；
+        /// 少了这一步，卡会「收下指令但按无效 profile 跑」—— 现场表现就是「点了 Jog 轴不动」。
+        /// 另外按 MoveAxisRel 的做法带上「轴型/卡型不匹配」与「总线轴状态机≠4」的现场提示。
+        /// </summary>
+        public string StartAxisJog(AxisItem axis, bool positive, double speed)
+        {
+            if (axis == null) return "无轴";
+            if (!_cardReady || !LtdmcCard.IsReady) return "雷赛控制卡未就绪";
+            var (card, no) = Addr(axis);
+
+            WarnIfAxisCardMismatch(axis, card);
+            WarnIfBusAxisNotEnabled(axis, card, no);   // 状态机≠4 时明确提示「会返回 0 但轴不动」
+
+            double v = speed > 0 ? speed : (axis.Speed > 0 ? axis.Speed : 1);
+            try
+            {
+                // 手动速度生效：先用本次 Jog 速度覆盖速度曲线，再启动连续运动。
+                _card.ApplyAxisProfile(card, no, axis.PulsePerUnit, v, axis.Accel, axis.Decel, axis.Jerk);
                 _card.Jog(card, no, positive);
-                Log($"[雷赛] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动（dmc_vmove），松开按钮停止");
+                Log($"[雷赛] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动（dmc_vmove，速度 {v} {axis.Unit}/s），松开按钮停止");
                 return null;
             }
             catch (Exception ex) { return "Jog 异常：" + ex.Message; }

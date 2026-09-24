@@ -30,7 +30,8 @@ namespace NoCodeMotion.ViewModels
         {
             _item = item ?? throw new ArgumentNullException(nameof(item));
 
-            EnableCommand = new RelayCommand(_ => Invoke("使能", () => AxisMonitorService.Enable(_item)), _ => _item.AllowEnable);
+            // 「使能」是唯一的使能动作（「上电使能」那项是工程配置，不是按钮权限），所以不设 CanExecute。
+            EnableCommand = new RelayCommand(_ => Invoke("使能", () => AxisMonitorService.Enable(_item)));
             StopCommand = new RelayCommand(_ => Invoke("停止", () => AxisMonitorService.Stop(_item)), _ => _item.AllowManual);
             HomeCommand = new RelayCommand(_ => Invoke("回零", () => AxisMonitorService.Home(_item)), _ => _item.AllowHome);
             SetZeroCommand = new RelayCommand(_ => SetZero(), _ => _item.AllowSetZero);
@@ -57,13 +58,12 @@ namespace NoCodeMotion.ViewModels
         public string Name => string.IsNullOrWhiteSpace(_item.Name) ? "（未命名轴）" : _item.Name;
         public string ControllerText => string.IsNullOrWhiteSpace(_item.Controller) ? "未指定控制器" : _item.Controller;
 
-        /// <summary>轴权限摘要（哪个按钮被允许），显示在行上，避免操作员对着灰按钮猜。</summary>
+        /// <summary>轴权限摘要（哪个按钮被允许），显示在控制容器里，避免操作员对着灰按钮猜。</summary>
         public string PermissionText
         {
             get
             {
                 var parts = new List<string>();
-                if (_item.AllowEnable) parts.Add("使能");
                 if (_item.AllowManual) parts.Add("点动/Jog/停止");
                 if (_item.AllowHome) parts.Add("回零");
                 if (_item.AllowSetZero) parts.Add("设零点");
@@ -192,7 +192,17 @@ namespace NoCodeMotion.ViewModels
             return true;
         }
 
-        /// <summary>点动一段距离（正负决定方向）。手动速度会先下发到卡。</summary>
+        /// <summary>
+        /// 点动 / Jog 前的「未使能」提醒（**只提醒、不拦截**）。
+        /// 没使能的轴会「收下指令但不动」，这是现场最常见的「点了没反应」——提前告诉操作员该点哪里。
+        /// 只有明确读到「未使能」才提醒；读不到（null）不打扰。
+        /// </summary>
+        private string NotEnabledHint()
+            => (_snap.Connected && _snap.Enabled == false)
+                ? "（注意：状态显示该轴尚未使能，若轴不动请先点「使能」）"
+                : string.Empty;
+
+        /// <summary>点动一段距离（正负决定方向）。「手动速度」作为本次点动速度下发。</summary>
         private async void Inch(int dir)
         {
             double step = Math.Abs(JogStep);
@@ -205,42 +215,31 @@ namespace NoCodeMotion.ViewModels
             string name = Name;
             double speed = ManualSpeed;
             double delta = step * dir;
+            string hint = NotEnabledHint();
             await Task.Run(() =>
             {
-                try
-                {
-                    ApplyManualSpeed(speed);
-                    AxisMonitorService.Inch(_item, delta);
-                    Report($"轴「{name}」点动 {(dir > 0 ? "+" : "−")}{step}。", false);
-                }
-                catch (Exception ex)
-                {
-                    Report($"轴「{name}」点动失败：{ex.Message}", true);
-                }
+                string err = AxisMonitorService.Inch(_item, delta, speed);
+                if (string.IsNullOrEmpty(err))
+                    Report($"轴「{name}」点动 {(dir > 0 ? "+" : "−")}{step}{hint}", false);
+                else
+                    Report($"轴「{name}」点动失败：{err}", true);
             });
         }
 
-        /// <summary>启动连续 Jog（按住走、松开停）。</summary>
+        /// <summary>启动连续 Jog（按住走、松开停）。「手动速度」作为本次 Jog 速度下发。</summary>
         private async void StartJog(bool positive)
         {
             if (NotConnected("Jog")) return;
             string name = Name;
             double speed = ManualSpeed;
+            string hint = NotEnabledHint();
             await Task.Run(() =>
             {
-                try
-                {
-                    ApplyManualSpeed(speed);
-                    string err = AxisMonitorService.StartJog(_item, positive);
-                    if (string.IsNullOrEmpty(err))
-                        Report($"轴「{name}」Jog {(positive ? "正向" : "反向")} 中，松开按钮停止。", false);
-                    else
-                        Report($"轴「{name}」Jog 失败：{err}", true);
-                }
-                catch (Exception ex)
-                {
-                    Report($"轴「{name}」Jog 失败：{ex.Message}", true);
-                }
+                string err = AxisMonitorService.StartJog(_item, positive, speed);
+                if (string.IsNullOrEmpty(err))
+                    Report($"轴「{name}」Jog {(positive ? "正向" : "反向")} 中，松开按钮停止。{hint}", false);
+                else
+                    Report($"轴「{name}」Jog 失败：{err}", true);
             });
         }
 
@@ -251,26 +250,12 @@ namespace NoCodeMotion.ViewModels
             string name = Name;
             await Task.Run(() =>
             {
-                try
-                {
-                    string err = AxisMonitorService.SetZero(_item);
-                    if (string.IsNullOrEmpty(err))
-                        Report($"轴「{name}」当前位置已置零。", false);
-                    else
-                        Report($"轴「{name}」设零点失败：{err}", true);
-                }
-                catch (Exception ex)
-                {
-                    Report($"轴「{name}」设零点失败：{ex.Message}", true);
-                }
+                string err = AxisMonitorService.SetZero(_item);
+                if (string.IsNullOrEmpty(err))
+                    Report($"轴「{name}」当前位置已置零。", false);
+                else
+                    Report($"轴「{name}」设零点失败：{err}", true);
             });
-        }
-
-        /// <summary>点动 / Jog 前把「手动速度」下发到卡；自动运行 / 点位移动会重新按「运行速度」下发。</summary>
-        private void ApplyManualSpeed(double speed)
-        {
-            if (speed <= 0) return;
-            try { HardwareBridge.Current?.SetAxisSpeed(_item, speed); } catch { /* 设速失败不阻断点动 */ }
         }
 
         /// <summary>状态栏提示：从后台线程投回 UI 线程再报，避免跨线程刷 UI。</summary>

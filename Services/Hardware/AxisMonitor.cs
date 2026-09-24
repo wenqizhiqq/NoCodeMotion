@@ -158,24 +158,38 @@ namespace NoCodeMotion.Services.Hardware
         /// <summary>回零（阻塞至回零完成或超时，务必在后台线程调用）。</summary>
         public static void Home(AxisItem axis) => HardwareBridge.Current?.HomeAxis(axis);
 
-        /// <summary>点动一段距离（增量移动，正负决定方向）。</summary>
-        public static void Inch(AxisItem axis, double delta)
+        /// <summary>
+        /// 点动一段距离（增量移动，正负决定方向）。
+        /// <paramref name="speed"/> &gt; 0 时按它作为本次点动速度（手动速度），否则退回轴配置的「运行速度」。
+        /// 返回 null 表示成功，否则是失败原因。
+        /// </summary>
+        public static string Inch(AxisItem axis, double delta, double speed = 0)
         {
-            if (axis == null || delta == 0) return;
-            HardwareBridge.Current?.MoveAxisRel(axis, delta);
+            if (axis == null) return "无轴";
+            if (delta == 0) return "点动距离为 0";
+
+            if (HardwareSetup.Mode == HardwareMode.CardFamilies)
+                return HardwareSetup.CardFamilies?.InchAxis(axis, delta, speed) ?? "卡族层未装配";
+            if (HardwareSetup.Mode == HardwareMode.Leadshine)
+                return (HardwareBridge.Current as LeadshineHardwareBridge)?.InchAxis(axis, delta, speed) ?? "雷赛层未装配";
+
+            HardwareBridge.Current?.MoveAxisRel(axis, delta);   // 仿真：只打日志
+            return null;
         }
 
         /// <summary>
         /// 启动连续点动（Jog）：按住持续走，松开调 <see cref="Stop"/>。
-        /// 卡族走 CardAxisSerialMovement，雷赛走 dmc_vmove。返回 null 表示成功，否则是失败原因。
+        /// 卡族走 CardAxisSerialMovement，雷赛走 dmc_vmove。
+        /// <paramref name="speed"/> &gt; 0 时按它作为本次 Jog 的速度（手动速度），否则退回轴配置的「运行速度」。
+        /// 返回 null 表示成功，否则是失败原因。
         /// </summary>
-        public static string StartJog(AxisItem axis, bool positive)
+        public static string StartJog(AxisItem axis, bool positive, double speed = 0)
         {
             if (axis == null) return "无轴";
             if (HardwareSetup.Mode == HardwareMode.CardFamilies)
-                return HardwareSetup.CardFamilies?.StartAxisJog(axis, positive) ?? "卡族层未装配";
+                return HardwareSetup.CardFamilies?.StartAxisJog(axis, positive, speed) ?? "卡族层未装配";
             if (HardwareSetup.Mode == HardwareMode.Leadshine)
-                return (HardwareBridge.Current as LeadshineHardwareBridge)?.StartAxisJog(axis, positive) ?? "雷赛层未装配";
+                return (HardwareBridge.Current as LeadshineHardwareBridge)?.StartAxisJog(axis, positive, speed) ?? "雷赛层未装配";
             return "仿真模式：未接硬件，Jog 只记录日志";
         }
 
