@@ -105,6 +105,7 @@ namespace NoCodeMotion.ViewModels
         public string EmgText => _snap.EmgText;
         public string AlarmText => _snap.AlarmText;
         public string EnabledText => _snap.EnabledText;
+        public string AlarmCodeText => _snap.AlarmCodeText;
         public string IoWordText => _snap.HasIoWord ? $"0x{_snap.IoWord:X}" : "—";
         public string IoWordTip => AxisMonitorService.IoWordHint;
 
@@ -141,7 +142,7 @@ namespace NoCodeMotion.ViewModels
             {
                 nameof(Connected), nameof(StatusText), nameof(PosText), nameof(EncText), nameof(MovingText),
                 nameof(PelText), nameof(MelText), nameof(OrgText), nameof(EmgText), nameof(AlarmText),
-                nameof(EnabledText), nameof(IoWordText), nameof(IoWordTip),
+                nameof(EnabledText), nameof(IoWordText), nameof(IoWordTip), nameof(AlarmCodeText),
                 nameof(PelOn), nameof(MelOn), nameof(OrgOn), nameof(EmgOn), nameof(AlarmOn),
                 nameof(EnabledOn), nameof(Moving),
                 nameof(PelColor), nameof(MelColor), nameof(OrgColor), nameof(EmgColor),
@@ -193,14 +194,21 @@ namespace NoCodeMotion.ViewModels
         }
 
         /// <summary>
-        /// 点动 / Jog 前的「未使能」提醒（**只提醒、不拦截**）。
-        /// 没使能的轴会「收下指令但不动」，这是现场最常见的「点了没反应」——提前告诉操作员该点哪里。
-        /// 只有明确读到「未使能」才提醒；读不到（null）不打扰。
+        /// 点动 / Jog 动作后追加的「为什么可能不动」提醒（**只提醒、不拦截**）。
+        /// 现场「指令下发成功但轴不动」九成是这两条：① 有报警未清除 ② 轴未使能。
+        /// 只有明确读到才提醒；读不到（null）不打扰。
         /// </summary>
-        private string NotEnabledHint()
-            => (_snap.Connected && _snap.Enabled == false)
-                ? "（注意：状态显示该轴尚未使能，若轴不动请先点「使能」）"
-                : string.Empty;
+        private string MoveHint()
+        {
+            if (!_snap.Connected) return string.Empty;
+            var parts = new List<string>();
+            if (_snap.HasAlarm)
+                parts.Add(_snap.AlarmCode != 0
+                    ? $"该轴有报警（码 {_snap.AlarmCode}），报警未清除前轴通常不会动，请先排除并清报警"
+                    : "该轴报警信号有效，未清除前轴通常不会动");
+            if (_snap.Enabled == false) parts.Add("状态显示该轴未使能，若不动请先点「使能」");
+            return parts.Count == 0 ? string.Empty : "（注意：" + string.Join("；", parts) + "）";
+        }
 
         /// <summary>点动一段距离（正负决定方向）。「手动速度」作为本次点动速度下发。</summary>
         private async void Inch(int dir)
@@ -215,7 +223,7 @@ namespace NoCodeMotion.ViewModels
             string name = Name;
             double speed = ManualSpeed;
             double delta = step * dir;
-            string hint = NotEnabledHint();
+            string hint = MoveHint();
             await Task.Run(() =>
             {
                 string err = AxisMonitorService.Inch(_item, delta, speed);
@@ -232,12 +240,12 @@ namespace NoCodeMotion.ViewModels
             if (NotConnected("Jog")) return;
             string name = Name;
             double speed = ManualSpeed;
-            string hint = NotEnabledHint();
+            string hint = MoveHint();
             await Task.Run(() =>
             {
                 string err = AxisMonitorService.StartJog(_item, positive, speed);
                 if (string.IsNullOrEmpty(err))
-                    Report($"轴「{name}」Jog {(positive ? "正向" : "反向")} 中，松开按钮停止。{hint}", false);
+                    Report($"轴「{name}」Jog {(positive ? "正向" : "反向")} 已启动 —— Jog 是「按住才走」，松开即停；只点一下就松开只会走一瞬（要按「点动距离」走一步请用「点动 −/+」）。{hint}", false);
                 else
                     Report($"轴「{name}」Jog 失败：{err}", true);
             });

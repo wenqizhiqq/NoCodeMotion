@@ -32,10 +32,9 @@ namespace NoCodeMotion
                 StatusBarService.ReportException($"未处理异常：{ex?.Message ?? e.ExceptionObject?.ToString()}");
             };
 
-            // 启动时优先打开上次使用的工程（所有页面参数都保存在当前工程中），读取并显示其参数；
-            // 若没有上次工程，则回退到旧的单文件工程。
-            if (!ProjectManager.OpenLastProject())
-                ProjectStore.Load();
+            // ★ 工程载入已移到 MainWindow 的启动流程（StartUpAsync）里做：
+            //   在 App 构造函数里载入时主窗口还不存在，读 xlsx 的这段时间用户只能看到白屏、没有任何提示。
+            //   放到主窗口 Loaded 之后，就能在「加载遮罩（进度条 + 当前初始化内容）」下完成整个启动初始化。
         }
 
         protected override void OnExit(ExitEventArgs e)

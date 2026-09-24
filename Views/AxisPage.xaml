@@ -31,8 +31,8 @@
                 </Border>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <!-- 4 列容器 -->
-                    <UniformGrid Columns="4" Margin="14,0,14,10">
+                    <!-- 4 列紧凑容器：WrapPanel 保证每张卡只有自身内容那么高（不拉齐高度，避免大片空白） -->
+                    <WrapPanel Orientation="Horizontal" Margin="14,0,14,10" ItemWidth="250">
                         <!-- ============ 基本信息 ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
                             <StackPanel>
@@ -302,7 +302,8 @@
                         <!-- ============ 轴权限 ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="轴权限"/>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="轴权限"
+                                           ToolTip="只门控「轴控制」里的手动按钮；流程 / 点位 / Lua 的运行指令不受影响。"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="允许手动操作"/>
                                     <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.AllowManual}" ToolTip="关闭后「轴控制」里的 点动 / Jog / 停止 按钮变灰"/>
@@ -317,17 +318,14 @@
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="允许设零点"/>
                                     <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.AllowSetZero}"/>
                                 </DockPanel>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"
-                                               Text="轴权限只门控「轴控制」里的手动按钮；流程 / 点位 / Lua 的运行指令不受影响。"/>
-                                </DockPanel>
                             </StackPanel>
                         </Border>
 
                         <!-- ============ 轴状态（只读，针对左侧当前选中的轴） ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="轴状态"/>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="轴状态"
+                                           ToolTip="状态全部来自底层真实读数（位置=指令位置，编码器=反馈位置）；读不到的项显示「—」，不编造。"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="选中轴"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
@@ -377,6 +375,13 @@
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="报警码"/>
+                                    <TextBlock DockPanel.Dock="Right" FontSize="12.5" VerticalAlignment="Center" FontFamily="Consolas"
+                                               Text="{Binding Monitor.AlarmCodeText}" Foreground="{Binding Monitor.AlarmColor}"
+                                               ToolTip="底层原始报警 / 错误码；非 0 时轴通常不会运动，清报警可参考卡手册"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="使能"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.EnabledText}" Foreground="{Binding Monitor.EnabledColor}"/>
@@ -405,10 +410,6 @@
                                     <TextBlock DockPanel.Dock="Right" FontSize="12" FontFamily="Consolas" VerticalAlignment="Center"
                                                Text="{Binding Monitor.IoWordText}" Foreground="{StaticResource TextMutedBrush}"
                                                ToolTip="{Binding IoWordHint}"/>
-                                </DockPanel>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"
-                                               Text="状态来自底层真实读数（位置=指令位置，编码器=反馈位置）；读不到的项显示「—」。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -449,14 +450,14 @@
                                                 Command="{Binding Monitor.InchPlusCommand}" ToolTip="按「点动距离」正向走一步"/>
                                     </UniformGrid>
                                     <UniformGrid Columns="2" Margin="0,0,0,6">
-                                        <Button Content="Jog −（按住）" Style="{StaticResource TtPillOrangeBtn}" Margin="0,0,3,0"
+                                        <Button Content="Jog −" Style="{StaticResource TtPillOrangeBtn}" Margin="0,0,3,0"
                                                 beh:JogHoldBehavior.StartCommand="{Binding Monitor.JogMinusStartCommand}"
                                                 beh:JogHoldBehavior.StopCommand="{Binding Monitor.JogStopCommand}"
-                                                ToolTip="按住反向连续运动，松开停止"/>
-                                        <Button Content="Jog +（按住）" Style="{StaticResource TtPillBlueBtn}" Margin="3,0,0,0"
+                                                ToolTip="按住不放才连续反向运动，松开即停。只点一下只会走一瞬 —— 要按「点动距离」走一步请用「点动 −」。"/>
+                                        <Button Content="Jog +" Style="{StaticResource TtPillBlueBtn}" Margin="3,0,0,0"
                                                 beh:JogHoldBehavior.StartCommand="{Binding Monitor.JogPlusStartCommand}"
                                                 beh:JogHoldBehavior.StopCommand="{Binding Monitor.JogStopCommand}"
-                                                ToolTip="按住正向连续运动，松开停止"/>
+                                                ToolTip="按住不放才连续正向运动，松开即停。只点一下只会走一瞬 —— 要按「点动距离」走一步请用「点动 +」。"/>
                                     </UniformGrid>
                                     <UniformGrid Columns="2">
                                         <Button Content="回零" Style="{StaticResource TtPillGrayBtn}" Margin="0,0,3,0"
@@ -467,7 +468,7 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
-                    </UniformGrid>
+                    </WrapPanel>
                 </ScrollViewer>
             </DockPanel>
         </local:EditorPage.Detail>

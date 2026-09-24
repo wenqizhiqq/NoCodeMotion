@@ -7,7 +7,9 @@
 ## 运行/构建（沙箱铁律）
 - dotnet 一律 LOLBin 拦截：用 **PowerShell + 绝对 `C:\Program Files\dotnet\dotnet.exe` 前台构建**；PowerShell stdout 不回显，须 `| Out-File C:\tmp\x.txt` 再 Read。禁写 `.ps1` 文件（ExecutionPolicy 拦），用内联命令。
 - 删文件用 `[System.IO.File]::Delete("绝对路径")`（`Remove-Item` 被 safe-delete 钩子拦）。
-- 加载进度：`Services/LoadingService` 静态深度计数；启动预初始化用确定式进度，打开/新建工程用不确定式遮罩（xlsx 读写 Task.Run，LoadInto 回 UI）。`Dispatcher.Yield` 须 `System.Windows.Threading.Dispatcher.Yield(...)`。
+- 加载进度：`Services/LoadingService` 静态深度计数（`Show/Report/Hide`，`Progress<0` = 不确定）；启动初始化与打开/新建工程都在遮罩下用确定式进度（xlsx 读写 Task.Run，LoadInto 回 UI）。`Dispatcher.Yield` 须 `System.Windows.Threading.Dispatcher.Yield(...)`（**静态方法**，在 `Window` 里写 `Dispatcher.Yield` 会 CS0176）。
+- ★ **启动初始化流程（2026-09-24 改造）**：工程载入**不在 `App` 构造函数里**（那时主窗口不存在，读 xlsx 期间只看到白屏零提示）。现在 `MainWindow` 的 `Loaded` → **`StartUpAsync()`** 全程在加载遮罩下用确定式进度条 + 步骤文字跑：①「正在载入上次工程…」`ProjectManager.OpenProjectAsync(last)`（`LoadLastProject()` + `Exists()` 判存在，xlsx 读取走后台线程）→ ②「正在初始化页面 (i/n)：页签名…」逐页预初始化进 `_cache` → ③「正在进入主界面…」`NavigateTo("Flow")`；`finally` 里 `Hide()`。
+- ★★ **「返回 null = 成功」的方法不能用 `?.M() ?? 兜底串`**：本工程桥的 `InchAxis/StartAxisJog/SetAxisZero` 成功时返回 `null`，用 `??` 会把成功判成失败（踩过：点动/Jog/设零点永远报「卡族层未装配」）。必须先显式判桥实例为空，再原样返回方法结果。
 - .NET 10 `_wpftmp` CS0579：csproj 加 `GenerateAssemblyInfo=false`+`GenerateTargetFrameworkAttribute=false`；`[assembly:ThemeInfo]` 留根 AssemblyInfo.cs。勿用 UseArtifactsOutput。
 - WPF 重复 XAML 陷阱：`EnableDefaultPageItems` 会把 `Views/*.xaml` 当 Page 编译；探针脚本勿生成同 x:Class 的 `XXX_utf8.xaml`（CS0102+CS8646）。
 
@@ -78,7 +80,9 @@
 - ★★ **Jog / 点动 必须「先下发速度曲线再发运动指令」**（2026-09-24 真 bug）：正常定位 `MoveAxisRel/MoveAxisAbs` 都是先 `SetCardAxisMotionalVel`（卡族）/ `EnsureProfile`（雷赛）再动；`StartAxisJog`/`InchAxis` 少了这步 → 卡「收下指令但按无效 profile 跑」= 现场「点了 Jog 轴不动」。且 **`IHardwareBridge.MoveAxisRel` 把速度写死成 `axis.Speed`，「手动速度」对它无效**，所以点动必须走桥上的 `InchAxis`（带 speed 参数），不能复用 `MoveAxisRel`。
 - ★ **CS1628 铁律**：`out` 参数不能出现在 lambda / 本地函数里 —— 读硬件时先写本地变量，最后再组装 `out` 结构体。
 - **VM**：`ViewModels/AxisRowViewModel.cs`（**一个轴一个实例**；状态只读属性 + **颜色用 hex 字符串**，与状态栏 `RunColor/ControllerColor` 同套路由 WPF 自动转 Brush；点动距离/手动速度；使能·点动·Jog·回零·停止·设零点命令，全部 `Task.Run` 后台 + 回 UI 报状态栏；`NotConnected(action)` 前置检查——没连卡直接报「未执行：控制器未连接」，**不谎报「已下发」**；`NotEnabledHint()` 只在明确读到「未使能」时**追加提醒但不拦截**）。`AxisViewModel` 暴露 **`AxisRowViewModel? Monitor` + `HasMonitor`**，用 `override OnPropertyChanged` 捕捉 `nameof(SelectedItem)` 重建（选中/新增/删除轴都覆盖），**只服务当前选中的那一个轴**；`SetStatusRefreshEnabled(bool)` + **300ms `DispatcherTimer`** 后台读该轴 → `BeginInvoke` 回 UI 赋值；`Interlocked` 防重入；`!HardwareSetup.IsCardReady` 直接置「未连接」不读卡；`ReferenceEquals(Monitor, m)` 防期间换轴回填。**轮询只在轴页可见时开**（`AxisPage.xaml.cs` 的 `Loaded/Unloaded` 开关）。
-- **页面**（`Views/AxisPage.xaml`）：**`UniformGrid Columns="4"` 保证 4 列**（WrapPanel 做不到「正好 4 列」，宽度一变列数就变），每张卡 `VerticalAlignment="Top"` 保持自然高度。8 张卡 = 基本信息 / 运动参数 / 回零参数 / 限位与保护 / 电平与编码器 / 轴权限 / **轴状态** / **轴控制**，正好 4×2。**状态与控制是 2 个独立容器**（用户要求），样式/颜色/字号全部复用 `AppleGroupCard` + `AppleSectionHeader` + `AppleRow` + 全局药丸按钮，与其它页一致。轴控制里 2 列按钮组：使能|停止、点动−|点动+、Jog−|Jog+（`beh:JogHoldBehavior`）、回零|设零点。**页内不定义任何本地样式**，全部走 `AppStyles.xaml` 全局键。
+- **页面**（`Views/AxisPage.xaml`）：**`WrapPanel ItemWidth="250"` + 每张卡 `VerticalAlignment="Top"`**（紧凑：每张卡只有自身内容那么高；该宽度下正好 4 列，窗口更宽自动多排）。★ **别用 `UniformGrid Columns="4"` 追求「正好 4 列」** —— UniformGrid 所有单元格等高 = 全局最高那张卡的高度，矮卡下方会留大片空白（用户明确抱怨过）。8 张卡 = 基本信息 / 运动参数 / 回零参数 / 限位与保护 / 电平与编码器 / 轴权限 / **轴状态** / **轴控制**。**状态与控制是 2 个独立容器**（用户要求），样式/颜色/字号全部复用 `AppleGroupCard` + `AppleSectionHeader` + `AppleRow` + 全局药丸按钮。轴控制里 2 列按钮组：使能|停止、点动−|点动+、Jog−|Jog+（`beh:JogHoldBehavior`）、回零|设零点。卡片里的长说明一律放 `AppleSectionHeader.ToolTip`，不要占一行高度。**页内不定义任何本地样式**。
+- **轴状态卡必须带「报警码」行**（原始错误码）：很多卡族没有无参 `GetAxisCurrentState()`，报警只能靠 `GetCardAxisAlarmState` 的错误码非 0 推出；现场「指令下发成功但轴不动」九成是**有报警未清 / 未使能**，`MoveHint()` 会把这两条追加到点动/Jog 的成功提示里（**只提醒不拦截**）。位置/编码器显示精度 `0.####`。
+- **Jog 是「按住才走」**：单击只走一瞬（用户会误报「点 Jog 没反应」）。要按设定距离走一步必须用「点动 −/+」。UI 文案与 ToolTip 都要写清这一点。
 - **使能只有两处，职责分开**：基本信息里的「**上电使能**」（工程配置项，改值会实时下发使能）+ 轴控制容器里的「使能」按钮（唯一的动作）。轴权限里的「允许使能」已删（`AllowEnable` 字段保留不用）。
 - 改完页面 XAML 后**务必脚本校验所有 `StaticResource` 键都存在**（AppStyles 全局 + 页内局部）；页面级键在 Window 弹窗里取不到会运行时炸。
 - **本页返工教训（用户两次纠正）**：① 状态/控制类 UI **不要全轴列表**，一律「**一个容器 = 当前选中项**」；② 状态与控制要**分容器**（不要挤在一张卡里左右两列）；③ 用户会数「**列数**」（要 4 列）；④ 用户对「按钮是不是真起作用」极敏感 → 真调硬件 + 前置检查 + 明确失败/未使能提示，比 UI 更重要。

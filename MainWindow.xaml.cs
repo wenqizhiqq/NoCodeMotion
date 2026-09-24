@@ -49,8 +49,15 @@ namespace NoCodeMotion
             StatusBarService.RefreshUser();
             // 底栏署名（AuthorWatermark 是 internal，作者联系串在源码里被拆段+零宽混淆，
             // 即便有人用整段字符串批量替换也无法一次抹掉。本字段仅在 InitializeComponent 之后可用） 
-            // 启动时一次性预初始化所有页面（在加载遮罩下进行），使后续切换页面瞬时完成、无需进度条
-            PreloadAllPagesAsync();
+            // 启动初始化（载入工程 + 预初始化所有页面）在窗口显示后进行 —— 全程在加载遮罩的
+            // 进度条 + 当前步骤文字下完成，用户不会看到一段「白屏无提示」的等待。
+            Loaded += OnWindowLoaded;
+        }
+
+        private void OnWindowLoaded(object sender, RoutedEventArgs e)
+        {
+            Loaded -= OnWindowLoaded;
+            StartUpAsync();
         }
 
         private void Nav_Click(object sender, RoutedEventArgs e)
@@ -150,31 +157,61 @@ namespace NoCodeMotion
         };
 
         /// <summary>
-        /// 启动时一次性预初始化所有页面（在加载遮罩下进行），用确定式进度条显示「第 i / 共 n 页」；
-        /// 全部构造进缓存后，默认进入「流程」页（已在缓存中，瞬时切换，不再需要进度条）。
+        /// 启动初始化：全程在加载遮罩下、用**确定式进度条 + 当前步骤文字**显示初始化内容。
+        ///   ① 载入上次工程（xlsx 读取在后台线程，遮罩可见）
+        ///   ② 逐页预初始化（第 i / 共 n 页：页签名）
+        ///   ③ 进入默认「流程」页
+        /// 页面全部构造进缓存后，后续切换瞬时完成、不再需要进度条。
         /// </summary>
-        private async void PreloadAllPagesAsync()
+        private async void StartUpAsync()
         {
             var keys = _pages.Keys.ToList();
             int total = keys.Count;
-            LoadingService.ProgressMax = total;
-            LoadingService.Show($"正在初始化页面 (0/{total})…");
-            // 先让遮罩渲染出来，再开始逐页构造
+            int steps = total + 2;          // 载入工程 + n 页 + 收尾
+            LoadingService.ProgressMax = steps;
+            LoadingService.Show("正在启动…");
+            // 先让遮罩渲染出来，再开始干活
             await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+
+            int done = 0;
             try
             {
-                int done = 0;
+                // ① 载入上次工程（所有页面参数都保存在工程里）。
+                LoadingService.Report(++done, "正在载入上次工程…（读取轴 / IO / 气缸 / 点位 / 流程 / 控制器参数）");
+                await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+
+                var last = ProjectManager.LoadLastProject();
+                if (last != null && ProjectManager.Exists(last))
+                {
+                    // OpenProjectAsync：xlsx 读取放后台线程，LoadInto 回 UI 线程（遮罩全程可见）
+                    await ProjectManager.OpenProjectAsync(last);
+                }
+                else
+                {
+                    LoadingService.Report(++done, "未找到工程，载入默认参数…");
+                    await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+                    ProjectStore.Load();
+                }
+                StatusBarService.SetProject(ProjectManager.CurrentName ?? "未打开工程");
+
+                // ② 逐页预初始化
                 foreach (var key in keys)
                 {
-                    done++;
-                    LoadingService.Report(done, $"正在初始化页面 ({done}/{total})：{TitleFor(key)}…");
-                    // 让进度文本/进度条刷新一帧，再构造下一页
+                    LoadingService.Report(Math.Min(++done, LoadingService.ProgressMax),
+                        $"正在初始化页面 ({done - 2}/{total})：{TitleFor(key)}…");
                     await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
                     if (!_cache.ContainsKey(key))
                         _cache[key] = _pages[key]();
                 }
-                // 默认进入「流程」页（已在缓存中，瞬时切换）
+
+                // ③ 默认进入「流程」页（已在缓存中，瞬时切换）
+                LoadingService.Report(Math.Min(++done, LoadingService.ProgressMax), "正在进入主界面…");
+                await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
                 NavigateTo("Flow");
+            }
+            catch (System.Exception ex)
+            {
+                StatusBarService.ReportException("启动初始化失败：" + ex.Message);
             }
             finally
             {

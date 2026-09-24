@@ -52,9 +52,11 @@ namespace NoCodeMotion.Services.Hardware
         public uint IoWord;
         public bool HasIoWord;
         public int StateMachine = -1;
+        /// <summary>底层读到的原始报警 / 错误码（0 = 无）。没有状态字时，这是判断报警的唯一依据。</summary>
+        public int AlarmCode;
 
-        public string PosText => Connected ? Position.ToString("0.###") : "—";
-        public string EncText => Connected ? Encoder.ToString("0.###") : "—";
+        public string PosText => Connected ? Position.ToString("0.####") : "—";
+        public string EncText => Connected ? Encoder.ToString("0.####") : "—";
         public string MovingText => !Connected ? "—" : (Moving ? "运动中" : "停止");
         public string AlarmText => Fmt(Alarm);
         public string PelText => Fmt(Pel);
@@ -62,6 +64,12 @@ namespace NoCodeMotion.Services.Hardware
         public string OrgText => Fmt(Org);
         public string EmgText => Fmt(Emg);
         public string EnabledText => Fmt(Enabled);
+
+        /// <summary>原始报警码文字（现场清报警 / 对卡手册要用）。</summary>
+        public string AlarmCodeText => !Connected ? "—" : (AlarmCode == 0 ? "0（无报警）" : AlarmCode.ToString());
+
+        /// <summary>该轴是否明确处于「报警且未清除」——报警状态下轴通常不会运动。</summary>
+        public bool HasAlarm => Connected && Alarm == true;
 
         private static string Fmt(bool? v) => v == null ? "—" : (v.Value ? "● 有" : "○ 无");
     }
@@ -124,6 +132,7 @@ namespace NoCodeMotion.Services.Hardware
                 IoWord = raw.IoWord,
                 HasIoWord = raw.HasIoWord,
                 StateMachine = raw.StateMachine,
+                AlarmCode = raw.AlarmCode,
             };
 
             if (raw.HasIoWord)
@@ -168,10 +177,18 @@ namespace NoCodeMotion.Services.Hardware
             if (axis == null) return "无轴";
             if (delta == 0) return "点动距离为 0";
 
+            // ★ 不能用「?.Method() ?? 默认串」—— 桥方法成功时正是返回 null，
+            //   用 ?? 会把「成功」误判成「未装配」（本工程踩过：点动/设零点永远报「卡族层未装配」）。
             if (HardwareSetup.Mode == HardwareMode.CardFamilies)
-                return HardwareSetup.CardFamilies?.InchAxis(axis, delta, speed) ?? "卡族层未装配";
+            {
+                var b = HardwareSetup.CardFamilies;
+                return b == null ? "卡族层未装配（请到「控制器」页重新连接）" : b.InchAxis(axis, delta, speed);
+            }
             if (HardwareSetup.Mode == HardwareMode.Leadshine)
-                return (HardwareBridge.Current as LeadshineHardwareBridge)?.InchAxis(axis, delta, speed) ?? "雷赛层未装配";
+            {
+                var b = HardwareBridge.Current as LeadshineHardwareBridge;
+                return b == null ? "雷赛层未装配（请到「控制器」页重新连接）" : b.InchAxis(axis, delta, speed);
+            }
 
             HardwareBridge.Current?.MoveAxisRel(axis, delta);   // 仿真：只打日志
             return null;
@@ -186,10 +203,17 @@ namespace NoCodeMotion.Services.Hardware
         public static string StartJog(AxisItem axis, bool positive, double speed = 0)
         {
             if (axis == null) return "无轴";
+
             if (HardwareSetup.Mode == HardwareMode.CardFamilies)
-                return HardwareSetup.CardFamilies?.StartAxisJog(axis, positive, speed) ?? "卡族层未装配";
+            {
+                var b = HardwareSetup.CardFamilies;
+                return b == null ? "卡族层未装配（请到「控制器」页重新连接）" : b.StartAxisJog(axis, positive, speed);
+            }
             if (HardwareSetup.Mode == HardwareMode.Leadshine)
-                return (HardwareBridge.Current as LeadshineHardwareBridge)?.StartAxisJog(axis, positive, speed) ?? "雷赛层未装配";
+            {
+                var b = HardwareBridge.Current as LeadshineHardwareBridge;
+                return b == null ? "雷赛层未装配（请到「控制器」页重新连接）" : b.StartAxisJog(axis, positive, speed);
+            }
             return "仿真模式：未接硬件，Jog 只记录日志";
         }
 
@@ -197,10 +221,17 @@ namespace NoCodeMotion.Services.Hardware
         public static string SetZero(AxisItem axis)
         {
             if (axis == null) return "无轴";
+
             if (HardwareSetup.Mode == HardwareMode.CardFamilies)
-                return HardwareSetup.CardFamilies?.SetAxisZero(axis) ?? "卡族层未装配";
+            {
+                var b = HardwareSetup.CardFamilies;
+                return b == null ? "卡族层未装配（请到「控制器」页重新连接）" : b.SetAxisZero(axis);
+            }
             if (HardwareSetup.Mode == HardwareMode.Leadshine)
-                return (HardwareBridge.Current as LeadshineHardwareBridge)?.SetAxisZero(axis) ?? "雷赛层未装配";
+            {
+                var b = HardwareBridge.Current as LeadshineHardwareBridge;
+                return b == null ? "雷赛层未装配（请到「控制器」页重新连接）" : b.SetAxisZero(axis);
+            }
             return "仿真模式：未接硬件，设零点只记录日志";
         }
     }
