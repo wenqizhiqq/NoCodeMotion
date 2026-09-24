@@ -365,7 +365,7 @@ namespace NoCodeMotion.Services
                 var io = new IoItem
                 {
                     Name = name,
-                    Function = Str(e, "功能", "function") ?? "动点",
+                    Function = Str(e, "功能", "function") ?? IoFunctionCatalog.None,
                     Controller = Str(e, "控制器", "controller") ?? "",
                     CardNo = Int(e, "卡号", "cardNo"),
                     ModuleNo = Int(e, "模块", "moduleNo"),

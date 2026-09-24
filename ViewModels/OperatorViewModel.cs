@@ -433,6 +433,62 @@ namespace NoCodeMotion.ViewModels
                 var el = _runSw.Elapsed;
                 RunElapsedText = $"{(int)el.TotalMinutes:D2}:{el.Seconds:D2}";
             }
+
+            // 4) IO「功能」判定（真实生效）：安全输入 → 急停；指示输出 ← 设备状态
+            EvaluateIoFunctions();
+        }
+
+        // ===== IO「功能」运行时（真实生效）=====
+
+        private volatile bool _ioFnBusy;
+
+        /// <summary>
+        /// 周期判定 IO「功能」列（取值与语义见 <see cref="IoFunctionCatalog"/>；默认「无」不做任何动作）：<br/>
+        /// · 安全类输入（急停按钮 / 安全门 / 光栅）：逻辑值有效（1，已按「电平」取反）→ 触发急停（锁存，需复位）；<br/>
+        /// · 指示类输出（运行 / 就绪 / 报警 / 三色灯 / 蜂鸣器）：按设备运行状态自动输出。
+        /// </summary>
+        private void EvaluateIoFunctions()
+        {
+            if (_ioFnBusy) return;
+            _ioFnBusy = true;
+            try
+            {
+                var data = ProjectStore.Data;
+                if (data == null) return;
+                bool running = StatusBarService.IsRunning;
+                bool estop = StatusBarService.EStopped;
+
+                // ① 安全类输入 → 急停
+                if (!estop)
+                {
+                    foreach (var io in data.Inputs)
+                    {
+                        if (io == null || !IoFunctionCatalog.IsSafetyInput(io.Function)) continue;
+                        if (io.Value == 0) continue;
+                        AddLog(LogLevel.Error, $"[安全] {io.Function}「{io.Name}」已触发 → 急停。");
+                        StatusBarService.ReportException($"安全输入触发急停：{io.Function}「{io.Name}」");
+                        EStop();
+                        return;   // 已急停：本轮不再驱动指示灯
+                    }
+                }
+
+                // ② 指示类输出 ← 设备状态
+                var bridge = HardwareBridge.Current;
+                foreach (var io in data.Outputs)
+                {
+                    if (io == null || !IoFunctionCatalog.IsIndicatorOutput(io.Function)) continue;
+                    int want = IoFunctionCatalog.DesiredIndicator(io.Function, running, estop);
+                    if (want < 0 || io.Value == want) continue;
+                    try
+                    {
+                        if (NoCodeMotion.Services.Hardware.HardwareSetup.IsCardReady) bridge.WriteOutput(io, want);
+                        else io.Value = want;   // 未接卡：只更新界面 / 仿真态
+                    }
+                    catch { /* 单点下发失败保留原值 */ }
+                }
+            }
+            catch { /* 单次异常不影响后续 */ }
+            finally { _ioFnBusy = false; }
         }
 
         // ---------- 运行控制 ----------

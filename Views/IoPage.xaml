@@ -20,18 +20,44 @@
             <sys:String>原点</sys:String>
         </x:Array>
 
-        <x:Array x:Key="FunctionOptions"
-                 Type="sys:String">
+        <!-- 输入 IO 功能（真实有效：安全类输入会触发急停。取值见 Services/IoFunctionCatalog） -->
+        <x:Array x:Key="InputFunctionOptions" Type="sys:String">
             <sys:String>无</sys:String>
-            <sys:String>动点</sys:String>
-            <sys:String>原点</sys:String>
-            <sys:String>光栅</sys:String>
-            <sys:String>安全门</sys:String>
-            <sys:String>启动按钮</sys:String>
-            <sys:String>复位按钮</sys:String>
-            <sys:String>停止按钮</sys:String>
             <sys:String>急停按钮</sys:String>
-            <sys:String>到位点</sys:String>
+            <sys:String>安全门</sys:String>
+            <sys:String>光栅</sys:String>
+            <sys:String>原点开关</sys:String>
+            <sys:String>正限位</sys:String>
+            <sys:String>负限位</sys:String>
+            <sys:String>启动按钮</sys:String>
+            <sys:String>停止按钮</sys:String>
+            <sys:String>复位按钮</sys:String>
+            <sys:String>暂停按钮</sys:String>
+            <sys:String>手自动切换</sys:String>
+            <sys:String>到位信号</sys:String>
+            <sys:String>来料检测</sys:String>
+            <sys:String>气压检测</sys:String>
+            <sys:String>报警反馈</sys:String>
+        </x:Array>
+
+        <!-- 输出 IO 功能（真实有效：指示类输出随设备运行状态自动输出） -->
+        <x:Array x:Key="OutputFunctionOptions" Type="sys:String">
+            <sys:String>无</sys:String>
+            <sys:String>轴使能</sys:String>
+            <sys:String>运行指示</sys:String>
+            <sys:String>就绪指示</sys:String>
+            <sys:String>报警指示</sys:String>
+            <sys:String>三色灯-红</sys:String>
+            <sys:String>三色灯-绿</sys:String>
+            <sys:String>三色灯-黄</sys:String>
+            <sys:String>蜂鸣器</sys:String>
+            <sys:String>气缸伸出</sys:String>
+            <sys:String>气缸缩回</sys:String>
+            <sys:String>真空吸</sys:String>
+            <sys:String>真空破</sys:String>
+            <sys:String>夹爪夹紧</sys:String>
+            <sys:String>夹爪松开</sys:String>
+            <sys:String>电磁阀</sys:String>
         </x:Array>
 
         <Style x:Key="IoCellTextBoxStyle" TargetType="TextBox">
@@ -180,7 +206,7 @@
                         <DataGridTemplateColumn Header="功能" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox ItemsSource="{StaticResource FunctionOptions}"
+                                    <ComboBox ItemsSource="{StaticResource InputFunctionOptions}"
                                              SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}"
                                              Style="{StaticResource CellComboStyle}"/>
                                 </DataTemplate>
@@ -267,7 +293,7 @@
                         <DataGridTemplateColumn Header="功能" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox ItemsSource="{StaticResource FunctionOptions}"
+                                    <ComboBox ItemsSource="{StaticResource OutputFunctionOptions}"
                                              SelectedItem="{Binding Function, UpdateSourceTrigger=PropertyChanged}"
                                              Style="{StaticResource CellComboStyle}"/>
                                 </DataTemplate>

@@ -410,7 +410,7 @@ namespace NoCodeMotion.ViewModels
             ModuleNo = moduleNo,       // 0=主板，>0=扩展模块从站号
             Sequence = seq,            // 位号
             Level = "取反",
-            Function = "动点",
+            Function = IoFunctionCatalog.None,   // 默认「无」，按输入/输出方向在 IO 页选择真实功能
         };
 
         /// <summary>

@@ -16,8 +16,25 @@ namespace NoCodeMotion.ViewModels
     /// <summary>单个 IO 面板（输入或输出）：复用通用表格面板，定制 IO 行的创建与克隆逻辑。</summary>
     public class IoPanelViewModel : TablePanelViewModel<IoItem>
     {
+        /// <summary>本面板是否为输入（否则为输出）——决定「功能」候选目录与合法性校验。</summary>
+        public bool IsInput => Title != "输出";
+
         public IoPanelViewModel(string title, System.Collections.ObjectModel.ObservableCollection<IoItem> items)
-            : base(title, items) { }
+            : base(title, items)
+        {
+            NormalizeFunctions();
+        }
+
+        /// <summary>把不在本方向功能目录里的旧值（如旧工程里的「动点」）统一归一到「无」。</summary>
+        private void NormalizeFunctions()
+        {
+            foreach (var io in Items)
+            {
+                if (io == null) continue;
+                var want = IoFunctionCatalog.Normalize(io.Function, IsInput);
+                if (!string.Equals(io.Function, want, StringComparison.Ordinal)) io.Function = want;
+            }
+        }
 
         protected override IoItem MakeNew(int index)
         {
@@ -26,7 +43,8 @@ namespace NoCodeMotion.ViewModels
             {
                 Name = $"{Title}{nextSeq}",
                 Sequence = nextSeq,
-                Level = "取反"
+                Level = "取反",
+                Function = IoFunctionCatalog.None
             };
         }
 
@@ -57,7 +75,10 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>Excel 回读替换后，名称变化发生在订阅之前，OnItemChanged 收不到 → 主动全量同步一次目录。</summary>
         protected override void OnAfterExcelReplace(IList<IoItem> imported)
-            => SyncIoCatalog();
+        {
+            SyncIoCatalog();
+            NormalizeFunctions();
+        }
 
         // ===== 输出 IO 行内手动开关：真正下发到控制卡（点哪行驱动哪行，无需先选中） =====
 

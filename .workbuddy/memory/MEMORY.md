@@ -55,5 +55,12 @@
 - 控制器页布局与门控（2026-09-24）：detail 由横向 `WrapPanel` 改**纵向 `StackPanel`（从上到下，卡片全宽）**；流程门控「**卡型号 → 扩展IO → 连接**」：VM `HasCardType`/`CanConfigureExpansion`/`CanConnect`（都由 `SelectedItem.CardType` 决定，在 `WireSelected`+`OnTrackedCardChanged` 刷新），扩展IO 配置块 `IsEnabled="{Binding CanConfigureExpansion}"`，未选型号显示橙色提示，「连接控制器」按钮 `IsEnabled="{Binding CanConnect}"`。
 - ★★ 硬件桥全局锁的作用域铁律（2026-09-24，连接卡界面的真根因）：`WenQiZhiCardBridge`（`Services/Hardware/Cards/SamsunCardBridge.cs`）只有一个全局 `_gate`。原来 `TryConnect`/`SlotOf` 是 `lock(_gate){ Initialize(slot) }`，而 `Initialize` 含 `InitCard()`/`OpenCard()`（真硬件，秒级）；**UI 线程的 `IsOnline`→`IsControllerReady`、`ConnectionStatusLines`→`ControllerStatus`、`AnyReady` 都要 `lock(_gate)`** → 连接期间界面整个冻结（VM 侧后台化无效，因为 UI 绑定自己会查桥）。修法：`_gate` 内只做快速状态读写；慢硬件调用（Initialize/CloseCard）移到 `_gate` **之外**，用 `CardSlot.InitLock`（per-slot）串行。`Disconnect`/`Reset` 同理；VM `Disconnect()` 也改 `Task.Run` 后台。**凡共享硬件桥：锁内绝不放 InitCard/OpenCard/CloseCard 这类慢调用。**
 
+## IO「功能」列（2026-09-24，真实生效）
+- 目录：`Services/IoFunctionCatalog.cs` — `InputFunctions` / `OutputFunctions` 两套（默认 `None="无"`）；`IsValid/Normalize/IsSafetyInput/IsIndicatorOutput/DesiredIndicator`。`IoItem` 默认功能 = 无。
+- 运行时：`OperatorViewModel.UiTimerTick`（150ms UI 定时器）末步 `EvaluateIoFunctions()`：**安全输入**（急停按钮/安全门/光栅，逻辑 Value≠0）→ `EStop()`；**指示输出**（运行/就绪/报警/三色灯/蜂鸣器）按 `StatusBarService.IsRunning/EStopped` 自动写 `WriteOutput`。默认「无」= 不干预（opt-in）。
+- `IoPanelViewModel.IsInput => Title != "输出"`；构造 + `OnAfterExcelReplace` 里 `NormalizeFunctions()` 把旧值（如「动点」）归一为「无」。
+- `Views/IoPage.xaml`：输入表 ComboBox 绑 `InputFunctionOptions`、输出表绑 `OutputFunctionOptions`。
+- 注：`IoItem.Level`（取反/不取反）本就真实生效（`ApplyLevel` 决定常开常闭），勿与「功能」混淆。
+
 ## 仿真模板
 - ProjectTemplateCatalog 20 模板；NgTemplates.Build 脚手架。

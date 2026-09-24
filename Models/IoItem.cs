@@ -16,7 +16,7 @@ namespace NoCodeMotion.Models
         private string _suitCode = string.Empty; // 套码（自定义分组标签）
         private string _controller = string.Empty; // 所属控制器（在「控制器」页面添加）
         private string _level = "取反";          // 电平（取反 / 原点 等）
-        private string _function = "动点";       // 功能（动点 / 原点 / 光栅 / 安全门 / 启动按钮 / 复位按钮 / 停止按钮）
+        private string _function = "无";         // 功能（默认「无」；取值见 Services.IoFunctionCatalog，输入/输出各一套）
         private int _value;                     // 当前状态值
 
         public string CardType { get => _cardType; set => SetField(ref _cardType, value); }
