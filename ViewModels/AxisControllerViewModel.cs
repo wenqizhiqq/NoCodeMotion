@@ -236,7 +236,7 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>
         /// 按控制卡的 IO 配置自动生成 IO 点：主板（模块=0）+ 各扩展模块（模块号=第几个模块，从 1 起）。
-        /// <para>只清理 / 重建「本控制卡名下的」IO 点（按 Controller 名匹配），不动其它控制卡或手工配置的点。</para>
+        /// <para>连接时先<b>全局清空</b>工程里所有 IO 点，再只重建本控制卡的（避免旧 / 手工 / 其它卡的点残留叠加）。</para>
         /// </summary>
         private static string GenerateIoPoints(AxisControllerItem ctl)
         {
@@ -245,8 +245,9 @@ namespace NoCodeMotion.ViewModels
 
             string tag = ctl.Name;
 
-            foreach (var i in data.Inputs.Where(x => x.Controller == tag).ToList()) data.Inputs.Remove(i);
-            foreach (var o in data.Outputs.Where(x => x.Controller == tag).ToList()) data.Outputs.Remove(o);
+            // 全局清空：连接时把工程里所有 IO 点先清空，再只重建本控制卡的（避免旧 / 手工 / 其它卡的点残留叠加）
+            data.Inputs.Clear();
+            data.Outputs.Clear();
 
             int nIn = 0, nOut = 0;
 
@@ -287,7 +288,7 @@ namespace NoCodeMotion.ViewModels
         };
 
         /// <summary>
-        /// 按控制卡的真实 / 配置轴数自动生成轴：先清掉「本控制卡名下」的旧轴，再按数量新建。
+        /// 按控制卡的真实 / 配置轴数自动生成轴：连接时先<b>全局清空</b>工程里所有轴，再只重建本控制卡的。
         /// <para>数量优先取底层真实检测到的轴数（连接后从卡读到），为 0 时回退到配置轴数（AxisCount）。</para>
         /// </summary>
         private static string GenerateAxisPoints(AxisControllerItem ctl)
@@ -296,7 +297,8 @@ namespace NoCodeMotion.ViewModels
             if (data == null) return "（工程未加载，未生成轴）";
 
             string tag = ctl.Name;
-            foreach (var a in data.Axes.Where(x => x.Controller == tag).ToList()) data.Axes.Remove(a);
+            // 全局清空：连接时把工程里所有轴先清空，再只重建本控制卡的
+            data.Axes.Clear();
 
             int count = ctl.DetectedAxisCount > 0 ? ctl.DetectedAxisCount : System.Math.Max(ctl.AxisCount, 0);
             int n = 0;
