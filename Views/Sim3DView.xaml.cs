@@ -196,12 +196,28 @@ namespace NoCodeMotion.Views
         private bool _focusIsError;
         private double _pulse;                              // 高亮脉冲相位
 
-        // ===== STP / STEP CAD 模型（由“打开STP”按钮导入，独立于参数化机台） =====
+        // ===== STP / STEP CAD 模型（由"打开STP"按钮导入，独立于参数化机台） =====
         private bool _cadMode;                              // 是否处于 CAD 显示模式（隐藏参数化机台）
         private ModelVisual3D? _stpModel;                  // 缓存的 CAD 可视节点
-        private Model3DGroup? _stpContent;                  // 冻结后的 CAD 模型（跨线程安全）
+        private Model3DGroup? _stpContent;                 // CAD 模型：每个"部件"为一个 GeometryModel3D（不冻结，隐藏=从 Children 移除）
+        private readonly List<GeometryModel3D> _stpPartModels = new(); // CAD 各部件几何（用于鼠标隐藏 / 显示全部）
+        private int _stpHiddenCount;                        // 当前已隐藏的部件数
         private Point3D _stpCenter;                        // CAD 包围盒中心（WPF 空间，已 Z-up→Y-up）
         private double _stpRadius;                         // CAD 包围球半径
+        private bool _hidePartMode;                         // 工具栏"点击隐藏部件"开关：开启后单击部件即隐藏
+        private bool _pendingHide;                          // 鼠标按下且处于隐藏模式，待 MouseUp 判定是否为"单击"
+        private Point _hideDownPt;                          // 隐藏模式下鼠标按下时的坐标（用于判定单击/拖拽）
+        // CAD 彩色调色板：每个部件循环取色，保证相邻部件颜色区分明显（"彩色显示"）
+        private static readonly Color[] _cadPalette =
+        {
+            Color.FromRgb(0xEF,0x44,0x44), Color.FromRgb(0xF5,0x73,0x1F), Color.FromRgb(0xEA,0xB3,0x08),
+            Color.FromRgb(0x22,0xC5,0x55), Color.FromRgb(0x10,0xB9,0x81), Color.FromRgb(0x06,0xB6,0xD4),
+            Color.FromRgb(0x3B,0x82,0xF6), Color.FromRgb(0x63,0x6B,0xF1), Color.FromRgb(0x8B,0x5C,0xF6),
+            Color.FromRgb(0xD9,0x46,0xEF), Color.FromRgb(0xEC,0x48,0x99), Color.FromRgb(0xF4,0x3F,0x5F),
+            Color.FromRgb(0x84,0xCC,0x16), Color.FromRgb(0x14,0xB8,0xA6), Color.FromRgb(0x0E,0xA5,0xE9),
+            Color.FromRgb(0x4F,0x46,0xE5), Color.FromRgb(0xA8,0x55,0xF7), Color.FromRgb(0xC0,0x26,0xD3),
+            Color.FromRgb(0x65,0xA3,0x0E), Color.FromRgb(0x02,0x8A,0xA8)
+        };
 
         // ===== DWG / DXF 二维布局（由"导入DWG/DXF"按钮导入，独立于参数化机台与 STP） =====
         private ModelVisual3D? _dwgContent;                // DWG 可视节点（含线段网格 + 文字标签）
@@ -236,6 +252,12 @@ namespace NoCodeMotion.Views
                     Vp.CaptureMouse();
                     e.Handled = true;
                     return;
+                }
+                // 隐藏模式（CAD 显示 STP 时）：记录按下点，松开时若未拖动则隐藏该部件；拖拽仍可旋转视角
+                if (_cadMode && _hidePartMode && _stpPartModels.Count > 0)
+                {
+                    _pendingHide = true;
+                    _hideDownPt = mp;
                 }
                 Vp.CaptureMouse();
                 _dragging = true;
@@ -281,6 +303,21 @@ namespace NoCodeMotion.Views
                     Vp.ReleaseMouseCapture();
                     e.Handled = true;
                     return;
+                }
+                // 隐藏模式下的"单击"判定：位移很小视为单击 → 隐藏光标下的部件（拖拽则仍旋转视角）
+                if (_pendingHide)
+                {
+                    _pendingHide = false;
+                    var mp = e.GetPosition(Vp);
+                    double ddx = mp.X - _hideDownPt.X, ddy = mp.Y - _hideDownPt.Y;
+                    if (ddx * ddx + ddy * ddy < 16)
+                    {
+                        HidePartAt(mp);
+                        _dragging = false;
+                        Vp.ReleaseMouseCapture();
+                        e.Handled = true;
+                        return;
+                    }
                 }
                 _dragging = false;
                 Vp.ReleaseMouseCapture();
@@ -1171,7 +1208,8 @@ namespace NoCodeMotion.Views
             SetStpStatus("已清除模型，恢复参数化机台");
         }
 
-        /// <summary>异步解析 STP 文件并切换到 CAD 显示模式（后台线程做重三角化，UI 线程只负责装配冻结模型）。</summary>
+        /// <summary>异步解析 STP 文件并切换到 CAD 显示模式（后台线程做三角化 + 连通分量拆分，
+        /// UI 线程把每个部件装配为独立着色的 GeometryModel3D，便于鼠标隐藏 / 显示）。</summary>
         public void LoadStepFile(string path)
         {
             SetStpStatus("正在解析 STP…");
@@ -1179,15 +1217,30 @@ namespace NoCodeMotion.Views
             {
                 try
                 {
-                    BuildStepModel(path, out var group, out var center, out var radius, out long tris);
-                    group.Freeze(); // 跨线程安全，便于在 UI 线程使用
+                    ComputeStepParts(path, out var parts, out var center, out var radius, out long tris);
 
                     Dispatcher.Invoke(() =>
                     {
                         _dwgContent = null;   // 载入 STP 时清空可能已显示的 DWG
-                        _stpContent = group;
+                        _stpPartModels.Clear();
+                        var group = new Model3DGroup();
+                        for (int i = 0; i < parts.Count; i++)
+                        {
+                            var part = parts[i];
+                            var mg = new MeshGeometry3D();
+                            foreach (var p in part.Positions) mg.Positions.Add(p);
+                            foreach (var n in part.Normals) mg.Normals.Add(n);
+                            foreach (var idx in part.Indices) mg.TriangleIndices.Add(idx);
+                            var color = _cadPalette[i % _cadPalette.Length];   // 彩色显示：每个部件循环取色
+                            var mat = MakeStepMaterial(color);
+                            var gm = new GeometryModel3D(mg, mat) { BackMaterial = mat };
+                            group.Children.Add(gm);
+                            _stpPartModels.Add(gm);
+                        }
+                        _stpContent = group;   // 不冻结：隐藏部件 = 从 Children 移除，显示全部 = 重新添加
                         _stpCenter = center;
                         _stpRadius = radius;
+                        _stpHiddenCount = 0;
                         _cadMode = true;
                         _orbitCenter = _orbitCenterTarget = center;
                         _radius = Math.Max(radius * 2.6, 120);
@@ -1195,7 +1248,7 @@ namespace NoCodeMotion.Views
                         if (ChkFollow != null) ChkFollow.IsChecked = false;
                         BuildScene();   // 进入 CAD 模式：隐藏参数化机台，显示导入模型
                         UpdateCamera();
-                        SetStpStatus($"已加载 {System.IO.Path.GetFileName(path)} · {tris:N0} 三角面");
+                        SetStpStatus($"已加载 {System.IO.Path.GetFileName(path)} · {tris:N0} 三角面 · 共 {parts.Count} 个部件（彩色）");
                     });
                 }
                 catch (Exception ex)
@@ -1207,69 +1260,162 @@ namespace NoCodeMotion.Views
 
         // 用 OpenCASCADE 把 STEP/IGES 读入并三角化，烘培为世界坐标（含 Z-up→Y-up）后转为单一 WPF 网格，
         // 同时计算平滑顶点法线与包围盒。单次调用在后台线程完成，返回可冻结的 Model3DGroup。
-        private static void BuildStepModel(string path, out Model3DGroup group, out Point3D center, out double radius, out long totalTris)
+        // CAD 单个部件几何（纯数据，非 Freezable，可安全跨线程从后台传递到 UI 线程）
+        private sealed class StepPartData
         {
-            group = new Model3DGroup();
+            public Point3D[] Positions = Array.Empty<Point3D>();
+            public int[] Indices = Array.Empty<int>();
+            public Vector3D[] Normals = Array.Empty<Vector3D>();
+        }
+
+        // 后台线程：解析 STEP → 三角化 → 焊接连通分量拆分为多个部件，返回每部件的纯几何数组（不创建 Freezable，便于 UI 线程组装且保持可隐藏）。
+        // 同一实体/外壳经"共享焊接顶点"连通会被归并为同一个部件；不同实体若仅点接触则保持分离，从而每个可独立着色与隐藏。
+        private static void ComputeStepParts(string path, out List<StepPartData> parts, out Point3D center, out double radius, out long totalTris)
+        {
+            parts = new List<StepPartData>();
             using var shape = OcctNet.Wrapper.OcctShape.ImportStep(path);
             var mesh = shape.Triangulate(linearDeflection: 1.0);
-                int vc = mesh.Vertices.Count;
-                int ic = mesh.TriangleIndices.Count;
-                totalTris = ic / 3;
+            int vc = mesh.Vertices.Count;
+            int ic = mesh.TriangleIndices.Count;
+            int triCount = ic / 3;
+            totalTris = triCount;
 
-                var min = new Point3D(double.MaxValue, double.MaxValue, double.MaxValue);
-                var max = new Point3D(double.MinValue, double.MinValue, double.MinValue);
-                var positions = new Point3D[vc];
-                for (int i = 0; i < vc; i++)
+            var min = new Point3D(double.MaxValue, double.MaxValue, double.MaxValue);
+            var max = new Point3D(double.MinValue, double.MinValue, double.MinValue);
+            var positions = new Point3D[vc];
+            for (int i = 0; i < vc; i++)
+            {
+                var v = mesh.Vertices[i];
+                var p = _zUpToYUp.Transform(new Point3D(v.X, v.Y, v.Z)); // 烘培 Z-up→Y-up
+                positions[i] = p;
+                if (p.X < min.X) min.X = p.X; if (p.X > max.X) max.X = p.X;
+                if (p.Y < min.Y) min.Y = p.Y; if (p.Y > max.Y) max.Y = p.Y;
+                if (p.Z < min.Z) min.Z = p.Z; if (p.Z > max.Z) max.Z = p.Z;
+            }
+
+            var size = new Vector3D(max.X - min.X, max.Y - min.Y, max.Z - min.Z);
+            double diag = 0.5 * Math.Sqrt(size.X * size.X + size.Y * size.Y + size.Z * size.Z);
+            if (!double.IsFinite(diag) || diag < 1e-3) diag = 100;
+
+            // 1) 按量化坐标焊接重合顶点：同一实体内部相邻面共享边 → 焊接后连通；不同实体仅点接触 → 不焊接（保持独立）
+            double q = Math.Max(diag * 1e-4, 1e-4);
+            var weld = new Dictionary<(long, long, long), int>();
+            var weldId = new int[vc];
+            int nextW = 0;
+            for (int i = 0; i < vc; i++)
+            {
+                long ix = (long)Math.Round(positions[i].X / q);
+                long iy = (long)Math.Round(positions[i].Y / q);
+                long iz = (long)Math.Round(positions[i].Z / q);
+                var key = (ix, iy, iz);
+                if (!weld.TryGetValue(key, out int wid)) { wid = nextW++; weld[key] = wid; }
+                weldId[i] = wid;
+            }
+
+            // 2) 并查集：经"共享焊接顶点"连通的三角形归并为同一部件
+            var parent = new int[triCount];
+            for (int t = 0; t < triCount; t++) parent[t] = t;
+            int Find(int x) { while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+            void Union(int a, int b) { int ra = Find(a), rb = Find(b); if (ra != rb) parent[ra] = rb; }
+
+            var vertToTris = new Dictionary<int, List<int>>(nextW);
+            for (int t = 0; t < triCount; t++)
+            {
+                int a = weldId[mesh.TriangleIndices[t * 3]];
+                int b = weldId[mesh.TriangleIndices[t * 3 + 1]];
+                int c = weldId[mesh.TriangleIndices[t * 3 + 2]];
+                foreach (int w in new[] { a, b, c })
                 {
-                    var v = mesh.Vertices[i];
-                    var p = _zUpToYUp.Transform(new Point3D(v.X, v.Y, v.Z)); // 烘培 Z-up→Y-up
-                    positions[i] = p;
-                    if (p.X < min.X) min.X = p.X; if (p.X > max.X) max.X = p.X;
-                    if (p.Y < min.Y) min.Y = p.Y; if (p.Y > max.Y) max.Y = p.Y;
-                    if (p.Z < min.Z) min.Z = p.Z; if (p.Z > max.Z) max.Z = p.Z;
+                    if (!vertToTris.TryGetValue(w, out var lst)) { lst = new List<int>(); vertToTris[w] = lst; }
+                    lst.Add(t);
                 }
+            }
+            foreach (var lst in vertToTris.Values)
+                for (int i = 1; i < lst.Count; i++) Union(lst[0], lst[i]);
 
-                var mg = new MeshGeometry3D();
-                for (int i = 0; i < vc; i++) mg.Positions.Add(positions[i]);
-                for (int i = 0; i < ic; i++) mg.TriangleIndices.Add(mesh.TriangleIndices[i]);
+            // 3) 按部件根分组
+            var comp = new Dictionary<int, List<int>>();
+            for (int t = 0; t < triCount; t++)
+            {
+                int r = Find(t);
+                if (!comp.TryGetValue(r, out var list)) { list = new List<int>(); comp[r] = list; }
+                list.Add(t);
+            }
 
-                // 由三角形累积平滑顶点法线（OCCT 三角化不直接给法线）
-                var norms = new Vector3D[vc];
-                for (int t = 0; t < ic; t += 3)
+            // 4) 逐部件生成本地顶点/索引，并计算平滑法线
+            foreach (var kv in comp)
+            {
+                var tris = kv.Value;
+                var localMap = new Dictionary<int, int>();
+                var posList = new List<Point3D>();
+                var idxList = new List<int>();
+                foreach (int t in tris)
                 {
-                    int a = mesh.TriangleIndices[t], b = mesh.TriangleIndices[t + 1], c = mesh.TriangleIndices[t + 2];
-                    var n = Vector3D.CrossProduct(positions[b] - positions[a], positions[c] - positions[a]);
-                    if (n.Length > 1e-9)
+                    for (int k = 0; k < 3; k++)
                     {
-                        n.Normalize();
-                        norms[a] += n; norms[b] += n; norms[c] += n;
+                        int oi = mesh.TriangleIndices[t * 3 + k];
+                        if (!localMap.TryGetValue(oi, out int li))
+                        {
+                            li = posList.Count;
+                            localMap[oi] = li;
+                            posList.Add(positions[oi]);
+                        }
+                        idxList.Add(li);
                     }
                 }
-                for (int i = 0; i < vc; i++)
+                int ln = posList.Count;
+                var norms = new Vector3D[ln];
+                var idxArr = idxList.ToArray();
+                for (int idx = 0; idx < idxArr.Length; idx += 3)
+                {
+                    int a = idxArr[idx], b = idxArr[idx + 1], c = idxArr[idx + 2];
+                    var n = Vector3D.CrossProduct(posList[b] - posList[a], posList[c] - posList[a]);
+                    if (n.Length > 1e-9) { n.Normalize(); norms[a] += n; norms[b] += n; norms[c] += n; }
+                }
+                for (int i = 0; i < ln; i++)
                 {
                     var nv = norms[i];
                     if (nv.Length > 1e-9) nv.Normalize(); else nv = new Vector3D(0, 1, 0);
-                    mg.Normals.Add(nv);
+                    norms[i] = nv;
                 }
+                parts.Add(new StepPartData { Positions = posList.ToArray(), Indices = idxArr, Normals = norms });
+            }
 
-                var mat = MakeStepMaterial();
-                var gm = new GeometryModel3D(mg, mat) { BackMaterial = mat };
-                group.Children.Add(gm);
-
-                var size = new Vector3D(max.X - min.X, max.Y - min.Y, max.Z - min.Z);
-                center = new Point3D(min.X + size.X / 2, min.Y + size.Y / 2, min.Z + size.Z / 2);
-                radius = 0.5 * Math.Sqrt(size.X * size.X + size.Y * size.Y + size.Z * size.Z);
-                if (!double.IsFinite(radius) || radius < 1e-3) radius = 100;
+            center = new Point3D(min.X + size.X / 2, min.Y + size.Y / 2, min.Z + size.Z / 2);
+            radius = diag;
         }
 
-        // CAD 材质：浅钢蓝金属感；双面可见避免黑面（BREP 三角化法线方向偶发不一致）。
-        private static Material MakeStepMaterial()
+        // CAD 材质：给定基色 + 浅金属高光；双面可见避免黑面（BREP 三角化法线方向偶发不一致）。
+        private static Material MakeStepMaterial(Color diff)
         {
-            var brush = new SolidColorBrush(Color.FromRgb(0xB8, 0xC2, 0xCE));
+            var brush = new SolidColorBrush(diff);
             var grp = new MaterialGroup();
             grp.Children.Add(new DiffuseMaterial(brush));
             grp.Children.Add(new SpecularMaterial(new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)), 18));
             return grp;
+        }
+
+        /// <summary>鼠标在隐藏模式下单击：命中测试光标下的 STP 部件并将其隐藏（可逐个隐藏不需要的部件）。</summary>
+        private void HidePartAt(Point mp)
+        {
+            if (!_cadMode || _stpContent == null || _stpPartModels.Count == 0) return;
+            var hit = VisualTreeHelper.HitTest(Vp, mp) as RayMeshGeometry3DHitTestResult;
+            if (hit?.ModelHit is GeometryModel3D gm && _stpPartModels.Contains(gm) && _stpContent.Children.Contains(gm))
+            {
+                _stpContent.Children.Remove(gm);   // 隐藏：从 CAD 模型组移除该部件
+                _stpHiddenCount++;
+                SetStpStatus($"已隐藏 1 个部件（共 {_stpPartModels.Count} 个，已隐藏 {_stpHiddenCount} 个）。点「显示全部」可恢复。");
+            }
+        }
+
+        /// <summary>恢复显示所有被隐藏的 STP 部件（供工具栏「显示全部」调用）。</summary>
+        public void ShowAllParts()
+        {
+            if (_stpContent == null) return;
+            foreach (var gm in _stpPartModels)
+                if (!_stpContent.Children.Contains(gm)) _stpContent.Children.Add(gm);
+            _stpHiddenCount = 0;
+            SetStpStatus($"已显示全部 {_stpPartModels.Count} 个部件。");
         }
 
         private void SetStpStatus(string text)

@@ -21,7 +21,7 @@
 
     <local:EditorPage ShowDefaultAddButton="False"
         HintOperation="添加控制卡并填写型号、总线与通讯参数；卡内可选择扩展 IO 模块，自动汇总输入 / 输出 IO 数与轴数；轴页通过「控制器」下拉关联到此处。"
-        HintPrecaution="通讯参数（波特率 / 站号 / IP）须与硬件一致；修改后重新连接，掉线时检查线缆与供电。">
+        HintPrecaution="通讯参数（波特率 / 站号 / IP）须与硬件一致；修改后重新连接，掉线时检查线缆与供电；连接状态以底层真实反馈为准。">
         <local:EditorPage.LeftToolbarContent>
             <StackPanel Orientation="Horizontal">
                 <Button Command="{Binding AddCardCommand}" Style="{StaticResource ToolButtonStyle}">
@@ -81,7 +81,7 @@
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="卡型号"/>
                             <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
-                                      ToolTip="候选按上面已选的「品牌 + 总线类型」自动过滤"
+                                      ToolTip="候选按上面已选的「品牌 + 总线类型」自动过滤（来自底层 CardFamilyCatalog）"
                                       ItemsSource="{Binding CardTypeOptions}"
                                       SelectedItem="{Binding SelectedItem.CardType, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
@@ -113,7 +113,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ============ 扩展 IO 模块（挂在控制卡内） ============ -->
+                <!-- ============ 扩展 IO 模块（挂在控制卡内）+ 连接 ============ -->
                 <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
                     <StackPanel>
                         <TextBlock Style="{StaticResource AppleSectionHeader}" Text="扩展 IO 模块"/>
@@ -188,7 +188,7 @@
                         </DockPanel>
 
                         <Rectangle Style="{StaticResource AppleHairline}"/>
-                        <!-- 连接 / 获取 + 在线离线状态（放在扩展IO下方：选好扩展IO后点「连接」，IO 表自动生成） -->
+                        <!-- 连接 / 获取 + 在线离线状态（真实来自底层 SamsunCardBridge） -->
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="连接状态"/>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -222,6 +222,42 @@
                             </StackPanel>
                         </DockPanel>
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap" Text="{Binding ConnectMessage}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ============ 底层连接总览（真实状态，来自 SamsunCardBridge.ControllerStatus） ============ -->
+                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource AppleSectionHeader}" Text="底层连接总览（真实状态）"/>
+                        <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
+                                   Text="下列状态直接来自底层 SamsunCardBridge：每张已初始化的控制卡真实就绪情况。点「连接 / 断开」后自动刷新。"/>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <ItemsControl ItemsSource="{Binding ConnectionStatusLines}" Margin="16,6,16,8">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,3">
+                                        <Path DockPanel.Dock="Left" Data="{StaticResource ControllerIcon}" Width="12" Height="12" Stretch="Uniform"
+                                              Fill="{StaticResource SuccessBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                            <ItemsControl.Style>
+                                <Style TargetType="ItemsControl">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ConnectionStatusLines.Count}" Value="0">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate>
+                                                        <TextBlock Style="{StaticResource SubLabel}" Text="暂无已连接的控制器（点「连接」后这里会显示底层真实状态）。"/>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
 

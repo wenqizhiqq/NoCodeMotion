@@ -1,6 +1,7 @@
 ﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ◆温‏启‏志‌◆‍编‎写‌◇‌微‎信⁠﹕‌1‍8‍7⁣◆⁣1‍9‍3⁠6⁣◇‌1‌3‎9​9‏　‍※‎保‌留‎所‍有‍权⁣利‎请‎勿⁠删‌除‍◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -112,15 +113,31 @@ namespace NoCodeMotion.ViewModels
             SelectedItem.ExpansionModules.Remove(module);
         }
 
-        // ============ 连接状态（运行期，不落盘） ============
+        // ============ 连接状态：真实来自底层 SamsunCardBridge / HardwareSetup ============
+        // ★ 不维护 UI 自己的影子字典：在线状态直接读底层 slot 的 Ready（卡族层按控制器名、
+        //   雷赛层按整卡就绪），连接 / 断开 / 获取后刷新通知即可。
 
-        private readonly Dictionary<AxisControllerItem, bool> _online = new();
-
-        /// <summary>当前选中控制卡的在线状态。</summary>
-        public bool IsOnline => SelectedItem != null && _online.TryGetValue(SelectedItem, out var b) && b;
+        /// <summary>当前选中控制卡的在线状态（真实来自底层）。</summary>
+        public bool IsOnline
+        {
+            get
+            {
+                var ctl = SelectedItem;
+                if (ctl == null) return false;
+                if (HardwareSetup.Mode == HardwareMode.CardFamilies && HardwareSetup.CardFamilies != null)
+                    return HardwareSetup.CardFamilies.IsControllerReady(ctl.Name);
+                if (HardwareSetup.Mode == HardwareMode.Leadshine)
+                    return HardwareSetup.IsCardReady;
+                return false;
+            }
+        }
 
         /// <summary>在线 / 离线文字（给状态药丸用）。</summary>
         public string ConnectionText => IsOnline ? "在线" : "离线";
+
+        /// <summary>所有已初始化控制器的底层真实状态（来自 SamsunCardBridge.ControllerStatus）。</summary>
+        public IReadOnlyList<string> ConnectionStatusLines
+            => HardwareSetup.CardFamilies?.ControllerStatus() ?? Array.Empty<string>();
 
         private string _connectMessage = string.Empty;
         /// <summary>连接 / 获取 的结果说明（显示在扩展IO卡片下）。</summary>
@@ -144,6 +161,7 @@ namespace NoCodeMotion.ViewModels
                 : $"未连接控制卡：{(fam == null ? "卡型号未匹配到已移植卡族" : "卡族 " + fam.Key)}；"
                   + $"{(exp ? "支持扩展 IO 模块" : "未声明支持扩展 IO 模块")}。已载入内置型号 {n} 种，请先点「连接」。";
             HardwareLog.Write("[控制器] " + ConnectMessage);
+            RaiseStatusLines();   // 刷新底层连接总览
         }
 
         /// <summary>连接：初始化 / 打开该控制卡（含其扩展 IO 模块），成功后在线。</summary>
@@ -177,7 +195,8 @@ namespace NoCodeMotion.ViewModels
             }
 
             var fam = SamsunCardBridge.ResolveFamily(ctl);
-            SetOnline(ctl, ok);
+            RaiseConnection();
+            RaiseStatusLines();
             string ioMsg = GenerateIoPoints(ctl);   // 连接后按「主板 + 扩展模块」的 IO 数自动生成 IO 点
             ConnectMessage = (ok ? "● 已连接：" : "○ 未连接：") + ctl.Name + " —— " + msg
                 + (fam == null ? "。★卡型号未匹配到已移植卡族，轴 / IO 不会真实下发。" : string.Empty)
@@ -246,16 +265,10 @@ namespace NoCodeMotion.ViewModels
             if (ctl == null) return;
 
             try { HardwareSetup.CardFamilies?.Disconnect(ctl); } catch { /* 断开失败也置离线 */ }
-            SetOnline(ctl, false);
+            RaiseConnection();
+            RaiseStatusLines();
             ConnectMessage = $"○ 已断开「{ctl.Name}」。";
             HardwareLog.Write("[控制器] " + ConnectMessage);
-        }
-
-        private void SetOnline(AxisControllerItem ctl, bool online)
-        {
-            if (ctl == null) return;
-            _online[ctl] = online;
-            RaiseConnection();
         }
 
         private void RaiseConnection()
@@ -263,6 +276,9 @@ namespace NoCodeMotion.ViewModels
             OnPropertyChanged(nameof(IsOnline));
             OnPropertyChanged(nameof(ConnectionText));
         }
+
+        /// <summary>通知界面刷新底层连接总览（来自 SamsunCardBridge.ControllerStatus）。</summary>
+        private void RaiseStatusLines() => OnPropertyChanged(nameof(ConnectionStatusLines));
 
         // ============ 汇总：输入 / 输出 IO 总数、轴总数 ============
 
