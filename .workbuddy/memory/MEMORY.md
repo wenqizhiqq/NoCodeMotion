@@ -21,6 +21,7 @@
 - DataGrid 行内按钮：DataContext 是页面 VM，命令要 `{Binding DataContext.XxxPanel.Cmd, RelativeSource={AncestorType=DataGrid}}`，漏面板路径静默失效。
 - 下拉框选值来自固定候选时**勿设 IsEditable**（可编辑输入框盖住整块、点击文字区不展开）。
 - 资源字典：`App.xaml` 只合 `Resources/AppStyles.xaml`（再合 HandyControl）。`Themes/AppleControls.xaml` 未合并、运行时不存在，勿引用；所需键以 AppStyles 为准；缺的小字/窄框在页面 `<UserControl.Resources>` 本地补。
+- ★ **Window 弹窗（ConfirmDialog/ConnectProgressDialog 等）只能用 AppStyles 全局键**：页面级 `<UserControl.Resources>` 里的键（如 `SubLabel`）在顶层 Window 的 StaticResource 作用域里解析不到，运行时抛 `XamlParseException 无法找到名为"X"的资源`（编译期不报）。缺的样式在弹窗里内联（FontSize/Foreground）或改用全局 `TextMutedBrush` 等。
 - 删除/清空红 `TtDeleteBtn`/`TtPillRedBtn`；色彩 红=破坏/橙=反向/蓝=正向/绿=保存/灰=次要。
 - 每页底 PageHintBar；EditorPage.Detail 内元素**勿用 x:Name**（MC3093），改用 Tag+FindVisualChildByTag。
 

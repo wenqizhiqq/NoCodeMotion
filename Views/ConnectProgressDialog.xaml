@@ -21,7 +21,7 @@
                 <ProgressBar IsIndeterminate="True" Height="8" Foreground="{StaticResource AccentBrush}" Background="{StaticResource HoverBrush}"/>
                 <TextBlock Margin="0,12,0,0" FontSize="14" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" LineHeight="22"
                            Text="{Binding ConnectStatusText}"/>
-                <TextBlock Margin="0,6,0,0" Style="{StaticResource SubLabel}" TextWrapping="Wrap"
+                <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"
                            Text="{Binding ConnectMessage}"/>
             </StackPanel>
         </StackPanel>
