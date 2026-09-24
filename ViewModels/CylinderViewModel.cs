@@ -22,6 +22,8 @@ namespace NoCodeMotion.ViewModels
         public string[] SensorTypeOptions { get; } = { "NPN", "PNP" };
         public string[] InitialStateOptions { get; } = { "伸出", "缩回" };
         public string[] ActionOptions { get; } = { "伸出", "缩回" };
+        /// <summary>超时报警方式可选项（与 CylinderItem.TimeoutAction 对应）。</summary>
+        public string[] TimeoutActionOptions { get; } = { "报警并停止", "仅报警", "忽略" };
 
         public CylinderViewModel()
         {
@@ -29,16 +31,10 @@ namespace NoCodeMotion.ViewModels
             Items = ProjectStore.Data.Cylinders;
             Counter = Items.Count;
             AttachAutoSave();
-            // 时序表增删后自动重排步序，保证「步」列显示正确序号
-            Sequence.CollectionChanged += (_, _) => RenumberSeq();
-        }
-
-        /// <summary>时序动作表"动作"列可选项（伸出 / 缩回）。</summary>
-        public string[] SeqActionOptions { get; } = { "伸出", "缩回" };
-
-        private void RenumberSeq()
-        {
-            for (int i = 0; i < Sequence.Count; i++) Sequence[i].StepIndex = i + 1;
+            // 选中气缸变化 / 周期刷新「状态显示」面板（右侧只读区，实时读 IO 表关联点位）
+            PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SelectedItem)) RaiseStatus(); };
+            _statusTimer.Tick += (_, _) => RaiseStatus();
+            _statusTimer.Start();
         }
 
         protected override CylinderItem CreateNewItem() => new CylinderItem { Name = $"气缸{Counter + 1}" };
@@ -48,105 +44,36 @@ namespace NoCodeMotion.ViewModels
             if (SelectedItem == null && Items.Count > 0) SelectedItem = Items[0];
         }
 
-        // ===== 气缸时序动作表 + 仿真播放 =====
-        public ObservableCollection<CylinderSequenceStep> Sequence { get; } = new();
+        // ===== 状态显示（右侧只读区）：直接读 IO 表里关联点位的实时值 =====
+        // 关联关系：输出点 -> 输出 IO（Catalog.OutIoNames）；伸出/缩回/备用感应 -> 输入 IO（Catalog.InIoNames）。
 
-        private CylinderSequenceStep? _selectedSeqStep;
-        public CylinderSequenceStep? SelectedSeqStep
+        private readonly DispatcherTimer _statusTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
+
+        /// <summary>当前运行状态（伸出 / 缩回）。</summary>
+        public string StatusStateText
+            => SelectedItem == null || string.IsNullOrEmpty(SelectedItem.CurrentState) ? "—" : SelectedItem.CurrentState;
+
+        public string StatusOutText => Describe(FindOut(SelectedItem?.OutPoint));
+        public string StatusExtendText => Describe(FindIn(SelectedItem?.SensorExtend));
+        public string StatusRetractText => Describe(FindIn(SelectedItem?.SensorRetract));
+        // 备用感应（BackupSensor）在运行时是「双线圈」的第二路输出（isOutput:true），故按输出 IO 查。
+        public string StatusBackupText => Describe(FindOut(SelectedItem?.BackupSensor));
+
+        private static IoItem? FindOut(string? name)
+            => string.IsNullOrWhiteSpace(name) ? null : ProjectStore.Data?.Outputs?.FirstOrDefault(o => o.Name == name);
+        private static IoItem? FindIn(string? name)
+            => string.IsNullOrWhiteSpace(name) ? null : ProjectStore.Data?.Inputs?.FirstOrDefault(o => o.Name == name);
+
+        private static string Describe(IoItem? io)
+            => io == null ? "未关联" : $"{(io.Value != 0 ? "高电平 1" : "低电平 0")}　（{io.Function}）";
+
+        private void RaiseStatus()
         {
-            get => _selectedSeqStep;
-            set => SetField(ref _selectedSeqStep, value);
-        }
-
-        private bool _isSeqPlaying;
-        public bool IsSeqPlaying
-        {
-            get => _isSeqPlaying;
-            set => SetField(ref _isSeqPlaying, value);
-        }
-
-        private int _seqCurrentIndex = -1;
-        public int SeqCurrentIndex
-        {
-            get => _seqCurrentIndex;
-            set => SetField(ref _seqCurrentIndex, value);
-        }
-
-        private string _seqProgressText = "就绪";
-        public string SeqProgressText
-        {
-            get => _seqProgressText;
-            set => SetField(ref _seqProgressText, value);
-        }
-
-        public ICommand AddSeqStepCommand => new RelayCommand(_ =>
-        {
-            var name = Sequence.Count == 0 && Items.Count > 0 ? Items[0].Name : "";
-            var step = new CylinderSequenceStep { Cylinder = name, Action = "伸出", DelayMs = 300 };
-            Sequence.Add(step);
-            SelectedSeqStep = step;
-        });
-
-        public ICommand RemoveSeqStepCommand => new RelayCommand(_ =>
-        {
-            if (SelectedSeqStep != null) Sequence.Remove(SelectedSeqStep);
-        }, _ => SelectedSeqStep != null);
-
-        public ICommand PlaySequenceCommand => new RelayCommand(_ => PlaySequence(), _ => !IsSeqPlaying && Sequence.Count > 0);
-        public ICommand StopSequenceCommand => new RelayCommand(_ => StopSequence(), _ => IsSeqPlaying);
-
-        private DispatcherTimer? _seqTimer;
-        private int _seqIdx;
-        private double _seqElapsed;
-
-        private void PlaySequence()
-        {
-            if (Sequence.Count == 0) return;
-            StopSequence();
-            _seqIdx = 0;
-            _seqElapsed = 0;
-            IsSeqPlaying = true;
-            SeqCurrentIndex = 0;
-            ApplySeqStep(0);
-            _seqTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
-            _seqTimer.Tick += OnSeqTick;
-            _seqTimer.Start();
-        }
-
-        private void OnSeqTick(object? sender, EventArgs e)
-        {
-            if (_seqIdx >= Sequence.Count) { StopSequence(); return; }
-            var step = Sequence[_seqIdx];
-            _seqElapsed += 33;
-            if (_seqElapsed >= Math.Max(0, step.DelayMs))
-            {
-                _seqIdx++;
-                _seqElapsed = 0;
-                if (_seqIdx >= Sequence.Count) { StopSequence(); return; }
-                SeqCurrentIndex = _seqIdx;
-                ApplySeqStep(_seqIdx);
-            }
-        }
-
-        private void ApplySeqStep(int idx)
-        {
-            if (idx < 0 || idx >= Sequence.Count) return;
-            var step = Sequence[idx];
-            int state = step.Action == "缩回" ? 0 : 1;
-            SimRuntime.SetCylinder(step.Cylinder, state);
-            // 同步列表内联按钮着色（按名称找到对应气缸条目）
-            var item = ProjectStore.Data?.Cylinders?
-                .FirstOrDefault(c => string.Equals(c.Name, step.Cylinder, StringComparison.OrdinalIgnoreCase));
-            if (item != null) item.CurrentState = state == 1 ? "伸出" : "缩回";
-            SeqProgressText = $"第 {idx + 1}/{Sequence.Count} 步：{step.Cylinder} {step.Action}";
-        }
-
-        private void StopSequence()
-        {
-            if (_seqTimer != null) { _seqTimer.Stop(); _seqTimer.Tick -= OnSeqTick; _seqTimer = null; }
-            IsSeqPlaying = false;
-            SeqCurrentIndex = -1;
-            SeqProgressText = "已停止";
+            OnPropertyChanged(nameof(StatusStateText));
+            OnPropertyChanged(nameof(StatusOutText));
+            OnPropertyChanged(nameof(StatusExtendText));
+            OnPropertyChanged(nameof(StatusRetractText));
+            OnPropertyChanged(nameof(StatusBackupText));
         }
 
         // ===== 手动动作命令：伸出 / 缩回 / 复位（依赖 HasSelection） =====
@@ -188,6 +115,7 @@ namespace NoCodeMotion.ViewModels
             item.CurrentState = state == 1 ? "伸出" : "缩回";
             // 同步仿真仓，使 3D 视图的活塞伸缩与页面列表一致
             SimRuntime.SetCylinder(item.Name, state);
+            if (ReferenceEquals(item, SelectedItem)) RaiseStatus();
         }
 
         private void Reset()

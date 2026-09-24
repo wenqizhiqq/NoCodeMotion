@@ -431,14 +431,11 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                 return;
             }
 
-            WriteOutput(outIo, state);
+            WriteOutput(outIo, state);   // 伸出输出（第 1 路）：1=伸出 / 0=缩回
 
-            // 双线圈：另一路取反
-            if (cyl.DoubleCoil)
-            {
-                var backIo = FindIo(cyl.BackupSensor, isOutput: true);
-                if (backIo != null) WriteOutput(backIo, state != 0 ? 0 : 1);
-            }
+            // 缩回输出（第 2 路，配置了才写）：与第 1 路互斥（1=缩回）。
+            var retIo = FindIo(cyl.BackupSensor, isOutput: true);
+            if (retIo != null) WriteOutput(retIo, state != 0 ? 0 : 1);
 
             Log($"[雷赛] 气缸「{cyl.Name}」{(state == 1 ? "伸出" : "缩回")}（输出点 {cyl.OutPoint}）");
         }
@@ -472,7 +469,20 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                 }
                 Thread.Sleep(Options.PollIntervalMs);
             }
-            throw new ScriptRuntimeException($"气缸「{cyl.Name}」等待到位超时（{timeout}ms）。请检查气压、电磁阀输出「{cyl.OutPoint}」、到位感应「{sensorName}」接线与电平。");
+            // 超时：按气缸「超时报警方式」处理（报警并停止 = 默认，抛异常终止流程 / 运行）
+            string timeoutMsg = $"气缸「{cyl.Name}」等待到位超时（{timeout}ms）。请检查气压、电磁阀输出「{cyl.OutPoint}」、到位感应「{sensorName}」接线与电平。";
+            switch (cyl.TimeoutAction)
+            {
+                case "忽略":
+                    Log("(超时已按「忽略」继续) " + timeoutMsg);
+                    return;
+                case "仅报警":
+                    AlarmService.Raise(LogLevel.Error, "气缸超时", string.Empty, timeoutMsg);
+                    return;
+                default:   // 报警并停止
+                    AlarmService.Raise(LogLevel.Error, "气缸超时", string.Empty, timeoutMsg);
+                    throw new ScriptRuntimeException(timeoutMsg);
+            }
         }
 
         public void CylinderReset(CylinderItem cyl)

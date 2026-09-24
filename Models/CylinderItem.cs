@@ -38,7 +38,8 @@ namespace NoCodeMotion.Models
         private bool _doubleCoil = false;              // 双线圈
         private bool _alarmEnable = true;              // 报警使能
         private bool _manualEnable = true;             // 手动使能
-        private int _timeoutMs = 3000;                // 动作超时(ms)
+        private int _timeoutMs = 3000;                // 超时时间(ms)：等待到位感应的上限
+        private string _timeoutAction = "报警并停止";  // 超时报警方式：报警并停止 / 仅报警 / 忽略
 
         // ===================== 高级 =====================
         private bool _pulseOutput = false;             // 脉冲输出
@@ -77,6 +78,8 @@ namespace NoCodeMotion.Models
         public bool AlarmEnable { get => _alarmEnable; set => SetField(ref _alarmEnable, value); }
         public bool ManualEnable { get => _manualEnable; set => SetField(ref _manualEnable, value); }
         public int TimeoutMs { get => _timeoutMs; set => SetField(ref _timeoutMs, value); }
+        /// <summary>超时报警方式：报警并停止（默认，抛异常终止流程）/ 仅报警（记报警后继续）/ 忽略（只记日志继续）。</summary>
+        public string TimeoutAction { get => _timeoutAction; set => SetField(ref _timeoutAction, value); }
 
         // ===================== 高级 =====================
         public bool PulseOutput { get => _pulseOutput; set => SetField(ref _pulseOutput, value); }

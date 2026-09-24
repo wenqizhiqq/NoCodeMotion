@@ -62,5 +62,13 @@
 - `Views/IoPage.xaml`：输入表 ComboBox 绑 `InputFunctionOptions`、输出表绑 `OutputFunctionOptions`。
 - 注：`IoItem.Level`（取反/不取反）本就真实生效（`ApplyLevel` 决定常开常闭），勿与「功能」混淆。
 
+## 气缸页 & IO 名称库（2026-09-24）
+- IO 名称库分三份（`Services/Catalog.cs`）：`InIoNames`（输入）/ `OutIoNames`（输出）/ `IoNames`（合并，给流程页通用下拉）。`Catalog.SyncAllFromData` 与 `IoPanelViewModel.SyncIoCatalog` 同时维护三份。**需要方向的选点（气缸/轴等）一律用 `InIoNames`/`OutIoNames`，别用合并的 `IoNames`**（旧 bug：气缸「输出点」列出了输入点）。
+- 气缸页布局：**参数左 / 状态显示右**（左 `1.25*` 放 基本信息/IO配置/动作参数/安全与逻辑/高级；右 `1*` 放 状态显示（只读）+ 手动测试）。**无**「气缸时序动作表」（已删）。
+- `CylinderItem` 运行时真实生效字段：`OutPoint`(**伸出输出**第1路，输出IO) / `BackupSensor`(**缩回输出**第2路，输出IO；与第1路互斥) / `SensorExtend`·`SensorRetract`(输入IO) / `DelayMs`·`ExtendMs`·`RetractMs` / `TimeoutMs`(超时时间) / `TimeoutAction`(超时报警方式：报警并停止/仅报警/忽略) / `PulseOutput`·`PulseWidthMs`。装饰性（运行时不用）：`SensorType`/`ToleranceMs`/`ExtendSpeed`/`RetractSpeed`/`LinkedAxis`/`Interlock`/`DoubleCoil`/`AlarmEnable`/`ManualEnable`。
+- 气缸 2 路输出：两桥 `CylinderMove` 只要「缩回输出」配置了就写（不再受 `DoubleCoil` 门控）；超时按 `TimeoutAction` 分支：默认「报警并停止」= `AlarmService.Raise` + `throw ScriptRuntimeException`，「仅报警」= Raise 后继续，「忽略」= 只 Log。`AlarmService` 在 `NoCodeMotion.Services.Hardware.*` 命名空间下可直接引用（父命名空间查找）。
+- 气缸「状态显示」= 按名称在 `ProjectStore.Data.Inputs/Outputs` 找 IoItem 读实时 `Value`（300ms DispatcherTimer 刷新），即与 IO 表真实点位联动。
+- 页面标题栏所在 Grid 的 detail 内容若需滚动：在 `<local:EditorPage.Detail>` 内自己包 `ScrollViewer`（见控制器页/气缸页）。
+
 ## 仿真模板
 - ProjectTemplateCatalog 20 模板；NgTemplates.Build 脚手架。

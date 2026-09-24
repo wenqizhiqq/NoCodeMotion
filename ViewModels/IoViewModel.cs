@@ -68,9 +68,11 @@ namespace NoCodeMotion.ViewModels
 
         private void SyncIoCatalog()
         {
-            var all = ProjectStore.Data.Inputs.Select(i => i.Name)
-                .Concat(ProjectStore.Data.Outputs.Select(i => i.Name));
-            Catalog.SetIo(all);
+            var ins = ProjectStore.Data.Inputs.Select(i => i.Name).ToList();
+            var outs = ProjectStore.Data.Outputs.Select(i => i.Name).ToList();
+            Catalog.SetIoIn(ins);      // 按方向：输入（气缸伸出/缩回感应等）
+            Catalog.SetIoOut(outs);    // 按方向：输出（气缸输出点等）
+            Catalog.SetIo(ins.Concat(outs));   // 合并库：流程页通用下拉
         }
 
         /// <summary>Excel 回读替换后，名称变化发生在订阅之前，OnItemChanged 收不到 → 主动全量同步一次目录。</summary>

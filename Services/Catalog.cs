@@ -18,6 +18,10 @@ namespace NoCodeMotion.Services
     {
         public static ObservableCollection<string> AxisNames { get; } = new();
         public static ObservableCollection<string> IoNames { get; } = new();
+        /// <summary>输入 IO 名称（供气缸「伸出/缩回感应」等需要方向的页面选真实点位）。</summary>
+        public static ObservableCollection<string> InIoNames { get; } = new();
+        /// <summary>输出 IO 名称（供气缸「输出点」等需要方向的页面选真实点位）。</summary>
+        public static ObservableCollection<string> OutIoNames { get; } = new();
         public static ObservableCollection<string> CylinderNames { get; } = new();
         public static ObservableCollection<string> CameraNames { get; } = new();
         public static ObservableCollection<string> CommNames { get; } = new();
@@ -30,6 +34,8 @@ namespace NoCodeMotion.Services
 
         public static void SetAxis(IEnumerable<string> names) => Set(AxisNames, names);
         public static void SetIo(IEnumerable<string> names) => Set(IoNames, names);
+        public static void SetIoIn(IEnumerable<string> names) => Set(InIoNames, names);
+        public static void SetIoOut(IEnumerable<string> names) => Set(OutIoNames, names);
         public static void SetCylinder(IEnumerable<string> names) => Set(CylinderNames, names);
         public static void SetCamera(IEnumerable<string> names) => Set(CameraNames, names);
         public static void SetComm(IEnumerable<string> names) => Set(CommNames, names);
@@ -87,9 +93,12 @@ namespace NoCodeMotion.Services
         public static void SyncAllFromData(ProjectData data)
         {
             SetAxis(data.Axes.Select(a => a.Name));
-            // 输入 + 输出合并到 IO 名称库
-            var ioNames = data.Inputs.Select(i => i.Name).Concat(data.Outputs.Select(i => i.Name));
-            SetIo(ioNames);
+            // 输入 / 输出分开登记（气缸等按方向选点），另合并一份给流程页通用下拉
+            var inNames = data.Inputs.Select(i => i.Name).ToList();
+            var outNames = data.Outputs.Select(i => i.Name).ToList();
+            SetIoIn(inNames);
+            SetIoOut(outNames);
+            SetIo(inNames.Concat(outNames));
             SetCylinder(data.Cylinders.Select(c => c.Name));
             SetCamera(data.Cameras.Select(c => c.Name));
             SetComm(data.Comms.Select(c => c.Name));
