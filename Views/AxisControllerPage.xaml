@@ -217,8 +217,7 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Style="{StaticResource TtPillBlueBtn}" Content="获取" Margin="0,0,4,0" ToolTip="探测卡族与扩展IO能力，刷新可添加的型号" Command="{Binding FetchModulesCommand}"/>
-                                <Button Style="{StaticResource TtPillGreenBtn}" Content="连接" Margin="0,0,4,0" ToolTip="连接该控制卡，并按主板 + 扩展模块的 IO 数自动生成 IO 点" Command="{Binding ConnectCommand}"/>
+                                <Button Style="{StaticResource TtPillGreenBtn}" Content="连接控制器" Margin="0,0,4,0" ToolTip="获取卡参数并连接该控制卡（后台连接，弹窗显示进度）" Command="{Binding ConnectControllerCommand}"/>
                                 <Button Style="{StaticResource TtPillGrayBtn}" Content="断开" ToolTip="关闭该控制卡连接" Command="{Binding DisconnectCommand}"/>
                             </StackPanel>
                         </DockPanel>

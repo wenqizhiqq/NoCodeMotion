@@ -294,6 +294,25 @@ namespace NoCodeMotion.ViewModels
         }
 
         /// <summary>
+        /// 连接控制器（合并原「获取卡参数」+「连接」两个按钮）：先「获取」探测该卡的卡族与扩展 IO 能力，
+        /// 再弹出进度弹窗，在后台完成初始化 / 连接 / 读取真实轴IO / 生成点位，连接结束后弹窗自动关闭。
+        /// </summary>
+        public ICommand ConnectControllerCommand => new RelayCommand(_ => ConnectController());
+
+        private void ConnectController()
+        {
+            var ctl = SelectedItem;
+            if (ctl == null) { StatusBarService.ReportInfo("请先在左侧选择要连接的控制卡。"); return; }
+            if (IsConnecting) return;   // 已在连接中，不重复弹窗
+
+            FetchModules();   // ① 获取卡参数（探测卡族 / 扩展IO能力）
+
+            // ② 弹窗显示进度条：弹窗 OnContentRendered 里启动 Connect()，连接完成后自动关闭
+            var dlg = new NoCodeMotion.Views.ConnectProgressDialog(() => Connect(), this);
+            dlg.ShowDialog();
+        }
+
+        /// <summary>
         /// 按控制卡的 IO 配置自动生成 IO 点：主板（模块=0）+ 各扩展模块（模块号=第几个模块，从 1 起）。
         /// <para>连接时先<b>全局清空</b>工程里所有 IO 点，再只重建本控制卡的（避免旧 / 手工 / 其它卡的点残留叠加）。</para>
         /// </summary>
