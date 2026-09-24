@@ -314,6 +314,78 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
         /// <summary>把 <see cref="GetAxisStateMachine"/> 的读数翻译成中文。</summary>
         public static string DescribeAxisState(int state) => LtdmcCard.DescribeAxisState(state);
 
+        // ===================== 轴实时状态（供「轴状态与控制」表用；均为硬件调用，请在后台线程调）=====================
+
+        /// <summary>
+        /// 读取一个轴的实时状态。任一项读不到就保持默认值（界面对应列显示「—」），不编造状态。
+        /// ★ 这是硬件调用，务必在后台线程执行。
+        /// </summary>
+        public bool TryReadAxisRaw(AxisItem axis, out AxisRawRead raw)
+        {
+            raw = default(AxisRawRead);
+            raw.StateMachine = -1;
+            if (axis == null) { raw.Message = "无轴"; return false; }
+            if (!_cardReady || !LtdmcCard.IsReady) { raw.Message = "雷赛控制卡未就绪"; return false; }
+
+            var (card, no) = Addr(axis);
+
+            // ★ 不能把 out 参数写进 lambda（CS1628），先读到本地变量，最后再组装。
+            double pos = 0, enc = 0;
+            bool moving = false, hasWord = false;
+            int alarm = 0, state = -1;
+            uint word = 0;
+
+            void Try(Action act) { try { act(); } catch { /* 该项读不到就留默认值 */ } }
+
+            Try(() => pos = _card.GetPosition(card, no));
+            Try(() => enc = _card.GetEncoder(card, no));
+            Try(() => moving = !_card.IsDone(card, no));                       // dmc_check_done == 1 表示已停
+            Try(() => alarm = _card.GetAxisErrCode(card, no));
+            Try(() => { word = _card.ReadAxisIoStatus(card, no); hasWord = true; });
+            if (LtdmcCard.IsBusCard) Try(() => state = _card.GetAxisStateMachine(card, no));
+
+            raw.Position = pos;
+            raw.Encoder = enc;
+            raw.Moving = moving;
+            raw.AlarmCode = alarm;
+            raw.IoWord = word;
+            raw.HasIoWord = hasWord;
+            raw.StateMachine = state;
+            raw.Ok = true;
+            raw.Message = "已连接";
+            return true;
+        }
+
+        /// <summary>启动连续点动（Jog）：雷赛 dmc_vmove。返回 null 表示成功，否则是失败原因。</summary>
+        public string StartAxisJog(AxisItem axis, bool positive)
+        {
+            if (axis == null) return "无轴";
+            if (!_cardReady || !LtdmcCard.IsReady) return "雷赛控制卡未就绪";
+            var (card, no) = Addr(axis);
+            try
+            {
+                _card.Jog(card, no, positive);
+                Log($"[雷赛] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动（dmc_vmove），松开按钮停止");
+                return null;
+            }
+            catch (Exception ex) { return "Jog 异常：" + ex.Message; }
+        }
+
+        /// <summary>把当前指令位置置零（设零点）。返回 null 表示成功，否则是失败原因。</summary>
+        public string SetAxisZero(AxisItem axis)
+        {
+            if (axis == null) return "无轴";
+            if (!_cardReady || !LtdmcCard.IsReady) return "雷赛控制卡未就绪";
+            var (card, no) = Addr(axis);
+            try
+            {
+                _card.SetPosition(card, no, 0);
+                Log($"[雷赛] 轴「{axis.Name}」当前位置已置零（dmc_set_position_unit）");
+                return null;
+            }
+            catch (Exception ex) { return "设零点异常：" + ex.Message; }
+        }
+
         // ===================== IO =====================
 
         public double ReadInput(IoItem io)

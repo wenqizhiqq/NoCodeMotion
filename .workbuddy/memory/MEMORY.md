@@ -70,5 +70,16 @@
 - 气缸「状态显示」= 按名称在 `ProjectStore.Data.Inputs/Outputs` 找 IoItem 读实时 `Value`（300ms DispatcherTimer 刷新），即与 IO 表真实点位联动。
 - 页面标题栏所在 Grid 的 detail 内容若需滚动：在 `<local:EditorPage.Detail>` 内自己包 `ScrollViewer`（见控制器页/气缸页）。
 
+## 轴页：参数对齐底层 + 轴状态与控制表（2026-09-24）
+- **模型**（`Models/AxisItem.cs`）补齐底层关键参数（全是标量 → xlsx 零改动落盘、向后兼容）：`StartVel/StopVel/SpeedCurve/SPara`、`HomeDir/HomeTimeoutMs`、`SoftLimitEnable/LimitLevel`、`AlarmEnable/OriginLevel/OriginStopMode/EncoderEnable/EncoderDeviation`、轴权限 `AllowEnable/AllowManual/AllowHome/AllowSetZero`、手动 `JogStep/ManualSpeed`。
+- **轴状态服务**（`Services/Hardware/AxisMonitor.cs`，**不改 `IHardwareBridge` 接口**）：`AxisRawRead`(原始) / `AxisStatusSnapshot`(解释后；**可空布尔 = 读不到 → 界面显示「—」，绝不编造状态**) / `AxisMonitorService.Read|Enable|Stop|Home|Inch|StartJog|SetZero`，按 `HardwareSetup.Mode` 分派到具体桥；仿真模式返回「未连接」。
+- 轴状态字位定义（`dmc_axis_io_status` 标准，与卡族 `AxisRealization` 注释一致）：**bit0 报警 / bit1 正限位 / bit2 负限位 / bit3 急停 / bit4 原点 / bit5 到位 / bit6 正软限位 / bit7 负软限位 / bit8 使能**；总线轴用 CiA402 状态机==4 覆盖「使能」。
+- 桥新增（两桥同名）：`TryReadAxisRaw` / `StartAxisJog` / `SetAxisZero`。雷赛走 `dmc_axis_io_status`+`dmc_check_done`+`dmc_get_axis_state_machine`，Jog=`dmc_vmove`，设零=`dmc_set_position_unit`；卡族走 `GetCardAxisCurrentPosition(0/1)`/`GetCardAxisCurrentState()`/`GetCardAxisAlarmState()`，**状态字用反射调卡族无参 `GetAxisCurrentState()`**（不在 IAxis 上，按 Type 缓存 MethodInfo；取不到就只给位置/编码器/运动中），Jog=`CardAxisSerialMovement(Dir)`，设零=`SetCardAxisCurrentPosition`。
+- ★ **CS1628 铁律**：`out` 参数不能出现在 lambda / 本地函数里 —— 读硬件时先写本地变量，最后再组装 `out` 结构体。
+- **VM**：`ViewModels/AxisRowViewModel.cs`（**一个轴一个实例**；状态只读属性 + **颜色用 hex 字符串**，与状态栏 `RunColor/ControllerColor` 同套路由 WPF 自动转 Brush；点动距离/手动速度；使能·点动·Jog·回零·停止·设零点命令，全部 `Task.Run` 后台 + 回 UI 报状态栏，并按 `AllowXxx` 门控 `CanExecute`；`NotConnected(action)` 前置检查——没连卡直接报「未执行：控制器未连接」，**不谎报「已下发」**）。`AxisViewModel` 暴露 **`AxisRowViewModel? Monitor` + `HasMonitor`**，用 `override OnPropertyChanged` 捕捉 `nameof(SelectedItem)` 重建（选中/新增/删除轴都覆盖），**只服务当前选中的那一个轴**；`SetStatusRefreshEnabled(bool)` + **300ms `DispatcherTimer`** 后台读该轴 → `BeginInvoke` 回 UI 赋值；`Interlocked` 防重入；`!HardwareSetup.IsCardReady` 直接置「未连接」不读卡；`ReferenceEquals(Monitor, m)` 防期间换轴回填。**轮询只在轴页可见时开**（`AxisPage.xaml.cs` 的 `Loaded/Unloaded` 开关）。
+- **页面**（`Views/AxisPage.xaml`）：参数卡 6 张（基本信息/运动参数/回零参数/限位与保护/电平与编码器/**轴权限**）+ 整页 `ScrollViewer`；下方「**轴状态与控制**」是**单一容器（不做全轴列表/DataGrid）**，卡片内左右两列：左=只读状态（选中轴·控制器·连接·正极限·负极限·原点·急停·报警·使能·运动中·位置·编码器·状态字），右=点动距离·手动速度·轴权限 + 按钮组（使能·回零·设零点 / 点动−·点动+·停止 / Jog−·Jog+ 按住），**未选中轴显示提示**（`HasMonitor` + `DataTrigger` 显隐）。**页内不再定义任何本地样式**（`CellPill*`/`CellMiniBox`/`CellSignalText` 已删），全部用全局键。
+- 改完页面 XAML 后**务必脚本校验所有 `StaticResource` 键都存在**（AppStyles 全局 + 页内局部）；页面级键在 Window 弹窗里取不到会运行时炸。
+- **本页返工教训**：用户明确「**不要列表显示全部轴**」，状态/控制类 UI 一律「**一个容器 = 当前选中项**」；且用户对「按钮是不是真起作用」敏感 → 前置检查 + 明确失败提示比 UI 更关键。
+
 ## 仿真模板
 - ProjectTemplateCatalog 20 模板；NgTemplates.Build 脚手架。

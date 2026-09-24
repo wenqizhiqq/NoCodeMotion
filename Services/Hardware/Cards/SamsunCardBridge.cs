@@ -549,6 +549,130 @@ namespace NoCodeMotion.Services.Hardware.Cards
             get { lock (_gate) return _slots.Values.Any(s => s.Ready); }
         }
 
+        // ===================== 轴实时状态（供「轴状态与控制」表用；均为硬件调用，请在后台线程调）=====================
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, System.Reflection.MethodInfo> _ioStateMethods
+            = new System.Collections.Concurrent.ConcurrentDictionary<Type, System.Reflection.MethodInfo>();
+
+        /// <summary>
+        /// 读取一个轴的实时状态。任一项读不到就保持默认值（界面对应列显示「—」），不编造状态。
+        /// ★ 这是硬件调用，务必在后台线程执行。
+        /// </summary>
+        public bool TryReadAxisRaw(AxisItem axis, out AxisRawRead raw)
+        {
+            raw = default(AxisRawRead);
+            raw.StateMachine = -1;
+            if (axis == null) { raw.Message = "无轴"; return false; }
+
+            CardSlot slot = null;
+            IAxis a = null;
+            try { (slot, a) = AxisOf(axis); }
+            catch (Exception ex) { raw.Message = "寻址失败：" + ex.Message; return false; }
+            if (a == null) { raw.Message = "控制器未连接或轴号越界"; return false; }
+            if (slot != null && !slot.Ready) { raw.Message = $"「{slot.ControllerName}」尚未连接"; return false; }
+
+            int axisNo = Math.Max(axis.AxisNo, 0);
+            int cardNo = slot != null ? slot.CardNo : 0;
+
+            // ★ 不能把 out 参数写进 lambda（CS1628），先读到本地变量，最后再组装。
+            double pos = 0, enc = 0;
+            bool moving = false, hasWord = false;
+            int alarm = 0;
+            uint word = 0;
+
+            // 单项读失败不影响其它项（卡族里不少接口在参考实现里是未完成的）。
+            void Try(Action act) { try { act(); } catch { /* 该项读不到就留默认值 */ } }
+
+            Try(() => pos = a.GetCardAxisCurrentPosition(0));   // 0 = 指令位置
+            Try(() => enc = a.GetCardAxisCurrentPosition(1));   // 1 = 编码器反馈
+            Try(() =>
+            {
+                int st = 1;
+                st = a.GetCardAxisCurrentState();               // 0 = 停止 / 1 = 运行中
+                moving = st != 0;
+            });
+            Try(() => alarm = a.GetCardAxisAlarmState(cardNo, axisNo));
+            try { hasWord = TryReadIoWord(a, out uint w); word = w; } catch { }
+
+            raw.Position = pos;
+            raw.Encoder = enc;
+            raw.Moving = moving;
+            raw.AlarmCode = alarm;
+            raw.IoWord = word;
+            raw.HasIoWord = hasWord;
+            raw.Ok = true;
+            raw.Message = "已连接";
+            return true;
+        }
+
+        /// <summary>
+        /// 取「轴状态字」（dmc_axis_io_status 位布局）。
+        /// 卡族的 AxisRealization 里有一个无参的 <c>GetAxisCurrentState()</c> 返回该字，但它不在
+        /// <see cref="IAxis"/> 接口上，所以这里用反射取（结果按类型缓存）；取不到返回 false —— 界面显示「—」，不猜。
+        /// </summary>
+        private static bool TryReadIoWord(IAxis a, out uint word)
+        {
+            word = 0;
+            if (a == null) return false;
+
+            var mi = _ioStateMethods.GetOrAdd(a.GetType(), t =>
+            {
+                var m = t.GetMethod("GetAxisCurrentState",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                    null, Type.EmptyTypes, null);
+                return (m != null && m.ReturnType == typeof(int)) ? m : null;
+            });
+            if (mi == null) return false;
+
+            try
+            {
+                object r = mi.Invoke(a, null);
+                if (r is int v) { word = unchecked((uint)v); return true; }
+            }
+            catch { /* 反射调用失败当作读不到 */ }
+            return false;
+        }
+
+        /// <summary>启动连续点动（Jog）。返回 null 表示成功，否则是失败原因。</summary>
+        public string StartAxisJog(AxisItem axis, bool positive)
+        {
+            if (axis == null) return "无轴";
+            CardSlot slot = null; IAxis a = null;
+            try { (slot, a) = AxisOf(axis); }
+            catch (Exception ex) { return "寻址失败：" + ex.Message; }
+            if (a == null) { WarnNoAxis(axis, "Jog"); return "控制器未连接或轴号越界"; }
+
+            try
+            {
+                var mpm = BuildMotionParam(axis, slot != null ? slot.CardNo : 0, 0, 0, axis.Speed);
+                mpm.Dir = positive ? 1 : 0;                 // 0 = 负方向，1 = 正方向
+                int res = a.CardAxisSerialMovement(mpm);
+                if (res != 0) return $"Jog 下发失败（卡返回 {res}）";
+                Log($"[卡族] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动，松开按钮停止");
+                return null;
+            }
+            catch (Exception ex) { return "Jog 异常：" + ex.Message; }
+        }
+
+        /// <summary>把当前指令位置置零（设零点）。返回 null 表示成功，否则是失败原因。</summary>
+        public string SetAxisZero(AxisItem axis)
+        {
+            if (axis == null) return "无轴";
+            CardSlot slot = null; IAxis a = null;
+            try { (slot, a) = AxisOf(axis); }
+            catch (Exception ex) { return "寻址失败：" + ex.Message; }
+            if (a == null) { WarnNoAxis(axis, "设零点"); return "控制器未连接或轴号越界"; }
+
+            try
+            {
+                int res = a.SetCardAxisCurrentPosition(slot != null ? slot.CardNo : 0, Math.Max(axis.AxisNo, 0), 0);
+                if (res != 0) return $"设零点失败（卡返回 {res}）";
+                Log($"[卡族] 轴「{axis.Name}」当前位置已置零");
+                return null;
+            }
+            catch (Exception ex) { return "设零点异常：" + ex.Message; }
+        }
+
         /// <summary>
         /// 判断当前工程是否「需要」走卡族层：只要有一个控制器的品牌 + 卡型号匹配到已移植卡族，
         /// 且该卡族不是雷赛（雷赛默认仍走诊断更全的自有 LtdmcCard 封装），就返回 true。
