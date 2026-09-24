@@ -20,7 +20,9 @@
             <sys:String>原点</sys:String>
         </x:Array>
 
-        <x:Array x:Key="FunctionOptions" Type="sys:String">
+        <x:Array x:Key="FunctionOptions"
+                 Type="sys:String">
+            <sys:String>无</sys:String>
             <sys:String>动点</sys:String>
             <sys:String>原点</sys:String>
             <sys:String>光栅</sys:String>
@@ -163,7 +165,6 @@
                           RowHeight="30"
                           FontSize="13">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="*" MinWidth="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="96" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
@@ -176,7 +177,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="功能" Width="76">
+                        <DataGridTemplateColumn Header="功能" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox ItemsSource="{StaticResource FunctionOptions}"
@@ -251,7 +252,6 @@
                           RowHeight="30"
                           FontSize="13">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="模块" Binding="{Binding ModuleNo}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="44" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="IO名称" Binding="{Binding Name}" Width="*" MinWidth="80" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
                         <DataGridTextColumn Header="套码" Binding="{Binding SuitCode}" Width="96" EditingElementStyle="{StaticResource IoCellTextBoxStyle}"/>
@@ -264,7 +264,7 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="功能" Width="76">
+                        <DataGridTemplateColumn Header="功能" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox ItemsSource="{StaticResource FunctionOptions}"
