@@ -297,19 +297,19 @@
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="真实轴数"/>
                             <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{StaticResource SuccessBrush}" Text="{Binding DetectedAxisCount}"/>
+                                       Foreground="{StaticResource SuccessBrush}" Text="{Binding DetectedAxisCount, Mode=OneWay}"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="真实输入IO"/>
                             <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{StaticResource SuccessBrush}" Text="{Binding DetectedInIo}"/>
+                                       Foreground="{StaticResource SuccessBrush}" Text="{Binding DetectedInIo, Mode=OneWay}"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="真实输出IO"/>
                             <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{StaticResource SuccessBrush}" Text="{Binding DetectedOutIo}"/>
+                                       Foreground="{StaticResource SuccessBrush}" Text="{Binding DetectedOutIo, Mode=OneWay}"/>
                         </DockPanel>
                     </StackPanel>
                 </Border>

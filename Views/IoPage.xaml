@@ -127,9 +127,9 @@
                 <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                 <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap">
                     <Run Text="已连接控制卡真实检测到的 IO 数量：输入 "/>
-                    <Run Text="{Binding DetectedInIo}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                    <Run Text="{Binding DetectedInIo, Mode=OneWay}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
                     <Run Text=" / 输出 "/>
-                    <Run Text="{Binding DetectedOutIo}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                    <Run Text="{Binding DetectedOutIo, Mode=OneWay}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
                     <Run Text="（连接后自动获取，来自底层硬件；0 表示尚未连接或卡未上报）"/>
                 </TextBlock>
             </DockPanel>

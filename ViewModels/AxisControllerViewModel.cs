@@ -214,17 +214,23 @@ namespace NoCodeMotion.ViewModels
             // ★ 连接后从底层硬件真实读取轴数 / IO 数，回退到配置值；真实值 > 0 时回写配置让汇总 / IO 生成一致
             FetchDetectedCounts(ctl);
 
+            // 本 VM 自己的「真实检测」代理属性也要刷新（静态事件只通知轴页 / IO 页）
+            OnPropertyChanged(nameof(DetectedAxisCount));
+            OnPropertyChanged(nameof(DetectedInIo));
+            OnPropertyChanged(nameof(DetectedOutIo));
+
             RaiseConnection();
             RaiseStatusLines();
             RaiseTotals();
             RaiseDetected();   // 通知轴页 / IO 页刷新真实数量
+            string axisMsg = GenerateAxisPoints(ctl);   // 连接后按底层真实轴数自动生成轴（先清空本卡轴再添加）
             string ioMsg = GenerateIoPoints(ctl);   // 连接后按「主板 + 扩展模块」的 IO 数自动生成 IO 点
             ConnectMessage = (ok ? "● 已连接：" : "○ 未连接：") + ctl.Name + " —— " + msg
                 + (fam == null ? "。★卡型号未匹配到已移植卡族，轴 / IO 不会真实下发。" : string.Empty)
                 + (ctl.DetectedAxisCount > 0
                     ? $" 真实检测：轴 {ctl.DetectedAxisCount} / 输入 {ctl.DetectedInIo} / 输出 {ctl.DetectedOutIo}。"
                     : string.Empty)
-                + " " + ioMsg;
+                + " " + axisMsg + " " + ioMsg;
             HardwareLog.Write("[控制器] " + ConnectMessage);
         }
 
@@ -278,6 +284,36 @@ namespace NoCodeMotion.ViewModels
             Sequence = seq,            // 位号
             Level = "取反",
             Function = "动点",
+        };
+
+        /// <summary>
+        /// 按控制卡的真实 / 配置轴数自动生成轴：先清掉「本控制卡名下」的旧轴，再按数量新建。
+        /// <para>数量优先取底层真实检测到的轴数（连接后从卡读到），为 0 时回退到配置轴数（AxisCount）。</para>
+        /// </summary>
+        private static string GenerateAxisPoints(AxisControllerItem ctl)
+        {
+            var data = ProjectStore.Data;
+            if (data == null) return "（工程未加载，未生成轴）";
+
+            string tag = ctl.Name;
+            foreach (var a in data.Axes.Where(x => x.Controller == tag).ToList()) data.Axes.Remove(a);
+
+            int count = ctl.DetectedAxisCount > 0 ? ctl.DetectedAxisCount : System.Math.Max(ctl.AxisCount, 0);
+            int n = 0;
+            for (int s = 1; s <= count; s++)
+                data.Axes.Add(MakeAxis(tag, ++n, s));
+
+            Catalog.SetAxis(data.Axes.Select(x => x.Name));
+            ProjectStore.ScheduleSave();
+            return $"已按底层自动生成轴：{n}（控制器「{tag}」）。";
+        }
+
+        private static AxisItem MakeAxis(string controller, int index, int axisNo) => new AxisItem
+        {
+            Name = $"轴{index}",
+            Controller = controller,   // 自动绑定到本控制卡
+            AxisNo = axisNo,
+            Enabled = true,
         };
 
         /// <summary>断开：关闭该控制卡的硬件连接，回到离线。</summary>
