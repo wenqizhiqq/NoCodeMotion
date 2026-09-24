@@ -322,28 +322,28 @@
                                 <DataGridTemplateColumn HeaderTemplate="{StaticResource H0Pos}" Width="92">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Positions[0].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                            <TextBox Text="{Binding Positions[0].Position, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTemplateColumn HeaderTemplate="{StaticResource H1Pos}" Width="92">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Positions[1].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                            <TextBox Text="{Binding Positions[1].Position, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTemplateColumn HeaderTemplate="{StaticResource H2Pos}" Width="92">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Positions[2].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                            <TextBox Text="{Binding Positions[2].Position, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTemplateColumn HeaderTemplate="{StaticResource H3Pos}" Width="92">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Positions[3].Position, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
+                                            <TextBox Text="{Binding Positions[3].Position, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PointCellTextBoxStyle}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>

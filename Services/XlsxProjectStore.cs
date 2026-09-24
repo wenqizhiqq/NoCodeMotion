@@ -830,7 +830,7 @@ namespace NoCodeMotion.Services
                                 var sVal = row[$"轴{i}速度"]?.ToString() ?? "";
                                 var pa = new PointAxis
                                 {
-                                    Position = double.TryParse(pVal, out var dp) ? dp : 0,
+                                    Position = string.IsNullOrWhiteSpace(pVal) ? (double?)null : (double.TryParse(pVal, out var dp) ? dp : (double?)null),
                                     Speed = double.TryParse(sVal, out var ds) ? ds : 0,
                                 };
                                 posAdd?.Invoke(positions, new object[] { pa });

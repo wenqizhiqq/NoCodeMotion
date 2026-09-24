@@ -841,8 +841,13 @@ namespace NoCodeMotion.ViewModels
                 if (ax == null) { _log?.Invoke($"找不到轴：{axisName}", LogLevel.Error); continue; }
                 var slot = item.Positions.Count > i ? item.Positions[i] : null;
                 if (slot == null) continue;
+                if (slot.Position == null)
+                {
+                    _log?.Invoke($"点位「{item.Name}」轴 {pt.AxisNames[i]} 未填位置，已跳过（不移动）。", LogLevel.Info);
+                    continue;
+                }
                 if (slot.Speed > 0) _bridge?.SetAxisSpeed(ax, slot.Speed);
-                _bridge?.MoveAxisAbs(ax, slot.Position);
+                _bridge?.MoveAxisAbs(ax, slot.Position.Value);
                 _bridge?.WaitAxisDone(ax);
             }
         }

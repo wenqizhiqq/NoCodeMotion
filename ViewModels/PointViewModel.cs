@@ -398,7 +398,7 @@ namespace NoCodeMotion.ViewModels
                         CsvCell(p.TimingMark)
                     };
                     for (int i = 0; i < PointTable.SlotCount; i++)
-                        cells.Add(p.Positions.Count > i ? p.Positions[i].Position.ToString(inv) : "0");
+                        cells.Add(p.Positions.Count > i ? (p.Positions[i].Position?.ToString(inv) ?? "不移动") : "不移动");
                     for (int i = 0; i < PointTable.SlotCount; i++)
                         cells.Add(p.Positions.Count > i ? p.Positions[i].Speed.ToString(inv) : "0");
                     cells.Add(CsvCell(p.SyncGroup));
@@ -558,7 +558,15 @@ namespace NoCodeMotion.ViewModels
                 "移动");
             if (dlg.ShowDialog() != true) return;
             for (int i = 0; i < AxisStates.Count && i < item.Positions.Count; i++)
-                AxisStates[i].CurrentPosition = item.Positions[i].Position;
+            {
+                var slot = item.Positions[i];
+                if (slot.Position == null)
+                {
+                    StatusBarService.ReportInfo($"点位「{item.Name}」轴 {i + 1} 未填位置，已跳过（不移动）。");
+                    continue;
+                }
+                AxisStates[i].CurrentPosition = slot.Position.Value;
+            }
         }
 
         /// <summary>保存：确认后把 4 个轴的当前位置写回该行点位的单元（触发自动保存落盘）。</summary>
@@ -692,7 +700,7 @@ namespace NoCodeMotion.ViewModels
             {
                 var a = new double[4];
                 for (int i = 0; i < 4; i++)
-                    a[i] = (i < p.Positions.Count) ? p.Positions[i].Position : 0;
+                    a[i] = (i < p.Positions.Count && p.Positions[i].Position != null) ? p.Positions[i].Position.Value : 0;
                 coords.Add(a);
                 if (a[0] < minX) minX = a[0]; if (a[0] > maxX) maxX = a[0];
                 if (a[1] < minY) minY = a[1]; if (a[1] > maxY) maxY = a[1];

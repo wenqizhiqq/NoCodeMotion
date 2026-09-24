@@ -997,8 +997,13 @@ namespace NoCodeMotion.ViewModels
                                 if (axis == null) continue;
                                 var slot = p.Positions.Count > i ? p.Positions[i] : null;
                                 if (slot == null) continue;
+                                if (slot.Position == null)
+                                {
+                                    bridge.Log($"点位「{p.Name}」轴 {an} 未填位置，已跳过（不移动）。");
+                                    continue;
+                                }
                                 if (slot.Speed > 0) bridge.SetAxisSpeed(axis, slot.Speed);
-                                bridge.MoveAxisAbs(axis, slot.Position);
+                                bridge.MoveAxisAbs(axis, slot.Position.Value);
                             }
                         }
                         break;

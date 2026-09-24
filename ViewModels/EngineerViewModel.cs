@@ -230,7 +230,15 @@ namespace NoCodeMotion.ViewModels
                 "移动");
             if (dlg.ShowDialog() != true) return;
             for (int i = 0; i < AxisStates.Count && i < item.Positions.Count; i++)
-                AxisStates[i].CurrentPosition = item.Positions[i].Position;
+            {
+                var slot = item.Positions[i];
+                if (slot.Position == null)
+                {
+                    StatusBarService.ReportInfo($"点位「{item.Name}」轴 {i + 1} 未填位置，已跳过（不移动）。");
+                    continue;
+                }
+                AxisStates[i].CurrentPosition = slot.Position.Value;
+            }
         }
 
         /// <summary>保存：确认后把 4 个轴的当前位置写回该行点位的单元（触发自动保存落盘）。</summary>

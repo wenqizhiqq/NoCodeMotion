@@ -820,10 +820,15 @@ namespace NoCodeMotion.ViewModels
                 if (axis == null) { Ui(() => AddLog(LogLevel.Warn, $"找不到轴：{axisName}")); continue; }
                 var slot = p.Positions.Count > i ? p.Positions[i] : null;
                 if (slot == null) continue;
+                if (slot.Position == null)
+                {
+                    Ui(() => { AddLog(LogLevel.Info, $"轴 {axisName} 未填位置，已跳过（不移动）。"); StatusBarService.ReportInfo($"点位「{p.Name}」轴 {axisName} 未填位置，已跳过（不移动）。"); });
+                    continue;
+                }
                 try
                 {
                     if (slot.Speed > 0) bridge.SetAxisSpeed(axis, slot.Speed);
-                    bridge.MoveAxisAbs(axis, slot.Position);
+                    bridge.MoveAxisAbs(axis, slot.Position.Value);
                     bridge.WaitAxisDone(axis);
                 }
                 catch (Exception ex) { Ui(() => AddLog(LogLevel.Error, $"轴 {axisName} 运动异常：{ex.Message}")); }
@@ -860,10 +865,15 @@ namespace NoCodeMotion.ViewModels
                 if (axis == null) { Ui(() => AddLog(LogLevel.Warn, $"找不到轴：{axisName}")); continue; }
                 var slot = p.Positions.Count > i ? p.Positions[i] : null;
                 if (slot == null) continue;
+                if (slot.Position == null)
+                {
+                    Ui(() => { AddLog(LogLevel.Info, $"轴 {axisName} 未填位置，已跳过（不移动）。"); StatusBarService.ReportInfo($"点位「{p.Name}」轴 {axisName} 未填位置，已跳过（不移动）。"); });
+                    continue;
+                }
                 try
                 {
                     if (slot.Speed > 0) bridge.SetAxisSpeed(axis, slot.Speed);
-                    bridge.MoveAxisAbs(axis, slot.Position);
+                    bridge.MoveAxisAbs(axis, slot.Position.Value);
                     bridge.WaitAxisDone(axis);
                 }
                 catch (Exception ex) { Ui(() => AddLog(LogLevel.Error, $"轴 {axisName} 运动异常：{ex.Message}")); }
@@ -983,9 +993,9 @@ namespace NoCodeMotion.ViewModels
             {
                 foreach (var p in tbl.Points)
                 {
-                    double x = p.Positions.Count > 0 ? p.Positions[0].Position : 0;
-                    double yUp = p.Positions.Count > 2 ? p.Positions[2].Position : 0;
-                    double z = p.Positions.Count > 1 ? p.Positions[1].Position : 0;
+                    double x = p.Positions.Count > 0 ? p.Positions[0].Position ?? 0 : 0;
+                    double yUp = p.Positions.Count > 2 ? p.Positions[2].Position ?? 0 : 0;
+                    double z = p.Positions.Count > 1 ? p.Positions[1].Position ?? 0 : 0;
                     col.Add(new Point3D(x, yUp, z));
                 }
             }
@@ -1010,9 +1020,9 @@ namespace NoCodeMotion.ViewModels
             var tbl = SelectedTable;
             if (tbl == null || idx < 0 || idx >= tbl.Points.Count) return;
             var p = tbl.Points[idx];
-            double x = p.Positions.Count > 0 ? p.Positions[0].Position : 0;
-            double yUp = p.Positions.Count > 2 ? p.Positions[2].Position : 0;
-            double z = p.Positions.Count > 1 ? p.Positions[1].Position : 0;
+            double x = p.Positions.Count > 0 ? p.Positions[0].Position ?? 0 : 0;
+            double yUp = p.Positions.Count > 2 ? p.Positions[2].Position ?? 0 : 0;
+            double z = p.Positions.Count > 1 ? p.Positions[1].Position ?? 0 : 0;
             OpSimHead = new Point3D(x, yUp, z);
             OpSimHeadVisible = true;
             OpSimIndex = idx;

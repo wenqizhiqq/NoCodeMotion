@@ -9,10 +9,12 @@ namespace NoCodeMotion.Models
     /// <summary>点位中单个轴槽的目标值：位置 + 速度。轴名由页面级“4 轴选择”按槽位决定。</summary>
     public class PointAxis : INotifyPropertyChanged
     {
-        private double _position;
+        private double? _position;
         private double _speed;
 
-        public double Position
+        /// <summary>目标位置。null 表示「不移动」：移动该点位时跳过本轴，且序列化为空单元格。
+        /// 空轴槽（新建点位未填）默认即为 null，因此「不填 = 不移动」。</summary>
+        public double? Position
         {
             get => _position;
             set => SetField(ref _position, value);

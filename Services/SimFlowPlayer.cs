@@ -491,7 +491,9 @@ namespace NoCodeMotion.Services
             {
                 string ax = pt.AxisNames[i];
                 if (string.IsNullOrWhiteSpace(ax)) continue;
-                double pos = item.Positions[i]?.Position ?? 0;
+                var posVal = item.Positions[i]?.Position;
+                if (posVal == null) continue;
+                double pos = posVal.Value;
                 double sp = item.Positions[i]?.Speed ?? 0;
                 double curPos = AxisRuntimeState.Get(ax);
                 double dist = Math.Abs(pos - curPos);

@@ -479,7 +479,7 @@ public sealed class NgRunner
                 if (pt == null) throw new InvalidOperationException($"未找到点位：{GetProp(node, "点位", "")}");
                 // 简化：把点位第 1 轴槽位置走 X 轴（点位表 4 槽位，多轴完整联动留待扩展）
                 var ax = _findAxis("X");
-                if (ax != null && pt.Positions.Count > 0) { _bridge.MoveAxisAbs(ax, pt.Positions[0].Position); _bridge.WaitAxisDone(ax); }
+                if (ax != null && pt.Positions.Count > 0) { var _pos = pt.Positions[0].Position; if (_pos != null) { _bridge.MoveAxisAbs(ax, _pos.Value); _bridge.WaitAxisDone(ax); } }
                 break;
             }
 
