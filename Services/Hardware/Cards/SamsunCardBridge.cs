@@ -487,6 +487,14 @@ namespace NoCodeMotion.Services.Hardware.Cards
             var hpm = BuildHomeParam(axis, slot.CardNo);
             int res = -1;
 
+            if (IsSimulation(slot))
+            {
+                // 模拟卡的回零是它自己的后台循环：从当前位置按「速度缓冲 ÷1000 每毫秒」递减到原点
+                // （spacing[原点] = 0）。速度缓冲没被写过就会「一步都不减」，于是 isRun 永久为真、
+                // 状态一直显示「运动中」—— 所以回零前也要把曲线写进仿真器（用回零速度）。
+                EnsureSimReady(slot, a, axis, BuildSimParam(axis, slot.CardNo, 0, 1, axis.HomeSpeed));
+            }
+
             // 总线卡与脉冲卡的回零参数下发函数不同：
             //   总线卡（EtherCAT）：SetCardAxisHomeProfile → nmc_set_home_profile
             //   脉冲卡：            SetCardAxisHomeMode    → dmc_set_home_profile_unit
@@ -739,13 +747,34 @@ namespace NoCodeMotion.Services.Hardware.Cards
         {
             if (IsSimulation(slot))
             {
-                var mpm = BuildSimParam(axis, slot.CardNo, target, posiMode, speed);
+                // 1 = 绝对：模拟卡只认绝对目标（见 SimAbsoluteTarget 的说明）。
+                var mpm = BuildSimParam(axis, slot.CardNo, SimAbsoluteTarget(a, axis, target, posiMode), 1, speed);
                 EnsureSimReady(slot, a, axis, mpm);
                 return a.CardAxisPointMovement(mpm);
             }
 
             a.SetCardAxisMotionalVel(BuildMotionParam(axis, slot.CardNo, 0, 1, speed));
             return a.CardAxisPointMovement(BuildMotionParam(axis, slot.CardNo, target, posiMode, speed));
+        }
+
+        /// <summary>
+        /// 把运动目标换算成模拟卡能用的「绝对目标」。
+        /// ★ 模拟卡**没有相对坐标的概念**：它的 <c>CardAxisPMove</c> 完全忽略 posi_mode，
+        ///   直接把入参**赋值**给位置计数器（等价于永远按绝对坐标处理）。
+        ///   所以相对移动（posiMode = 0）必须自己读回当前位置再算绝对目标 ——
+        ///   否则「点动 +1」只是把轴送到 1，再点几次还是停在 1（用户实测：点动看起来像绝对定位）。
+        /// 真实卡族不受影响：<c>CardAxisPointMovement</c> 会把 posi_mode 原样传给 SDK
+        /// （如 MCN420 的 <c>DmcCardAxisPMoveUnit(card, axis, Dist, posi_mode)</c>），相对/绝对都正确。
+        /// </summary>
+        private static double SimAbsoluteTarget(IAxis a, AxisItem axis, double target, int posiMode)
+        {
+            if (posiMode != 0) return target;                       // 本来就是绝对目标
+
+            double curCounts = 0;
+            try { curCounts = a.GetCardAxisCurrentPosition(0); }    // 0 = 指令位置（脉冲）
+            catch { /* 读不到就按 0 起算（退化成绝对，至少不报错） */ }
+
+            return curCounts / EquivOf(axis) + target;              // 换回「单位」空间，再由 BuildSimParam 统一 ×当量
         }
 
         /// <summary>
@@ -768,10 +797,9 @@ namespace NoCodeMotion.Services.Hardware.Cards
             {
                 if (sim)
                 {
-                    // 模拟卡：宽行程 + 速度曲线都在 EnsureSimReady 里，距离按脉冲下发
-                    var mpm = BuildSimParam(axis, cardNo, distance, 0, v);
-                    EnsureSimReady(slot, a, axis, mpm);
-                    int rs = a.CardAxisPointMovement(mpm);
+                    // 模拟卡：走 SendPointMove —— 它会把「相对距离」按当前位置换算成绝对目标
+                    // （模拟卡忽略 posi_mode）；宽行程 + 速度曲线由 EnsureSimReady 负责。
+                    int rs = SendPointMove(slot, a, axis, distance, 0, v);
                     if (rs != 0) return $"点动下发失败（卡返回 {rs}）";
                 }
                 else

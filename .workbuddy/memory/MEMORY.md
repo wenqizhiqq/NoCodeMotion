@@ -50,11 +50,13 @@
 
 ## 模拟卡（虚拟运动卡 / DigitalTwinCard）适配（2026-09-24）
 - 判定：`CardFamilyDescriptor.IsSimulation`（`Vendor=="模拟卡" || BusKind=="虚拟" || Key 含 Virtual/DigitalTwin`）。这两族是**进程内仿真**、不依赖任何原生 dll，是「手上没硬件时自测整条链路」的正途。
-- ★★ 模拟卡与真实卡的**四条语义差异**（不处理就会看成「指令成功但轴不动」「状态全是 —」）：
+- ★★ 模拟卡与真实卡的**六条语义差异**（不处理就会看成「指令成功但轴不动」「状态全是 —」「点动像绝对定位」）：
   1. **行程范围 spacing 默认全 0**：仿真器的点位/连续运动把**任何**非 0 目标夹回 0 并置正/负限位 → 每轴首次运动前必须 `SetSpacing(轴, 0, ±1e8)`。**「正负限位同时为 1 的状态字大数字（如 4102 = 4096|2|4）不是错误码，是轴状态字」**。
   2. **设速只认 `SetCardAxisTProfile`**（→ `SetCardAxisProfile` 写仿真器参数缓冲）；`SetCardAxisMotionalVel` / `SetCardVectorProfileMulticoor` 在模拟卡里是**空实现**（返回 0 不做任何事）。
   3. **连续运动按「每 1ms 前进 `(int)(pps/1000)` 个脉冲」整数步进**：pps < 1000 ⇒ 每拍 +0，但 `isRun` 照置 ⇒ **状态显示「运动中」而位置一动不动**。速度须换算成 pps（×脉冲当量）并给 1000pps 下限；`MinVel = MaxVel` 走恒速分支最可预期。
   4. **没有无参 `GetAxisCurrentState()`**（状态字）：要用 `GetCardAxisAlarmState`（模拟卡的该方法内部就是 `GetCardAxisIOStatus`）；**`OpenCardAxisEnable` 未实现（恒 -1）**，使能走 `CardAxisWriteSevonPin(1)`、读 `GetCardAxisSevonPin()`。
+  5. **没有「相对坐标」**：`CardAxisPMove` **完全忽略 `posi_mode`**，直接 `目标位置 = Dist`（赋值 ⇒ 永远绝对）⇒ 相对点动必须 `SimAbsoluteTarget()` 自己读当前位置再算绝对目标，否则「点动 +1」永远把轴送到 1（用户原话：「点动为什么是绝对位置的」）。真实卡族（MCN420 = `DmcCardAxisPMoveUnit(..., PosiMode)`）不受影响。
+  6. **回零靠速度缓冲递减**：`CardAxisHomeMove` 是仿真器自己的后台循环 `目标位置 -= (int)(速度缓冲[1]/1000)`/ms，缓冲为 0 就「一步不减」⇒ `isRun` 永久 true、**状态一直「运动中」**；所以回零前也要 `EnsureSimReady`（用 `axis.HomeSpeed`）。`SetCardAxisHomeProfile` 返回 -1 / `SetCardAxisHomeMode` 空实现 / `CardAxisGetHomeResult` 恒 `status=1`。
 - 位置/距离按脉冲下发、读回 ÷脉冲当量（模拟卡没有卡内脉冲当量换算层）；脉冲当量未填时 `EquivOf` 按 1:1。桥内收口：`IsSimulation / EquivOf / BuildSimParam / EnsureSimReady / SendPointMove`。
 - `AxisRawRead.ServoOn`（`bool?`）优先于状态字 bit8 判「使能」；**有状态字时 `AlarmCode` 置 0**（bit0 才是权威），`AlarmCodeText` 显示「—（见状态字 bit0）」，避免把状态字当错误码误导排查。
 
