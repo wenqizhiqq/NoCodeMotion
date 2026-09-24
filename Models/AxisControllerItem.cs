@@ -49,6 +49,20 @@ namespace NoCodeMotion.Models
         private int _outIoCount;
         public int OutIoCount { get => _outIoCount; set => SetField(ref _outIoCount, value); }
 
+        // ============ 连接后从底层硬件真实检测到的数量（仅显示，0 = 尚未连接 / 卡未上报） ============
+
+        /// <summary>连接后由底层硬件真实读到的轴数量（<see cref="SamsunCardBridge.TryGetRealCounts"/>）。</summary>
+        private int _detectedAxisCount;
+        public int DetectedAxisCount { get => _detectedAxisCount; set => SetField(ref _detectedAxisCount, value); }
+
+        /// <summary>连接后由底层硬件真实读到的输入 IO 数量（主板）。</summary>
+        private int _detectedInIo;
+        public int DetectedInIo { get => _detectedInIo; set => SetField(ref _detectedInIo, value); }
+
+        /// <summary>连接后由底层硬件真实读到的输出 IO 数量（主板）。</summary>
+        private int _detectedOutIo;
+        public int DetectedOutIo { get => _detectedOutIo; set => SetField(ref _detectedOutIo, value); }
+
         /// <summary>
         /// 挂在控制卡下的扩展 IO 模块集合（CAN / EtherCAT 模块）。
         /// <para>作为子集合随控制卡一起落盘（xlsx 子表「控制器.扩展模块」），无需手工序列化。</para>

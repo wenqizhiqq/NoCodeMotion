@@ -1,6 +1,7 @@
 ﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ◆温‏启​志⁠◆⁠编⁣写⁣◇‎微⁠信⁠﹕⁠1‍8⁠7⁠◆⁣1‌9⁣3‎6‍◇‎1‍3‍9‏9⁣　‏※‎保‍留‎所⁠有⁠权‎利‍请‏勿‎删⁣除⁣◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -129,6 +130,49 @@ namespace NoCodeMotion.ViewModels
             // 启动时把当前数据快照一下，让"回撤"可以撤销到首次加载
             InputPanel.Snapshot();
             OutputPanel.Snapshot();
+
+            AxisControllerViewModel.DetectedCountsChanged += OnDetectedCountsChanged;
+        }
+
+        /// <summary>已连接控制卡从底层硬件真实检测到的输入 IO 数量之和（连接后自动获取，显示在 IO 页面顶部）。</summary>
+        public int DetectedInIo
+        {
+            get
+            {
+                int sum = 0;
+                var ctls = ProjectStore.Data?.Controllers;
+                if (ctls == null) return 0;
+                foreach (var c in ctls)
+                    if (IsControllerReadyNow(c.Name)) sum += c.DetectedInIo;
+                return sum;
+            }
+        }
+
+        /// <summary>已连接控制卡从底层硬件真实检测到的输出 IO 数量之和（连接后自动获取，显示在 IO 页面顶部）。</summary>
+        public int DetectedOutIo
+        {
+            get
+            {
+                int sum = 0;
+                var ctls = ProjectStore.Data?.Controllers;
+                if (ctls == null) return 0;
+                foreach (var c in ctls)
+                    if (IsControllerReadyNow(c.Name)) sum += c.DetectedOutIo;
+                return sum;
+            }
+        }
+
+        private static bool IsControllerReadyNow(string name)
+        {
+            if (HardwareSetup.Mode == HardwareMode.Leadshine) return HardwareSetup.IsCardReady;
+            var b = HardwareBridge.Current as SamsunCardBridge;
+            return b != null && b.IsControllerReady(name);
+        }
+
+        private void OnDetectedCountsChanged(object? sender, EventArgs e)
+        {
+            OnPropertyChanged(nameof(DetectedInIo));
+            OnPropertyChanged(nameof(DetectedOutIo));
         }
 
         public void EnsureDefaultSelection()

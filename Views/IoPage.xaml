@@ -116,12 +116,27 @@
             <ColumnDefinition Width="1.2*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- 连接后真实检测到的 IO 数量（来自底层硬件） -->
+        <Border Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8" Padding="10,8" Background="{StaticResource AccentSoftBrush}" CornerRadius="8">
+            <DockPanel>
+                <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap">
+                    <Run Text="已连接控制卡真实检测到的 IO 数量：输入 "/>
+                    <Run Text="{Binding DetectedInIo}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                    <Run Text=" / 输出 "/>
+                    <Run Text="{Binding DetectedOutIo}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                    <Run Text="（连接后自动获取，来自底层硬件；0 表示尚未连接或卡未上报）"/>
+                </TextBlock>
+            </DockPanel>
+        </Border>
+
         <!-- ============== 输入 IO 面板 ============== -->
-        <DockPanel Grid.Column="0" Grid.Row="0" Margin="0,0,4,0">
+        <DockPanel Grid.Column="0" Grid.Row="1" Margin="0,0,4,0">
             <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                 <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                 <TextBlock Text="输入IO" Style="{StaticResource SectionHeaderText}"/>
@@ -211,7 +226,7 @@
         </DockPanel>
 
         <!-- ============== 输出 IO 面板 ============== -->
-        <DockPanel Grid.Column="1" Grid.Row="0" Margin="4,0,0,0">
+        <DockPanel Grid.Column="1" Grid.Row="1" Margin="4,0,0,0">
             <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                 <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                 <TextBlock Text="输出IO" Style="{StaticResource SectionHeaderText}"/>
@@ -323,6 +338,6 @@
                 </DataGrid>
             </Border>
         </DockPanel>
-        <local:PageHintBar Grid.Row="1" Grid.ColumnSpan="2" OperationText="选择 IO 点后设置名称、方向、电平、对应轴或气缸；「添加 / 删除」管理点位；输出点可在列表行内直接点「开 / 关」手动触发。" PrecautionText="接线前确认负载避免短路；输入滤波时间影响响应，误触发时适当加大；输出点勿带大功率直接驱动。"/>
+        <local:PageHintBar Grid.Row="2" Grid.ColumnSpan="2" OperationText="选择 IO 点后设置名称、方向、电平、对应轴或气缸；「添加 / 删除」管理点位；输出点可在列表行内直接点「开 / 关」手动触发。" PrecautionText="接线前确认负载避免短路；输入滤波时间影响响应，误触发时适当加大；输出点勿带大功率直接驱动。"/>
     </Grid>
 </UserControl>

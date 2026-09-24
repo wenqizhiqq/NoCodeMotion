@@ -287,6 +287,32 @@
                                    Text="输入 / 输出 IO 总数 = 主板 IO + Σ(模块数量 × 单模块 IO)；轴总数 = 卡自身轴数 + Σ(模块数量 × 单模块附加轴数)。"/>
                     </StackPanel>
                 </Border>
+                <!-- ============ 连接后真实检测（来自底层硬件） ============ -->
+                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource AppleSectionHeader}" Text="连接后真实检测（来自底层硬件）"/>
+                        <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
+                                   Text="点「连接」后从控制卡真实读到的轴数与 IO 数（覆盖上面的配置汇总；0 表示尚未连接或卡未上报）。"/>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="真实轴数"/>
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource SuccessBrush}" Text="{Binding DetectedAxisCount}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="真实输入IO"/>
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource SuccessBrush}" Text="{Binding DetectedInIo}"/>
+                        </DockPanel>
+                        <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <DockPanel Style="{StaticResource AppleRow}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="真实输出IO"/>
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource SuccessBrush}" Text="{Binding DetectedOutIo}"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
             </WrapPanel>
             </StackPanel>
         </local:EditorPage.Detail>

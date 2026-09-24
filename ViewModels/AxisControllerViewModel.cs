@@ -139,6 +139,21 @@ namespace NoCodeMotion.ViewModels
         public IReadOnlyList<string> ConnectionStatusLines
             => HardwareSetup.CardFamilies?.ControllerStatus() ?? Array.Empty<string>();
 
+        /// <summary>当前选中控制卡连接后从底层真实检测到的轴数量（供控制器页显示）。</summary>
+        public int DetectedAxisCount => SelectedItem?.DetectedAxisCount ?? 0;
+
+        /// <summary>当前选中控制卡连接后从底层真实检测到的输入 IO 数量。</summary>
+        public int DetectedInIo => SelectedItem?.DetectedInIo ?? 0;
+
+        /// <summary>当前选中控制卡连接后从底层真实检测到的输出 IO 数量。</summary>
+        public int DetectedOutIo => SelectedItem?.DetectedOutIo ?? 0;
+
+        /// <summary>连接后真实检测到轴 / IO 数量变化时触发，供轴页 / IO 页刷新显示。</summary>
+        public static event EventHandler DetectedCountsChanged;
+
+        /// <summary>通知轴页 / IO 页刷新真实数量显示。</summary>
+        private static void RaiseDetected() => DetectedCountsChanged?.Invoke(null, EventArgs.Empty);
+
         private string _connectMessage = string.Empty;
         /// <summary>连接 / 获取 的结果说明（显示在扩展IO卡片下）。</summary>
         public string ConnectMessage { get => _connectMessage; set => SetField(ref _connectMessage, value); }
@@ -195,11 +210,20 @@ namespace NoCodeMotion.ViewModels
             }
 
             var fam = SamsunCardBridge.ResolveFamily(ctl);
+
+            // ★ 连接后从底层硬件真实读取轴数 / IO 数，回退到配置值；真实值 > 0 时回写配置让汇总 / IO 生成一致
+            FetchDetectedCounts(ctl);
+
             RaiseConnection();
             RaiseStatusLines();
+            RaiseTotals();
+            RaiseDetected();   // 通知轴页 / IO 页刷新真实数量
             string ioMsg = GenerateIoPoints(ctl);   // 连接后按「主板 + 扩展模块」的 IO 数自动生成 IO 点
             ConnectMessage = (ok ? "● 已连接：" : "○ 未连接：") + ctl.Name + " —— " + msg
                 + (fam == null ? "。★卡型号未匹配到已移植卡族，轴 / IO 不会真实下发。" : string.Empty)
+                + (ctl.DetectedAxisCount > 0
+                    ? $" 真实检测：轴 {ctl.DetectedAxisCount} / 输入 {ctl.DetectedInIo} / 输出 {ctl.DetectedOutIo}。"
+                    : string.Empty)
                 + " " + ioMsg;
             HardwareLog.Write("[控制器] " + ConnectMessage);
         }
@@ -280,6 +304,29 @@ namespace NoCodeMotion.ViewModels
         /// <summary>通知界面刷新底层连接总览（来自 SamsunCardBridge.ControllerStatus）。</summary>
         private void RaiseStatusLines() => OnPropertyChanged(nameof(ConnectionStatusLines));
 
+        /// <summary>
+        /// 连接成功后从底层真实读取轴 / IO 数量：卡族层走 <see cref="SamsunCardBridge.TryGetRealCounts"/>，
+        /// 雷赛层走 <see cref="LtdmcCard"/> 上报的轴数；硬件未返回有效值时保留用户配置。
+        /// 真实值 &gt; 0 时回写配置（AxisCount / InIoCount / OutIoCount），使「数量汇总」与自动生成的 IO 点与硬件一致。
+        /// </summary>
+        private static void FetchDetectedCounts(AxisControllerItem ctl)
+        {
+            int axis = 0, inIo = 0, outIo = 0;
+            if (HardwareSetup.Mode == HardwareMode.CardFamilies && HardwareSetup.CardFamilies != null)
+                HardwareSetup.CardFamilies.TryGetRealCounts(ctl.Name, out axis, out inIo, out outIo);
+            else if (HardwareSetup.Mode == HardwareMode.Leadshine)
+            {
+                var info = LtdmcCard.FirstCard;
+                axis = info == null ? 0 : (int)(info.IsBusCard ? info.BusAxes : info.LocalAxes);
+            }
+            ctl.DetectedAxisCount = axis;
+            ctl.DetectedInIo = inIo;
+            ctl.DetectedOutIo = outIo;
+            if (axis > 0) ctl.AxisCount = axis;
+            if (inIo > 0) ctl.InIoCount = inIo;
+            if (outIo > 0) ctl.OutIoCount = outIo;
+        }
+
         // ============ 汇总：输入 / 输出 IO 总数、轴总数 ============
 
         /// <summary>输入 IO 总数 = 主板输入 + Σ(扩展模块数量 × 单模块输入)。</summary>
@@ -323,6 +370,9 @@ namespace NoCodeMotion.ViewModels
             RaiseTotals();
             RaiseConnection();   // 切换选中卡时同步在线/离线显示
             OnPropertyChanged(nameof(CardTypeOptions));   // 切换选中卡时刷新卡型号候选
+            OnPropertyChanged(nameof(DetectedAxisCount));   // 切换选中卡时刷新真实检测数量显示
+            OnPropertyChanged(nameof(DetectedInIo));
+            OnPropertyChanged(nameof(DetectedOutIo));
         }
 
         private void OnTrackedCardChanged(object? sender, PropertyChangedEventArgs e)

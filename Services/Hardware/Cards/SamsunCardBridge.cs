@@ -580,6 +580,36 @@ namespace NoCodeMotion.Services.Hardware.Cards
         }
 
         /// <summary>
+        /// 连接后从底层硬件真实读取该控制器的轴数量与主板 IO 数量。
+        /// <para>轴数走 <see cref="ICard.GetCardTotalAxisNum"/>；IO 数取自卡族实现维护的
+        /// <see cref="IIOInPut.InIONums"/> / <see cref="IIOOutPut.OutIONums"/>（硬件卡实际拥有的 IO 数）。</para>
+        /// <para>该控制器未就绪 / 底层未返回有效值时，三个 out 参数均为 0，调用方应回退到配置值。</para>
+        /// </summary>
+        public bool TryGetRealCounts(string controllerName, out int axisCount, out int inIo, out int outIo)
+        {
+            axisCount = 0; inIo = 0; outIo = 0;
+            CardSlot slot;
+            lock (_gate)
+            {
+                if (!_slots.TryGetValue(controllerName ?? string.Empty, out slot) || slot == null) return false;
+            }
+            if (!slot.Ready || slot.Runtime == null) return false;
+
+            try
+            {
+                uint total = 0;
+                int r = -1;
+                if (slot.Runtime.Card != null) r = slot.Runtime.Card.GetCardTotalAxisNum(slot.CardNo, ref total);
+                if (r == 0 && total > 0) axisCount = (int)total;
+            }
+            catch (Exception ex) { Log($"[卡族] 读取轴总数失败：{ex.Message}"); }
+
+            try { if (slot.Runtime.InIo != null) inIo = slot.Runtime.InIo.InIONums; } catch { /* 部分卡族未维护该字段 */ }
+            try { if (slot.Runtime.OutIo != null) outIo = slot.Runtime.OutIo.OutIONums; } catch { /* 部分卡族未维护该字段 */ }
+            return true;
+        }
+
+        /// <summary>
         /// 立即「连接」某个控制器（供「控制器」页的连接按钮调用）：匹配卡族 → 创建实现 →
         /// InitCard / OpenCard，并把结果写入该控制器的状态。<para>返回是否就绪；<paramref name="status"/> 为中文状态说明。</para>
         /// <para>与 <see cref="SlotOf"/> 的懒加载共用同一份 slot 状态，连接后轴 / IO 动作会直接复用，不会重复初始化。</para>
