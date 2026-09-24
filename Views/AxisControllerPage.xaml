@@ -47,11 +47,10 @@
                         <TextBlock Text="{Binding DetectMessage}" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                     </DockPanel>
                 </Border>
-                <WrapPanel Orientation="Horizontal" Margin="14" ItemWidth="372"
-                       Background="{StaticResource CanvasBrush}">
+                <StackPanel Margin="14">
 
                 <!-- ============ 基本信息 ============ -->
-                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,0,10">
                     <StackPanel>
                         <TextBlock Style="{StaticResource AppleSectionHeader}" Text="基本信息"/>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
@@ -115,12 +114,28 @@
                 </Border>
 
                 <!-- ============ 扩展 IO 模块（挂在控制卡内）+ 连接 ============ -->
-                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,0,10">
                     <StackPanel>
                         <TextBlock Style="{StaticResource AppleSectionHeader}" Text="扩展 IO 模块"/>
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
                                    Text="先填控制卡主板自带的 IO 数，再逐个添加 CAN / EtherCAT 扩展模块（选型号自动带出 IO / 轴数）；输入 / 输出 / 轴数量自动汇总到「数量汇总」。"/>
+                        <!-- 未选卡型号时的提示（流程：选卡型号 → 选扩展IO → 再连接） -->
+                        <TextBlock Margin="16,0,16,6" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource WarningBrush}"
+                                   Text="请先在上方「基本信息」选择「卡型号」，再配置扩展 IO（主板 IO 数 / 挂接模块）。">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CanConfigureExpansion}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
+                        <!-- 未选卡型号时禁用整块扩展 IO 配置 -->
+                        <StackPanel IsEnabled="{Binding CanConfigureExpansion}">
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="主板输入IO数"/>
                             <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.InIoCount, UpdateSourceTrigger=PropertyChanged}"/>
@@ -187,6 +202,7 @@
                                       ItemsSource="{Binding ExpansionModuleOptions}"
                                       SelectedItem="{Binding SelectedModuleType, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
+                        </StackPanel>
 
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <!-- 连接 / 获取 + 在线离线状态（真实来自底层 WenQiZhiCardBridge） -->
@@ -217,7 +233,7 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Style="{StaticResource TtPillGreenBtn}" Content="连接控制器" Margin="0,0,4,0" ToolTip="获取卡参数并连接该控制卡（后台连接，弹窗显示进度）" Command="{Binding ConnectControllerCommand}"/>
+                                <Button Style="{StaticResource TtPillGreenBtn}" Content="连接控制器" Margin="0,0,4,0" IsEnabled="{Binding CanConnect}" ToolTip="获取卡参数并连接该控制卡（后台连接，弹窗显示进度）" Command="{Binding ConnectControllerCommand}"/>
                                 <Button Style="{StaticResource TtPillGrayBtn}" Content="断开" ToolTip="关闭该控制卡连接" Command="{Binding DisconnectCommand}"/>
                             </StackPanel>
                         </DockPanel>
@@ -233,7 +249,7 @@
                 </Border>
 
                 <!-- ============ 底层连接总览（真实状态，来自 WenQiZhiCardBridge.ControllerStatus） ============ -->
-                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,0,10">
                     <StackPanel>
                         <TextBlock Style="{StaticResource AppleSectionHeader}" Text="底层连接总览（真实状态）"/>
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
@@ -269,7 +285,7 @@
                 </Border>
 
                 <!-- ============ 数量汇总（自动生成） ============ -->
-                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,0,10">
                     <StackPanel>
                         <TextBlock Style="{StaticResource AppleSectionHeader}" Text="数量汇总（自动生成）"/>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
@@ -295,7 +311,7 @@
                     </StackPanel>
                 </Border>
                 <!-- ============ 连接后真实检测（来自底层硬件） ============ -->
-                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
+                <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,0,10">
                     <StackPanel>
                         <TextBlock Style="{StaticResource AppleSectionHeader}" Text="连接后真实检测（来自底层硬件）"/>
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
@@ -320,7 +336,7 @@
                         </DockPanel>
                     </StackPanel>
                 </Border>
-            </WrapPanel>
+            </StackPanel>
             </StackPanel>
         </local:EditorPage.Detail>
     </local:EditorPage>

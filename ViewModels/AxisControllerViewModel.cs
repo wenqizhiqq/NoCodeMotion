@@ -141,6 +141,16 @@ namespace NoCodeMotion.ViewModels
         /// <summary>在线 / 离线文字（给状态药丸用）。</summary>
         public string ConnectionText => IsOnline ? "在线" : "离线";
 
+        // ===== 流程门控：选卡型号 → 选扩展 IO → 再连接 =====
+        /// <summary>是否已选择卡型号。未选型号时不允许配置扩展 IO / 连接。</summary>
+        public bool HasCardType => !string.IsNullOrWhiteSpace(SelectedItem?.CardType);
+
+        /// <summary>只有选了卡型号后才允许配置「扩展 IO 模块」（主板 IO 数 / 挂接模块）。</summary>
+        public bool CanConfigureExpansion => HasCardType;
+
+        /// <summary>只有选了卡型号后才允许点「连接控制器」。</summary>
+        public bool CanConnect => HasCardType;
+
         /// <summary>所有已初始化控制器的底层真实状态（来自 WenQiZhiCardBridge.ControllerStatus）。</summary>
         public IReadOnlyList<string> ConnectionStatusLines
             => HardwareSetup.CardFamilies?.ControllerStatus() ?? Array.Empty<string>();
@@ -236,6 +246,7 @@ namespace NoCodeMotion.ViewModels
             var ctl = SelectedItem;
             if (ctl == null) return;
             if (IsConnecting) return;   // 防止重复点击
+            var ctrls = Items.ToList();   // UI 线程快照，供后台统计在线数（避免在 UI 线程读硬件）
 
             var dispatcher = System.Windows.Application.Current.Dispatcher;
             IsConnecting = true;
@@ -265,6 +276,20 @@ namespace NoCodeMotion.ViewModels
                 }
                 catch (System.Exception ex) { runError = ex; }
 
+                // ★ 真实轴 / IO 数量、在线数都在**后台线程**读取（TryGetRealCounts / ControllerReady 是硬件查询）。
+                //   放到 UI 线程会让「连接」期间页面卡住、点不动——这里全部留在后台，UI 线程只做赋值与通知。
+                int da = 0, di = 0, doo = 0, onlineNow = 0;
+                if (runError == null)
+                {
+                    dispatcher.Invoke(() => ConnectStatusText = "正在读取真实轴 / IO 数量...");
+                    try
+                    {
+                        ReadRealCounts(ctl, out da, out di, out doo);
+                        foreach (var c in ctrls) if (IsControllerReady(c)) onlineNow++;
+                    }
+                    catch { /* 读不到就回退到配置值 */ }
+                }
+
                 // 数据生成 / 状态刷新会触碰 UI 绑定的集合与属性，统一回到 UI 线程执行
                 dispatcher.Invoke(() =>
                 {
@@ -280,9 +305,8 @@ namespace NoCodeMotion.ViewModels
 
                         var fam = WenQiZhiCardBridge.ResolveFamily(ctl);
 
-                        // ★ 连接后从底层硬件真实读取轴数 / IO 数，回退到配置值；真实值 > 0 时回写配置让汇总 / IO 生成一致
-                        ConnectStatusText = "正在读取真实轴 / IO 数量...";
-                        FetchDetectedCounts(ctl);
+                        // 把后台读到的真实数量写回模型（真实值 > 0 时回写配置让汇总 / IO 生成一致）
+                        ApplyRealCounts(ctl, da, di, doo);
 
                         // 本 VM 自己的「真实检测」代理属性也要刷新（静态事件只通知轴页 / IO 页）
                         OnPropertyChanged(nameof(DetectedAxisCount));
@@ -304,7 +328,7 @@ namespace NoCodeMotion.ViewModels
                                 : string.Empty)
                             + " " + axisMsg + " " + ioMsg;
                         HardwareLog.Write("[控制器] " + ConnectMessage);
-                        UpdateStatusBar();
+                        StatusBarService.SetControllerStatus(onlineNow, ctrls.Count);   // 用后台统计的在线数，不再在 UI 线程读硬件
                     }
                     catch (System.Exception ex)
                     {
@@ -427,13 +451,30 @@ namespace NoCodeMotion.ViewModels
         {
             var ctl = SelectedItem;
             if (ctl == null) return;
+            if (IsConnecting) return;
 
-            try { HardwareSetup.CardFamilies?.Disconnect(ctl); } catch { /* 断开失败也置离线 */ }
-            RaiseConnection();
-            RaiseStatusLines();
-            UpdateStatusBar();
-            ConnectMessage = $"○ 已断开「{ctl.Name}」。";
-            HardwareLog.Write("[控制器] " + ConnectMessage);
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher == null) return;
+            var ctrls = Items.ToList();
+
+            // ★ 断开（CloseCard）也是硬件操作：放后台线程，UI 线程只做状态刷新与通知，避免点「断开」时界面卡住。
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try { HardwareSetup.CardFamilies?.Disconnect(ctl); } catch { /* 断开失败也置离线 */ }
+
+                int online = 0;
+                foreach (var c in ctrls) if (IsControllerReady(c)) online++;
+                int onlineCount = online, totalCount = ctrls.Count;
+
+                dispatcher.Invoke(() =>
+                {
+                    RaiseConnection();
+                    RaiseStatusLines();
+                    StatusBarService.SetControllerStatus(onlineCount, totalCount);
+                    ConnectMessage = $"○ 已断开「{ctl.Name}」。";
+                    HardwareLog.Write("[控制器] " + ConnectMessage);
+                });
+            });
         }
 
         /// <summary>后台自动连接工程里的所有控制卡（打开软件 / 切换工程时调用），刷新状态栏在线指示；不阻塞 UI。</summary>
@@ -462,19 +503,29 @@ namespace NoCodeMotion.ViewModels
                     {
                         HardwareSetup.Reconnect();
                     }
+                    // ★ 真实数量 / 在线数一律在**后台线程**读取：TryGetRealCounts 是硬件查询，
+                    //   放到 UI 线程会让「载入工程 → 自动连接」期间页面卡住、点不动。
+                    var snap = new List<(AxisControllerItem ctl, int axis, int inIo, int outIo)>();
+                    foreach (var c in controllers)
+                    {
+                        ReadRealCounts(c, out int axis, out int inIo, out int outIo);
+                        snap.Add((c, axis, inIo, outIo));
+                    }
+                    int online = 0;
+                    foreach (var c in controllers) if (IsControllerReady(c)) online++;
+                    int onlineCount = online, totalCount = controllers.Count;
+
                     dispatcher.Invoke(() =>
                     {
-                        foreach (var c in controllers) FetchDetectedCounts(c);
+                        foreach (var s in snap) ApplyRealCounts(s.ctl, s.axis, s.inIo, s.outIo);
                         RaiseConnection();
                         RaiseStatusLines();
                         RaiseTotals();
                         RaiseDetected();
-                        UpdateStatusBar();
+                        StatusBarService.SetControllerStatus(onlineCount, totalCount);   // 纯 UI 更新，不再读硬件
                         ConnectStatusText = "连接完成";
-                        int online = 0;
-                        foreach (var c in controllers) if (IsControllerReady(c)) online++;
-                        ConnectMessage = $"已自动连接控制卡：{online}/{controllers.Count} 在线。";
-                        StatusBarService.ReportInfo($"已自动连接控制卡：{online}/{controllers.Count} 在线。");
+                        ConnectMessage = $"已自动连接控制卡：{onlineCount}/{totalCount} 在线。";
+                        StatusBarService.ReportInfo($"已自动连接控制卡：{onlineCount}/{totalCount} 在线。");
                         HardwareLog.Write("[控制器] " + ConnectMessage);
                     });
                 }
@@ -516,14 +567,13 @@ namespace NoCodeMotion.ViewModels
         /// <summary>通知界面刷新底层连接总览（来自 WenQiZhiCardBridge.ControllerStatus）。</summary>
         private void RaiseStatusLines() => OnPropertyChanged(nameof(ConnectionStatusLines));
 
-        /// <summary>
-        /// 连接成功后从底层真实读取轴 / IO 数量：卡族层走 <see cref="WenQiZhiCardBridge.TryGetRealCounts"/>，
-        /// 雷赛层走 <see cref="LtdmcCard"/> 上报的轴数；硬件未返回有效值时保留用户配置。
-        /// 真实值 &gt; 0 时回写配置（AxisCount / InIoCount / OutIoCount），使「数量汇总」与自动生成的 IO 点与硬件一致。
-        /// </summary>
-        private static void FetchDetectedCounts(AxisControllerItem ctl)
+        // 真实轴 / IO 数量读取拆成两半：ReadRealCounts（纯硬件读，后台线程可调）+
+        // ApplyRealCounts（写回绑定属性，UI 线程）。连接成功后的回写口径见 ApplyRealCounts。
+
+        /// <summary>只读硬件、不写任何绑定属性——可安全地在**后台线程**调用（连接时把硬件读数挪出 UI 线程，避免页面卡住）。</summary>
+        private static void ReadRealCounts(AxisControllerItem ctl, out int axis, out int inIo, out int outIo)
         {
-            int axis = 0, inIo = 0, outIo = 0;
+            axis = 0; inIo = 0; outIo = 0;
             if (HardwareSetup.Mode == HardwareMode.CardFamilies && HardwareSetup.CardFamilies != null)
                 HardwareSetup.CardFamilies.TryGetRealCounts(ctl.Name, out axis, out inIo, out outIo);
             else if (HardwareSetup.Mode == HardwareMode.Leadshine)
@@ -531,6 +581,11 @@ namespace NoCodeMotion.ViewModels
                 var info = LtdmcCard.FirstCard;
                 axis = info == null ? 0 : (int)(info.IsBusCard ? info.BusAxes : info.LocalAxes);
             }
+        }
+
+        /// <summary>把后台读到的真实数量写回模型（会触发绑定）——必须在 **UI 线程**调用。</summary>
+        private static void ApplyRealCounts(AxisControllerItem ctl, int axis, int inIo, int outIo)
+        {
             ctl.DetectedAxisCount = axis;
             ctl.DetectedInIo = inIo;
             ctl.DetectedOutIo = outIo;
@@ -585,6 +640,9 @@ namespace NoCodeMotion.ViewModels
             OnPropertyChanged(nameof(DetectedAxisCount));   // 切换选中卡时刷新真实检测数量显示
             OnPropertyChanged(nameof(DetectedInIo));
             OnPropertyChanged(nameof(DetectedOutIo));
+            OnPropertyChanged(nameof(HasCardType));        // 切换选中卡时刷新「卡型号 → 扩展IO → 连接」门控
+            OnPropertyChanged(nameof(CanConfigureExpansion));
+            OnPropertyChanged(nameof(CanConnect));
         }
 
         private void OnTrackedCardChanged(object? sender, PropertyChangedEventArgs e)
@@ -602,6 +660,14 @@ namespace NoCodeMotion.ViewModels
                 if (SelectedItem != null && !string.IsNullOrEmpty(SelectedItem.CardType)
                     && !CardTypeOptions.Contains(SelectedItem.CardType))
                     SelectedItem.CardType = string.Empty;
+            }
+
+            // 卡型号变了 → 刷新「扩展 IO / 连接」门控（未选型号时禁用扩展IO与连接）。
+            if (e.PropertyName == nameof(AxisControllerItem.CardType))
+            {
+                OnPropertyChanged(nameof(HasCardType));
+                OnPropertyChanged(nameof(CanConfigureExpansion));
+                OnPropertyChanged(nameof(CanConnect));
             }
         }
 

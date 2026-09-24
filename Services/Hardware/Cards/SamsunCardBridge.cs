@@ -101,6 +101,10 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
             /// <summary>轴号 → 轴实现实例。每个轴一个实例（AxisID / AxisWhichCardNo 是实例字段）。</summary>
             public readonly Dictionary<int, IAxis> Axes = new Dictionary<int, IAxis>();
+
+            /// <summary>该槽位的初始化串行锁：让慢初始化（InitCard / OpenCard）在 <c>_gate</c> 之外执行，
+            /// 避免 UI 线程读 IsControllerReady / ControllerStatus 时被一起卡住（连接时界面卡死的根因）。</summary>
+            public readonly object InitLock = new object();
         }
 
         private readonly Action<string> _log;
@@ -171,9 +175,10 @@ namespace NoCodeMotion.Services.Hardware.Cards
         {
             if (ctl == null) return null;
 
+            CardSlot slot;
             lock (_gate)
             {
-                if (!_slots.TryGetValue(ctl.Name, out var slot))
+                if (!_slots.TryGetValue(ctl.Name, out slot))
                 {
                     slot = new CardSlot { ControllerName = ctl.Name, Config = ctl };
                     _slots[ctl.Name] = slot;
@@ -181,9 +186,14 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
                 // 已尝试过就复用（成功失败都算），避免每次动作都重试一遍插卡。
                 if (slot.Runtime != null) return slot;
-                Initialize(slot, what);
-                return slot;
             }
+
+            // ★ 慢初始化放 _gate 之外，避免持锁卡住 UI 线程的状态查询。
+            lock (slot.InitLock)
+            {
+                if (slot.Runtime == null) Initialize(slot, what);
+            }
+            return slot;
         }
 
         /// <summary>初始化一个控制器：匹配卡族 → new 实现类 → InitCard → OpenCard。</summary>
@@ -637,6 +647,12 @@ namespace NoCodeMotion.Services.Hardware.Cards
                     slot = new CardSlot { ControllerName = ctl.Name, Config = ctl };
                     _slots[ctl.Name] = slot;
                 }
+            }
+
+            // ★ 初始化（InitCard / OpenCard）是慢硬件操作：放到 _gate 之外、按槽位串行执行。
+            //   否则连接期间 UI 线程读 IsControllerReady / ControllerStatus 会一起等 _gate → 界面整个卡住。
+            lock (slot.InitLock)
+            {
                 // 已经初始化成功过就不重复碰硬件；失败过也允许再试（现场插好卡后点连接）。
                 if (slot.Runtime == null || !slot.Ready) Initialize(slot, "连接");
             }
@@ -650,14 +666,13 @@ namespace NoCodeMotion.Services.Hardware.Cards
         public void Disconnect(AxisControllerItem ctl)
         {
             if (ctl == null) return;
+            CardSlot slot = null;
             lock (_gate)
             {
-                if (_slots.TryGetValue(ctl.Name, out var slot))
-                {
-                    try { slot.Runtime?.Card?.CloseCard(); } catch { /* 关闭失败不影响断开 */ }
-                    _slots.Remove(ctl.Name);
-                }
+                if (_slots.TryGetValue(ctl.Name, out slot)) _slots.Remove(ctl.Name);
             }
+            // ★ 关卡是硬件操作：放到 _gate 之外，避免持锁卡住 UI 线程的状态查询。
+            try { slot?.Runtime?.Card?.CloseCard(); } catch { /* 关闭失败不影响断开 */ }
             Log($"[卡族] 控制器「{ctl.Name}」已断开连接。");
         }
 
@@ -680,16 +695,19 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <summary>清掉已初始化的卡族实例（改完控制器配置后可重新探测）。</summary>
         public void Reset()
         {
+            List<CardSlot> old;
             lock (_gate)
             {
-                foreach (var s in _slots.Values)
-                {
-                    try { s.Runtime?.Card?.CloseCard(); } catch { /* 关闭失败不影响重置 */ }
-                }
+                old = _slots.Values.ToList();
                 _slots.Clear();
                 _warnedNoController = false;
                 _warnedUnmatched = false;
                 _warnedExpansion = false;
+            }
+            // ★ 关卡是硬件操作：放到 _gate 之外，避免持锁卡住 UI 线程的状态查询。
+            foreach (var s in old)
+            {
+                try { s.Runtime?.Card?.CloseCard(); } catch { /* 关闭失败不影响重置 */ }
             }
             Log("[卡族] 已重置全部控制器连接状态，下次动作会重新初始化。");
         }
