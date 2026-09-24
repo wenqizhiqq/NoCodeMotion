@@ -30,6 +30,8 @@ namespace NoCodeMotion.ViewModels
             OnPropertyChanged(nameof(HasException));
             OnPropertyChanged(nameof(InfoText));
             OnPropertyChanged(nameof(HasInfo));
+            OnPropertyChanged(nameof(ControllerStatusText));
+            OnPropertyChanged(nameof(ControllerColor));
         }
 
         public string ProjectName => StatusBarService.ProjectName;
@@ -43,6 +45,11 @@ namespace NoCodeMotion.ViewModels
         public bool HasException => StatusBarService.HasException;
         public string InfoText => StatusBarService.InfoText;
         public bool HasInfo => StatusBarService.HasInfo;
+
+        /// <summary>控制器连接状态文本（无控制器 / N/M 在线）。</summary>
+        public string ControllerStatusText => StatusBarService.ControllerStatusText;
+        /// <summary>控制器状态圆点颜色。</summary>
+        public string ControllerColor => StatusBarService.ControllerColor;
     }
 }
 // ◇作者保留所有权利　请勿删除※​⁣​

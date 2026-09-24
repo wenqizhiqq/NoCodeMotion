@@ -1,71 +1,54 @@
 # 项目长期记忆（NoCodeMotion — WPF/.NET 10 无代码运动控制）
 
 ## 源码与编码
-- 全部 .cs 明文（无 0x88 加密），可直 Read/Edit。GBK/BOM/CRLF 文件若报 "binary file"，改用 Python 读写（utf-8/gbk→utf-8，newline="\n"）。
-- 作者水印「温启志◆编写◇微信﹕187◆1936◇1399」三处：`Services/AuthorWatermark.cs`（三段字段 string.Concat 拼接含 ◆◇﹕\u200B\u2063）、`MainWindow.xaml` 第4行署名栏、`Docs/*.md` 末尾。删 AuthorWatermark.cs 编译失败（App.xaml.cs 引用保护）。AI 不主动删。
+- 全部 .cs 明文可直 Read/Edit。GBK/BOM/CRLF 文件若报 binary，用 Python 读写（utf-8-sig→归一化→写回恢复 CRLF/BOM）。
+- 作者水印「温启志◆编写◇微信﹕187◆1936◇1399」三处：`Services/AuthorWatermark.cs`、`MainWindow.xaml:4`、`Docs/*.md` 末尾。删 AuthorWatermark.cs 编译失败，AI 不主动删。
 
-## 运行/构建
-- 操作员「启动」= 并发跑 `ProjectStore.Data.Flows` 每条 Flow 循环区（`FlowRunnerService.cs`+`OperatorViewModel.cs`）；解释器覆盖 循环/分支/等待/轴/IO/气缸/点位/modbus/变量/系统/相机(暂跳过)，变量支持 {name}；`EStop/Stop/Pause/Resume` 给 `_flowCtrl` 发信号。
-- 沙箱构建：**Bash 对 dotnet 一律 LOLBin 拦截**；用 **PowerShell + 绝对 `C:\Program Files\dotnet\dotnet.exe` 前台构建**（exit code 真实）。**禁止写成 `.ps1` 文件**——系统 ExecutionPolicy 会报 `UnauthorizedAccess`（`.ps1` 被禁运行），须 **PowerShell 工具内联命令** 或 `powershell -ExecutionPolicy Bypass -File xxx.ps1`。无头验证另开工程（ProjectReference 引用 NoCodeMotion.csproj，net10.0-windows+UseWPF），**不能放主工程目录内**（CS0017 双 Main）。Python venv+ctypes PrintWindow 可抓窗口。
-- **删文件**：`Remove-Item` 被 `safe-delete` 钩子拦截（报 SAFE_DELETE_FAIL_CLOSED/trash-failed）；改用 `[System.IO.File]::Delete("绝对路径")` 可真正删除。PowerShell 输出不回显，一律 `Out-File C:\tmp\x.txt` 再 `Read`。
-- 全局加载进度：`Services/LoadingService`（静态 depth 引用计数 + `Show/Hide/Report/StateChanged` + `Progress/ProgressMax`，<0=不确定）；`MainWindow` 遮罩 `LoadingOverlay` 订阅它。**启动预初始化所有页面**用确定式进度（"正在初始化页面 (i/n)：中文名"）；**打开/新建工程**用不确定式遮罩（xlsx 读/写放 `Task.Run`，`LoadInto` 回 UI 线程，页面重建发生在遮罩可见期）。页面切换 `Navigate` 即时完成、不显遮罩（页面已在启动预初始化时进缓存）。`Dispatcher.Yield(DispatcherPriority)` 是静态方法，须 `System.Windows.Threading.Dispatcher.Yield(...)`。
-- .NET 10 `_wpftmp` CS0579：csproj 加 `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>`+`<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>`；`[assembly:ThemeInfo]` 留根 AssemblyInfo.cs。勿用 UseArtifactsOutput。
-- **WPF 重复 XAML 编译陷阱**：SDK `EnableDefaultPageItems` 会把 `Views/*.xaml` 全部当 `<Page>` 自动编译。编码转换/探针脚本若生成 `XXX_utf8.xaml` 且与 `XXX.xaml` **同 `x:Class`**，会 CS0102（成员重复）+ CS8646（partial 冲突），整工程编译失败。删除 `_utf8` 副本即可；删前先 Grep 该 class 是否另有唯一改动。本工程 NodeGraphPage 曾因此被 `_utf8` 副本拖崩。
+## 运行/构建（沙箱铁律）
+- dotnet 一律 LOLBin 拦截：用 **PowerShell + 绝对 `C:\Program Files\dotnet\dotnet.exe` 前台构建**；PowerShell stdout 不回显，须 `| Out-File C:\tmp\x.txt` 再 Read。禁写 `.ps1` 文件（ExecutionPolicy 拦），用内联命令。
+- 删文件用 `[System.IO.File]::Delete("绝对路径")`（`Remove-Item` 被 safe-delete 钩子拦）。
+- 加载进度：`Services/LoadingService` 静态深度计数；启动预初始化用确定式进度，打开/新建工程用不确定式遮罩（xlsx 读写 Task.Run，LoadInto 回 UI）。`Dispatcher.Yield` 须 `System.Windows.Threading.Dispatcher.Yield(...)`。
+- .NET 10 `_wpftmp` CS0579：csproj 加 `GenerateAssemblyInfo=false`+`GenerateTargetFrameworkAttribute=false`；`[assembly:ThemeInfo]` 留根 AssemblyInfo.cs。勿用 UseArtifactsOutput。
+- WPF 重复 XAML 陷阱：`EnableDefaultPageItems` 会把 `Views/*.xaml` 当 Page 编译；探针脚本勿生成同 x:Class 的 `XXX_utf8.xaml`（CS0102+CS8646）。
 
-## xlsx 工程存储（反射式序列化）
-- `Services/XlsxProjectStore.cs` 反射式读写：根对象 public 集合属性 → sheet（列=元素标量属性）；标量 → 「项目管理」表；IO 由 `BuildIoSheet`/`SplitIoToRoot` 合并。
-- **嵌套子集合**（父项有子集合）走通用「父表.子表」分页：`CollectNestedSheets`（导出，列=父项名称+子项标量）与 `RestoreNestedCollections`（导入，按父项名称分组 Clear+Add）。**注意**：这是后接线的能力，早期是死代码；点位表/料盘/流程 用「合并块单页」（`AddMergedBlockSheets`/`RestoreMergedBlockSheets`），故通用分页用 `MergedBlockParents={PointTables,Trays,Flows}` 跳过它们，避免重复建表。
-- 新增子集合属性要求：①元素类型继承 `EditorItemBase`；②集合属性**必须带 set**（`{ get; set; } = new()`）——`RestoreNestedCollections` 要求 `cp.CanWrite`；③子表中文名可选，加进 `ChildSheetNameOverrides`（如 `ExpansionModules=扩展模块` → sheet「控制器.扩展模块」）。
-- **只读计算属性不要放在数据模型上**：`CollectionToTable`/`CollectNestedSheets` 会把只读标量属性也当列写进 sheet（导入时忽略、但脏列）。汇总/派生值放 ViewModel。
-- 新增标量字段（如 `AxisControllerItem.InIoCount`）零改动落盘，旧工程缺列 → 默认值，向后兼容。
+## xlsx 工程存储
+- `XlsxProjectStore.cs` 反射式：根 public 集合→sheet（列=标量）；标量→「项目管理」表；IO 由 BuildIoSheet/SplitIoToRoot 合并。
+- 嵌套子集合走「父表.子表」分页（CollectNestedSheets/RestoreNestedCollections），MergedBlockParents={PointTables,Trays,Flows} 跳过合并块单页。
+- 新增子集合：①元素继承 EditorItemBase；②集合属性带 set（cp.CanWrite）；③中文名加 ChildSheetNameOverrides。
+- 只读计算属性勿放数据模型（会成脏列）；新增标量字段零改动落盘、向后兼容。
 
 ## 全局 UI 约定
-- **表格行内按钮命令绑定（IoPage 踩坑）**：DataGrid 的 DataContext 是**页面 VM**（如 `IoViewModel`），不是面板 VM。行内按钮要写 `{Binding DataContext.OutputPanel.ToggleOutputCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}`——**漏掉 `.OutputPanel.` 会静默失效**（`Command` 绑到不存在属性 → null → 按钮点了没反应且不报错）。只有工具栏那层 Grid 写了 `DataContext="{Binding OutputPanel}"`。
-- **下拉框不要设 `IsEditable="True"`**：`CellComboStyle` 的模板里可编辑输入框盖住整块，点击文字区只聚焦、**不展开下拉**（只有右侧很小的箭头能展开），用户会以为「点了没反应」。全工程其它页的下拉都是非编辑态（点哪都展开）。选值来自固定候选（Catalog/目录）时一律不写 IsEditable；确需手输用 TextBox。
-- **资源字典真相**：`App.xaml` 只合并 `Resources/AppStyles.xaml`（它内部只再合 HandyControl）。`Themes/AppleControls.xaml` **未被任何地方合并**，里面的 `AppleSubLabel`/`AppleTextFieldInline`/`AppleIconBtn`/`AppleDivider`/`AppleComboBox*` 等**运行时不存在**——用它们会 XamlParseException「找不到名为 X 的资源」。可用键以 `Resources/AppStyles.xaml` 为准（Apple 表单样式见 ~825-1024 行：AppleGroupCard/AppleSectionHeader/AppleRow/AppleLabel/AppleTextField/AppleUnit/AppleHairline/AppleNumBox/AppleCombo/AppleChip/AppleChipLabel/AppleNumField/AppleBtn/AppleBtnSecondary/AppleToggle；按钮 Tt*/TtPill*；下拉 CellComboStyle；刷子见文件头 29-44 行）。需要小字说明/窄数字框等 AppStyles 没有的，在页面 `<UserControl.Resources>` 里本地补（如 AxisControllerPage 的 SubLabel/MiniNumBox）。
-- 所有删除/清空按钮红色：`TtDeleteBtn`（大）/ `TtPillRedBtn`（小）；色彩编码 红=破坏/橙=反向非破坏/蓝=正向/绿=保存/灰=次要。改前先 Grep 列全清单。
-- 每页底 `PageHintBar`（OperationText/PrecautionText）：EditorPage 子页第3行绑 Hint*；独立根页末尾 Auto 行加。
-- 视觉数值参数用 `NumericSliderRow.xaml`（Value 双向）；Grid `*` 列必须 MaxWidth 封顶防渲染出视口。
-- **EditorPage.Detail 内容里的元素不能用 `x:Name`**（MC3093 与 EditorPage 名字域冲突）。需运行时引用的元素改设 `Tag` + 视觉树 `FindVisualChildByTag<T>(root,tag)` 定位（如 CylinderPage 时序表 SeqGrid、CameraPage 闪光点 CamFlashDot）。
+- DataGrid 行内按钮：DataContext 是页面 VM，命令要 `{Binding DataContext.XxxPanel.Cmd, RelativeSource={AncestorType=DataGrid}}`，漏面板路径静默失效。
+- 下拉框选值来自固定候选时**勿设 IsEditable**（可编辑输入框盖住整块、点击文字区不展开）。
+- 资源字典：`App.xaml` 只合 `Resources/AppStyles.xaml`（再合 HandyControl）。`Themes/AppleControls.xaml` 未合并、运行时不存在，勿引用；所需键以 AppStyles 为准；缺的小字/窄框在页面 `<UserControl.Resources>` 本地补。
+- 删除/清空红 `TtDeleteBtn`/`TtPillRedBtn`；色彩 红=破坏/橙=反向/蓝=正向/绿=保存/灰=次要。
+- 每页底 PageHintBar；EditorPage.Detail 内元素**勿用 x:Name**（MC3093），改用 Tag+FindVisualChildByTag。
 
-## 视觉/节点图页同步陷阱
-- `VisualFlowPage.xaml.cs ApplySelection()` 须覆盖 `_vm.Steps/_vm.Name/_vm.SelectedStep`（漏→卡片全 Collapsed）；Steps 非空且 SelectedStep=null 时自动选 Steps[0]。
-- 节点图 `Models/NodeGraph/`：`NgDefs.cs`(NgKind/NgDomain/NgNodeDefinitions.All 数据驱动)、`NgModel.cs`(NgDoc/NgNode/NgConnection/NgTemplates)；UI 用 ItemsControl+DataTemplate，禁 code-behind Children.Add。输出端口坐标 `OutputPoint(x,y,idx)=(x+NodeWidth, y+HeaderHeight+11+idx*OutputRowHeight)` 须与 NodeView 一致；`Outputs` 为 IReadOnlyList，用 `OutputPortIndex(string)` 辅助。
-- 节点图编辑+存 `FlowItem.GraphJson`；**调试执行引擎在 `Services/NgRunner.cs`**（独立于 FlowRunnerService，直接走 NgDoc 邻接表）：6 按钮（运行/单步/继续/暂停/停止/断点）+ 每节点 `NgStepResult`(耗时 DurationMs / 状态 StepStatus / 异常 ErrorText)。VM 桥：`NodeGraphViewModel.OnRunnerReportChanged` 把 `Report.Results[id]` → `NodeGraphNodeViewModel.StepResult` + `IsCurrent`；`NodeGraphNodeView.xaml` 用 DataTrigger 渲染色边框/状态浮标/异常红条。
-- **NgRunner 两个致命坑（已修）**：①`WaitResumeAsync` 必须是**实例方法按 `_state==NgRunState.Paused` 轮询**，不能写成 `static` 只查 `ct.IsCancellationRequested`——否则 `Resume()`/`Step()` 改 `_state` 不取消 CTS，暂停循环永远不退出（继续/单步-暂停后死锁）。②手动 `Pause()` 只在节点边界生效：RunAsync 跑完一个节点后须 `if (_stepMode || _state==Paused)` 再切 Paused，否则 Pause 在普通 Run 中被忽略、流程跑到结束。
+## 视觉/节点图
+- VisualFlowPage.ApplySelection() 须覆盖 _vm.Steps/_vm.Name/_vm.SelectedStep；Steps 非空且 SelectedStep=null 自动选 [0]。
+- 节点图 Models/NodeGraph/ 数据驱动（NgDefs/NgModel）；UI 用 ItemsControl+DataTemplate，禁 Children.Add。输出端口坐标须与 NodeView 一致。
+- 调试引擎 `Services/NgRunner.cs`（6 按钮 + NgStepResult）；NgRunner 两坑：WaitResumeAsync 须实例方法按 _state 轮询；Pause 仅节点边界生效。
 
-## CAD/DWG 导入
-- 真实 BREP(STP/STEP/IGES)→ **OcctNet.Wrapper 0.1.1**（OpenCASCADE 7.9.3，原生 DLL 自动拷）。`OcctShape.ImportStep(path).Triangulate(linearDeflection:1.0)`；`OcctMesh` 非 IDisposable（勿 Dispose）；读完顶点/索引到 WPF 再 `using` 释放 shape。STEP Z-up→WPF Y-up 绕 X -90°；顶点法线按三角形累加；BackMaterial=mat 防黑面。参考 `D:\StpRenderProbe`。
-- DWG/DXF 2D→ `Services/Cad/DwgReader.cs`（Aspose.CAD 26.7.0，只迭代 `CadImage.Entities`/`BlockEntities` 矢量实体，**绝不 Image.Save 栅格化**免水印）。CadArc 继承 CadCircle，switch Arc 在 Circle 前；递归块深度≤24 防环。`Sim3DView.BuildDwgModel` 烘焙线段+文字标签按取景包围盒居中。
+## CAD/DWG
+- 真实 BREP→OcctNet.Wrapper 0.1.1（OcctShape.ImportStep.Triangulate）；STEP Z-up→WPF Y-up 绕 X -90°；BackMaterial 防黑面。
+- DWG/DXF→Aspose.CAD 26.7.0 只迭代矢量实体，绝不 Image.Save 栅格化（免水印）。
 
 ## 仿真体系
-- `Services/SimRuntime.cs` 静态态(IO/气缸/相机/变量) 驱动 3D+变量页；`Sim3DView.UpdatePoseFromRuntime()` 每 tick 读 `AxisRuntimeState.Get(axis)`。
-- `Services/SimFlowPlayer.cs` 把 FlowItem(Table/NodeGraph) 编译 `List<SimAction>`，DispatcherTimer 33ms 驱动；`StepCount`/`StepLabels`/`PreviewSteps(flow)` 静态供预览（无副作用）。
-- **仿真物理（BepuPhysics v2，NuGet `2.5.0-beta.29`，纯 C# 无原生 DLL）**：`Services/PhysicsWorld.cs` 封装。工件蓝块=动态刚体(重力落床面)；主轴/气缸活塞杆=运动学碰撞体每帧跟随 `AxisRuntimeState`/`SimRuntime` 位移推工件；鼠标点选+拖拽(运动学态拖、松手恢复动态)。**Bepu 四个致命坑**（已 headless 验证）：①`Simulation.Create` 求解器须 `new SolveDescription(1,1)`（默认 SubstepCount=0 抛异常）；②`ConfigureContactManifold` 内须 `pairMaterial.SpringSettings = new SpringSettings(30f,1f)`（默认频率0→接触 NaN，`using BepuPhysics.Constraints`）；③运动学↔动态切换用 `br.BecomeKinematic()` / `br.SetLocalInertia(inertia)`，**不能** `br.LocalInertia=x`（ref 属性不更新 mobility）；④推动工件须 `br.Velocity.Linear=(target-current)/dt` 速度驱动，不能只设 `br.Pose`。详见 `2026-09-05.md`。
-- `Services/ProjectTemplateCatalog.cs` 20 模板；`NgTemplates.Build` 脚手架(空/通用流程/设备启动/取放循环/视觉对位)。
+- SimRuntime 静态态驱动 3D+变量页；SimFlowPlayer 编译 List<SimAction>，33ms 驱动。
+- BepuPhysics v2（2.5.0-beta.29，纯 C#）：四坑——①Simulation.Create 须 `new SolveDescription(1,1)`；②ConfigureContactManifold 须 `pairMaterial.SpringSettings=new SpringSettings(30f,1f)`；③运动学↔动态用 BecomeKinematic/SetLocalInertia（勿改 LocalInertia ref）；④推工件用 Velocity.Linear 速度驱动勿只设 Pose。详见 2026-09-05.md。
 
-## Phase 3 配置页增强（已完成，0 构建错误）
-- 点位表：`ArrayGenDialog`(行×列阵列生成) + `PointViewModel.GenerateArray/ExportCsv`(UTF-8 BOM CSV) + PointPage「生成阵列/导出CSV」按钮。
-- 流程：`FlowPreviewDialog` + `SimFlowPlayer.PreviewSteps` 静态 + `FlowViewModel.PreviewCommand` + FlowPage「步骤预览」。
-- 通讯：`CommViewModel.CommandPresets`(8 条 Modbus/AT/PING/JSON/SCPI) + `ApplyPreset` 填发送框；CommPage 命令预设下拉。
-- 相机：`CameraItem.TriggerMode`(连续/软触发/硬触发) + `CameraViewModel.ApplyCommonParams`(曝光/增益/触发) + CameraPage 触发模式行+「应用常用参数」。
-- 轴/IO/气缸：状态高亮与内联动作(气缸伸出蓝/缩回灰蓝) 此前已具备，本轮未追加。
-- 状态栏新增中性蓝 `InfoText/HasInfo` + `ReportInfo/ClearInfo`（StatusBarService/StatusBarViewModel/StatusBarView）。
+## 控制卡接入（2026-09-23 累积）
+- 雷赛实桥 LeadshineHardwareBridge + LtdmcCard/LtdmcNative P/Invoke LTDMC.dll；无卡降级兜底。`HardwareSetup.Mode`：CardFamilies / Leadshine。
+- 控制器页连接链路：`AxisControllerViewModel.Connect()` → `HardwareSetup.EnsureInitialized()` → `Mode==CardFamilies` 走 `CardFamilies.TryConnect(ctl,out)` 否则 `Reconnect()`+`IsCardReady`；`Disconnect()` 走 `CardFamilies?.Disconnect`。桥接类实际名 **`WenQiZhiCardBridge`**（非 SamsunCardBridge），`ResolveFamily(ctl)`/`TryGetRealCounts`/`IsControllerReady` 在内。
+- 在线状态直接读底层 `IsControllerReady(ctl)`/`ControllerStatus(ctl)`（无 VM 影子字典、不落盘）。
+- 连接后 `FetchDetectedCounts` 回写轴/IO 真实数→`GenerateIoPoints(ctl)` 按本卡清旧+生成 IO 点；`DetectedCountsChanged` 静态事件通知轴/IO 页重算。
+- 卡型选择器 SelectCardTypeDialog；Native/ 已是 x64 DLL 全集（csproj `Native\*.dll`→PreserveNewest），缺 Dmc2210(x86)/MCC/SLD9014PTP。
+- 容量兜底：硬件 API 不报容量时，在 `CardFamilyDescriptor` 填 AxisCount/InIoCount/OutIoCount（如 MCN420=8/16/16）。
 
-## 真实硬件（控制卡）接入
-- NoCodeMotion 已有完整**雷赛(Leadshine)实桥**：`Services/Hardware/Leadshine/LeadshineHardwareBridge.cs`(轴/IO/气缸/通讯/料盘全实现) + `LtdmcCard.cs`/`LtdmcNative.cs` P/Invoke **LTDMC.dll**(统一 SDK，覆盖 DMC1000/2210/3400A/EtherCAT)；`HardwareSetup.AutoDetect()` 启动检测 LTDMC.dll，无卡降级日志兜底。
-- 参考实现 `E:\小增量\SMotion_v3.7_20251128\SMotion_v3\SamsunMotion\SamsunMotionWin32\` 是**同卡族另一套代码**（各卡 `MotionCardRes/DMC1000S|DMC2210|DMC3400A|DMC_E3032_EtherCAT/CardRealization.cs` 最终也调 LTDMC.dll）。`Loader/bin` 有现成原生库。
-- 原生库来源：从 `SamsunMotion/Loader/bin` 拷 **x64** 的 `LTDMC.dll`+`Dmc1000.dll`+`IMC100API.dll`+`ecat_motion.dll` 进 `NoCodeMotion/Native/`，csproj 按既有 `Native\*.dll` 模式加 `<None CopyToOutputDirectory=PreserveNewest>`。**位数必须一致**：NoCodeMotion.exe 为 x64，LTDMC.dll 也是 x64，匹配；但 `DMC2210.dll` 在参考实现里是 **x86**，与 x64 进程不兼容——DMC2210 卡型需另取 x64 版。
-- 无实物卡时 `dmc_board_init()` 返回 0（IsCardReady=false→日志兜底）；插卡+装驱动后返回卡数>0 即走真实轴/IO。headless 冒烟测试：x64 python ctypes 加载 LTDMC.dll 调 `dmc_board_init()`=0 通过。
-- 不要整体替换成 SamsunMotion 内核（工作量大、需重做 AxisItem/IoItem 映射）；已与用户确认走「拷原生 DLL 让卡能初始化」最小路径。
-- **控制器页「连接 / 断开 / 在线离线 / 获取」**（2026-09-23）：`SamsunCardBridge` 新增公开 `TryConnect(AxisControllerItem, out string status)`（复用内部 slot + `Initialize`，InitCard/OpenCard）、`Disconnect(ctl)`、`static SupportsExpansionIo(ctl)`、`static ResolveFamily(ctl)`、`TryGetRealCounts(ctl, out axis, out in, out out)`。VM 侧 `AxisControllerViewModel`：`ConnectCommand` 先 `HardwareSetup.EnsureInitialized()`，`Mode==CardFamilies` 时走 `HardwareSetup.CardFamilies.TryConnect`，否则走 `HardwareSetup.Reconnect()`+`IsCardReady`；`DisconnectCommand` 走 `CardFamilies?.Disconnect`。**在线状态直接读底层真实 API** `SamsunCardBridge.IsControllerReady(ctl)` / `ControllerStatus(ctl)`（**无 VM 影子字典、不落盘**，避免 xlsx 出现 IsOnline 列）；`IsOnline`/`ConnectionText`/`ConnectMessage` 随选中卡切换与连接动作刷新。「获取」= 探测卡族 + 是否支持扩展IO + 刷新型号候选（无硬件枚举 API，仅提示）。
-- **连接后自动获取真实轴/IO数量显示**（2026-09-23，#221-224）：点「连接」后 `AxisControllerViewModel.Connect()` 调 `FetchDetectedCounts(ctl)` → 卡族层 `HardwareSetup.CardFamilies.TryGetRealCounts`（轴数 `ICard.GetCardTotalAxisNum`、IO 数 `IIOInPut.InIONums`/`IIOOutPut.OutIONums`，带 try/catch 容错）；雷赛层兜底取 `LtdmcCard.FirstCard`(BusAxes/LocalAxes)。真实值>0 回写 `ctl.AxisCount/InIoCount/OutIoCount` 使汇总与自动生成 IO 点一致，并写入 `AxisControllerItem.DetectedAxisCount/DetectedInIo/DetectedOutIo`。通过静态事件 `AxisControllerViewModel.DetectedCountsChanged` 通知 `AxisViewModel`/`IoViewModel` 重新计算（对 `IsControllerReadyNow(name)` 的控制器累加）并在页面顶部横幅显示；控制器页另增「连接后真实检测」卡片（SuccessBrush 大字）。轴页/IO页 VM 各有 `IsControllerReadyNow`（Leadshine→`HardwareSetup.IsCardReady`；否则 `(HardwareBridge.Current as SamsunCardBridge)?.IsControllerReady`）。
-- **卡型选择器**（2026-09-23）：`Views/SelectCardTypeDialog.xaml/.cs` 树形列出 `CardFamilyCatalog.Families`（品牌 → 总线/脉冲 → 卡型号 Key），两级分组仅当该品牌同时有「总线」「脉冲」时才建（对齐参考实现对话框）；含「自定义卡」叶（不指定卡族）。VM `AddCardCommand` 先弹此对话框再建卡，新增 `PickCardTypeCommand`（改选中卡的卡型）+ `ApplyFamily/ApplyCustom`（一次填好 Vendor/CardType/BusType/Connection/Description）；控制器页「卡型号」行加「选择…」按钮。
-- **控制卡 DLL 清单（Native/ 已是 x64 全集，csproj `Native\*.dll` → `CopyToOutputDirectory=PreserveNewest` → `bin\<cfg>\net10.0-windows\`）**：LTDMC / Dmc1000 / ecat_motion / IMC100API / MCC1C00 / MCC800S / MCCE135 / MCN420 / MCX08 / PCI400 / PLT / Pci9014 / Pci9016 / PCI1230 / sldmv + SoftServo 托管组（CoreMotionApi/EcApi/EventApi/IOApi/WMX3Api_CLRLib、RtMotionApiNET）。**缺 3 个**：`Dmc2210.dll`（参考工程只有 x86，x64 进程用不了——故意不拷，否则 `AnyDllPresent` 会因「文件存在」误判为就位）、`MCC.dll`、`SLD9014PTP.dll`（各参考工程均无，需向厂商索取）。研控 MCCE332=Key `YKMCCE3032`（MCCE135.dll）已就位。
-- **IO 页（2026-09-23）**：去掉「卡类 / 卡号」两列（**模型字段保留**，兼容 sld/老工程与桥接；DataGrid 列与 xlsx 无关——IO sheet 由 `IoItem` 标量属性反射生成）。输出列改为单一「**开关**」按钮（`ToggleOutputCommand` → `IoPanelViewModel.ApplyOutput`）+「**电平状态**」指示（绿=高 / 灰=低）。`ApplyOutput`：先 `HardwareSetup.EnsureInitialized()` 装配真实硬件层，再 `HardwareBridge.Current.WriteOutput`，同步 `SimRuntime.SetOutput`；**写失败回退** `item.Value` 并记 `HardwareLog`。输入电平由 `IoPage` 的 250ms `DispatcherTimer` 在 `HardwareSetup.IsCardReady` 时轮询 `ReadInput` 刷新（未接卡/仿真不轮询）。
-- **IO 点由「连接」自动生成**（2026-09-23）：IO 表**不再显示「控制器」列**（字段保留、自动绑定）。`AxisControllerViewModel.Connect()` 末尾调 `GenerateIoPoints(ctl)`：先按 `Controller==ctl.Name` 清掉本卡旧点（不动别的卡/手工点），再按 主板 IO（`ModuleNo=0`, `Sequence=1..N`）+ 各扩展模块（`ModuleNo=第几个模块(从1起)`, `Sequence=位号`）生成 `IoItem`，名 `输入{i}`/`输出{i}`，`Level=取反`、`Function=动点`，最后 `Catalog.SetIo(...)` + `ScheduleSave`。控制器页「连接/获取/断开」行已移到**扩展IO区域下方**。
+## 控制器连接体验增强（2026-09-23，本轮）
+- 连接按钮后台化：`AxisControllerViewModel.Connect()` 改 `Task.Run` 后台，分步 `ConnectStatusText`（初始化/连接卡/读真实轴IO/生成点/完成/失败），`IsConnecting` 防重复点击，`Application.Current.Dispatcher.Invoke` 回 UI。`AxisControllerPage.xaml` 加 `IsConnecting` 绑定的不确定进度条 + 状态文字。
+- 状态栏在线指示：`StatusBarService` 加 `ControllerOnlineCount/TotalCount`+`SetControllerStatus(online,total)`+`ControllerStatusText/ControllerColor`（全在线绿/部分橙/全离线红/无控制器灰）；`StatusBarViewModel` 转发 INPC；`StatusBarView.xaml` 加第 3 列「控制器」圆点+文字（Grid 改 6 列）。VM 每次连接/断开/自动连接后调 `UpdateStatusBar()`。
+- 自动连接：`ProjectManager.DataReloaded`（`System.Action?`，**0 参**）触发 `AutoConnectAll()`（后台遍历 Items.TryConnect/Reconnect，回 UI 刷 FetchDetectedCounts+状态栏）；构造函数对已有 Items 立即触发一次。
 
-## 连接后轴/IO 数量：卡族目录规格兜底（#225-227）
-- `SamsunCardBridge.TryGetRealCounts` 返回各控制器轴/IO 真实数；但移植卡族硬件 API 常**不回报容量**：`MCN42Series.GetCardTotalAxisNum` 离线/未初始化返回 0，`InioRealization/OutioRealization` 的 `InIONums/OutIONums` 硬编码默认 `=24`（占位值，非真实容量）。
-- 兜底：`CardFamilyDescriptor` 加 `AxisCount/InIoCount/OutIoCount`（int 默认 0）；`TryGetRealCounts` 读完硬件值后，**目录中某字段 >0 即以目录规格覆盖**（仅覆盖人工核对的卡族，未设定=0 的卡族继续走硬件真实值）。`MCN42Series` 已填 `AxisCount=8, InIoCount=16, OutIoCount=16`（研控 MCN420：8 轴 / 16 入 / 16 出）。
-- 约定：**新接入的卡族若硬件 API 不回报容量，就在 `CardFamilyCatalog` 描述符里人工填 `AxisCount/InIoCount/OutIoCount`**，不要改硬件实现里的默认值。
+## 仿真模板
+- ProjectTemplateCatalog 20 模板；NgTemplates.Build 脚手架。

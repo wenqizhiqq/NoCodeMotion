@@ -17,6 +17,7 @@
             <Setter Property="MinWidth" Value="0"/>
             <Setter Property="TextAlignment" Value="Right"/>
         </Style>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
     <local:EditorPage ShowDefaultAddButton="False"
@@ -188,7 +189,7 @@
                         </DockPanel>
 
                         <Rectangle Style="{StaticResource AppleHairline}"/>
-                        <!-- 连接 / 获取 + 在线离线状态（真实来自底层 SamsunCardBridge） -->
+                        <!-- 连接 / 获取 + 在线离线状态（真实来自底层 WenQiZhiCardBridge） -->
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="连接状态"/>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -221,16 +222,23 @@
                                 <Button Style="{StaticResource TtPillGrayBtn}" Content="断开" ToolTip="关闭该控制卡连接" Command="{Binding DisconnectCommand}"/>
                             </StackPanel>
                         </DockPanel>
-                        <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap" Text="{Binding ConnectMessage}"/>
+                        <!-- 连接进度条：点击「连接」后台执行期间显示，避免界面卡死且无反馈 -->
+                <Border Visibility="{Binding IsConnecting, Converter={StaticResource BoolToVis}}" Margin="16,4,16,6">
+                    <StackPanel Orientation="Vertical">
+                        <ProgressBar IsIndeterminate="True" Height="6" Margin="0,0,0,4"/>
+                        <TextBlock Text="{Binding ConnectStatusText}" Style="{StaticResource SubLabel}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+                <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap" Text="{Binding ConnectMessage}"/>
                     </StackPanel>
                 </Border>
 
-                <!-- ============ 底层连接总览（真实状态，来自 SamsunCardBridge.ControllerStatus） ============ -->
+                <!-- ============ 底层连接总览（真实状态，来自 WenQiZhiCardBridge.ControllerStatus） ============ -->
                 <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,12,10">
                     <StackPanel>
                         <TextBlock Style="{StaticResource AppleSectionHeader}" Text="底层连接总览（真实状态）"/>
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
-                                   Text="下列状态直接来自底层 SamsunCardBridge：每张已初始化的控制卡真实就绪情况。点「连接 / 断开」后自动刷新。"/>
+                                   Text="下列状态直接来自底层 WenQiZhiCardBridge：每张已初始化的控制卡真实就绪情况。点「连接 / 断开」后自动刷新。"/>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <ItemsControl ItemsSource="{Binding ConnectionStatusLines}" Margin="16,6,16,8">
                             <ItemsControl.ItemTemplate>

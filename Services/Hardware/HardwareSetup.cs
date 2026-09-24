@@ -40,7 +40,7 @@ namespace NoCodeMotion.Services.Hardware
     public static class HardwareSetup
     {
         private static LeadshineHardwareBridge _leadshine;
-        private static SamsunCardBridge _cards;
+        private static WenQiZhiCardBridge _cards;
         private static bool _initialized;
         private static readonly object _gate = new object();
 
@@ -59,7 +59,7 @@ namespace NoCodeMotion.Services.Hardware
         };
 
         /// <summary>当前卡族层对接实例（未启用时为 null），供界面读取各控制器状态。</summary>
-        public static SamsunCardBridge CardFamilies => _cards;
+        public static WenQiZhiCardBridge CardFamilies => _cards;
 
         /// <summary>
         /// 启动时自动装配。默认进入「雷赛自有封装 + 真实通讯」模式：
@@ -78,7 +78,7 @@ namespace NoCodeMotion.Services.Hardware
         public static string AutoDetectFromProject()
         {
             string why;
-            if (SamsunCardBridge.CanServeProject(out why))
+            if (WenQiZhiCardBridge.CanServeProject(out why))
             {
                 HardwareLog.Write("[硬件] 检测到工程里的控制器需要已移植卡族：" + why);
                 return UseCardFamilies();
@@ -139,7 +139,7 @@ namespace NoCodeMotion.Services.Hardware
         public static string UseCardFamilies()
         {
             ReleaseBridges();
-            _cards = new SamsunCardBridge();   // 日志走 HardwareLog
+            _cards = new WenQiZhiCardBridge();   // 日志走 HardwareLog
             HardwareBridge.SetBridge(_cards);
             Mode = HardwareMode.CardFamilies;
             _initialized = true;

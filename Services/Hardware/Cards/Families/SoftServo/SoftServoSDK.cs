@@ -2,7 +2,7 @@
 // ◆温⁠启‎志‎◆‎编⁠写​◇⁣微‌信⁠﹕‍1‎8‎7‌◆‏1​9‌3‍6‍◇‏1‌3‌9‏9‌　​※⁣保‌留‏所‏有⁣权‏利⁠请⁠勿‏删‎除‎◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ────────────────────────────────────────────────────────────────
-// 移植自 SamsunMotion / SMotorse 运动控制卡层参考实现
+// 移植自 WenQiZhiMotion / SMotorse 运动控制卡层参考实现
 //   源: MotionCardRes/SoftServo/SoftServoSDK.cs
 //   改动: 仅行尾归一化为 LF、加 #nullable disable；命名空间与逻辑保持原样。
 // ────────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ using WMX3ApiCLR.EcApiCLR;
 using static WMX3ApiCLR.Config;
 using static WMX3ApiCLR.Motion;
 
-namespace Samsun.Domain.MotionCard.Common.SoftServo_EtherCAT
+namespace WenQiZhi.Domain.MotionCard.Common.SoftServo_EtherCAT
 {
     public class SoftVersoSDK
     {
@@ -63,7 +63,7 @@ namespace Samsun.Domain.MotionCard.Common.SoftServo_EtherCAT
         #endregion
 
         #region Timer
-        Samsun.Domain.MotionCard.Tools.HighPrecisionTimer.HPTimer timer /*= new Samsun.Domain.PLCMemoryComm.HighPrecisionTimer.HPTimer()*/;
+        WenQiZhi.Domain.MotionCard.Tools.HighPrecisionTimer.HPTimer timer /*= new WenQiZhi.Domain.PLCMemoryComm.HighPrecisionTimer.HPTimer()*/;
         bool Busy = true; bool IsRunning = false;
         void UpdateStatus()
         {
@@ -130,7 +130,7 @@ namespace Samsun.Domain.MotionCard.Common.SoftServo_EtherCAT
 
             if (timer == null)
             {
-                timer = new Samsun.Domain.MotionCard.Tools.HighPrecisionTimer.HPTimer();
+                timer = new WenQiZhi.Domain.MotionCard.Tools.HighPrecisionTimer.HPTimer();
                 timer.Interval = 10;
                 timer.Ticked += UpdateStatus;
                 timer.Start();

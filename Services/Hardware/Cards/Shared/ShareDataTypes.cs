@@ -2,7 +2,7 @@
 // ◆温⁠启‎志‎◆‎编⁠写​◇⁣微‌信⁠﹕‍1‎8‎7‌◆‏1​9‌3‍6‍◇‏1‌3‌9‏9‌　​※⁣保‌留‏所‏有⁣权‏利⁠请⁠勿‏删‎除‎◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ────────────────────────────────────────────────────────────────
-// 移植自 SamsunMotion / SMotorse 运动控制卡层参考实现
+// 移植自 WenQiZhiMotion / SMotorse 运动控制卡层参考实现
 //   源: ShareData/ShareDatastruct.cs
 //   说明: 原文件是 5194 行的「大杂烩」（314 个类型，含 System.Drawing /
 //         BinaryFormatter 等 .NET 10 无法使用的依赖），故按依赖闭包只摘出
@@ -13,7 +13,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Samsun.Domain.MotionCard.Common
+namespace WenQiZhi.Domain.MotionCard.Common
 {
 
         /// <summary>

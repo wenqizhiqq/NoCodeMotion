@@ -7,6 +7,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
+using System.Windows;
 using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
@@ -33,6 +34,11 @@ namespace NoCodeMotion.ViewModels
             // 选中项切换时重挂总汇订阅（基类 SelectedItem 不是虚属性，靠自身 PropertyChanged 感知）。
             PropertyChanged += OnSelfPropertyChanged;
             WireSelected(SelectedItem);
+
+            // 打开软件 / 切换工程后自动后台连接控制卡，并刷新状态栏在线指示
+            ProjectManager.DataReloaded += () => AutoConnectAll();
+            if (Items.Count > 0) AutoConnectAll();
+            else UpdateStatusBar();
         }
 
         protected override AxisControllerItem CreateNewItem() => new AxisControllerItem { Kind = "控制卡", Name = $"控制卡{Counter + 1}" };
@@ -113,7 +119,7 @@ namespace NoCodeMotion.ViewModels
             SelectedItem.ExpansionModules.Remove(module);
         }
 
-        // ============ 连接状态：真实来自底层 SamsunCardBridge / HardwareSetup ============
+        // ============ 连接状态：真实来自底层 WenQiZhiCardBridge / HardwareSetup ============
         // ★ 不维护 UI 自己的影子字典：在线状态直接读底层 slot 的 Ready（卡族层按控制器名、
         //   雷赛层按整卡就绪），连接 / 断开 / 获取后刷新通知即可。
 
@@ -135,7 +141,7 @@ namespace NoCodeMotion.ViewModels
         /// <summary>在线 / 离线文字（给状态药丸用）。</summary>
         public string ConnectionText => IsOnline ? "在线" : "离线";
 
-        /// <summary>所有已初始化控制器的底层真实状态（来自 SamsunCardBridge.ControllerStatus）。</summary>
+        /// <summary>所有已初始化控制器的底层真实状态（来自 WenQiZhiCardBridge.ControllerStatus）。</summary>
         public IReadOnlyList<string> ConnectionStatusLines
             => HardwareSetup.CardFamilies?.ControllerStatus() ?? Array.Empty<string>();
 
@@ -158,6 +164,14 @@ namespace NoCodeMotion.ViewModels
         /// <summary>连接 / 获取 的结果说明（显示在扩展IO卡片下）。</summary>
         public string ConnectMessage { get => _connectMessage; set => SetField(ref _connectMessage, value); }
 
+        /// <summary>是否正在连接控制卡（后台线程执行，UI 不冻结）。</summary>
+        private bool _isConnecting;
+        public bool IsConnecting { get => _isConnecting; set => SetField(ref _isConnecting, value); }
+
+        /// <summary>连接过程中的步骤文本，供进度条旁显示「正在干什么」。</summary>
+        private string _connectStatusText = "就绪";
+        public string ConnectStatusText { get => _connectStatusText; set => SetField(ref _connectStatusText, value); }
+
         /// <summary>获取：探测该控制卡匹配的卡族与扩展IO能力，刷新可添加的型号候选。</summary>
         public ICommand FetchModulesCommand => new RelayCommand(_ => FetchModules());
 
@@ -166,8 +180,8 @@ namespace NoCodeMotion.ViewModels
             var ctl = SelectedItem;
             if (ctl == null) return;
 
-            var fam = SamsunCardBridge.ResolveFamily(ctl);
-            bool exp = SamsunCardBridge.SupportsExpansionIo(ctl);
+            var fam = WenQiZhiCardBridge.ResolveFamily(ctl);
+            bool exp = WenQiZhiCardBridge.SupportsExpansionIo(ctl);
             int n = ExpansionModuleCatalog.Modules.Length;
 
             ConnectMessage = IsOnline
@@ -186,52 +200,85 @@ namespace NoCodeMotion.ViewModels
         {
             var ctl = SelectedItem;
             if (ctl == null) return;
+            if (IsConnecting) return;   // 防止重复点击
 
-            bool ok;
-            string msg;
-            try
+            var dispatcher = System.Windows.Application.Current.Dispatcher;
+            IsConnecting = true;
+            ConnectStatusText = "正在初始化硬件层...";
+
+            System.Threading.Tasks.Task.Run(() =>
             {
-                HardwareSetup.EnsureInitialized();   // 按工程自动装配：卡族层 / 雷赛封装
-                if (HardwareSetup.Mode == HardwareMode.CardFamilies && HardwareSetup.CardFamilies != null)
+                bool ok = false;
+                string msg = string.Empty;
+                System.Exception runError = null;
+                try
                 {
-                    ok = HardwareSetup.CardFamilies.TryConnect(ctl, out msg);
+                    dispatcher.Invoke(() => ConnectStatusText = "正在初始化硬件层...");
+                    HardwareSetup.EnsureInitialized();   // 按工程自动装配：卡族层 / 雷赛封装
+                    dispatcher.Invoke(() => ConnectStatusText = "正在连接控制卡...");
+                    if (HardwareSetup.Mode == HardwareMode.CardFamilies && HardwareSetup.CardFamilies != null)
+                    {
+                        ok = HardwareSetup.CardFamilies.TryConnect(ctl, out msg);
+                    }
+                    else
+                    {
+                        // 雷赛自有封装：重连并看卡是否就绪
+                        msg = HardwareSetup.Reconnect();
+                        ok = HardwareSetup.IsCardReady;
+                    }
                 }
-                else
+                catch (System.Exception ex) { runError = ex; }
+
+                // 数据生成 / 状态刷新会触碰 UI 绑定的集合与属性，统一回到 UI 线程执行
+                dispatcher.Invoke(() =>
                 {
-                    // 雷赛自有封装：重连并看卡是否就绪
-                    msg = HardwareSetup.Reconnect();
-                    ok = HardwareSetup.IsCardReady;
-                }
-            }
-            catch (System.Exception ex)
-            {
-                ok = false;
-                msg = "连接异常：" + ex.Message;
-            }
+                    try
+                    {
+                        if (runError != null)
+                        {
+                            ConnectStatusText = "连接失败";
+                            ConnectMessage = "● 连接异常：" + runError.Message;
+                            HardwareLog.Write("[控制器] " + ConnectMessage);
+                            return;
+                        }
 
-            var fam = SamsunCardBridge.ResolveFamily(ctl);
+                        var fam = WenQiZhiCardBridge.ResolveFamily(ctl);
 
-            // ★ 连接后从底层硬件真实读取轴数 / IO 数，回退到配置值；真实值 > 0 时回写配置让汇总 / IO 生成一致
-            FetchDetectedCounts(ctl);
+                        // ★ 连接后从底层硬件真实读取轴数 / IO 数，回退到配置值；真实值 > 0 时回写配置让汇总 / IO 生成一致
+                        ConnectStatusText = "正在读取真实轴 / IO 数量...";
+                        FetchDetectedCounts(ctl);
 
-            // 本 VM 自己的「真实检测」代理属性也要刷新（静态事件只通知轴页 / IO 页）
-            OnPropertyChanged(nameof(DetectedAxisCount));
-            OnPropertyChanged(nameof(DetectedInIo));
-            OnPropertyChanged(nameof(DetectedOutIo));
+                        // 本 VM 自己的「真实检测」代理属性也要刷新（静态事件只通知轴页 / IO 页）
+                        OnPropertyChanged(nameof(DetectedAxisCount));
+                        OnPropertyChanged(nameof(DetectedInIo));
+                        OnPropertyChanged(nameof(DetectedOutIo));
 
-            RaiseConnection();
-            RaiseStatusLines();
-            RaiseTotals();
-            RaiseDetected();   // 通知轴页 / IO 页刷新真实数量
-            string axisMsg = GenerateAxisPoints(ctl);   // 连接后按底层真实轴数自动生成轴（先清空本卡轴再添加）
-            string ioMsg = GenerateIoPoints(ctl);   // 连接后按「主板 + 扩展模块」的 IO 数自动生成 IO 点
-            ConnectMessage = (ok ? "● 已连接：" : "○ 未连接：") + ctl.Name + " —— " + msg
-                + (fam == null ? "。★卡型号未匹配到已移植卡族，轴 / IO 不会真实下发。" : string.Empty)
-                + (ctl.DetectedAxisCount > 0
-                    ? $" 真实检测：轴 {ctl.DetectedAxisCount} / 输入 {ctl.DetectedInIo} / 输出 {ctl.DetectedOutIo}。"
-                    : string.Empty)
-                + " " + axisMsg + " " + ioMsg;
-            HardwareLog.Write("[控制器] " + ConnectMessage);
+                        RaiseConnection();
+                        RaiseStatusLines();
+                        RaiseTotals();
+                        RaiseDetected();   // 通知轴页 / IO 页刷新真实数量
+                        ConnectStatusText = "正在生成轴与 IO 点...";
+                        string axisMsg = GenerateAxisPoints(ctl);   // 连接后按底层真实轴数自动生成轴（先清空本卡轴再添加）
+                        string ioMsg = GenerateIoPoints(ctl);   // 连接后按「主板 + 扩展模块」的 IO 数自动生成 IO 点
+                        ConnectStatusText = "连接完成";
+                        ConnectMessage = (ok ? "● 已连接：" : "○ 未连接：") + ctl.Name + " —— " + msg
+                            + (fam == null ? "。★卡型号未匹配到已移植卡族，轴 / IO 不会真实下发。" : string.Empty)
+                            + (ctl.DetectedAxisCount > 0
+                                ? $" 真实检测：轴 {ctl.DetectedAxisCount} / 输入 {ctl.DetectedInIo} / 输出 {ctl.DetectedOutIo}。"
+                                : string.Empty)
+                            + " " + axisMsg + " " + ioMsg;
+                        HardwareLog.Write("[控制器] " + ConnectMessage);
+                        UpdateStatusBar();
+                    }
+                    catch (System.Exception ex)
+                    {
+                        ConnectStatusText = "连接失败";
+                        ConnectMessage = "● 连接异常：" + ex.Message;
+                        HardwareLog.Write("[控制器] " + ConnectMessage);
+                    }
+                    finally { IsConnecting = false; }
+                });
+            });
         }
 
         /// <summary>
@@ -329,8 +376,79 @@ namespace NoCodeMotion.ViewModels
             try { HardwareSetup.CardFamilies?.Disconnect(ctl); } catch { /* 断开失败也置离线 */ }
             RaiseConnection();
             RaiseStatusLines();
+            UpdateStatusBar();
             ConnectMessage = $"○ 已断开「{ctl.Name}」。";
             HardwareLog.Write("[控制器] " + ConnectMessage);
+        }
+
+        /// <summary>后台自动连接工程里的所有控制卡（打开软件 / 切换工程时调用），刷新状态栏在线指示；不阻塞 UI。</summary>
+        public void AutoConnectAll()
+        {
+            if (IsConnecting) return;
+            var controllers = Items.ToList();
+            if (controllers.Count == 0) { UpdateStatusBar(); return; }
+
+            var dispatcher = System.Windows.Application.Current.Dispatcher;
+            IsConnecting = true;
+            ConnectStatusText = "正在自动连接控制卡...";
+            StatusBarService.ReportInfo("正在后台自动连接控制卡…");
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    HardwareSetup.EnsureInitialized();
+                    if (HardwareSetup.Mode == HardwareMode.CardFamilies && HardwareSetup.CardFamilies != null)
+                    {
+                        foreach (var c in controllers)
+                            HardwareSetup.CardFamilies.TryConnect(c, out _);
+                    }
+                    else if (HardwareSetup.Mode == HardwareMode.Leadshine)
+                    {
+                        HardwareSetup.Reconnect();
+                    }
+                    dispatcher.Invoke(() =>
+                    {
+                        foreach (var c in controllers) FetchDetectedCounts(c);
+                        RaiseConnection();
+                        RaiseStatusLines();
+                        RaiseTotals();
+                        RaiseDetected();
+                        UpdateStatusBar();
+                        ConnectStatusText = "连接完成";
+                        int online = 0;
+                        foreach (var c in controllers) if (IsControllerReady(c)) online++;
+                        ConnectMessage = $"已自动连接控制卡：{online}/{controllers.Count} 在线。";
+                        StatusBarService.ReportInfo($"已自动连接控制卡：{online}/{controllers.Count} 在线。");
+                        HardwareLog.Write("[控制器] " + ConnectMessage);
+                    });
+                }
+                catch (System.Exception ex)
+                {
+                    dispatcher.Invoke(() =>
+                    {
+                        ConnectStatusText = "连接失败";
+                        StatusBarService.ReportException("自动连接控制卡失败：" + ex.Message);
+                        HardwareLog.Write("[控制器] 自动连接异常：" + ex.Message);
+                    });
+                }
+                finally
+                {
+                    dispatcher.Invoke(() => IsConnecting = false);
+                }
+            });
+        }
+
+        private static bool IsControllerReady(AxisControllerItem ctl)
+            => HardwareSetup.Mode == HardwareMode.Leadshine
+                ? HardwareSetup.IsCardReady
+                : (HardwareSetup.CardFamilies != null && HardwareSetup.CardFamilies.IsControllerReady(ctl.Name));
+
+        private void UpdateStatusBar()
+        {
+            int total = Items.Count;
+            int online = 0;
+            foreach (var c in Items) if (IsControllerReady(c)) online++;
+            StatusBarService.SetControllerStatus(online, total);
         }
 
         private void RaiseConnection()
@@ -339,11 +457,11 @@ namespace NoCodeMotion.ViewModels
             OnPropertyChanged(nameof(ConnectionText));
         }
 
-        /// <summary>通知界面刷新底层连接总览（来自 SamsunCardBridge.ControllerStatus）。</summary>
+        /// <summary>通知界面刷新底层连接总览（来自 WenQiZhiCardBridge.ControllerStatus）。</summary>
         private void RaiseStatusLines() => OnPropertyChanged(nameof(ConnectionStatusLines));
 
         /// <summary>
-        /// 连接成功后从底层真实读取轴 / IO 数量：卡族层走 <see cref="SamsunCardBridge.TryGetRealCounts"/>，
+        /// 连接成功后从底层真实读取轴 / IO 数量：卡族层走 <see cref="WenQiZhiCardBridge.TryGetRealCounts"/>，
         /// 雷赛层走 <see cref="LtdmcCard"/> 上报的轴数；硬件未返回有效值时保留用户配置。
         /// 真实值 &gt; 0 时回写配置（AxisCount / InIoCount / OutIoCount），使「数量汇总」与自动生成的 IO 点与硬件一致。
         /// </summary>
@@ -533,7 +651,7 @@ namespace NoCodeMotion.ViewModels
             }
 
             // 2) 已移植的运动控制卡族：按底层库（DLL）是否存在识别，登记为该卡族的控制器。
-            //    只探库、不初始化卡 —— 真正初始化推迟到首次轴 / IO 动作时懒加载（见 SamsunCardBridge），
+            //    只探库、不初始化卡 —— 真正初始化推迟到首次轴 / IO 动作时懒加载（见 WenQiZhiCardBridge），
             //    免得自动识别阶段去碰一个没插卡的驱动把界面卡住。
             foreach (var fam in CardFamilyCatalog.DetectPresent())
             {

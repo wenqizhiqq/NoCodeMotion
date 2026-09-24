@@ -51,7 +51,7 @@ namespace NoCodeMotion.Models
 
         // ============ 连接后从底层硬件真实检测到的数量（仅显示，0 = 尚未连接 / 卡未上报） ============
 
-        /// <summary>连接后由底层硬件真实读到的轴数量（<see cref="SamsunCardBridge.TryGetRealCounts"/>）。</summary>
+        /// <summary>连接后由底层硬件真实读到的轴数量（<see cref="WenQiZhiCardBridge.TryGetRealCounts"/>）。</summary>
         private int _detectedAxisCount;
         public int DetectedAxisCount { get => _detectedAxisCount; set => SetField(ref _detectedAxisCount, value); }
 

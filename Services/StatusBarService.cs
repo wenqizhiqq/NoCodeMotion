@@ -40,6 +40,29 @@ namespace NoCodeMotion.Services
 
         public static bool HasInfo => !string.IsNullOrWhiteSpace(InfoText);
 
+        /// <summary>控制器连接状态：在线控制器数 / 控制器总数；0 总数表示「无控制器」。</summary>
+        public static int ControllerOnlineCount { get; private set; }
+        public static int ControllerTotalCount { get; private set; }
+
+        /// <summary>状态栏「控制器」文本：无控制器 / N/M 在线。</summary>
+        public static string ControllerStatusText
+            => ControllerTotalCount == 0 ? "无控制器"
+               : $"控制器 {ControllerOnlineCount}/{ControllerTotalCount} 在线";
+
+        /// <summary>控制器状态圆点颜色：全在线绿 / 部分在线琥珀 / 全离线红 / 无控制器灰。</summary>
+        public static string ControllerColor
+            => ControllerTotalCount == 0 ? "#64748B"
+               : (ControllerOnlineCount == ControllerTotalCount ? "#16A34A"
+                  : (ControllerOnlineCount > 0 ? "#D97706" : "#DC2626"));
+
+        /// <summary>由 AxisControllerViewModel 在连接 / 断开 / 自动连接后调用，刷新状态栏控制器指示。</summary>
+        public static void SetControllerStatus(int online, int total)
+        {
+            ControllerOnlineCount = online;
+            ControllerTotalCount = total;
+            Raise();
+        }
+
         /// <summary>运行状态圆点/文本颜色。</summary>
         public static string RunColor => EStopped ? "#DC2626" : (IsRunning ? "#16A34A" : "#64748B");
 

@@ -2,7 +2,7 @@
 // ◆温⁠启‎志‎◆‎编⁠写​◇⁣微‌信⁠﹕‍1‎8‎7‌◆‏1​9‌3‍6‍◇‏1‌3‌9‏9‌　​※⁣保‌留‏所‏有⁣权‏利⁠请⁠勿‏删‎除‎◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ────────────────────────────────────────────────────────────────
-// 运动控制卡对接实现：把移植进来的 Samsun.Domain.MotionCard.Common 卡族层
+// 运动控制卡对接实现：把移植进来的 WenQiZhi.Domain.MotionCard.Common 卡族层
 // （CardRealization : ICard / AxisRealization : IAxis / InioRealization : IIOInPut /
 //   OutioRealization : IIOOutPut / Expand* : IEIOInPut / IEIOOutPut）
 // 接到 NoCodeMotion 的 IHardwareBridge 上，让 Lua 的 AxisMove / SetIO 等真正下发到卡。
@@ -28,7 +28,7 @@ using MoonSharp.Interpreter;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services.Hardware.Comm;
 using NoCodeMotion.Services.Hardware.Leadshine;   // HardwareOperationException
-using Samsun.Domain.MotionCard.Common;
+using WenQiZhi.Domain.MotionCard.Common;
 
 namespace NoCodeMotion.Services.Hardware.Cards
 {
@@ -38,7 +38,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
     ///
     /// 启用方式（程序启动处，或「硬件设置」里切换）：
     /// <code>
-    /// HardwareBridge.Current = new SamsunCardBridge(msg => 输出日志(msg));
+    /// HardwareBridge.Current = new WenQiZhiCardBridge(msg => 输出日志(msg));
     /// </code>
     ///
     /// 设计原则：
@@ -47,7 +47,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
     ///   - 出错信息全中文，直接显示在 Lua 输出面板。
     ///   - 一个控制器只初始化一次（懒加载），失败也记住状态，避免每次动作都重试一遍插卡。
     /// </summary>
-    public sealed class SamsunCardBridge : IHardwareBridge, IDisposable
+    public sealed class WenQiZhiCardBridge : IHardwareBridge, IDisposable
     {
         /// <summary>可调参数（按现场接线习惯改这里即可）。</summary>
         public static class Options
@@ -113,7 +113,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         private bool _warnedUnmatched;
         private bool _warnedExpansion;
 
-        public SamsunCardBridge(Action<string> log = null)
+        public WenQiZhiCardBridge(Action<string> log = null)
         {
             _log = log;
             _comm.Log = Log;   // 未传回调时统一走 HardwareLog（Lua 运行期会指向输出面板）

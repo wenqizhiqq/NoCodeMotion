@@ -23,5 +23,5 @@ E:\smotorseNew\SMotorseWpfSlate2\shd_decomp.cs
   4073: return $"输入IO数量：{num}；输出IO数量：{num2}；总数：{num + num2}";
   4081: stringBuilder.Append($"卡：{config.MainCardInIOInfo[i].CardName},{config.MainCardInIOInfo[i].InIOName}\n IO数量：{config.MainCardInIOInfo[i].InIONums}\n IO起始索引：{config.MainCardInIOInfo[i].IOIndexStart}\r\n");
   4091: stringBuilder.Append($"卡：{config.MainCardOutIOInfo[i].CardName},{config.MainCardOutIOInfo[i].OutIOName}\n IO数量：{config.MainCardOutIOInfo[i].OutIONums}\n IO起始索引：{config.MainCardOutIOInfo[i].IOIndexStart}\r\n");
-E:\smotorseNew\SMotorse_Editor_UI2\SamsunMotion\SMotorseWpf\NodeRegion\EngineeringCommissioning\DbgAxisGroupView.xaml
+E:\smotorseNew\SMotorse_Editor_UI2\WenQiZhiMotion\SMotorseWpf\NodeRegion\EngineeringCommissioning\DbgAxisGroupView.xaml
   97: <!-- 轴数量 -->

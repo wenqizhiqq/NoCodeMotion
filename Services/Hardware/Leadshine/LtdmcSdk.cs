@@ -1,4 +1,4 @@
-﻿// 移植自 SamsunMotion 的 LTDMC.cs（雷赛统一 SDK 完整原生函数声明，776 个 DllImport）。
+﻿// 移植自 WenQiZhiMotion 的 LTDMC.cs（雷赛统一 SDK 完整原生函数声明，776 个 DllImport）。
 // 与 NoCodeMotion 自带的 LtdmcNative（仅 26 个已验证函数在用）并存：
 //   - LtdmcNative : 桥当前使用的、签名已验证的 26 个函数，保持不变；
 //   - LtdmcSdk    : 雷赛 LTDMC.dll 全量函数，供 Lua/流程按需调用更高级能力

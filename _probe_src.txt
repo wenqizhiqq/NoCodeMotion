@@ -426,7 +426,7 @@ D:\wqz\code\NoCodeMotion\Services\Hardware\HardwareLog.cs
 D:\wqz\code\NoCodeMotion\Services\Hardware\HardwareSetup.cs
 D:\wqz\code\NoCodeMotion\Services\Hardware\Cards\.editorconfig
 D:\wqz\code\NoCodeMotion\Services\Hardware\Cards\CardFamilyCatalog.cs
-D:\wqz\code\NoCodeMotion\Services\Hardware\Cards\SamsunCardBridge.cs
+D:\wqz\code\NoCodeMotion\Services\Hardware\Cards\WenQiZhiCardBridge.cs
 D:\wqz\code\NoCodeMotion\Services\Hardware\Cards\Compat\EasyModbusCompat.cs
 D:\wqz\code\NoCodeMotion\Services\Hardware\Cards\Compat\LogHelperCompat.cs
 D:\wqz\code\NoCodeMotion\Services\Hardware\Cards\Compat\SMotorseKernelCompat.cs

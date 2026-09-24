@@ -68,7 +68,7 @@ namespace NoCodeMotion.Services.Hardware
     /// 主流运动控制卡厂商登记表（脉冲型 + 总线型全覆盖）。
     /// 这是“支持更多类型控制卡”的中央数据源：添加控制器下拉、自动识别、总线分类都读这里。
     ///
-    /// ★ 品牌划分与卡族对应关系来自 SamsunMotion / SMotorse 参考实现自己的枚举与分组规则：
+    /// ★ 品牌划分与卡族对应关系来自 WenQiZhiMotion / SMotorse 参考实现自己的枚举与分组规则：
     ///     ShareData/ShareDatastruct.cs 的 CardTypeEnum = { 模拟卡, 雷赛, 升立德, 恒昱, 研控 }
     ///   参考实现没覆盖的型号（MCC141C / PLTEI400H / EC600 / SoftServo）统一归到「未分类」，
     ///   不臆造品牌名。

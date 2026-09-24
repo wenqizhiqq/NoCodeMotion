@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Samsun.Domain.MotionCard.Common
+namespace WenQiZhi.Domain.MotionCard.Common
 {
     // ────────────────────────────────────────────────────────────────
     // 应用内核服务兼容层（本工程自行实现，非厂商源码）

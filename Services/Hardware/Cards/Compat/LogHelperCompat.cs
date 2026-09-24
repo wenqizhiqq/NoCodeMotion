@@ -4,7 +4,7 @@
 #nullable disable
 using System;
 
-namespace Samsun.Domain.LogHelper.Model
+namespace WenQiZhi.Domain.LogHelper.Model
 {
     /// <summary>
     /// 日志模型（自参考工程 LogHelper/LogHelperModel.cs 逐字移植）。
@@ -20,7 +20,7 @@ namespace Samsun.Domain.LogHelper.Model
     }
 }
 
-namespace Samsun.Domain.LogHelper.Helper
+namespace WenQiZhi.Domain.LogHelper.Helper
 {
     // ────────────────────────────────────────────────────────────────
     // 日志出口兼容层（本工程自行实现，非厂商源码）
@@ -31,7 +31,7 @@ namespace Samsun.Domain.LogHelper.Helper
     // 不引入 log4net 依赖。
     //
     // 调用形态与参考实现一致：LogHelper.Helper.DefaultFileLogHelper.Warn(model)
-    //   —— 其中 LogHelper 解析为命名空间 Samsun.Domain.LogHelper，
+    //   —— 其中 LogHelper 解析为命名空间 WenQiZhi.Domain.LogHelper，
     //      Helper 是子命名空间，DefaultFileLogHelper 是该命名空间里的类型。
     // ────────────────────────────────────────────────────────────────
 

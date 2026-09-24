@@ -2,7 +2,7 @@
 // ◆温⁠启‎志‎◆‎编⁠写​◇⁣微‌信⁠﹕‍1‎8‎7‌◆‏1​9‌3‍6‍◇‏1‌3‌9‏9‌　​※⁣保‌留‏所‏有⁣权‏利⁠请⁠勿‏删‎除‎◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ────────────────────────────────────────────────────────────────
-// 移植自 SamsunMotion / SMotorse 运动控制卡层参考实现
+// 移植自 WenQiZhiMotion / SMotorse 运动控制卡层参考实现
 //   源: MotionCardRes/DMC2210/DMC2210SDK.cs
 //   改动: 仅行尾归一化为 LF、加 #nullable disable；命名空间与逻辑保持原样。
 // ────────────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Samsun.Domain.MotionCard.Common.DMC2210 //命名空间根据应用程序修改
+namespace WenQiZhi.Domain.MotionCard.Common.DMC2210 //命名空间根据应用程序修改
 {
     public class DMC2210SDK
     {

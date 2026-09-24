@@ -38,7 +38,7 @@ namespace NoCodeMotion.ViewModels
         private static bool IsControllerReadyNow(string name)
         {
             if (HardwareSetup.Mode == HardwareMode.Leadshine) return HardwareSetup.IsCardReady;
-            var b = HardwareBridge.Current as SamsunCardBridge;
+            var b = HardwareBridge.Current as WenQiZhiCardBridge;
             return b != null && b.IsControllerReady(name);
         }
 

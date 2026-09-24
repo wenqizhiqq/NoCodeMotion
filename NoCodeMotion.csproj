@@ -76,12 +76,12 @@
     <None Include="Native\opencv_videoio_ffmpeg4130_64.dll" Link="opencv_videoio_ffmpeg4130_64.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- 雷赛（Leadshine）DMC 系列控制卡原生运行时：取自 SamsunMotion 参考实现的 Loader\bin。
+  <!-- 雷赛（Leadshine）DMC 系列控制卡原生运行时：取自 WenQiZhiMotion 参考实现的 Loader\bin。
        全部为 x64 原生库，与 NoCodeMotion.exe(x64) 位数一致。
        LTDMC.dll 是统一驱动（Hardware/Leadshine/LtdmcNative.cs P/Invoke 的目标）；
        Dmc1000/IMC100API/ecat_motion 是各卡型的后端，插对应实物卡时由 LTDMC.dll 按需加载。
        注：DMC2210.dll 在参考实现里是 x86，与 x64 进程不兼容，DMC2210 卡型需另取 x64 版本。 -->
-  <!-- 运动控制卡层（移植自 SamsunMotion / SMotorse 参考实现）所需的原生运行时。
+  <!-- 运动控制卡层（移植自 WenQiZhiMotion / SMotorse 参考实现）所需的原生运行时。
        全部为 x64，与 NoCodeMotion.exe(x64) 位数一致；各卡家族的 P/Invoke 目标见
        Services\Hardware\Cards\Native\*.cs。未随附的库（MCC.dll / Dmc2410.dll /
        SLD9014PTP.dll 缺件，DMC2210.dll 为 x86）对应的卡家族仍可编译，但插卡后无法驱动。 -->

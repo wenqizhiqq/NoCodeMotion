@@ -111,7 +111,7 @@ namespace NoCodeMotion.ViewModels
         private static void EnsureHardwareLayer()
         {
             HardwareSetup.EnsureInitialized();
-            if (HardwareSetup.Mode != HardwareMode.CardFamilies && SamsunCardBridge.CanServeProject(out _))
+            if (HardwareSetup.Mode != HardwareMode.CardFamilies && WenQiZhiCardBridge.CanServeProject(out _))
                 HardwareSetup.UseCardFamilies();
         }
     }
@@ -165,7 +165,7 @@ namespace NoCodeMotion.ViewModels
         private static bool IsControllerReadyNow(string name)
         {
             if (HardwareSetup.Mode == HardwareMode.Leadshine) return HardwareSetup.IsCardReady;
-            var b = HardwareBridge.Current as SamsunCardBridge;
+            var b = HardwareBridge.Current as WenQiZhiCardBridge;
             return b != null && b.IsControllerReady(name);
         }
 
