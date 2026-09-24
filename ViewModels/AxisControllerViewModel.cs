@@ -193,15 +193,39 @@ namespace NoCodeMotion.ViewModels
             RaiseStatusLines();   // 刷新底层连接总览
         }
 
+        /// <summary>是否已挂「等待加载遮罩结束」的一次性回调，避免重复订阅。</summary>
+        private bool _autoConnectPending;
+
         /// <summary>
-        /// 把自动连接请求投递到 UI 消息循环末尾（低优先级），确保「打开 / 切换工程」的加载遮罩已隐藏后
-        /// 再开始后台连接——控制器连接全程在后台线程跑，绝不阻塞载入项目的进度条。
+        /// 请求自动连接：**必须等「启动预初始化 / 打开工程」的加载遮罩结束后**再在后台连接。
+        /// <para>连接会做硬件层装配（<c>HardwareSetup.EnsureInitialized</c> → 枚举已移植卡族库、加载底层 DLL）。
+        /// 若与载入阶段同跑，会与页面预初始化争用原生加载器锁，拖住载入进度条，让用户误以为
+        /// 「连上控制器才进主界面」。这里显式等到 <see cref="LoadingService.IsLoading"/> 为 false，
+        /// 保证**先进主界面**，再由状态栏显示「正在连接…」→ 连接结果。</para>
         /// </summary>
         private void RequestAutoConnect()
         {
             var dispatcher = System.Windows.Application.Current?.Dispatcher;
             if (dispatcher == null) { AutoConnectAll(); return; }
-            dispatcher.BeginInvoke(new Action(AutoConnectAll), System.Windows.Threading.DispatcherPriority.Background);
+
+            if (!LoadingService.IsLoading)
+            {
+                dispatcher.BeginInvoke(new Action(AutoConnectAll), System.Windows.Threading.DispatcherPriority.Background);
+                return;
+            }
+
+            // 载入遮罩还在 → 等它隐藏后再后台连接（一次性订阅，避免重复）；绝不在载入阶段争用硬件初始化
+            if (_autoConnectPending) return;
+            _autoConnectPending = true;
+
+            void OnLoadingStateChanged()
+            {
+                if (LoadingService.IsLoading) return;
+                LoadingService.StateChanged -= OnLoadingStateChanged;
+                _autoConnectPending = false;
+                dispatcher.BeginInvoke(new Action(AutoConnectAll), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            LoadingService.StateChanged += OnLoadingStateChanged;
         }
 
         /// <summary>连接：初始化 / 打开该控制卡（含其扩展 IO 模块），成功后在线。</summary>

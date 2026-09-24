@@ -48,7 +48,8 @@
 ## 控制器连接体验增强（2026-09-23，本轮）
 - 连接按钮后台化：`AxisControllerViewModel.Connect()` 改 `Task.Run` 后台，分步 `ConnectStatusText`（初始化/连接卡/读真实轴IO/生成点/完成/失败），`IsConnecting` 防重复点击，`Application.Current.Dispatcher.Invoke` 回 UI。`AxisControllerPage.xaml` 加 `IsConnecting` 绑定的不确定进度条 + 状态文字。
 - 状态栏在线指示：`StatusBarService` 加 `ControllerOnlineCount/TotalCount`+`SetControllerStatus(online,total)`+`ControllerStatusText/ControllerColor`（全在线绿/部分橙/全离线红/无控制器灰）；`StatusBarViewModel` 转发 INPC；`StatusBarView.xaml` 加第 3 列「控制器」圆点+文字（Grid 改 6 列）。VM 每次连接/断开/自动连接后调 `UpdateStatusBar()`。
-- 自动连接：`ProjectManager.DataReloaded`（`System.Action?`，**0 参**）触发 `AutoConnectAll()`（后台遍历 Items.TryConnect/Reconnect，回 UI 刷 FetchDetectedCounts+状态栏）；构造函数对已有 Items 立即触发一次。
+- 自动连接：`ProjectManager.DataReloaded`（`System.Action?`，**0 参**）/ 构造函数触发 `RequestAutoConnect()`（**不是**直接 `AutoConnectAll`）。`RequestAutoConnect` 关键铁律：**必须等 `LoadingService.IsLoading==false`（载入遮罩隐藏）后**才 `BeginInvoke(Background)` 调 `AutoConnectAll`——否则连接与 `PreloadAllPagesAsync` 页面预初始化同跑，抢原生加载器锁（`CardFamilyCatalog.DetectPresent` 枚举底层 DLL）会拖住载入进度条，表现成「连上控制器才进主界面」。载入中则挂一次性 `LoadingService.StateChanged` 回调（`_autoConnectPending` 防重复），等遮罩隐藏再连。
+- 连接按钮合并（2026-09-24）：控制器页「获取」+「连接」两按钮合并为单按钮「连接控制器」→ `ConnectControllerCommand` = 先 `FetchModules()`（获取卡参数）再弹 `Views/ConnectProgressDialog`（Apple 圆角白卡 + 不确定进度条 + `ConnectStatusText`）后台 `Connect()`，`IsConnecting` 变 false 时弹窗自动关。（`StackPanel` 无 `Padding`，用 `Margin`。）
 
 ## 仿真模板
 - ProjectTemplateCatalog 20 模板；NgTemplates.Build 脚手架。
