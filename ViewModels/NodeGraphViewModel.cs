@@ -27,6 +27,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     private FlowItem? _flowItem;
     private readonly NgDoc _doc = new();
     private readonly NgRunner _runner;
+    private readonly System.Windows.Threading.DispatcherTimer _actualPosTimer;
 
     public ObservableCollection<NodeGraphNodeViewModel> Nodes { get; } = new();
     public ObservableCollection<NodeGraphConnectionViewModel> Connections { get; } = new();
@@ -44,6 +45,8 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             if (value != null) SelectedConnection = null;
             OnChanged(nameof(SelectedNode));
             OnChanged(nameof(HasSelection));
+            OnChanged(nameof(ShowActualPositionRow));
+            value?.RefreshActualPosition();      // 选中即刷新一次「实际位置」
         }
     }
 
@@ -62,6 +65,9 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     }
 
     public bool HasSelection => SelectedNode != null || SelectedConnection != null;
+
+    /// <summary>属性面板是否显示「实际位置」行（选中轴类节点时）。null 安全：未选中时为 false。</summary>
+    public bool ShowActualPositionRow => SelectedNode?.ShowsActualPosition == true;
 
     /// <summary>工具箱：按 视觉 / 运控 / 通讯 分组的节点类型列表。</summary>
     public System.Collections.Generic.List<NgToolGroup> ToolboxGroups { get; }
@@ -103,7 +109,6 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     {
         // 构造 NgRunner：把 name→对象 的解析 + 变量读写桥接给 runner
         _runner = new NgRunner(
-            HardwareBridge.Current,
             HardwareResolver.ResolveAxis,
             HardwareResolver.ResolveInput,
             HardwareResolver.ResolveOutput,
@@ -113,6 +118,14 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             SimRuntime.GetVariable);
         _runner.StateChanged += OnRunnerStateChanged;
         _runner.ReportChanged += OnRunnerReportChanged;
+
+        // 属性面板「实际位置」1 秒刷新（运行时随轴运动实时变化）；只刷新当前选中节点，代价极小。
+        _actualPosTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = System.TimeSpan.FromMilliseconds(1000)
+        };
+        _actualPosTimer.Tick += (_, _) => SelectedNode?.RefreshActualPosition();
+        _actualPosTimer.Start();
 
         AddNodeCommand = new RelayCommand(p => AddNode(ParseKind(p), DefaultX(), DefaultY()));
         DeleteCommand = new RelayCommand(_ => DeleteSelected(), _ => HasSelection);

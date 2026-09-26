@@ -32,6 +32,8 @@
 - VisualFlowPage.ApplySelection() 须覆盖 _vm.Steps/_vm.Name/_vm.SelectedStep；Steps 非空且 SelectedStep=null 自动选 [0]。
 - 节点图 Models/NodeGraph/ 数据驱动；UI 用 ItemsControl+DataTemplate，禁 Children.Add。
 - NgRunner（6 按钮+NgStepResult）：WaitResumeAsync 须实例方法按 _state 轮询；Pause 仅节点边界生效。
+- ★ **任何 VM/服务都不要在构造时捕获 `HardwareBridge.Current`**：控制卡在启动后才连接，构造时抓一次会一直用默认桩（Stub）→「运行时轴不动」。执行时实时读 `HardwareBridge.Current`（`FlowRunnerService`、`NgRunner` 都踩过同一个坑）。
+- 节点图属性面板 `Views/NodeGraphPage.xaml`：`NgPropViewModel` 三态显隐 —— `HasOptions`（固定候选下拉）/ `IsAxisProp`（「轴」→ `{x:Static svc:Catalog.AxisNames}` 下拉）/ `IsPlainText`（自由文本）；轴类节点（轴运动/回零/等待轴到位）额外显示「实际位置」只读行，由 `NodeGraphViewModel` 的 1 秒 `DispatcherTimer` → `SelectedNode.RefreshActualPosition()` 刷新（显隐用 null 安全的 `ShowActualPositionRow`）。
 
 ## CAD/DWG
 - 真实 BREP→OcctNet.Wrapper 0.1.1；STEP Z-up→WPF Y-up 绕 X -90°；BackMaterial 防黑面。

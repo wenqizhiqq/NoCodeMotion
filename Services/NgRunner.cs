@@ -32,7 +32,9 @@ namespace NoCodeMotion.Services;
 
 public sealed class NgRunner
 {
-    private readonly IHardwareBridge _bridge;
+    // 始终解析「当前」桥：控制卡可能在节点图 VM 构造之后才连接，
+    // 构造时捕获一次会一直用默认桩（StubHardwareBridge）→ 运行时轴不动（与 FlowRunnerService 同一教训）。
+    private IHardwareBridge _bridge => HardwareBridge.Current;
     private readonly Func<string, AxisItem?> _findAxis;
     private readonly Func<string, IoItem?> _findInput;
     private readonly Func<string, IoItem?> _findOutput;
@@ -71,7 +73,6 @@ public sealed class NgRunner
     public event Action? ReportChanged;
 
     public NgRunner(
-        IHardwareBridge bridge,
         Func<string, AxisItem?> findAxis,
         Func<string, IoItem?> findInput,
         Func<string, IoItem?> findOutput,
@@ -80,7 +81,6 @@ public sealed class NgRunner
         Action<string, double> setVar,
         Func<string, double> getVar)
     {
-        _bridge = bridge;
         _findAxis = findAxis;
         _findInput = findInput;
         _findOutput = findOutput;
@@ -88,7 +88,7 @@ public sealed class NgRunner
         _findComm = findComm;
         _setVar = setVar;
         _getVar = getVar;
-        _vision = new NgVisionExecutor(setVar, msg => { try { bridge?.Log(msg); } catch { } });
+        _vision = new NgVisionExecutor(setVar, msg => { try { _bridge?.Log(msg); } catch { } });
     }
 
     /// <summary>加载/切换 NgDoc 时调用：重建邻接表、清空报告与循环计数、断点保留。</summary>

@@ -3,8 +3,11 @@
 // ◆◇※▣▤▥ۦ▧▨۩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥ۦ▧▨۩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥ۦ▧
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
+using System.Linq;
 using System.Windows;
 using NoCodeMotion.Models.NodeGraph;
+using NoCodeMotion.Services;
 
 namespace NoCodeMotion.ViewModels;
 
@@ -16,6 +19,10 @@ public sealed class NgPropViewModel : INotifyPropertyChanged
 
     public string Name => _model.Name;
     public bool HasOptions => !string.IsNullOrEmpty(_model.Options);
+    /// <summary>「轴」属性用轴名称下拉（候选来自工程里已配置的轴）。</summary>
+    public bool IsAxisProp => Name == "轴";
+    /// <summary>既非固定候选、也非轴下拉 → 用自由文本输入框。</summary>
+    public bool IsPlainText => !HasOptions && !IsAxisProp;
     public System.Collections.Generic.List<string> OptionsList
         => _model.Options?.Split('|')?.ToList() ?? new System.Collections.Generic.List<string>();
 
@@ -139,6 +146,38 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
         for (int i = 0; i < outs.Count; i++)
             if (outs[i] == port) return i;
         return 0;
+    }
+
+    // ===================== 属性面板「实际位置」（1 秒刷新） =====================
+
+    /// <summary>该节点是否显示「实际位置」行（轴类节点：轴运动 / 回零 / 等待轴到位）。</summary>
+    public bool ShowsActualPosition => Kind is NgKind.MoveAxis or NgKind.Home or NgKind.WaitAxis;
+
+    private string _actualPositionText = "—";
+    /// <summary>「轴」属性所指轴的当前位置（读不到显示「—」）。</summary>
+    public string ActualPositionText
+    {
+        get => _actualPositionText;
+        set { if (_actualPositionText != value) { _actualPositionText = value; OnChanged(nameof(ActualPositionText)); } }
+    }
+
+    /// <summary>读取「轴」属性所指轴的当前位置：优先真实桥（虚拟卡 / 真实卡族），读不到回退运行态缓存。
+    /// 由属性面板的 1 秒定时器调用，运行时随轴运动实时变化。</summary>
+    public void RefreshActualPosition()
+    {
+        if (!ShowsActualPosition) return;
+        string axisName = Props.FirstOrDefault(p => p.Name == "轴")?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(axisName)) { ActualPositionText = "—"; return; }
+        double pos = double.NaN;
+        try
+        {
+            var ax = HardwareResolver.ResolveAxis(axisName);
+            var br = HardwareBridge.Current;
+            if (ax != null && br != null) pos = br.ReadAxisPosition(ax);
+        }
+        catch { pos = double.NaN; }
+        if (double.IsNaN(pos)) pos = AxisRuntimeState.Get(axisName);
+        ActualPositionText = pos.ToString("0.###", CultureInfo.InvariantCulture);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
