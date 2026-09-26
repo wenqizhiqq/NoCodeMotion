@@ -96,7 +96,7 @@
                                 <TextBlock Grid.Column="1" Text="{Binding Label}" Foreground="#64748B" FontSize="10.5"
                                            VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
                                 <Ellipse Grid.Column="2" Tag="OUT" Width="16" Height="16" Stroke="White" StrokeThickness="2"
-                                         Cursor="Cross" VerticalAlignment="Center" Margin="0,0,-8,0"
+                                         Cursor="Cross" VerticalAlignment="Center" Margin="0,0,-14,0"
                                          Fill="{Binding ColorHex, Converter={StaticResource NgStringToBrush}}"/>
                             </Grid>
                         </DataTemplate>

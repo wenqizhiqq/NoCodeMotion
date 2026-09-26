@@ -32,6 +32,8 @@
 ## 视觉/节点图
 - VisualFlowPage.ApplySelection() 须覆盖 _vm.Steps/_vm.Name/_vm.SelectedStep；Steps 非空且 SelectedStep=null 自动选 [0]。
 - 节点图 Models/NodeGraph/ 数据驱动；UI 用 ItemsControl+DataTemplate，禁 Children.Add。
+- ★ **端口连线命中**：`Views/NodeGraphPage.xaml.cs` 靠 `FindWithTag(dep,"OUT"/"IN")` 找端口元素（Tag 必须是 "OUT"/"IN"）。端口项是 `NgPortStateViewModel`，**端口名取 `Label`**——`DataContext as string` 是旧形态写法，会恒为 null 导致「按端口只拖节点、连不出线」。连线几何 `NgGeometry.OutputPoint` 必须与布局同步：端口外层 `StackPanel Margin=6` → 首行中心 = `HeaderHeight + 17 + i*22`；输出圆点 `Margin="0,0,-14,0"` 时圆心才 = `x + NodeWidth`。
+- ★ **把 ItemsControl 的 ItemsSource 从「裸值集合」换成「VM 集合」时，必须同步排查 code-behind 里按旧数据形态写的命中/取值逻辑**（`DataContext as string/int`）；这类错误编译期不报、运行时静默失效。
 - NgRunner（6 按钮+NgStepResult）：WaitResumeAsync 须实例方法按 _state 轮询；Pause 仅节点边界生效。
 - ★ **任何 VM/服务都不要在构造时捕获 `HardwareBridge.Current`**：控制卡在启动后才连接，构造时抓一次会一直用默认桩（Stub）→「运行时轴不动」。执行时实时读 `HardwareBridge.Current`（`FlowRunnerService`、`NgRunner` 都踩过同一个坑）。
 - 节点图属性面板 `Views/NodeGraphPage.xaml`：`NgPropViewModel` 三态显隐 —— `HasOptions`（固定候选下拉）/ **`UsesCatalog` + `CatalogOptions`**（属性名 → Catalog 集合：轴 / 变量 / 输出 / 信号 / 气缸 / 通讯 / 点位 → 名称库下拉）/ `IsPlainText`（自由文本）；**实时值只读行**（轴类节点 = 实际位置，设置变量 / 运算 = 当前值）由 `NodeGraphViewModel` 的 1 秒 `DispatcherTimer` → `SelectedNode.RefreshLiveValue()` 刷新（显隐用 null 安全的 `ShowLiveRow`）。`NgRunner.VarSet` 走 `SimRuntime.SetVariable`（真回写变量页 + 持久化）并支持表达式。

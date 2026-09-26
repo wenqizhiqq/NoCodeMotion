@@ -110,11 +110,14 @@ public partial class NodeGraphPage : UserControl
             return;
         }
         // 2) 输出端口 → 开始连线
+        // 端口现在是 ItemsControl 绑定 OutputPorts（项是 NgPortStateViewModel，不再是裸字符串），
+        // 端口名取 VM 的 Label；拿不到再回退旧形态的 string DataContext。
         if (FindWithTag(dep, "OUT") is FrameworkElement outEl)
         {
-            var port = outEl.DataContext as string;
+            string? port = (outEl.DataContext as NgPortStateViewModel)?.Label
+                           ?? outEl.DataContext as string;
             var src = FindNodeVm(outEl);
-            if (src != null && port != null) { BeginLink(src, port, e); return; }
+            if (src != null && !string.IsNullOrEmpty(port)) { BeginLink(src, port, e); return; }
         }
         // 3) 输入端口 → 等待 mouseup 完成连线（此处不动作）
         if (FindWithTag(dep, "IN") != null) { e.Handled = true; return; }

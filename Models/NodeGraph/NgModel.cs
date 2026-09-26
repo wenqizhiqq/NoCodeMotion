@@ -104,9 +104,11 @@ public static class NgGeometry
     public static System.Windows.Point InputPoint(double x, double y) => new(x, y + HeaderHeight / 2);
 
     /// <summary>输出端口锚点（节点右侧，紧贴标题栏下方、按端口序号向下排列；
-    /// 与 NodeGraphNodeView 中「输出端口行高固定 22、紧接标题栏」的布局一致，保证连线端点落在圆上）。</summary>
+    /// 与 NodeGraphNodeView 中「输出端口行高固定 22、紧接标题栏」的布局一致，保证连线端点落在圆上）。
+    /// 注意：端口外层 StackPanel 的 Margin=6（上/左右各 6），所以首个端口行的垂直中心是
+    /// HeaderHeight + 6 + 11 = HeaderHeight + 17，少算这 6px 连线端点会浮在圆点上方。</summary>
     public static System.Windows.Point OutputPoint(double x, double y, int portIndex)
-        => new(x + NodeWidth, y + HeaderHeight + 11 + portIndex * OutputRowHeight);
+        => new(x + NodeWidth, y + HeaderHeight + 17 + portIndex * OutputRowHeight);
 
     /// <summary>由两端点生成三次贝塞尔路径（水平方向相切，曲线自然）。</summary>
     public static System.Windows.Media.Geometry MakeBezier(System.Windows.Point p0, System.Windows.Point p1)
