@@ -275,7 +275,7 @@
 
                 <!-- 运行按钮（靠左）：运行一次 / 循环运行 / 单步 / 继续 / 暂停 / 停止 / 断点 -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
-                    <Button Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
+                    <Button Command="{Binding RunCommand}" IsEnabled="{Binding CanStartRun}"
                             Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
                             ToolTip="运行一次：从开始节点连续执行整个流程一遍">
                         <StackPanel Orientation="Horizontal">
@@ -283,7 +283,7 @@
                             <TextBlock Text="运行一次" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button Command="{Binding LoopRunCommand}" IsEnabled="{Binding CanRun}"
+                    <Button Command="{Binding LoopRunCommand}" IsEnabled="{Binding CanStartRun}"
                             Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
                             ToolTip="循环运行：整个流程反复执行，直到点「停止」">
                         <StackPanel Orientation="Horizontal">
@@ -291,7 +291,7 @@
                             <TextBlock Text="循环运行" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button Command="{Binding StepCommand}" IsEnabled="{Binding CanStep}"
+                    <Button Command="{Binding StepCommand}" IsEnabled="{Binding CanStartStep}"
                             Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
                             ToolTip="单步执行（运行一个节点后暂停）；从空闲启动时也生效">
                         <StackPanel Orientation="Horizontal">

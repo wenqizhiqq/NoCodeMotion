@@ -121,6 +121,12 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     public bool IsLoopRunning => _loopRun;
     public bool CanRun => _runner.State is NgRunState.Idle or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error;
     public bool CanStep => _runner.State is NgRunState.Idle or NgRunState.Paused or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error;
+
+    /// <summary>「运行一次 / 循环运行」按钮可用：runner 可启动且当前不在循环运行中（循环中用「停止」退出，
+    /// 避免轮间间隙误点打断循环）。</summary>
+    public bool CanStartRun => CanRun && !_loopRun;
+    /// <summary>「单步」按钮可用：允许单步的状态且不在循环运行中。</summary>
+    public bool CanStartStep => CanStep && !_loopRun;
     public bool CanResume => _runner.State == NgRunState.Paused;
     public bool CanPause => _runner.State is NgRunState.Running or NgRunState.Stepping;
     public bool CanStop => _runner.State != NgRunState.Idle;
@@ -345,6 +351,8 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         OnChanged(nameof(LastError));
         OnChanged(nameof(CanRun));
         OnChanged(nameof(CanStep));
+        OnChanged(nameof(CanStartRun));
+        OnChanged(nameof(CanStartStep));
         OnChanged(nameof(CanResume));
         OnChanged(nameof(CanPause));
         OnChanged(nameof(CanStop));
@@ -374,6 +382,10 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         _loopRun = false;
         _loopRestartTimer?.Stop();
         _runner.Stop();
+        OnChanged(nameof(CanStartRun));
+        OnChanged(nameof(CanStartStep));
+        OnChanged(nameof(RunStateText));
+        OnChanged(nameof(IsLoopRunning));
     }
 
     /// <summary>把动作封送到 UI 线程（NgRunner 的状态回调可能来自后台线程）。</summary>

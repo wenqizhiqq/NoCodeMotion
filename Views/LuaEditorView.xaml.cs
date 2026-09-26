@@ -1319,6 +1319,8 @@ namespace NoCodeMotion.Views
 
             BtnRun.IsEnabled = idle || paused;
             RunLabel.Text = paused ? "继续" : "运行";
+            // 循环运行与「运行」同规则：只在空闲 / 暂停时可点；运行中用「停止」退出（防止运行中重复启动会话）
+            BtnLoopRun.IsEnabled = idle || paused;
             BtnPause.IsEnabled = running;
             BtnStop.IsEnabled = running || paused;
             BtnStepOver.IsEnabled = idle || paused;
