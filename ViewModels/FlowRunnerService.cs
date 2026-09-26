@@ -52,6 +52,42 @@ namespace NoCodeMotion.ViewModels
             if (!string.IsNullOrEmpty(n)) Vars[n] = v ?? "";
         }
 
+        /// <summary>
+        /// 运行期写变量：同时更新运行仓与工程变量表（VariableRow INPC 即时推送）。
+        /// 这样变量页 / 流程页「实际值」列在运行期间就能看到最新值，而不是等运行结束。
+        /// 标量属性变更 WPF 会自动封送到 UI 线程，后台线程调用安全（不涉及集合结构变更）。
+        /// </summary>
+        public void WriteVarLive(string name, string value)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            Vars[name] = value ?? "";
+            var vars = ProjectStore.Data?.Variables;
+            if (vars == null) return;
+            foreach (var row in vars)
+            {
+                for (int c = 1; c <= 5; c++)
+                {
+                    string n = c switch
+                    {
+                        1 => row.Name1, 2 => row.Name2, 3 => row.Name3, 4 => row.Name4, 5 => row.Name5,
+                        _ => null
+                    };
+                    if (string.Equals((n ?? "").Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        switch (c)
+                        {
+                            case 1: row.Value1 = value ?? ""; break;
+                            case 2: row.Value2 = value ?? ""; break;
+                            case 3: row.Value3 = value ?? ""; break;
+                            case 4: row.Value4 = value ?? ""; break;
+                            case 5: row.Value5 = value ?? ""; break;
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+
         /// <summary>把运行期变量写回工程（VariableRow），方便变量页查看。</summary>
         public void WriteBackVars()
         {
@@ -730,8 +766,12 @@ namespace NoCodeMotion.ViewModels
                         ExecModbus(name, setv);
                         break;
                     case "变量":
-                        ExecVar(s, name, setv);
-                        break;
+                        {
+                            // 「实际值」列立即显示运算后的新值（而不是把设置值写进去）
+                            string nv = ExecVar(s, name, setv);
+                            UiSet(() => { s.ActualValue = nv; s.DurationMs = 1; });
+                            break;
+                        }
                     case "系统":
                         _bridge?.Log(setv);
                         _log?.Invoke($"[系统] {setv}", LogLevel.Info);
@@ -778,7 +818,10 @@ namespace NoCodeMotion.ViewModels
                         _log?.Invoke($"未识别的功能「{func}」，步骤已跳过。", LogLevel.Warn);
                         break;
                 }
-                UiSet(() => { s.ActualValue = setv; s.DurationMs = 1; });
+                // 非「变量」功能：把设置值先写到「实际值」列作为已下发反馈（1 秒定时器随后用真实读数覆盖）；
+                // 「变量」已在 case 内写入运算后的新值，这里不能再覆盖成设置值（曾导致实际值先闪成设置值）。
+                if (func != "变量")
+                    UiSet(() => { s.ActualValue = setv; s.DurationMs = 1; });
             }
             catch (Exception ex)
             {
@@ -895,15 +938,17 @@ namespace NoCodeMotion.ViewModels
             _bridge?.CommSend(comm, setv);
         }
 
-        private void ExecVar(FlowStep s, string name, string setv)
+        /// <summary>执行变量步骤；返回运算后的新值（供「实际值」列立即显示正确结果，而不是设置值）。</summary>
+        private string ExecVar(FlowStep s, string name, string setv)
         {
-            if (string.IsNullOrEmpty(name)) return;
+            if (string.IsNullOrEmpty(name)) return GetVarNum(name).ToString("0.###");
             // 表达式模式：setv 含运算符/变量名 → 按当前变量值实时求值（如 "计数+1"、"A*2"）。
             if (ExpressionEvaluator.IsExpression(setv))
             {
                 var ok = ExpressionEvaluator.Evaluate(setv, n => GetVarNum(n), out var r);
-                _ctrl.Vars[name] = (ok ? r : 0).ToString();
-                return;
+                var ev = (ok ? r : 0).ToString("0.###");
+                _ctrl.WriteVarLive(name, ev);
+                return ev;
             }
             double cur = GetVarNum(name);
             double val = double.TryParse(setv, out var v) ? v : 0;
@@ -920,7 +965,9 @@ namespace NoCodeMotion.ViewModels
                 case "取反": res = cur == 0 ? 1 : 0; break;
                 default: res = val; break;
             }
-            _ctrl.Vars[name] = res.ToString();
+            var nv = res.ToString("0.###");
+            _ctrl.WriteVarLive(name, nv);
+            return nv;
         }
 
         private double GetVarNum(string name)
