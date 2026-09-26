@@ -85,6 +85,16 @@ namespace NoCodeMotion.Services
 
         private static void Apply(ObservableCollection<string> target, List<string> names)
         {
+            // 差量更新：候选内容没变化就不动集合。Clear() 会触发 CollectionChanged(Reset)，
+            // 正被下拉引用的 ComboBox 会闪空/丢当前显示（流程页运行中曾因此「名称」列变空白）。
+            bool same = target.Count == names.Count;
+            if (same)
+            {
+                for (int i = 0; i < names.Count; i++)
+                    if (!string.Equals(target[i], names[i], StringComparison.Ordinal)) { same = false; break; }
+            }
+            if (same) return;
+
             target.Clear();
             foreach (var n in names) target.Add(n);
             RebuildAll();

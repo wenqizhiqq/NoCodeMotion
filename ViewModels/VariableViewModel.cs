@@ -24,8 +24,11 @@ namespace NoCodeMotion.ViewModels
 
         protected override void OnItemChanged(VariableRow item, string? propertyName)
         {
-            // 任一变量名变化时，同步到 Catalog，供流程页「名称」列（功能=变量）引用
-            Catalog.SetVariable(ProjectStore.Data.Variables.SelectMany(r => r.Names()));
+            // 只有「名称」（Name1..Name5）变化时才同步 Catalog，供流程页「名称」列（功能=变量）引用。
+            // ★ 值（Value1..Value5）变化【不要】重建候选：运行中会频繁写变量值（流程/节点图/仿真），
+            //   每次都 Clear+重建候选会让流程页「名称」下拉闪空、丢失当前显示。
+            if (string.IsNullOrEmpty(propertyName) || propertyName.StartsWith("Name", StringComparison.Ordinal))
+                Catalog.SetVariable(ProjectStore.Data.Variables.SelectMany(r => r.Names()));
         }
 
         /// <summary>Excel 回读替换后，名称变化发生在订阅之前 → 主动全量同步一次目录。</summary>
