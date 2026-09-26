@@ -1,3 +1,4 @@
 ﻿remove-blocked: D:\wqz\code\NoCodeMotion\_build.log ([safe-delete][SAFE_DELETE_FAIL_CLOSED] {"target":"D:\\wqz\\code\\NoCodeMotion\\_build.log","reason":"trash-failed","detail":"使用“3”个参数调用“DeleteFile”时发生异常:“无法找到指定文件。”"})
 remove-blocked: D:\wqz\code\NoCodeMotion\_buildsum.txt ([safe-delete][SAFE_DELETE_FAIL_CLOSED] {"target":"D:\\wqz\\code\\NoCodeMotion\\_buildsum.txt","reason":"trash-failed","detail":"使用“3”个参数调用“DeleteFile”时发生异常:“无法找到指定文件。”"})
 remove-blocked: D:\wqz\code\NoCodeMotion\_copy.txt ([safe-delete][SAFE_DELETE_FAIL_CLOSED] {"target":"D:\\wqz\\code\\NoCodeMotion\\_copy.txt","reason":"trash-failed","detail":"使用“3”个参数调用“DeleteFile”时发生异常:“无法找到指定文件。”"})
+ 

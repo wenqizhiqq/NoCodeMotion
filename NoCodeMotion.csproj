@@ -144,6 +144,9 @@
   <ItemGroup>
     <Content Include="Models\**\*.obj" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <None Remove="build_cond11.log" />
+  </ItemGroup>
 
   <!-- 内置示例机器人 STP（Creo BREP），随输出目录提供，操作员仿真页自动载入显示 -->
   <ItemGroup>

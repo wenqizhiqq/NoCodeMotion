@@ -765,7 +765,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         ///   否则「点动 +1」只是把轴送到 1，再点几次还是停在 1（用户实测：点动看起来像绝对定位）。
         /// 真实卡族不受影响：<c>CardAxisPointMovement</c> 会把 posi_mode 原样传给 SDK
         /// （如 MCN420 的 <c>DmcCardAxisPMoveUnit(card, axis, Dist, posi_mode)</c>），相对/绝对都正确。
-        /// </summary>
+        /// </summary>  
         private static double SimAbsoluteTarget(IAxis a, AxisItem axis, double target, int posiMode)
         {
             if (posiMode != 0) return target;                       // 本来就是绝对目标
