@@ -46,6 +46,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             OnChanged(nameof(SelectedNode));
             OnChanged(nameof(HasSelection));
             OnChanged(nameof(ShowLiveRow));
+            OnChanged(nameof(SelectedHint));
             value?.RefreshPanelState();          // 选中即刷新一次「实时值 / 条件判定」
         }
     }
@@ -57,14 +58,24 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         set
         {
             if (_selectedConn == value) return;
+            if (_selectedConn != null) _selectedConn.IsSelected = false;   // 取消上一条连线的选中高亮
             _selectedConn = value;
+            if (_selectedConn != null) _selectedConn.IsSelected = true;    // 选中的连线变红加粗
             if (value != null) SelectedNode = null;
             OnChanged(nameof(SelectedConnection));
             OnChanged(nameof(HasSelection));
+            OnChanged(nameof(SelectedHint));
         }
     }
 
     public bool HasSelection => SelectedNode != null || SelectedConnection != null;
+
+    /// <summary>选中项提示（面板顶部显示选中了哪条连线 / 哪个节点，并说明删除方式）。</summary>
+    public string SelectedHint => SelectedConnection != null
+        ? $"已选中连线：{SelectedConnection.Describe}　（点「删除所选」或按 Delete 键删除）"
+        : SelectedNode != null
+            ? $"已选中节点：{SelectedNode.Title}　（点「删除所选」或按 Delete 键删除）"
+            : string.Empty;
 
     /// <summary>属性面板是否显示「实时值」行（选中 轴类 / 设置变量 / 运算 节点时）。null 安全：未选中时为 false。</summary>
     public bool ShowLiveRow => SelectedNode?.ShowsLiveRow == true;
@@ -74,6 +85,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
 
     public ICommand AddNodeCommand { get; }
     public ICommand DeleteCommand { get; }
+    public ICommand DeleteAllConnectionsCommand { get; }
     public ICommand ClearCommand { get; }
 
     // ===================== 调试器：状态、6 命令、按钮可用性 =====================
@@ -134,6 +146,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
 
         AddNodeCommand = new RelayCommand(p => AddNode(ParseKind(p), DefaultX(), DefaultY()));
         DeleteCommand = new RelayCommand(_ => DeleteSelected(), _ => HasSelection);
+        DeleteAllConnectionsCommand = new RelayCommand(_ => DeleteAllConnections(), _ => Connections.Count > 0);
         ClearCommand = new RelayCommand(_ => ClearAll());
 
         RunCommand = new RelayCommand(_ => _runner.Run(), _ => CanRun);
@@ -205,6 +218,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         Nodes.Add(vm);
         SelectedNode = vm;
         Save();
+        SyncRunnerTopology();
     }
 
     /// <summary>在 src 节点的 port 输出端口与 tgt 节点输入端口之间建立连线。</summary>
@@ -218,6 +232,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         var conn = new NgConnection { SourceId = srcId, SourcePort = port, TargetId = tgtId };
         Connections.Add(new NodeGraphConnectionViewModel(conn, s, t));
         Save();
+        SyncRunnerTopology();
     }
 
     public void DeleteSelected()
@@ -230,13 +245,45 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             Nodes.Remove(SelectedNode);
             SelectedNode = null;
             Save();
+            SyncRunnerTopology();
         }
         else if (SelectedConnection != null)
         {
-            Connections.Remove(SelectedConnection);
-            SelectedConnection = null;
+            var conn = SelectedConnection;
+            SelectedConnection = null;      // 先清选中（同时清掉它的红色高亮）
+            Connections.Remove(conn);
             Save();
+            SyncRunnerTopology();
         }
+    }
+
+    /// <summary>删除指定连线（供画布右键等直接调用）。</summary>
+    public void DeleteConnection(NodeGraphConnectionViewModel conn)
+    {
+        if (conn == null || !Connections.Contains(conn)) return;
+        if (ReferenceEquals(SelectedConnection, conn)) SelectedConnection = null;
+        Connections.Remove(conn);
+        Save();
+        SyncRunnerTopology();
+    }
+
+    /// <summary>删除画布上所有连线（保留节点）。</summary>
+    public void DeleteAllConnections()
+    {
+        if (Connections.Count == 0) return;
+        SelectedConnection = null;
+        Connections.Clear();
+        Save();
+        SyncRunnerTopology();
+    }
+
+    /// <summary>拓扑变更（增删节点 / 增删连线 / 清空）后把最新图同步给运行器。
+    /// 否则运行器仍按 Load 时的旧连线路由 —— 删掉的连线在运行时还会继续走、新增的走不到。</summary>
+    private void SyncRunnerTopology()
+    {
+        _doc.Nodes = Nodes.Select(n => n.Model).ToList();
+        _doc.Connections = Connections.Select(c => c.Model).ToList();
+        _runner.Load(_doc);
     }
 
     public void ClearAll()
@@ -246,6 +293,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         SelectedNode = null;
         SelectedConnection = null;
         Save();
+        SyncRunnerTopology();
     }
 
     private static NgKind ParseKind(object? p) =>

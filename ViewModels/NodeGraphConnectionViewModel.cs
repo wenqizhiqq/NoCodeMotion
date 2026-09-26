@@ -30,7 +30,30 @@ public sealed class NodeGraphConnectionViewModel : INotifyPropertyChanged
     public PointCollection ArrowPoints => _arrowPoints;
 
     private readonly Brush _brush;
-    public Brush Brush => _brush;
+    /// <summary>线条/箭头颜色：选中时变红（提示「删除所选」作用于它），否则按端口语义着色。</summary>
+    public Brush Brush => IsSelected ? SelectedBrush : _brush;
+    /// <summary>线条粗细：选中时加粗，便于确认选中的是哪一条。</summary>
+    public double Thickness => IsSelected ? 3.4 : 2.2;
+
+    private static readonly Brush SelectedBrush = new SolidColorBrush(Color.FromRgb(220, 38, 38));
+
+    private bool _isSelected;
+    /// <summary>是否被选中（点击连线即选中，选中后「删除所选 / Delete 键」可删除）。</summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            OnChanged(nameof(IsSelected));
+            OnChanged(nameof(Brush));
+            OnChanged(nameof(Thickness));
+        }
+    }
+
+    /// <summary>线的可读描述（源端口 → 目标），供提示/日志用。</summary>
+    public string Describe => $"{_src.Title} · {_port} → {_tgt.Title}";
 
     public NodeGraphConnectionViewModel(NgConnection model, NodeGraphNodeViewModel src, NodeGraphNodeViewModel tgt)
     {

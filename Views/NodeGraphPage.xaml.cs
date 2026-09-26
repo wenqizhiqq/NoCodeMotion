@@ -5,6 +5,7 @@ using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using NoCodeMotion.Models;
@@ -102,6 +103,9 @@ public partial class NodeGraphPage : UserControl
     {
         var dep = e.OriginalSource as DependencyObject;
 
+        // 让画布拿到键盘焦点，「Delete 键删除所选」才生效
+        if (!DesignerCanvas.IsKeyboardFocused) DesignerCanvas.Focus();
+
         // 1) 连线命中（透明粗线）
         if (FindWithTag(dep, "CONN") is FrameworkElement connEl && connEl.DataContext is NodeGraphConnectionViewModel conn)
         {
@@ -131,6 +135,28 @@ public partial class NodeGraphPage : UserControl
         _scrollStartX = CanvasScroller.ContentHorizontalOffset;
         _scrollStartY = CanvasScroller.ContentVerticalOffset;
         DesignerCanvas.CaptureMouse();
+        e.Handled = true;
+    }
+
+    /// <summary>右键点在某条连线上 → 直接断开该连线（等价于选中后「删除所选」）。</summary>
+    private void DesignerCanvas_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var dep = e.OriginalSource as DependencyObject;
+        if (FindWithTag(dep, "CONN") is FrameworkElement connEl
+            && connEl.DataContext is NodeGraphConnectionViewModel conn)
+        {
+            _vm.DeleteConnection(conn);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Delete / Back 键删除当前选中的节点或连线（画布获得焦点时生效）。</summary>
+    private void DesignerCanvas_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Delete && e.Key != Key.Back) return;
+        if (e.OriginalSource is TextBoxBase) return;        // 正在输入框里编辑文本 → 不拦截
+        if (!_vm.HasSelection) return;
+        _vm.DeleteCommand.Execute(null);
         e.Handled = true;
     }
 
