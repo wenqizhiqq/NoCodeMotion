@@ -866,6 +866,7 @@ namespace NoCodeMotion.ViewModels
             _bgLastError = null;
             _bgCtrl = new FlowRunControl();
             _bgCtrl.InitVars();                 // 从工程变量表取初值；结束时统一写回
+            _bgCtrl.StepPaceMs = 250;           // 每步 250ms 可视化节奏：橙色当前行肉眼可见地逐行移动
             FlowRunnerService.RunAllAsync(
                 _bgCtrl,
                 log: (msg, lvl) => { if (lvl == LogLevel.Error) _bgLastError = msg; },   // 错误透出到状态文本，不静默

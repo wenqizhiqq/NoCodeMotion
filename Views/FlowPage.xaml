@@ -106,6 +106,12 @@
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
                 </Trigger>
+                <!-- 当前行整格橙色（声明在 IsSelected 之后 → 选中态也让位）：
+                     单步时当前行同时是选中行，若没有这条，单元格浅蓝会盖住行橙色，
+                     只有耗时/实际值两个胶囊是橙 → 整行颜色断裂。 -->
+                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource WarningBrush}"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 

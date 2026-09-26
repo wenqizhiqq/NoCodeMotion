@@ -30,6 +30,12 @@ namespace NoCodeMotion.ViewModels
         /// <summary>「相机」步骤真实取帧后回调（byte[]=BGRA, w, h），供 3D 仿真抓拍预览订阅。</summary>
         public Action<byte[], int, int>? OnCameraCapture;
 
+        /// <summary>
+        /// 每步执行后的可视化停顿（毫秒）：让流程页的橙色当前行肉眼可见地逐行移动。
+        /// 0 = 不停顿（操作员页生产运行用默认 0，不拖慢节奏）；流程页「运行一次 / 循环运行」传 250。
+        /// </summary>
+        public int StepPaceMs;
+
         /// <summary>变量表：名称 -> 值（字符串，数值运算时再解析）。与 ProjectStore.Data.Variables 双向同步。</summary>
         public Dictionary<string, string> Vars = new(StringComparer.OrdinalIgnoreCase);
 
@@ -691,6 +697,11 @@ namespace NoCodeMotion.ViewModels
                         i++;
                         break;
                 }
+
+                // 可视化节奏：流程页「运行一次 / 循环运行」每步停顿一小段（StepPaceMs=250），
+                // 让橙色当前行肉眼可见地逐行移动（否则 5 步几毫秒跑完，高亮一闪而过像"没有"）。
+                // 操作员页生产运行 StepPaceMs=0，不拖慢节奏。
+                if (_ctrl.StepPaceMs > 0) SafeSleep(_ctrl.StepPaceMs, ct);
             }
             return i;
         }
