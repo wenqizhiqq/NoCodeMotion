@@ -69,10 +69,24 @@ namespace NoCodeMotion.Services
 
         private static void Set(ObservableCollection<string> target, IEnumerable<string> names)
         {
-            target.Clear();
-            foreach (var n in names.Where(x => !string.IsNullOrWhiteSpace(x)))
-                target.Add(n);
+            // ★ 可能由后台线程触发（流程 / 节点图写变量 → SimRuntime.WriteVarRow → VariableRow 变更 → 本方法）。
+            // ObservableCollection 只允许在其所属（UI）线程改，否则 WPF 抛
+            // 「该类型的 CollectionView 不支持从调度程序线程以外的线程对其 SourceCollection 进行的更改」。
+            // 先物化候选，再在需要时封送到 UI 线程。
+            var list = names.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            var app = System.Windows.Application.Current;
+            if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess())
+            {
+                app.Dispatcher.BeginInvoke(new System.Action(() => Apply(target, list)));
+                return;
+            }
+            Apply(target, list);
+        }
 
+        private static void Apply(ObservableCollection<string> target, List<string> names)
+        {
+            target.Clear();
+            foreach (var n in names) target.Add(n);
             RebuildAll();
         }
 

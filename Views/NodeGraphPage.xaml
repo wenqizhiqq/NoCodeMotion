@@ -157,10 +157,10 @@
                                                   SelectedItem="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
                                                   Visibility="{Binding HasOptions, Converter={StaticResource BoolToVis}}"
                                                   Style="{StaticResource CellComboStyle}"/>
-                                        <!-- 「轴」→ 轴名称下拉（候选取工程里已配置的轴） -->
-                                        <ComboBox DockPanel.Dock="Right" ItemsSource="{x:Static svc:Catalog.AxisNames}"
+                                        <!-- 轴 / 变量 / 输出 / 信号 / 气缸 / 通讯 / 点位 → 名称库下拉（候选来自工程里已配置的对象） -->
+                                        <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding CatalogOptions}"
                                                   SelectedItem="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
-                                                  Visibility="{Binding IsAxisProp, Converter={StaticResource BoolToVis}}"
+                                                  Visibility="{Binding UsesCatalog, Converter={StaticResource BoolToVis}}"
                                                   Style="{StaticResource CellComboStyle}"/>
                                         <!-- 其余 → 自由文本 -->
                                         <TextBox DockPanel.Dock="Right" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
@@ -170,11 +170,12 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <!-- 轴类节点（轴运动 / 回零 / 等待轴到位）：显示「实际位置」，1 秒刷新，运行时随轴运动实时变化 -->
+                        <!-- 实时值：轴类节点显示「实际位置」，设置变量 / 运算 显示「当前值」；1 秒刷新 -->
                         <DockPanel Style="{StaticResource AppleRow}"
-                                   Visibility="{Binding ShowActualPositionRow, Converter={StaticResource BoolToVis}}">
-                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="实际位置" Width="72"/>
-                            <TextBlock DockPanel.Dock="Right" Text="{Binding SelectedNode.ActualPositionText}"
+                                   Visibility="{Binding ShowLiveRow, Converter={StaticResource BoolToVis}}">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}"
+                                       Text="{Binding SelectedNode.LiveLabel}" Width="72"/>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding SelectedNode.LiveValueText}"
                                        VerticalAlignment="Center" FontWeight="SemiBold"
                                        Foreground="{StaticResource AccentDarkBrush}"/>
                         </DockPanel>

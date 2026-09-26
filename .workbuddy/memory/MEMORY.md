@@ -27,13 +27,15 @@
 - 资源字典：`App.xaml` 只合 `Resources/AppStyles.xaml`（再合 HandyControl）。`Themes/AppleControls.xaml` 未合并、运行时不存在，勿引用。
 - ★ Window 弹窗只能用 AppStyles 全局键；页面级 `<UserControl.Resources>` 的键在顶层 Window StaticResource 作用域取不到，运行时抛 `XamlParseException 无法找到名为"X"的资源`（编译期不报）。
 - 色彩 红=破坏/橙=反向/蓝=正向/绿=保存/灰=次要。每页底 PageHintBar；EditorPage.Detail 内元素**勿用 x:Name**（MC3093），改用 Tag+FindVisualChildByTag。
+- ★★ **后台线程绝不能改 ObservableCollection**：WPF 抛 `NotSupportedException：该类型的 CollectionView 不支持从调度程序线程以外的线程对其 SourceCollection 进行的更改`。典型链路：流程 / 节点图在后台 `Task` 里写变量 → `SimRuntime.SetVariable` → `WriteVarRow` → `VariableRow` 变更 → `VariableViewModel.OnItemPropertyChanged` → `Catalog.SetVariable` → `Catalog.Set` 里 `Clear()`。`Services/Catalog.cs` 的 `Set` 已加 `Application.Current.Dispatcher.CheckAccess()` 判断 + `BeginInvoke` 封送（新增 `Apply`）；**以后任何「名称库刷新 / 集合重建」逻辑都要同样处理**。
 
 ## 视觉/节点图
 - VisualFlowPage.ApplySelection() 须覆盖 _vm.Steps/_vm.Name/_vm.SelectedStep；Steps 非空且 SelectedStep=null 自动选 [0]。
 - 节点图 Models/NodeGraph/ 数据驱动；UI 用 ItemsControl+DataTemplate，禁 Children.Add。
 - NgRunner（6 按钮+NgStepResult）：WaitResumeAsync 须实例方法按 _state 轮询；Pause 仅节点边界生效。
 - ★ **任何 VM/服务都不要在构造时捕获 `HardwareBridge.Current`**：控制卡在启动后才连接，构造时抓一次会一直用默认桩（Stub）→「运行时轴不动」。执行时实时读 `HardwareBridge.Current`（`FlowRunnerService`、`NgRunner` 都踩过同一个坑）。
-- 节点图属性面板 `Views/NodeGraphPage.xaml`：`NgPropViewModel` 三态显隐 —— `HasOptions`（固定候选下拉）/ `IsAxisProp`（「轴」→ `{x:Static svc:Catalog.AxisNames}` 下拉）/ `IsPlainText`（自由文本）；轴类节点（轴运动/回零/等待轴到位）额外显示「实际位置」只读行，由 `NodeGraphViewModel` 的 1 秒 `DispatcherTimer` → `SelectedNode.RefreshActualPosition()` 刷新（显隐用 null 安全的 `ShowActualPositionRow`）。
+- 节点图属性面板 `Views/NodeGraphPage.xaml`：`NgPropViewModel` 三态显隐 —— `HasOptions`（固定候选下拉）/ **`UsesCatalog` + `CatalogOptions`**（属性名 → Catalog 集合：轴 / 变量 / 输出 / 信号 / 气缸 / 通讯 / 点位 → 名称库下拉）/ `IsPlainText`（自由文本）；**实时值只读行**（轴类节点 = 实际位置，设置变量 / 运算 = 当前值）由 `NodeGraphViewModel` 的 1 秒 `DispatcherTimer` → `SelectedNode.RefreshLiveValue()` 刷新（显隐用 null 安全的 `ShowLiveRow`）。`NgRunner.VarSet` 走 `SimRuntime.SetVariable`（真回写变量页 + 持久化）并支持表达式。
+- 节点执行 `Services/NgRunner.cs` `ExecuteNodeSync`：视觉 6 节点走 `NgVisionExecutor`（VisionEngine 真算子，无相机自动回退合成图）；轴 / 回零 / 等待轴到位 / 气缸 / 写输出 / 等待输入 / 设置变量 / 运算 / Modbus 收发均为真实调用。★ 易错点：**点位移动要用 `HardwareResolver.ResolvePointTable(点位表)`**（`ProjectStore.Data.Points` 是 PointItem 列表，不是点位表）；**TCP发送 / 下位机写要真开 `TcpClient`（host:port，3s 超时）**，不能拿端点当通讯名；ModbusRecv 要读回返回值并校验「关键字」。各节点设 `_lastNodeSummary` 让节点卡摘要行可见结果。
 
 ## CAD/DWG
 - 真实 BREP→OcctNet.Wrapper 0.1.1；STEP Z-up→WPF Y-up 绕 X -90°；BackMaterial 防黑面。

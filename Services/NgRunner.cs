@@ -446,9 +446,11 @@ public sealed class NgRunner
                 string mode = GetProp(node, "模式", "绝对");
                 double pos = GetDoubleProp(node, "目标位置", 0);
                 double spd = GetDoubleProp(node, "速度", 10);
+                bool rel = mode == "相对" || mode == "相对移动" || mode == "rel";
                 _bridge.SetAxisSpeed(ax, spd);
-                if (mode == "相对" || mode == "相对移动" || mode == "rel") _bridge.MoveAxisRel(ax, pos);
+                if (rel) _bridge.MoveAxisRel(ax, pos);
                 else _bridge.MoveAxisAbs(ax, pos);
+                _lastNodeSummary = rel ? $"轴 {ax.Name} 相对移动 {pos:0.###}" : $"轴 {ax.Name} 绝对移动 {pos:0.###}";
                 break;
             }
 
@@ -456,6 +458,8 @@ public sealed class NgRunner
                 var ax = _findAxis(GetProp(node, "轴", "X"));
                 if (ax == null) throw new InvalidOperationException($"未找到轴：{GetProp(node, "轴", "")}");
                 _bridge.HomeAxis(ax);
+                _bridge.WaitAxisDone(ax);
+                _lastNodeSummary = $"轴 {ax.Name} 回零完成";
                 break;
             }
 
@@ -463,6 +467,7 @@ public sealed class NgRunner
                 var ax = _findAxis(GetProp(node, "轴", "X"));
                 if (ax == null) throw new InvalidOperationException($"未找到轴：{GetProp(node, "轴", "")}");
                 _bridge.WaitAxisDone(ax);
+                _lastNodeSummary = $"轴 {ax.Name} 已到位（{_bridge.ReadAxisPosition(ax):0.###}）";
                 break;
             }
 
@@ -471,15 +476,33 @@ public sealed class NgRunner
                 if (cyl == null) throw new InvalidOperationException($"未找到气缸：{GetProp(node, "气缸", "")}");
                 string act = GetProp(node, "动作", "伸出");
                 _bridge.CylinderMove(cyl, act == "伸出" ? 1 : 0);
+                _bridge.WaitCylinder(cyl);
+                _lastNodeSummary = $"气缸 {cyl.Name} {act}到位";
                 break;
             }
 
             case NgKind.PointGo: {
-                var pt = ProjectStore.Data?.Points?.FirstOrDefault(p => p.Name == GetProp(node, "点位", ""));
-                if (pt == null) throw new InvalidOperationException($"未找到点位：{GetProp(node, "点位", "")}");
-                // 简化：把点位第 1 轴槽位置走 X 轴（点位表 4 槽位，多轴完整联动留待扩展）
-                var ax = _findAxis("X");
-                if (ax != null && pt.Positions.Count > 0) { var _pos = pt.Positions[0].Position; if (_pos != null) { _bridge.MoveAxisAbs(ax, _pos.Value); _bridge.WaitAxisDone(ax); } }
+                var pt = HardwareResolver.ResolvePointTable(GetProp(node, "点位表", ""));
+                if (pt == null) throw new InvalidOperationException($"未找到点位表：{GetProp(node, "点位表", "")}");
+                string want = GetProp(node, "点位", "");
+                var item = pt.Points.FirstOrDefault(p => p.Name == want) ?? pt.Points.FirstOrDefault();
+                if (item == null) throw new InvalidOperationException($"点位表「{pt.Name}」里没有点位");
+                // 与流程页一致：按点位表各轴槽真驱到位（未填位置的槽跳过，不改动该轴）。
+                int moved = 0;
+                for (int i = 0; i < PointTable.SlotCount; i++)
+                {
+                    string axisName = pt.AxisNames.Count > i ? pt.AxisNames[i] : "";
+                    if (string.IsNullOrWhiteSpace(axisName)) continue;
+                    var axp = _findAxis(axisName);
+                    if (axp == null) throw new InvalidOperationException($"未找到轴：{axisName}");
+                    var slot = item.Positions.Count > i ? item.Positions[i] : null;
+                    if (slot?.Position == null) continue;
+                    if (slot.Speed > 0) _bridge.SetAxisSpeed(axp, slot.Speed);
+                    _bridge.MoveAxisAbs(axp, slot.Position.Value);
+                    _bridge.WaitAxisDone(axp);
+                    moved++;
+                }
+                _lastNodeSummary = $"点位「{item.Name}」已驱动 {moved} 轴到位";
                 break;
             }
 
@@ -488,6 +511,7 @@ public sealed class NgRunner
                 if (io == null) throw new InvalidOperationException($"未找到输出：{GetProp(node, "输出", "")}");
                 int v = GetIntProp(node, "值", 1);
                 _bridge.WriteOutput(io, v);
+                _lastNodeSummary = $"输出 {io.Name} = {v}";
                 break;
             }
 
@@ -495,16 +519,20 @@ public sealed class NgRunner
                 var io = _findInput(GetProp(node, "信号", ""));
                 if (io == null) throw new InvalidOperationException($"未找到输入：{GetProp(node, "信号", "")}");
                 string st = GetProp(node, "状态", "高电平");
-                _bridge.WaitInput(io, st == "高电平" ? 1 : 0);
+                int want = st == "高电平" ? 1 : 0;
+                _bridge.WaitInput(io, want);
+                _lastNodeSummary = $"输入 {io.Name} = {want}（{st}）已满足";
                 break;
             }
 
             case NgKind.VarSet: {
                 string name = GetProp(node, "变量", "");
                 string v = GetProp(node, "值", "0");
-                if (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out double d))
-                    _setVar(name, d);
-                else _setVar(name, 0);
+                double d = double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var dv) ? dv : 0;
+                // 支持表达式（如 计数+1 / A*2）：含运算符或其它变量名时按当前值实时求值
+                if (ExpressionEvaluator.IsExpression(v) && ExpressionEvaluator.Evaluate(v, _getVar, out var r)) d = r;
+                _setVar(name, d);
+                _lastNodeSummary = $"{name} = {d:0.###}";
                 break;
             }
 
@@ -512,7 +540,10 @@ public sealed class NgRunner
                 string name = GetProp(node, "变量", "");
                 string expr = GetProp(node, "表达式", "0");
                 if (ExpressionEvaluator.Evaluate(expr, _getVar, out double r))
+                {
                     _setVar(name, r);
+                    _lastNodeSummary = $"{name} = {expr} = {r:0.###}";
+                }
                 else
                     throw new InvalidOperationException($"表达式无法求值：{expr}");
                 break;
@@ -521,26 +552,40 @@ public sealed class NgRunner
             case NgKind.ModbusSend: {
                 var c = _findComm(GetProp(node, "通讯", ""));
                 if (c == null) throw new InvalidOperationException($"未找到通讯：{GetProp(node, "通讯", "")}");
-                _bridge.CommSend(c, GetProp(node, "指令", ""));
+                string payload = GetProp(node, "指令", "");
+                _bridge.CommSend(c, payload);
+                _lastNodeSummary = $"已发送 → {c.Name}：{payload}";
                 break;
             }
 
             case NgKind.ModbusRecv: {
                 var c = _findComm(GetProp(node, "通讯", ""));
                 if (c == null) throw new InvalidOperationException($"未找到通讯：{GetProp(node, "通讯", "")}");
-                _bridge.CommRecv(c);
+                string got = _bridge.CommRecv(c) ?? "";
+                string key = GetProp(node, "关键字", "OK");
+                bool hasKey = string.IsNullOrWhiteSpace(key) || got.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0;
+                _lastNodeSummary = string.IsNullOrWhiteSpace(key)
+                    ? $"已接收 ← {c.Name}：{got}"
+                    : $"已接收 ← {c.Name}：{got}（{(hasKey ? "含" : "不含")}关键字「{key}」）";
+                if (!hasKey) { try { _bridge.Log($"[Modbus接收] 数据不含关键字「{key}」：{got}"); } catch { } }
                 break;
             }
 
             case NgKind.TcpSend: {
-                var c = _findComm(GetProp(node, "端点", ""));
-                if (c == null) throw new InvalidOperationException($"未找到通讯：{GetProp(node, "端点", "")}");
-                _bridge.CommSend(c, GetProp(node, "报文", ""));
+                string ep = GetProp(node, "端点", "");
+                string msg = GetProp(node, "报文", "");
+                TcpSendOnce(ep, msg);
+                _lastNodeSummary = $"TCP 已发送 {System.Text.Encoding.UTF8.GetByteCount(msg)} 字节 → {ep}";
                 break;
             }
 
             case NgKind.McuWrite: {
-                _bridge.Log($"[下位机写] 设备={GetProp(node, "设备", "")} 数据={GetProp(node, "数据", "")}");
+                string dev = GetProp(node, "设备", "");
+                string data = GetProp(node, "数据", "");
+                var comm = _findComm(dev);
+                if (comm != null) { _bridge.CommSend(comm, data); _lastNodeSummary = $"下位机写 → {comm.Name}：{data}"; }
+                else if (dev.Contains(':')) { TcpSendOnce(dev, data); _lastNodeSummary = $"下位机写(TCP) → {dev}：{data}"; }
+                else throw new InvalidOperationException($"未找到通讯设备「{dev}」：请先在「通讯」页配置同名通道，或把「设备」填成 host:port");
                 break;
             }
 
@@ -561,6 +606,27 @@ public sealed class NgRunner
                 }
                 break;
         }
+    }
+
+    /// <summary>按 host:port 建立 TCP 连接并发送一段 UTF-8 报文（3 秒连接超时；失败抛异常 → 节点卡显示错误）。</summary>
+    private static void TcpSendOnce(string endpoint, string payload)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint)) throw new InvalidOperationException("TCP 端点为空");
+        var seg = endpoint.Trim().Replace('：', ':').Split(':');
+        if (seg.Length < 2 || !int.TryParse(seg[seg.Length - 1], NumberStyles.Any, CultureInfo.InvariantCulture, out int port))
+            throw new InvalidOperationException($"TCP 端点格式应为 host:port，当前为「{endpoint}」");
+        string host = string.Join(":", seg.Take(seg.Length - 1)).Trim();
+        if (host.Length == 0) throw new InvalidOperationException($"TCP 端点缺少主机名：{endpoint}");
+
+        using var client = new System.Net.Sockets.TcpClient();
+        var ar = client.BeginConnect(host, port, null, null);
+        if (!ar.AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(3)))
+            throw new InvalidOperationException($"连接 TCP {host}:{port} 超时");
+        client.EndConnect(ar);
+        var data = System.Text.Encoding.UTF8.GetBytes(payload ?? string.Empty);
+        using var ns = client.GetStream();
+        ns.Write(data, 0, data.Length);
+        ns.Flush();
     }
 
     // ===================== 节点属性辅助 =====================

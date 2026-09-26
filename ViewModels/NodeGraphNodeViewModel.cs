@@ -19,10 +19,22 @@ public sealed class NgPropViewModel : INotifyPropertyChanged
 
     public string Name => _model.Name;
     public bool HasOptions => !string.IsNullOrEmpty(_model.Options);
-    /// <summary>「轴」属性用轴名称下拉（候选来自工程里已配置的轴）。</summary>
-    public bool IsAxisProp => Name == "轴";
-    /// <summary>既非固定候选、也非轴下拉 → 用自由文本输入框。</summary>
-    public bool IsPlainText => !HasOptions && !IsAxisProp;
+    /// <summary>属性名 → 名称库下拉候选（轴 / 变量 / 输出 / 信号 / 气缸 / 通讯 / 点位）；无则 null（用自由文本）。</summary>
+    public System.Collections.IEnumerable? CatalogOptions => Name switch
+    {
+        "轴" => Catalog.AxisNames,
+        "变量" => Catalog.VariableNames,
+        "输出" => Catalog.OutIoNames,
+        "信号" => Catalog.InIoNames,
+        "气缸" => Catalog.CylinderNames,
+        "通讯" => Catalog.CommNames,
+        "点位" => Catalog.PointNames,
+        _ => null
+    };
+    /// <summary>该属性是否用「名称库」下拉（候选来自工程里已配置的对象）。</summary>
+    public bool UsesCatalog => CatalogOptions != null;
+    /// <summary>既非固定候选、也非名称库下拉 → 用自由文本输入框。</summary>
+    public bool IsPlainText => !HasOptions && !UsesCatalog;
     public System.Collections.Generic.List<string> OptionsList
         => _model.Options?.Split('|')?.ToList() ?? new System.Collections.Generic.List<string>();
 
@@ -148,26 +160,42 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
         return 0;
     }
 
-    // ===================== 属性面板「实际位置」（1 秒刷新） =====================
+    // ===================== 属性面板「实时值」（1 秒刷新） =====================
 
-    /// <summary>该节点是否显示「实际位置」行（轴类节点：轴运动 / 回零 / 等待轴到位）。</summary>
-    public bool ShowsActualPosition => Kind is NgKind.MoveAxis or NgKind.Home or NgKind.WaitAxis;
+    /// <summary>是否显示实时值行：轴类节点显示「实际位置」，设置变量 / 运算 显示「当前值」。</summary>
+    public bool ShowsLiveRow =>
+        Kind is NgKind.MoveAxis or NgKind.Home or NgKind.WaitAxis or NgKind.VarSet or NgKind.Compute;
 
-    private string _actualPositionText = "—";
-    /// <summary>「轴」属性所指轴的当前位置（读不到显示「—」）。</summary>
-    public string ActualPositionText
+    /// <summary>实时值行的标签。</summary>
+    public string LiveLabel =>
+        Kind is NgKind.MoveAxis or NgKind.Home or NgKind.WaitAxis ? "实际位置" : "当前值";
+
+    private string _liveValueText = "—";
+    /// <summary>实时值文本（轴当前位置 / 变量当前值；读不到显示「—」）。</summary>
+    public string LiveValueText
     {
-        get => _actualPositionText;
-        set { if (_actualPositionText != value) { _actualPositionText = value; OnChanged(nameof(ActualPositionText)); } }
+        get => _liveValueText;
+        set { if (_liveValueText != value) { _liveValueText = value; OnChanged(nameof(LiveValueText)); } }
     }
 
-    /// <summary>读取「轴」属性所指轴的当前位置：优先真实桥（虚拟卡 / 真实卡族），读不到回退运行态缓存。
-    /// 由属性面板的 1 秒定时器调用，运行时随轴运动实时变化。</summary>
-    public void RefreshActualPosition()
+    /// <summary>刷新实时值：轴类节点读当前位置（真实桥优先、回退运行态缓存）；
+    /// 设置变量 / 运算 读「变量」属性所指变量的当前值。
+    /// 由属性面板的 1 秒定时器调用，运行时随轴运动 / 变量赋值实时变化。</summary>
+    public void RefreshLiveValue()
     {
-        if (!ShowsActualPosition) return;
+        if (!ShowsLiveRow) return;
+
+        if (Kind is NgKind.VarSet or NgKind.Compute)
+        {
+            string varName = Props.FirstOrDefault(p => p.Name == "变量")?.Value ?? string.Empty;
+            LiveValueText = string.IsNullOrWhiteSpace(varName)
+                ? "—"
+                : SimRuntime.GetVariableResolved(varName).ToString("0.###", CultureInfo.InvariantCulture);
+            return;
+        }
+
         string axisName = Props.FirstOrDefault(p => p.Name == "轴")?.Value ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(axisName)) { ActualPositionText = "—"; return; }
+        if (string.IsNullOrWhiteSpace(axisName)) { LiveValueText = "—"; return; }
         double pos = double.NaN;
         try
         {
@@ -177,7 +205,7 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
         }
         catch { pos = double.NaN; }
         if (double.IsNaN(pos)) pos = AxisRuntimeState.Get(axisName);
-        ActualPositionText = pos.ToString("0.###", CultureInfo.InvariantCulture);
+        LiveValueText = pos.ToString("0.###", CultureInfo.InvariantCulture);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

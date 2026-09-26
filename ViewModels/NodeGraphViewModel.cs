@@ -45,8 +45,8 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             if (value != null) SelectedConnection = null;
             OnChanged(nameof(SelectedNode));
             OnChanged(nameof(HasSelection));
-            OnChanged(nameof(ShowActualPositionRow));
-            value?.RefreshActualPosition();      // 选中即刷新一次「实际位置」
+            OnChanged(nameof(ShowLiveRow));
+            value?.RefreshLiveValue();           // 选中即刷新一次「实时值」
         }
     }
 
@@ -66,8 +66,8 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
 
     public bool HasSelection => SelectedNode != null || SelectedConnection != null;
 
-    /// <summary>属性面板是否显示「实际位置」行（选中轴类节点时）。null 安全：未选中时为 false。</summary>
-    public bool ShowActualPositionRow => SelectedNode?.ShowsActualPosition == true;
+    /// <summary>属性面板是否显示「实时值」行（选中 轴类 / 设置变量 / 运算 节点时）。null 安全：未选中时为 false。</summary>
+    public bool ShowLiveRow => SelectedNode?.ShowsLiveRow == true;
 
     /// <summary>工具箱：按 视觉 / 运控 / 通讯 分组的节点类型列表。</summary>
     public System.Collections.Generic.List<NgToolGroup> ToolboxGroups { get; }
@@ -124,7 +124,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         {
             Interval = System.TimeSpan.FromMilliseconds(1000)
         };
-        _actualPosTimer.Tick += (_, _) => SelectedNode?.RefreshActualPosition();
+        _actualPosTimer.Tick += (_, _) => SelectedNode?.RefreshLiveValue();
         _actualPosTimer.Start();
 
         AddNodeCommand = new RelayCommand(p => AddNode(ParseKind(p), DefaultX(), DefaultY()));
