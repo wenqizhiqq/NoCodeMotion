@@ -545,6 +545,15 @@
             </Trigger>
         </Style.Triggers>
     </Style>
+    <!-- 绿：循环运行（连续生产的「启动」语义），与「运行一次」的蓝色区分 -->
+    <Style x:Key="TtLoopBtn" TargetType="Button" BasedOn="{StaticResource TtBaseBtn}">
+        <Setter Property="Background" Value="{StaticResource SuccessBrush}"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#2F9E44"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
 
     <!-- iOS 风格"染色药丸"按钮：浅色背景 + 同色加粗文字，半径更大，高度更小。
          用于轴控制卡的 -/+/使能/回原 以及点位表行末的 移动/保存。 -->

@@ -55,6 +55,8 @@
 - 新增 Lua 函数同步三处：`HardwareApi.Register`、`Editing/LuaApi.cs` 的 `HardwareList`、`Docs/lua-manual/index.html`。
 
 ## 流程页
+- ★ **运行按钮统一约定：每处流程运行入口都提供「运行一次」+「循环运行」**，循环 = 一直跑到点停止。四处：`FlowPage`（表格流程，`FlowViewModel.LoopRunCommand`+`WrapToFirstRow()`）、`LuaEditorView`（`BtnLoopRun`，Ctrl+F5；`StartSession(..., keepLog:true)` 保留输出）、`NodeGraphPage`（`NgRunner.Completed` 触发自动重跑）、`VisualFlowPage`（按钮文案在「循环运行 / 停止循环」间切换）。
+  通用坑：① 循环标记必须在 `Stop`/切换流程/卸载时清掉，否则停止后会被自动重启；② runner 的状态回调常在后台线程，重启用的 `DispatcherTimer.Start()` 必须封送到 UI 线程；③ 轮间留 100~200ms 延时，防空脚本/空图把 UI 线转满。
 - 功能列：轴 / 输入IO / 输出IO / 气缸 / 点位 / modbus / 变量 / 系统 / 相机 / 延时。
 - 运算列全中文；改词表必须同步转换器、`ProjectTemplateCatalog`、`AiProjectExchange`、执行/仿真路径（`FlowRunnerService`/`SimFlowPlayer`/`NgRunner`）。
 - 「实际值」列全覆盖，读不到显示「—」。

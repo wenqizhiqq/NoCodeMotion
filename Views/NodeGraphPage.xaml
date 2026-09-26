@@ -274,14 +274,22 @@
                                ToolTip="{Binding LastError}"/>
                 </StackPanel>
 
-                <!-- 6 按钮：运行/单步/继续/暂停/停止/断点 -->
+                <!-- 7 按钮：运行一次 / 循环运行 / 单步 / 继续 / 暂停 / 停止 / 断点 -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
                             Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
-                            ToolTip="从开始节点连续执行整个流程">
+                            ToolTip="运行一次：从开始节点连续执行整个流程一遍">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="▶" Foreground="#16A34A" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                            <TextBlock Text="运行" VerticalAlignment="Center"/>
+                            <TextBlock Text="运行一次" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding LoopRunCommand}" IsEnabled="{Binding CanRun}"
+                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
+                            ToolTip="循环运行：整个流程反复执行，直到点「停止」">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="↻" Foreground="#0E7490" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="循环运行" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding StepCommand}" IsEnabled="{Binding CanStep}"

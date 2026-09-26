@@ -112,12 +112,21 @@
                     </Button>
                     <Button Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
                             Style="{StaticResource ToolButtonStyle}" Margin="8,0,0,0"
-                            ToolTip="依次跑该视觉流程的全部启用步骤（含图像采集/预处理/模板匹配/缺陷/测量/通讯等）；匹配步骤会用右侧已框选的 ROI 模板去搜索全图并把绿框/红框画到结果图上。">
+                            ToolTip="运行一次：依次跑该视觉流程的全部启用步骤（含图像采集/预处理/模板匹配/缺陷/测量/通讯等）；匹配步骤会用右侧已框选的 ROI 模板去搜索全图并把绿框/红框画到结果图上。">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource PlayIcon}" Width="15" Height="15" Stretch="Uniform"
                                   Margin="0,0,5,0" VerticalAlignment="Center"
                                   Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                            <TextBlock Text="运行全部" VerticalAlignment="Center"/>
+                            <TextBlock Text="运行一次" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding LoopRunCommand}" IsEnabled="{Binding CanLoopRun}"
+                            Style="{StaticResource ToolButtonStyle}" Margin="6,0,0,0"
+                            ToolTip="循环运行：反复执行整个视觉流程，直到再点一次（按钮变为「停止循环」）。">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="↻" Foreground="#0E7490" FontSize="14" FontWeight="Bold"
+                                       VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="{Binding LoopRunButtonText}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>

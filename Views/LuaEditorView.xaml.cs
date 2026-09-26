@@ -58,6 +58,12 @@ namespace NoCodeMotion.Views
         // 运行（非单步）期间按节奏把每行耗时快照推给左侧边栏，做到运行中也实时显示
         private readonly DispatcherTimer _lineTimeTimer;
 
+        // ---------- 循环运行：脚本跑完自动重跑，直到用户点「停止」 ----------
+        private bool _loopRun;
+        private int _loopCount;
+        // 一轮结束到下一轮开始之间的短延时：防止空脚本 / 瞬间完成的脚本把 UI 线程转满
+        private readonly DispatcherTimer _loopRestartTimer;
+
         private LuaDebugSession _session;
         private CompletionWindow _completionWindow;
         private InsightWindow _insightWindow;
@@ -94,6 +100,15 @@ namespace NoCodeMotion.Views
                     _lineTimeMargin.SetLineTimes(_session.GetLineTimesSnapshot());
             };
 
+            // 循环运行：一轮结束后延时 200ms 再开下一轮（保留输出面板内容，不清屏）
+            _loopRestartTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            _loopRestartTimer.Tick += (s, e) =>
+            {
+                _loopRestartTimer.Stop();
+                if (!_loopRun) return;
+                StartSession(false, _operatorDriven, keepLog: true);
+            };
+
             Loaded += (s, e) =>
             {
                 Active = this;
@@ -101,6 +116,8 @@ namespace NoCodeMotion.Views
             };
             Unloaded += (s, e) =>
             {
+                _loopRun = false;
+                _loopRestartTimer.Stop();
                 _session?.Stop();
                 // 关键：卸载时退订静态监控，避免已释放实例仍被广播回调（会触碰已销毁的 Editor 抛异常，
                 // 进而把异常抛回 LuaDebugSession.GetAction 的脚本线程，破坏单步/连续运行）。
@@ -134,6 +151,8 @@ namespace NoCodeMotion.Views
 
         private void OnLuaItemChanged()
         {
+            _loopRun = false;
+            _loopRestartTimer?.Stop();
             _session?.Stop();
 
             // 退订上一个流程项，订阅新的
@@ -722,12 +741,22 @@ namespace NoCodeMotion.Views
 
         #region 调试会话
 
-        private void StartSession(bool breakAtEntry, bool operatorDriven = false)
+        /// <summary>启动一次调试会话。<paramref name="keepLog"/> = true 表示循环运行的后续轮次：保留输出面板内容与轮数计数。</summary>
+        private void StartSession(bool breakAtEntry, bool operatorDriven = false, bool keepLog = false)
         {
             if (_session != null && _session.IsBusy) return;
 
             ClearRuntimeMarkers();
-            _log.Clear();
+            if (!keepLog)
+            {
+                _log.Clear();
+                _loopCount = 0;
+                AppendLog($"▶ 开始运行{(breakAtEntry ? "（停在第一条语句）" : "")}", LogKind.Info);
+            }
+            else
+            {
+                AppendLog($"↻ 循环运行第 {_loopCount + 1} 轮开始", LogKind.Info);
+            }
             _operatorDriven = operatorDriven;
 
             _session = new LuaDebugSession();
@@ -740,7 +769,6 @@ namespace NoCodeMotion.Views
             _session.LineStepped += line => Dispatcher.BeginInvoke(new Action(() => HighlightLine(line)));
             _session.SetBreakpoints(_bpMargin.Breakpoints);
 
-            AppendLog(breakAtEntry ? "▶ 开始调试（停在第一条语句）" : "▶ 开始运行", LogKind.Info);
             SetSessionState(SessionState.Running);
             _lineTimeTimer.Start();
             _session.Start(Editor.Text, breakAtEntry);
@@ -885,6 +913,16 @@ namespace NoCodeMotion.Views
             _lineTimeTimer.Stop();
             _lineTimeMargin.SetLineTimes(_session.GetLineTimesSnapshot());
             InspectAtCaret(false);
+
+            // 循环运行：本轮正常结束（既没报错、也不是用户主动停止）→ 延时自动开下一轮，
+            // 直到用户点「停止」（BtnStop_Click 会把 _loopRun 置回 false）。
+            if (_loopRun && !info.IsError && !info.Terminated)
+            {
+                _loopCount++;
+                AppendLog($"↻ 循环运行：已完成 {_loopCount} 轮，即将开始下一轮（点「停止」退出）", LogKind.Info);
+                SetSessionState(SessionState.Running);
+                _loopRestartTimer.Start();
+            }
         }));
 
         // —— Operator 运行期跳行高亮（订阅 LuaRunMonitor，仅高亮当前选中的流程）——
@@ -1324,12 +1362,35 @@ namespace NoCodeMotion.Views
 
         #region 工具栏 / 快捷键
 
+        /// <summary>「运行一次」：脚本跑完一遍即停。</summary>
         private void BtnRun_Click(object sender, RoutedEventArgs e)
         {
             if (_session != null && _session.State == SessionState.Paused)
+            {
+                _loopRun = false;                       // 暂停后点「运行一次」= 只跑完这一遍
                 Resume(DebuggerAction.ActionType.Run);
+            }
             else
+            {
+                _loopRun = false;
                 StartSession(false);
+            }
+        }
+
+        /// <summary>「循环运行」：脚本跑完自动重跑，直到点「停止」。</summary>
+        private void BtnLoopRun_Click(object sender, RoutedEventArgs e)
+        {
+            if (_session != null && _session.State == SessionState.Paused)
+            {
+                _loopRun = true;
+                Resume(DebuggerAction.ActionType.Run);
+            }
+            else
+            {
+                _loopRun = true;
+                _loopRestartTimer.Stop();
+                StartSession(false);
+            }
         }
 
         private void BtnPause_Click(object sender, RoutedEventArgs e)
@@ -1338,7 +1399,13 @@ namespace NoCodeMotion.Views
             AppendLog("… 已请求中断，将在下一条语句处暂停", LogKind.Info);
         }
 
-        private void BtnStop_Click(object sender, RoutedEventArgs e) => _session?.Stop();
+        private void BtnStop_Click(object sender, RoutedEventArgs e)
+        {
+            // 先退掉循环标记，否则 OnSessionEnded 会把脚本重新跑起来
+            _loopRun = false;
+            _loopRestartTimer?.Stop();
+            _session?.Stop();
+        }
 
         private void BtnStepOver_Click(object sender, RoutedEventArgs e)
         {
@@ -1393,6 +1460,7 @@ namespace NoCodeMotion.Views
             {
                 case Key.F5:
                     if (shift) BtnStop_Click(null, null);
+                    else if (ctrl) BtnLoopRun_Click(null, null);   // Ctrl+F5 = 循环运行
                     else BtnRun_Click(null, null);
                     e.Handled = true;
                     break;

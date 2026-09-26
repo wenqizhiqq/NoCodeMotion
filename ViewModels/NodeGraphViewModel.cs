@@ -29,6 +29,11 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     private readonly NgRunner _runner;
     private readonly System.Windows.Threading.DispatcherTimer _actualPosTimer;
 
+    // ---------- 循环运行：一轮跑完自动再跑一轮，直到点「停止」 ----------
+    private bool _loopRun;
+    private int _loopCount;
+    private readonly System.Windows.Threading.DispatcherTimer _loopRestartTimer;
+
     public ObservableCollection<NodeGraphNodeViewModel> Nodes { get; } = new();
     public ObservableCollection<NodeGraphConnectionViewModel> Connections { get; } = new();
 
@@ -93,24 +98,37 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     public NgRunState RunState => _runner.State;
     public string? CurrentNodeId => _runner.CurrentNodeId;
     public string LastError => _runner.LastError;
-    public string RunStateText => RunState switch
+    public string RunStateText
     {
-        NgRunState.Idle => "未运行",
-        NgRunState.Running => "运行中…",
-        NgRunState.Paused => "已暂停（断点或单步）",
-        NgRunState.Stepping => "单步中…",
-        NgRunState.Completed => "已完成",
-        NgRunState.Error => "异常停止",
-        NgRunState.Stopped => "已停止",
-        _ => string.Empty,
-    };
+        get
+        {
+            string baseText = RunState switch
+            {
+                NgRunState.Idle => "未运行",
+                NgRunState.Running => "运行中…",
+                NgRunState.Paused => "已暂停（断点或单步）",
+                NgRunState.Stepping => "单步中…",
+                NgRunState.Completed => "已完成",
+                NgRunState.Error => "异常停止",
+                NgRunState.Stopped => "已停止",
+                _ => string.Empty,
+            };
+            return _loopRun ? $"{baseText}　·　循环运行第 {_loopCount + 1} 轮" : baseText;
+        }
+    }
+
+    /// <summary>当前是否处于「循环运行」模式。</summary>
+    public bool IsLoopRunning => _loopRun;
     public bool CanRun => _runner.State is NgRunState.Idle or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error;
     public bool CanStep => _runner.State is NgRunState.Idle or NgRunState.Paused or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error;
     public bool CanResume => _runner.State == NgRunState.Paused;
     public bool CanPause => _runner.State is NgRunState.Running or NgRunState.Stepping;
     public bool CanStop => _runner.State != NgRunState.Idle;
 
+    /// <summary>「运行一次」：从开始节点连续执行整个流程一遍。</summary>
     public ICommand RunCommand { get; }
+    /// <summary>「循环运行」：反复执行整个流程，直到点「停止」。</summary>
+    public ICommand LoopRunCommand { get; }
     public ICommand StepCommand { get; }
     public ICommand ResumeCommand { get; }
     public ICommand PauseCommand { get; }
@@ -149,11 +167,24 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         DeleteAllConnectionsCommand = new RelayCommand(_ => DeleteAllConnections(), _ => Connections.Count > 0);
         ClearCommand = new RelayCommand(_ => ClearAll());
 
-        RunCommand = new RelayCommand(_ => _runner.Run(), _ => CanRun);
-        StepCommand = new RelayCommand(_ => _runner.Step(), _ => CanStep);
+        RunCommand = new RelayCommand(_ => { _loopRun = false; _loopCount = 0; _runner.Run(); }, _ => CanRun);
+        LoopRunCommand = new RelayCommand(_ => { _loopRun = true; _loopCount = 0; _runner.Run(); }, _ => CanRun);
+        StepCommand = new RelayCommand(_ => { _loopRun = false; _runner.Step(); }, _ => CanStep);
         ResumeCommand = new RelayCommand(_ => _runner.Resume(), _ => CanResume);
         PauseCommand = new RelayCommand(_ => _runner.Pause(), _ => CanPause);
-        StopCommand = new RelayCommand(_ => _runner.Stop(), _ => CanStop);
+        StopCommand = new RelayCommand(_ => StopRun(), _ => CanStop);
+
+        // 循环运行：一轮完成到下一轮开始之间留 200ms，避免空图/瞬时完成把线程转满
+        _loopRestartTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = System.TimeSpan.FromMilliseconds(200)
+        };
+        _loopRestartTimer.Tick += (_, _) =>
+        {
+            _loopRestartTimer.Stop();
+            if (!_loopRun) return;
+            _runner.Run();
+        };
         ToggleBreakpointCommand = new RelayCommand(p => _runner.ToggleBreakpoint(p as string ?? string.Empty));
 
         ToolboxGroups = NgNodeDefinitions.DomainOrder.Select(dom => new NgToolGroup
@@ -317,6 +348,40 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         OnChanged(nameof(CanResume));
         OnChanged(nameof(CanPause));
         OnChanged(nameof(CanStop));
+
+        // 循环运行：本轮正常完成 → 延时自动开下一轮；异常 / 被停止 → 退出循环模式。
+        // 注意：本回调来自 NgRunner 的后台线程，DispatcherTimer 只能在 UI 线程启停，故 Start 走封送。
+        if (_loopRun)
+        {
+            if (_runner.State == NgRunState.Completed)
+            {
+                _loopCount++;
+                OnChanged(nameof(RunStateText));
+                DispatcherSafe(() => _loopRestartTimer.Start());
+            }
+            else if (_runner.State is NgRunState.Error or NgRunState.Stopped)
+            {
+                _loopRun = false;
+                OnChanged(nameof(RunStateText));
+                OnChanged(nameof(IsLoopRunning));
+            }
+        }
+    }
+
+    /// <summary>「停止」：退出循环运行并中止 runner。</summary>
+    private void StopRun()
+    {
+        _loopRun = false;
+        _loopRestartTimer?.Stop();
+        _runner.Stop();
+    }
+
+    /// <summary>把动作封送到 UI 线程（NgRunner 的状态回调可能来自后台线程）。</summary>
+    private static void DispatcherSafe(Action action)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess()) action();
+        else dispatcher.BeginInvoke(action);
     }
 
     private void OnRunnerReportChanged()

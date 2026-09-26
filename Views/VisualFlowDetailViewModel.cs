@@ -196,8 +196,62 @@ namespace NoCodeMotion.Views
         // ---- 命令 ----
         public ICommand AddStepCommand { get; }
         public ICommand DeleteStepCommand { get; }
+        /// <summary>「运行一次」：依次跑完整个视觉流程一遍。</summary>
         public ICommand RunCommand { get; }
+        /// <summary>「循环运行 / 停止循环」：反复跑整个视觉流程，再点一次即停止。</summary>
+        public ICommand LoopRunCommand { get; }
         public ICommand RunStepCommand { get; }
+
+        // ---------- 循环运行状态 ----------
+        private bool _loopRun;
+        private int _loopCount;
+
+        /// <summary>是否正在循环运行（界面按钮据此变成「停止循环」）。</summary>
+        public bool IsLoopRunning => _loopRun;
+
+        /// <summary>循环运行按钮文案：循环中显示「停止循环」。</summary>
+        public string LoopRunButtonText => _loopRun ? "停止循环" : "循环运行";
+
+        /// <summary>循环运行按钮是否可点：空闲可启动；循环中可用来停止。</summary>
+        public bool CanLoopRun => _loopRun || !IsRunning;
+
+        private void RaiseLoopFlags()
+        {
+            OnPropertyChanged(nameof(IsLoopRunning));
+            OnPropertyChanged(nameof(LoopRunButtonText));
+            OnPropertyChanged(nameof(CanLoopRun));
+        }
+
+        /// <summary>循环运行：每一轮走完整的 <see cref="RunAsync"/>，轮间留 200ms；再点按钮或点「停止循环」即退出。</summary>
+        private async Task LoopRunAsync()
+        {
+            if (Steps == null || Steps.Count == 0)
+            {
+                RunStatus = "请先选中视觉流程并添加步骤";
+                return;
+            }
+
+            _loopRun = true;
+            _loopCount = 0;
+            RaiseLoopFlags();
+            try
+            {
+                while (_loopRun)
+                {
+                    await RunAsync();
+                    if (!_loopRun) break;
+                    _loopCount++;
+                    RunStatus = $"循环运行：已完成 {_loopCount} 轮，继续下一轮…（点「停止循环」退出）";
+                    await Task.Delay(200);
+                }
+            }
+            finally
+            {
+                _loopRun = false;
+                CanRun = true;
+                RaiseLoopFlags();
+            }
+        }
         /// <summary>把本地图片文件载入右侧预览（不跑引擎），用于「浏览后直接看图」。</summary>
         public void LoadPreviewImage(string path)
         {
@@ -404,6 +458,12 @@ namespace NoCodeMotion.Views
             });
 
             RunCommand = new SimpleRelayCommand(_ => _ = RunAsync());
+            LoopRunCommand = new SimpleRelayCommand(_ =>
+            {
+                // 循环中再点 = 停止循环
+                if (_loopRun) { _loopRun = false; RunStatus = "已停止循环运行"; RaiseLoopFlags(); return; }
+                _ = LoopRunAsync();
+            });
             RunStepCommand = new SimpleRelayCommand(p => _ = RunStepAsync(p as VisualFlowStep));
             BrowsePathCommand = new SimpleRelayCommand(p => BrowsePath(p as string));
             RunMatchCommand = new SimpleRelayCommand(_ => _ = RunMatchAsync());
@@ -552,7 +612,8 @@ namespace NoCodeMotion.Views
             int ok = 0;
             foreach (var r in Results) if (r.Ok) ok++;
             IsRunning = false;
-            CanRun = true;
+            CanRun = !_loopRun;      // 循环运行期间禁用「运行一次」，避免两个运行并行
+            OnPropertyChanged(nameof(CanLoopRun));
             RunStatus = report.Matches.Count > 0
                 ? $"完成：共 {Results.Count} 步，{ok} 步成功　匹配 {report.Matches.Count} 个目标"
                 : $"完成：共 {Results.Count} 步，{ok} 步成功";

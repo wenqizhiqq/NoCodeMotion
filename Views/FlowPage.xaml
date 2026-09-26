@@ -462,7 +462,7 @@
                             </DataGrid>
                         </Border>
 
-                        <!-- 流程执行控制栏：运行 / 单步运行 / 跳到指定行 / 暂停 / 停止（固定底部） -->
+                        <!-- 流程执行控制栏：运行一次 / 循环运行 / 单步运行 / 跳到指定行 / 暂停 / 停止（固定底部） -->
                         <Border Grid.Row="2" Margin="0,10,0,0" Style="{StaticResource CardBorderStyle}" SnapsToDevicePixels="True">
                             <Grid Margin="12,10">
                                 <Grid.RowDefinitions>
@@ -470,7 +470,7 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0"
-                                           Text="运行 / 单步按「逻辑」列跳转：如果 / 否则如果 / 否则 选择分支，循环开始 / 循环结束 重复执行；分支真假按「实际值」列（或变量值）与「运算」判定，橙色行 = 当前执行行。"
+                                           Text="运行一次 = 走完一遍即结束；循环运行 = 反复执行直到点「停止」。单步按「逻辑」列跳转：如果 / 否则如果 / 否则 选择分支，循环开始 / 循环结束 重复执行；分支真假按「实际值」列（或变量值）与「运算」判定，橙色行 = 当前执行行。"
                                            FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                                            TextWrapping="Wrap" Margin="0,0,0,8"/>
                                 <Grid Grid.Row="1">
@@ -484,8 +484,16 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <Button Grid.Column="0" Content="运行" Style="{StaticResource TtBaseBtn}"
-                                        Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" Margin="0,0,8,0"/>
+                                <!-- 运行一次 / 循环运行：循环运行会反复执行整个流程，直到点「停止」 -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,0">
+                                    <Button Content="运行一次" Style="{StaticResource TtBaseBtn}"
+                                            Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
+                                            Margin="0,0,8,0"
+                                            ToolTip="从头执行一遍当前流程，走到末尾即结束。"/>
+                                    <Button Content="循环运行" Style="{StaticResource TtLoopBtn}"
+                                            Command="{Binding LoopRunCommand}" IsEnabled="{Binding CanRun}"
+                                            ToolTip="反复执行整个流程（每轮结束后自动回到第 1 行），点「停止」退出。"/>
+                                </StackPanel>
                                 <Button Grid.Column="1" Content="跳到选中行" Style="{StaticResource TtBaseBtn}"
                                         Command="{Binding JumpCommand}" HorizontalAlignment="Center" Margin="0,0,8,0"/>
                                 <Button Grid.Column="2" Content="单步运行" Style="{StaticResource TtBaseBtn}"

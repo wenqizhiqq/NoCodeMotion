@@ -69,6 +69,12 @@ namespace NoCodeMotion.ViewModels
         private int _pendingNext = -1;          // 下一拍要执行的行索引
         private readonly Stack<bool> _ifStack = new();     // 每个「如果」块是否已有分支命中
         private readonly Stack<LoopFrame> _loopStack = new();
+
+        // ---------- 循环运行（运行一次 / 循环运行 两种模式）----------
+        // true = 走到流程末尾自动回到第一行继续，直到用户点「停止」；false = 走完一遍即结束。
+        private bool _loopRun;
+        // 循环运行已完成的轮数（仅用于界面显示「已循环 N 轮」）
+        private int _loopCount;
         private sealed class LoopFrame
         {
             public int Start;
@@ -87,9 +93,19 @@ namespace NoCodeMotion.ViewModels
             }
         }
 
-        public string CurrentStepText => _currentStep < 0
-            ? (IsRunning ? "运行中" : "未开始")
-            : (_currentStep < StepPanel.Items.Count ? $"第 {_currentStep + 1} 步 / 共 {StepPanel.Items.Count} 步" : "已完成");
+        public string CurrentStepText
+        {
+            get
+            {
+                string baseText = _currentStep < 0
+                    ? (IsRunning ? "运行中" : "未开始")
+                    : (_currentStep < StepPanel.Items.Count ? $"第 {_currentStep + 1} 步 / 共 {StepPanel.Items.Count} 步" : "已完成");
+                return _loopRun && IsRunning ? $"{baseText}　·　已循环 {_loopCount} 轮" : baseText;
+            }
+        }
+
+        /// <summary>当前是否处于「循环运行」模式（运行中 + 走到末尾会自动回第 1 行）。</summary>
+        public bool IsLoopRunning => _loopRun && IsRunning;
 
         /// <summary>跳到指定行运行：用户填的起始行号（1 基）。出界时 <see cref="RunFromRow"/> 自动夹紧到首尾。</summary>
         public int JumpRowNumber
@@ -191,7 +207,10 @@ namespace NoCodeMotion.ViewModels
         /// <summary>流程页顶部按钮文案用「修改」（而非基类默认的「重命名」），点击弹出可同时改名称与主流程/复位流程的对话框。</summary>
         public override string RenameButtonText => "修改";
 
+        /// <summary>「运行一次」：从头执行一遍流程，走到末尾即结束。</summary>
         public ICommand RunCommand { get; }
+        /// <summary>「循环运行」：反复执行整个流程，直到点「停止」。</summary>
+        public ICommand LoopRunCommand { get; }
         public ICommand StepCommand { get; }
         public ICommand JumpCommand { get; }
         public ICommand RunFromRowCommand { get; }
@@ -212,7 +231,8 @@ namespace NoCodeMotion.ViewModels
             StepPanel = new FlowStepPanel(new ObservableCollection<FlowStep>());
             StepPanel.SetItems(SelectedItem?.Steps ?? new ObservableCollection<FlowStep>());
 
-            RunCommand = new RelayCommand(_ => Run());
+            RunCommand = new RelayCommand(_ => Run(false));
+            LoopRunCommand = new RelayCommand(_ => Run(true));
             StepCommand = new RelayCommand(_ => StepOnce());
             JumpCommand = new RelayCommand(_ => JumpToRow(), _ => CanJump);
             RunFromRowCommand = new RelayCommand(_ => RunFromRow(), _ => CanRunFromRow);
@@ -782,6 +802,7 @@ namespace NoCodeMotion.ViewModels
             OnPropertyChanged(nameof(CanPause));
             OnPropertyChanged(nameof(CanStop));
             OnPropertyChanged(nameof(CurrentStepText));
+            OnPropertyChanged(nameof(IsLoopRunning));
         }
 
         private void HighlightCurrent()
@@ -792,7 +813,9 @@ namespace NoCodeMotion.ViewModels
                 StepPanel.SelectedItem = null;
         }
 
-        private void Run()
+        /// <summary>启动运行。<paramref name="loop"/> = true 为「循环运行」（走到末尾自动回到第 1 行，直到点停止），
+        /// false 为「运行一次」（走完一遍即结束）。</summary>
+        private void Run(bool loop)
         {
             if (!CanRun) return;
             bool fresh = (_currentStep < 0 || _currentStep >= StepPanel.Items.Count);
@@ -804,9 +827,24 @@ namespace NoCodeMotion.ViewModels
                 ClearCurrentFlags();
                 CurrentStep = 0;
             }
+            _loopRun = loop;
+            _loopCount = 0;
             IsPaused = false;
             IsRunning = true;
             _runTimer.Start();
+            RaiseRunState();
+        }
+
+        /// <summary>循环运行：一轮走完时把执行指针拨回第 1 行并累计轮数。
+        /// 返回 false 表示当前不是循环运行模式，调用方应正常结束流程。</summary>
+        private bool WrapToFirstRow()
+        {
+            if (!_loopRun) return false;
+            _loopCount++;
+            _ifStack.Clear();
+            _loopStack.Clear();
+            OnPropertyChanged(nameof(CurrentStepText));
+            return true;
         }
 
         private void StepOnce()
@@ -822,7 +860,12 @@ namespace NoCodeMotion.ViewModels
                 ClearCurrentFlags();
             }
             int i = _pendingNext >= 0 ? _pendingNext : (_currentStep < 0 || _currentStep >= items.Count ? 0 : _currentStep);
-            if (i >= items.Count) { FinishRun(); return; }
+            if (i >= items.Count)
+            {
+                // 循环运行：走到文档末尾后回到第 1 行继续，而不是结束
+                if (!WrapToFirstRow()) { FinishRun(); return; }
+                i = 0;
+            }
             var step = items[i];
             // Trim 防御：流程数据若从文件加载带有不可见字符/空格（如 "如果 "），switch 会全部落 default → 线性逐行不跳转。
             // 进 switch 前统一去空白，确保 "如果"/"就"/"否则" 等能精确命中分支。
@@ -911,7 +954,12 @@ namespace NoCodeMotion.ViewModels
                 case "结束":
                 {
                     if (_ifStack.Count > 0) { _ifStack.Pop(); next = i + 1; }
-                    else { FinishRun(); return; }
+                    else
+                    {
+                        // 无匹配「如果」的「结束」= 流程终止符；循环运行时改为回到第 1 行继续
+                        if (!WrapToFirstRow()) { FinishRun(); return; }
+                        next = 0;
+                    }
                     break;
                 }
                 case "循环开始":
@@ -954,7 +1002,12 @@ namespace NoCodeMotion.ViewModels
                 }
             }
 
-            if (next >= items.Count) { FinishRun(); return; }
+            if (next >= items.Count)
+            {
+                // 循环运行：一轮结束 → 累计轮数并回到第 1 行继续（当前行保持高亮，下一拍从第 1 行执行）
+                if (!WrapToFirstRow()) { FinishRun(); return; }
+                next = 0;
+            }
             ClearCurrentFlags();
             step.IsCurrent = true;
             _pendingNext = next;
@@ -1064,6 +1117,7 @@ namespace NoCodeMotion.ViewModels
             _runTimer.Stop();
             IsRunning = false;
             IsPaused = false;
+            _loopRun = false;                        // 结束即退出循环运行模式
             _pendingNext = -1;
             ClearCurrentFlags();
             _currentStep = StepPanel.Items.Count; // 标记已完成（CurrentStepText 显示“已完成”）
@@ -1361,6 +1415,8 @@ namespace NoCodeMotion.ViewModels
             _runTimer.Stop();
             IsRunning = false;
             IsPaused = false;
+            _loopRun = false;
+            _loopCount = 0;
             _pendingNext = -1;
             _ifStack.Clear();
             _loopStack.Clear();
