@@ -144,30 +144,62 @@
             <Border Grid.Row="0" Background="{StaticResource AccentSoftBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="10,7">
                 <DockPanel>
                     <TextBlock Style="{StaticResource LuaPanelHeaderText}" Text="智能插入"/>
-                    <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Text="左选函数 · 右选名称 · 插入一行"/>
+                    <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Text="左选功能 · 右选名称（单击插入）"/>
                 </DockPanel>
             </Border>
 
             <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" MinWidth="80"/>
-                    <ColumnDefinition Width="6"/>
-                    <ColumnDefinition Width="*" MinWidth="80"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <!-- 左：函数列表 -->
-                <ListBox x:Name="FuncList" Grid.Column="0" BorderThickness="0"
-                         FontFamily="Microsoft YaHei UI, Consolas" FontSize="12.5"
-                         DisplayMemberPath="Name"
-                         SelectionChanged="FuncList_SelectionChanged"/>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="80"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*" MinWidth="80"/>
+                    </Grid.ColumnDefinitions>
 
-                <Rectangle Grid.Column="1" Fill="{StaticResource LineBrush}"/>
+                    <!-- 左：函数列表（名称精简，悬停显示将要插入的完整代码） -->
+                    <ListBox x:Name="FuncList" Grid.Column="0" BorderThickness="0"
+                             FontFamily="Microsoft YaHei UI, Consolas" FontSize="12.5"
+                             DisplayMemberPath="Name"
+                             SelectionChanged="FuncList_SelectionChanged">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="ToolTip" Value="{Binding Template}"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
 
-                <!-- 右：所选函数需要的名称列表（或逻辑结构代码块） -->
-                <ListBox x:Name="NameList" Grid.Column="2" BorderThickness="0"
-                         FontFamily="Consolas, Cascadia Mono, Microsoft YaHei UI" FontSize="12.5"
-                         DisplayMemberPath="Name"
-                         MouseLeftButtonUp="NameList_MouseLeftButtonUp"/>
+                    <Rectangle Grid.Column="1" Fill="{StaticResource LineBrush}"/>
+
+                    <!-- 右：所选功能需要的名称列表（点位显示「点位表名.点位名」；或代码块 / 延时档位 / 硬件命令） -->
+                    <ListBox x:Name="NameList" Grid.Column="2" BorderThickness="0"
+                             FontFamily="Consolas, Cascadia Mono, Microsoft YaHei UI" FontSize="12.5"
+                             DisplayMemberPath="Name"
+                             SelectionChanged="NameList_SelectionChanged"
+                             MouseLeftButtonUp="NameList_MouseLeftButtonUp">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="ToolTip" Value="{Binding Name}"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </Grid>
+
+                <!-- 插入预览：把当前选中名称替换进去后的成品代码（含中文注释与可改的数值） -->
+                <Border Grid.Row="1" Background="{StaticResource AccentSoftBrush}"
+                        BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Padding="8,6">
+                    <StackPanel>
+                        <TextBlock Text="将插入的代码（数值可直接改）" FontSize="10.5"
+                                   Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock x:Name="InsertPreview" FontFamily="Consolas, Cascadia Mono, Microsoft YaHei UI"
+                                   FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                    </StackPanel>
+                </Border>
             </Grid>
         </Grid>
 

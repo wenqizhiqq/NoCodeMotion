@@ -313,7 +313,7 @@ Print('本循环完成')</code></pre>
 <!-- ===== 4 硬件函数 API ===== -->
 <section id="hardware-api">
   <h2><span class="sec-no">4</span>硬件函数 API（全局函数）</h2>
-  <p>以下 25 个函数由框架注册为 Lua 全局函数，<strong>编辑器「智能工具」面板可一键插入</strong>，调用时设备名必须与工程配置一致，找不到设备会直接报错。</p>
+  <p>以下 28 个函数由框架注册为 Lua 全局函数，<strong>编辑器右侧「智能插入」面板可一键插入（并带中文注释与可直接改的数值）</strong>，调用时设备名必须与工程配置一致，找不到设备会直接报错。</p>
 
   <h3>4.1 轴运动</h3>
   <div class="tbl-wrap"><table>
@@ -359,7 +359,17 @@ Print('本循环完成')</code></pre>
     <tr><td><code>TrayPlace(name)</code></td><td>料盘放料</td></tr>
   </table></div>
 
-  <h3>4.6 硬件状态与模式</h3>
+  <h3>4.6 点位（点位表 / 点位）</h3>
+  <p>点位按「点位表名.点位名」引用（如 <code>PointMove("工位1.取料点")</code>）；只写点位名时会跨表查唯一匹配。点位表每个点位含 4 个轴槽（轴 + 目标位置 + 速度），在「点位」页面配置。</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>函数</th><th>说明</th></tr>
+    <tr><td><code>PointMove("点位表.点位名")</code></td><td><strong>点位移动</strong>：按点位表各轴槽把轴真正开到该点位（未填目标位置的轴槽跳过、不改动该轴），阻塞到各轴到位；返回驱动的轴数</td></tr>
+    <tr><td><code>PointModify("点位表.点位名", 轴槽, 位置, 速度)</code></td><td><strong>点位修改</strong>：把第 N 个轴槽（1~4）的目标位置改成指定值（速度填 <code>0</code> 表示不改速度），<strong>真实写回工程并自动保存</strong></td></tr>
+    <tr><td><code>PointTeach("点位表.点位名")</code></td><td><strong>点位示教</strong>：把各轴<strong>当前位置</strong>写成该点位的目标位置（现场开到位置后示教），真实写回工程并自动保存</td></tr>
+  </table></div>
+  <div class="note"><span class="note-title">例：</span>现场手动把 X/Y 开到理想位置后执行 <code>PointTeach("工位1.取料点")</code>，该点位的坐标即被当前实际位置覆盖并落盘；后续运行 <code>PointMove("工位1.取料点")</code> 就会走到示教出来的位置。</div>
+
+  <h3>4.7 硬件状态与模式</h3>
   <div class="tbl-wrap"><table>
     <tr><th>函数</th><th>说明</th></tr>
     <tr><td><code>HardwareStatus()</code></td><td>返回当前硬件对接状态（中文），如「雷赛控制卡已连接（卡数量 1）…」</td></tr>
@@ -369,7 +379,7 @@ Print('本循环完成')</code></pre>
     <tr><td><code>UseSimulation()</code></td><td>切换到仿真模式（不驱动任何设备，只打印日志），返回中文结果</td></tr>
   </table></div>
 
-  <h3>4.7 运行控制与辅助</h3>
+  <h3>4.8 运行控制与辅助</h3>
   <div class="tbl-wrap"><table>
     <tr><th>函数</th><th>说明</th></tr>
     <tr><td><code>EStop()</code></td><td>当前是否急停锁定（返回 boolean）。脚本循环里 <code>if EStop() then return end</code> 及时退出</td></tr>

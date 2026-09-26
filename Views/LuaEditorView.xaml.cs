@@ -853,44 +853,87 @@ namespace NoCodeMotion.Views
             public string Body { get; set; } = string.Empty;
         }
 
-        /// <summary>构建左侧函数列表（轴 / IO / 气缸 / 通讯 / 料盘 各类操作 + 逻辑结构），尽量齐全。</summary>
+        /// <summary>构建左侧函数列表（轴 / IO / 气缸 / 点位 / 通讯 / 料盘 各类操作 + 逻辑结构），尽量齐全。
+        /// 模板里**带上要设置的内容**（位置 / 速度 / 状态 / 轴槽等，都是可直接改的默认值）
+        /// 并附**中文注释**说明这一行在做什么，插进去就能看懂、能直接运行。</summary>
         private void RebuildInsertPanel()
         {
             var funcs = new List<LuaInsertFunc>
             {
                 // 逻辑结构（右侧显示 if / for / while 等代码块）
                 new LuaInsertFunc { Name = "逻辑结构", Kind = "Snippet" },
-                // 轴
-                new LuaInsertFunc { Name = "轴-移动", Source = "Axis", Template = "AxisMove(\"{0}\")" },
-                new LuaInsertFunc { Name = "轴-速度设置", Source = "Axis", Template = "SetAxisSpeed(\"{0}\", 100)" },
-                new LuaInsertFunc { Name = "轴-回零", Source = "Axis", Template = "AxisHome(\"{0}\")" },
-                new LuaInsertFunc { Name = "轴-停止", Source = "Axis", Template = "StopAxis(\"{0}\")" },
-                new LuaInsertFunc { Name = "轴-等待到位", Source = "Axis", Template = "WaitAxisDone(\"{0}\")" },
-                new LuaInsertFunc { Name = "轴-使能", Source = "Axis", Template = "EnableAxis(\"{0}\")" },
-                new LuaInsertFunc { Name = "轴-相对移动", Source = "Axis", Template = "MoveAxisRel(\"{0}\", 10)" },
-                new LuaInsertFunc { Name = "轴-绝对移动", Source = "Axis", Template = "MoveAxisAbs(\"{0}\", 0)" },
+
+                // 通用
+                new LuaInsertFunc { Name = "延时-等待毫秒", Kind = "Delay" },
+
+                // 轴（轴名 + 要移动到的位置 + 速度；完整代码看下方预览 / 悬停提示）
+                new LuaInsertFunc { Name = "轴-移动到", Source = "Axis",
+                    Template = "SetAxisSpeed(\"{0}\", 100)  -- {0}：速度设为 100\nMoveAxisAbs(\"{0}\", 100)  -- {0}：绝对移动到 100（改成你要的位置）\nWaitAxisDone(\"{0}\")  -- 等待 {0} 走到位" },
+                new LuaInsertFunc { Name = "轴-绝对移动", Source = "Axis",
+                    Template = "MoveAxisAbs(\"{0}\", 100)  -- {0}：绝对移动到 100" },
+                new LuaInsertFunc { Name = "轴-相对移动", Source = "Axis",
+                    Template = "MoveAxisRel(\"{0}\", 10)  -- {0}：在当前位置上再走 10（负数反向）" },
+                new LuaInsertFunc { Name = "轴-速度设置", Source = "Axis",
+                    Template = "SetAxisSpeed(\"{0}\", 100)  -- {0}：速度设为 100" },
+                new LuaInsertFunc { Name = "轴-回零", Source = "Axis",
+                    Template = "AxisHome(\"{0}\")  -- {0}：回零（找原点）" },
+                new LuaInsertFunc { Name = "轴-等待到位", Source = "Axis",
+                    Template = "WaitAxisDone(\"{0}\")  -- 等待 {0} 走到位" },
+                new LuaInsertFunc { Name = "轴-停止", Source = "Axis",
+                    Template = "StopAxis(\"{0}\")  -- {0}：立即停止" },
+                new LuaInsertFunc { Name = "轴-使能", Source = "Axis",
+                    Template = "EnableAxis(\"{0}\")  -- {0}：上使能" },
+
                 // IO
-                new LuaInsertFunc { Name = "IO-读取", Source = "Input", Template = "local v = ReadIO(\"{0}\")" },
-                new LuaInsertFunc { Name = "IO-等待", Source = "Input", Template = "WaitIO(\"{0}\", 1)" },
-                new LuaInsertFunc { Name = "IO-设置", Source = "Output", Template = "SetIO(\"{0}\", 1)" },
-                new LuaInsertFunc { Name = "IO-取反", Source = "Output", Template = "ToggleIO(\"{0}\")" },
+                new LuaInsertFunc { Name = "IO-设置输出", Source = "Output",
+                    Template = "SetIO(\"{0}\", 1)  -- {0}：输出 1（1=开 / 0=关）" },
+                new LuaInsertFunc { Name = "IO-读取输入", Source = "Input",
+                    Template = "local v = ReadIO(\"{0}\")  -- 读 {0}，v = 0 或 1\nprint(\"{0} = \" .. v)" },
+                new LuaInsertFunc { Name = "IO-等待输入", Source = "Input",
+                    Template = "WaitIO(\"{0}\", 1)  -- 等待 {0} 变成 1（改成 0 则等低电平）" },
+                new LuaInsertFunc { Name = "IO-取反输出", Source = "Output",
+                    Template = "ToggleIO(\"{0}\")  -- {0}：电平取反" },
+
                 // 气缸
-                new LuaInsertFunc { Name = "气缸-动作", Source = "Cylinder", Template = "CylinderMove(\"{0}\", 1)" },
-                new LuaInsertFunc { Name = "气缸-等待到位", Source = "Cylinder", Template = "WaitCylinder(\"{0}\")" },
-                new LuaInsertFunc { Name = "气缸-复位", Source = "Cylinder", Template = "CylinderReset(\"{0}\")" },
+                new LuaInsertFunc { Name = "气缸-伸出/缩回", Source = "Cylinder",
+                    Template = "CylinderMove(\"{0}\", 1)  -- {0}：1=伸出 / 0=缩回" },
+                new LuaInsertFunc { Name = "气缸-等待到位", Source = "Cylinder",
+                    Template = "WaitCylinder(\"{0}\")  -- 等待 {0} 到位" },
+                new LuaInsertFunc { Name = "气缸-复位", Source = "Cylinder",
+                    Template = "CylinderReset(\"{0}\")  -- {0}：复位" },
+
+                // 点位（点位表.点位名）：移动 / 改坐标 / 示教，全部真实生效
+                new LuaInsertFunc { Name = "点位-移动", Source = "Point",
+                    Template = "PointMove(\"{0}\")  -- 按点位表各轴一起走到该点位（未填的轴槽跳过）" },
+                new LuaInsertFunc { Name = "点位-修改坐标", Source = "Point",
+                    Template = "PointModify(\"{0}\", 1, 100, 0)  -- 把该点位第 1 个轴槽目标位置改成 100（轴槽 1~4；最后一位是速度，0 = 不改速度；改完自动保存）" },
+                new LuaInsertFunc { Name = "点位-示教", Source = "Point",
+                    Template = "PointTeach(\"{0}\")  -- 把各轴当前位置写成该点位的目标位置并保存" },
+
                 // 通讯（真实串口 / 网口 / Modbus）
-                new LuaInsertFunc { Name = "通讯-发送", Source = "Comm", Template = "CommSend(\"{0}\", data)" },
-                new LuaInsertFunc { Name = "通讯-接收", Source = "Comm", Template = "local s = CommRecv(\"{0}\")" },
-                new LuaInsertFunc { Name = "通讯-发十六进制", Source = "Comm", Template = "CommSend(\"{0}\", \"HEX:02 41 42 03\")" },
-                new LuaInsertFunc { Name = "Modbus-读保持寄存器", Source = "Comm", Template = "CommSend(\"{0}\", \"RH,1,0,2\")\nlocal v = CommRecv(\"{0}\")" },
-                new LuaInsertFunc { Name = "Modbus-写保持寄存器", Source = "Comm", Template = "CommSend(\"{0}\", \"WH,1,10,1234\")" },
-                new LuaInsertFunc { Name = "Modbus-读线圈", Source = "Comm", Template = "CommSend(\"{0}\", \"RC,1,0,8\")\nlocal s = CommRecv(\"{0}\")" },
-                new LuaInsertFunc { Name = "Modbus-写线圈", Source = "Comm", Template = "CommSend(\"{0}\", \"WC,1,5,1\")" },
+                new LuaInsertFunc { Name = "通讯-发送文本", Source = "Comm",
+                    Template = "CommSend(\"{0}\", \"hello\")  -- 向 {0} 发送文本" },
+                new LuaInsertFunc { Name = "通讯-接收", Source = "Comm",
+                    Template = "local s = CommRecv(\"{0}\")  -- 读回 {0} 的数据\nprint(\"收到：\" .. s)" },
+                new LuaInsertFunc { Name = "通讯-发十六进制", Source = "Comm",
+                    Template = "CommSend(\"{0}\", \"HEX:02 41 42 03\")  -- 以十六进制字节发送" },
+                new LuaInsertFunc { Name = "Modbus-读寄存器", Source = "Comm",
+                    Template = "CommSend(\"{0}\", \"RH,1,0,2\")  -- 站号1 起始0 读2个\nlocal v = CommRecv(\"{0}\")  -- 返回 \"值1,值2\"\nprint(\"寄存器：\" .. v)" },
+                new LuaInsertFunc { Name = "Modbus-写寄存器", Source = "Comm",
+                    Template = "CommSend(\"{0}\", \"WH,1,10,1234\")  -- 站号1 地址10 写1234" },
+                new LuaInsertFunc { Name = "Modbus-读线圈", Source = "Comm",
+                    Template = "CommSend(\"{0}\", \"RC,1,0,8\")  -- 站号1 起始0 读8点\nlocal s = CommRecv(\"{0}\")\nprint(\"线圈：\" .. s)" },
+                new LuaInsertFunc { Name = "Modbus-写线圈", Source = "Comm",
+                    Template = "CommSend(\"{0}\", \"WC,1,5,1\")  -- 站号1 地址5 置ON" },
+
                 // 料盘
-                new LuaInsertFunc { Name = "料盘-取料", Source = "Tray", Template = "TrayPick(\"{0}\")" },
-                new LuaInsertFunc { Name = "料盘-放料", Source = "Tray", Template = "TrayPlace(\"{0}\")" },
+                new LuaInsertFunc { Name = "料盘-取料", Source = "Tray",
+                    Template = "TrayPick(\"{0}\")  -- 从 {0} 取料" },
+                new LuaInsertFunc { Name = "料盘-放料", Source = "Tray",
+                    Template = "TrayPlace(\"{0}\")  -- 向 {0} 放料" },
+
                 // 硬件状态 / 模式（右侧列出可直接插入的代码块，无需选名称）
-                new LuaInsertFunc { Name = "硬件状态", Kind = "Hardware" }, 
+                new LuaInsertFunc { Name = "硬件状态", Kind = "Hardware" },
             };
             FuncList.ItemsSource = funcs;
             FuncList.SelectedIndex = funcs.Count > 0 ? 0 : -1;
@@ -901,6 +944,7 @@ namespace NoCodeMotion.Views
             if (FuncList.SelectedItem is not LuaInsertFunc fn)
             {
                 NameList.ItemsSource = null;
+                UpdateInsertPreview();
                 return;
             }
 
@@ -912,16 +956,30 @@ namespace NoCodeMotion.Views
                     .Select(s => new LuaPickItem { Name = s.Name, Body = (s.InsertText ?? "").Replace(marker, "") })
                     .ToList();
             }
+            else if (fn.Kind == "Delay")
+            {
+                // 常用延时：右侧直接给出几档毫秒数，插进去就是能跑的一行
+                NameList.ItemsSource = new List<LuaPickItem>
+                {
+                    new LuaPickItem { Name = "10 毫秒", Body = "Delay(10)  -- 等待 10 毫秒（改数字即改时长）" },
+                    new LuaPickItem { Name = "100 毫秒", Body = "Delay(100)  -- 等待 100 毫秒" },
+                    new LuaPickItem { Name = "500 毫秒", Body = "Delay(500)  -- 等待 500 毫秒" },
+                    new LuaPickItem { Name = "1000 毫秒（1 秒）", Body = "Delay(1000)  -- 等待 1 秒" },
+                    new LuaPickItem { Name = "2000 毫秒（2 秒）", Body = "Delay(2000)  -- 等待 2 秒" },
+                    new LuaPickItem { Name = "5000 毫秒（5 秒）", Body = "Delay(5000)  -- 等待 5 秒" },
+                };
+            }
             else if (fn.Kind == "Hardware")
             {
                 // 硬件对接状态 / 模式切换：不依赖任何配置名称，直接插入整行代码
                 NameList.ItemsSource = new List<LuaPickItem>
                 {
-                    new LuaPickItem { Name = "查看对接状态", Body = "print(HardwareStatus())" },
+                    new LuaPickItem { Name = "查看对接状态", Body = "print(HardwareStatus())  -- 打印当前硬件对接状态（中文）" },
                     new LuaPickItem { Name = "控制卡是否就绪", Body = "if HardwareReady() == 1 then\n\tprint(\"控制卡已就绪\")\nelse\n\tprint(\"控制卡未就绪：\" .. HardwareStatus())\nend" },
-                    new LuaPickItem { Name = "重连控制卡", Body = "print(HardwareReconnect())" },
-                    new LuaPickItem { Name = "切换到真实硬件", Body = "print(UseRealHardware())" },
-                    new LuaPickItem { Name = "切换到仿真", Body = "print(UseSimulation())" }
+                    new LuaPickItem { Name = "重连控制卡", Body = "print(HardwareReconnect())  -- 现场插好卡 / 装好驱动后重连" },
+                    new LuaPickItem { Name = "切换到真实硬件", Body = "print(UseRealHardware())  -- 雷赛控制卡 + 真实串口/网口" },
+                    new LuaPickItem { Name = "切换到卡族（含模拟卡）", Body = "print(UseCardFamilies())  -- 已移植卡族；选模拟卡可在无硬件时真跑一遍" },
+                    new LuaPickItem { Name = "切换到仿真", Body = "print(UseSimulation())  -- 只打印日志，不驱动任何设备" }
                 };
             }
             else
@@ -930,6 +988,38 @@ namespace NoCodeMotion.Views
                     .Select(n => new LuaPickItem { Name = n })
                     .ToList();
             }
+
+            // 默认选第一条，右侧「将插入的代码」预览立刻有内容
+            if (NameList.Items.Count > 0) NameList.SelectedIndex = 0;
+            UpdateInsertPreview();
+        }
+
+        /// <summary>右侧改了选择 → 刷新「将插入的代码」预览（把 {0} 换成当前名称）。</summary>
+        private void NameList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateInsertPreview();
+
+        /// <summary>预览将要插入的代码（真实替换名称后的成品），让用户插入前就知道会写入什么内容。</summary>
+        private void UpdateInsertPreview()
+        {
+            if (InsertPreview == null) return;
+            if (FuncList.SelectedItem is not LuaInsertFunc fn)
+            {
+                InsertPreview.Text = "（左侧选一个功能）";
+                return;
+            }
+
+            var item = NameList.SelectedItem as LuaPickItem;
+            if (!string.IsNullOrEmpty(item?.Body))
+            {
+                InsertPreview.Text = item!.Body;
+                return;
+            }
+            if (fn.Kind is "Snippet" or "Hardware" or "Delay")
+            {
+                InsertPreview.Text = "（右侧点一个代码块插入）";
+                return;
+            }
+            string sample = !string.IsNullOrEmpty(item?.Name) ? item!.Name : "名称";
+            InsertPreview.Text = string.Format(fn.Template, sample);
         }
 
         private static IEnumerable<string> GetNamesForSource(string source)
@@ -943,6 +1033,9 @@ namespace NoCodeMotion.Views
                 "Cylinder" => NonEmpty(ProjectStore.Data.Cylinders.Select(c => c.Name)),
                 "Comm" => NonEmpty(ProjectStore.Data.Comms.Select(c => c.Name)),
                 "Tray" => NonEmpty(ProjectStore.Data.Trays.Select(t => t.Name)),
+                // 点位用「点位表名.点位名」（PointMove/PointModify/PointTeach 都吃这个写法）
+                "Point" => NonEmpty(ProjectStore.Data.PointTables
+                    .SelectMany(t => t.Points.Select(p => $"{t.Name}.{p.Name}"))),
                 _ => Enumerable.Empty<string>()
             };
         }

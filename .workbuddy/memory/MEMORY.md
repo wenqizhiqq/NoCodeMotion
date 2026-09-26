@@ -96,13 +96,18 @@
 ## 仿真模板
 - ProjectTemplateCatalog 20 模板；NgTemplates.Build 脚手架。
 
-## 流程页：功能列 / 运算列（2026-09-26）
-- **功能列取值**：轴 / **输入IO** / **输出IO** / 气缸 / 点位 / modbus / 变量 / 系统 / 相机 / 延时。（原「IO」已拆成 输入IO + 输出IO：`FunctionOptions`、`FunctionToNamesConverter`(InIoNames/OutIoNames)、`FunctionToPropertiesConverter`(输入IO→输入/脉冲/报警状态；输出IO→输出状态)、`FunctionToOperationsConverter`、执行分派(`FlowRunnerService`/`SimFlowPlayer`/`FlowViewModel`) 全部同步；`AiProjectExchange` 泛称 IO→输出IO。旧工程里残留的 `Function="IO"` 仍可用（各分派保留 case "IO"）。
-- 新建工程默认步骤来自 `FlowViewModel.GetTemplateSteps`（StepDef 用的是 API 动作名）：`AddTemplateSteps` 里 `NormalizeTemplateStep` 会归一为中文词 + 拆分 IO，**改功能/运算词表时必须同步这里**。
-- **「实际值」列**：`FlowViewModel.RefreshActualValues` → `ReadActualValue(step, bridge)`（1 秒 DispatcherTimer）按「功能 + 属性」**全覆盖**：变量值 / 轴位置·速度·加速度·使能 / 输入IO电平 / 输出IO电平 / 气缸伸出缩回 / 点位目标 / modbus 内容 / 相机结果 / 系统·延时·循环设置值。**读不到一律显示「—」**，且**不要**再写 `if (IsNullOrWhiteSpace(step.Name)) continue`（会把延时/循环/注释这类无名称控制行整行留空）。
+## Lua 脚本 API + 「智能插入」面板（2026-09-26）
+- 绑定层 `Services/HardwareApi.cs`：`FindXxx(name)` 解析工程对象 → 抛 `ScriptRuntimeException`（中文），`Register(script, api)` 用 ?? 注册全局函数（MoonSharp）。**UI 绑定/工程数据修改这类动作要 `Dispatcher.Invoke` 封送 + `ProjectStore.ScheduleSave()`**（`RunOnUiThread`，仿 `VariableApi.Set`）。
+- ★★ **`Func<...>` 最后一个类型参数是返回值**：`PointModify(string,double,double,double)` → `Func<string,double,double,double,double>`；写成 3 个 double 报 `CS0123 没有与委托匹配的重载`（构建日志中文变 mojibake 极易看错）。另：**方法组不能转成「可选参数」的委托**，被注册的函数参数一律不给默认值。
+- **点位 API**：写法 `"点位表名.点位名"`（也支持只写点位名跨表查；分隔符 `.．/\`）。`PointMove(spec)`＝按 `PointTable.SlotCount` 逐槽 `SetAxisSpeed`(speed>0)+`MoveAxisAbs`+`WaitAxisDone`（未填位置的槽跳过）；`PointModify(spec,轴槽1~4,位置,速度)`＝真改 `PointItem.Positions[idx]`（速度 0=不改）+落盘；`PointTeach(spec)`＝取各轴 `ReadAxisPosition` 写回点位目标位置+落盘。
+- **智能插入面板** `Views/LuaEditorView.xaml(.cs)`：`LuaInsertFunc{Name,Kind,Source,Template}` + `LuaPickItem{Name,Body}`；Kind=Snippet(逻辑结构)/Delay(毫秒档位)/Hardware(硬件命令)/Object(Template 的 `{0}`=右侧选中的名称)。**模板一律带可改的默认参数 + 中文行尾注释**（`MoveAxisAbs("轴1", 100)  -- 轴1：绝对移动到 100`）；`{0}` 是唯一的 string.Format 占位符，模板里**不能再出现别的大括号**。右列名称源 `GetNamesForSource`：Axis/Input/Output/Cylinder/Comm/Tray/**Point（`点位表名.点位名`）**。面板底部 `InsertPreview` 实时显示替换完名称的成品代码。左列宽仅 ~150px，**名字要短，细节放 ToolTip + 预览**。
+- 新增 Lua 函数必须同步三处：①`HardwareApi.Register` ②`Editing/LuaApi.cs` 的 `HardwareList`（补全/悬停）③`Docs/lua-manual/index.html` 硬件函数表；再考虑加进智能插入面板。
 
-## 运算列 = 功能 + 属性 联动（2026-09-26）
-- `Views/FunctionToOperationsConverter.cs` 是 **IMultiValueConverter**（输入 Function+Property，返回运算项列表）；`FlowPage.xaml` 运算列用 `<MultiBinding>` 绑两者。**已删「修改」只留「修改为」**。矩阵：轴+位置/编码器位置→绝对移动/相对移动/回零/停止；轴+速度/扭矩/电流/加速度→修改为/加/减/乘/除/取模；轴+已回零→比较；IO+输出状态→修改为/置位/复位，其它→比较；气缸+电磁阀→伸出/缩回/复位，其它→比较；modbus→修改为/置位/复位；变量+数值→修改为/加减乘除取模取反/比较，字符串→修改为/等于/大于/小于，布尔→修改为/取反/等于；点位/系统→修改为/等于。
-- 执行器 `FlowRunnerService`：`ExecAxis`（绝对移动/相对移动/回零/停止；属性=速度→设速）、`ExecIo(name,setv,op)`（置位→1/复位→0/其余按设置值）、`ExecCylinder`（优先按 op 伸出/缩回/复位，退回兼容设置值）、`ExecVar`（修改为/加/减/乘/除/取模/取反）。
-- ★ 词表三处必须**同步**，否则流程步骤/模板/导入的运算值在下拉里显示空白：①上述转换器 ②`ProjectTemplateCatalog` 的 `MoveAxis/CylOut/CylBack/SetIO/PointStep/CameraStep/WaitStep/LoopStart/CommentStep/CommSend/WaitIO` 等构造助手 ③`AiProjectExchange` 的 `LegalOperations`/`GeneralOperations`/`DefaultOperation`/`MapAction`（**已全改中文运算**，不再用 MoveAxisAbs/HomeAxis/WriteOutput/CylinderMove/CommSend 等 API 名，保证 AI 复制/粘贴往返一致）。
-- ★★ 运算词还要在**执行 / 仿真路径**逐个识别，否则「指令成功但轴不动 / 仿真按绝对走」：`FlowRunnerService.ExecAxis`、`FlowViewModel.ExecuteHardwareStep`（单步，原来看属性不看运算）、`SimFlowPlayer.AxisAction`（3D 仿真 / 预览）、`NgRunner`（节点图，节点用「模式」= 绝对/相对）。本项目「相对移动」就同时漏在 `SimFlowPlayer` 与单步路径上。**加任何新运算词前先 grep 这些 switch**。
+## 流程页（2026-09-26 最终形态）
+- **功能列**：轴 / **输入IO** / **输出IO** / 气缸 / 点位 / modbus / 变量 / 系统 / 相机 / 延时。原「IO」已拆成 输入IO + 输出IO；同步处：`FlowPage.FunctionOptions`、`FunctionToNamesConverter`(InIoNames/OutIoNames)、`FunctionToPropertiesConverter`、`FunctionToOperationsConverter`、执行分派（`FlowRunnerService`/`SimFlowPlayer`/`FlowViewModel`）、`AiProjectExchange`（泛称 IO 归输出IO）。旧工程残留 `Function="IO"` 各分派保留 case 兼容。
+- **运算列**：`Views/FunctionToOperationsConverter.cs` 是 **IMultiValueConverter**（Function+Property → 运算项），`FlowPage.xaml` 用 `<MultiBinding>`；**只有「修改为」没有「修改」**。矩阵：轴+位置/编码器位置→绝对移动/相对移动/回零/停止；轴+速度/扭矩/电流/加速度→修改为/加/减/乘/除/取模；轴+已回零→比较；IO+输出状态→修改为/置位/复位，其余→比较；气缸+电磁阀→伸出/缩回/复位，其余→比较；modbus→修改为/置位/复位；变量+数值→修改为/加减乘除取模/取反/比较，字符串→修改为/等于/大于/小于，布尔→修改为/取反/等于；点位/系统→修改为/等于。
+- **执行器** `FlowRunnerService`：`ExecAxis`（绝对移动/相对移动/回零/停止；属性=速度→设速）、`ExecIo(name,setv,op)`（置位→1/复位→0/其余按设置值）、`ExecCylinder`（优先按 op 伸出/缩回/复位）、`ExecVar`（修改为/加减乘除取模/取反）。
+- ★ 改词表必须**同步三处**，否则流程步骤/模板/导入的运算值在下拉里空白：①上述转换器 ②`ProjectTemplateCatalog` 的 `MoveAxis/CylOut/CylBack/SetIO/PointStep/CameraStep/WaitStep/LoopStart/CommentStep/CommSend/WaitIO` 等助手 ③`AiProjectExchange` 的 `LegalOperations`/`GeneralOperations`/`DefaultOperation`/`MapAction`（已全改中文运算，不再用 MoveAxisAbs/HomeAxis/WriteOutput/CylinderMove/CommSend 等 API 名）。
+- ★★ 新运算词还要在**执行 / 仿真路径**逐个识别，否则「指令成功但轴不动 / 仿真按绝对走」：`FlowRunnerService.ExecAxis`、`FlowViewModel.ExecuteHardwareStep`（单步）、`SimFlowPlayer.AxisAction`（3D 仿真/预览）、`NgRunner`（节点「模式」=绝对/相对）。「相对移动」就同时漏在 `SimFlowPlayer` 与单步路径上。**加新词前先 grep 这些 switch。**
+- 新建工程默认步骤来自 `FlowViewModel.GetTemplateSteps`（StepDef 用 API 动作名），`AddTemplateSteps` 的 `NormalizeTemplateStep` 会归一为中文并拆分 IO —— 改词表必须同步这里。
+- **「实际值」列**：`FlowViewModel.RefreshActualValues` → `ReadActualValue(step, bridge)`（1 秒 DispatcherTimer）按「功能 + 属性」**全覆盖**（变量值 / 轴位置·速度·加速度·使能 / 输入IO / 输出IO / 气缸 / 点位目标 / modbus 内容 / 相机结果 / 系统·延时·循环设置值）。**读不到一律「—」**；**不要**再写 `if (IsNullOrWhiteSpace(step.Name)) continue`（会把延时/循环/注释这类无名称控制行整行留空）。

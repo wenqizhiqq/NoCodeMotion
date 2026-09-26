@@ -114,6 +114,125 @@ namespace NoCodeMotion.Services
         public void TrayPick(string name) => _bridge.TrayPick(FindTray(name));
         public void TrayPlace(string name) => _bridge.TrayPlace(FindTray(name));
 
+        // ===================== 点位（点位表 / 点位） =====================
+        // 写法：PointMove("工位1.取料点")（“点位表名.点位名”）；只写点位名时会跨表查唯一匹配。
+
+        private PointTable FindPointTable(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) throw new ScriptRuntimeException("点位表名不能为空");
+            var t = ProjectStore.Data.PointTables.FirstOrDefault(x => x.Name == name);
+            if (t == null) throw new ScriptRuntimeException($"找不到点位表：{name}");
+            return t;
+        }
+
+        /// <summary>解析 "点位表名.点位名"（也接受只写点位名）。</summary>
+        private (PointTable table, PointItem point) ResolvePoint(string spec)
+        {
+            spec = (spec ?? string.Empty).Trim();
+            if (spec.Length == 0) throw new ScriptRuntimeException("点位不能为空，写法：\"点位表名.点位名\"");
+
+            int dot = spec.IndexOfAny(new[] { '.', '．', '/', '\\' });
+            if (dot > 0)
+            {
+                var t = FindPointTable(spec.Substring(0, dot));
+                string pn = spec.Substring(dot + 1).Trim();
+                var p = t.Points.FirstOrDefault(x => x.Name == pn);
+                if (p == null) throw new ScriptRuntimeException($"点位表「{t.Name}」里没有点位：{pn}");
+                return (t, p);
+            }
+
+            foreach (var t in ProjectStore.Data.PointTables)
+            {
+                var p = t.Points.FirstOrDefault(x => x.Name == spec);
+                if (p != null) return (t, p);
+            }
+            throw new ScriptRuntimeException($"找不到点位：{spec}（建议写全 \"点位表名.点位名\"）");
+        }
+
+        /// <summary>点位移动：按点位表各轴槽把轴真正开到该点位（未填目标位置的槽跳过、不改动该轴）。
+        /// 阻塞到各轴到位；返回实际驱动的轴数。</summary>
+        public double PointMove(string spec)
+        {
+            var (table, point) = ResolvePoint(spec);
+            int moved = 0;
+            for (int i = 0; i < PointTable.SlotCount; i++)
+            {
+                string axisName = table.AxisNames.Count > i ? table.AxisNames[i] : string.Empty;
+                if (string.IsNullOrWhiteSpace(axisName)) continue;
+                var slot = point.Positions.Count > i ? point.Positions[i] : null;
+                if (slot?.Position == null) continue;
+
+                var ax = FindAxis(axisName);
+                if (slot.Speed > 0) _bridge.SetAxisSpeed(ax, slot.Speed);
+                _bridge.MoveAxisAbs(ax, slot.Position.Value);
+                _bridge.WaitAxisDone(ax);
+                moved++;
+            }
+            _log?.Invoke($"[点位] 移动到「{table.Name}.{point.Name}」：已驱动 {moved} 个轴到位");
+            return moved;
+        }
+
+        /// <summary>点位修改：把点位的第 slot 个轴槽（1~4）目标位置改成 position，真实写回工程并保存。
+        /// speed &gt; 0 时同时改该槽速度，传 0 表示不动速度。返回改动的轴槽数（0 或 1）。
+        /// （speed 不做可选参数：C# 方法组无法转成带可选参数的委托，MoonSharp 注册会 CS0123。）</summary>
+        public double PointModify(string spec, double slot, double position, double speed)
+        {
+            var (table, point) = ResolvePoint(spec);
+            int idx = (int)slot - 1;
+            if (idx < 0 || idx >= PointTable.SlotCount)
+                throw new ScriptRuntimeException($"轴槽号只能是 1~{PointTable.SlotCount}，收到：{slot}");
+
+            string axisName = table.AxisNames.Count > idx ? table.AxisNames[idx] : string.Empty;
+            if (string.IsNullOrWhiteSpace(axisName))
+                throw new ScriptRuntimeException($"点位表「{table.Name}」第 {slot} 个轴槽没有配轴，请先到「点位」页选轴");
+
+            RunOnUiThread(() =>
+            {
+                point.EnsureSlots();
+                point.Positions[idx].Position = position;
+                if (speed > 0) point.Positions[idx].Speed = speed;
+            });
+            _log?.Invoke($"[点位] 修改「{table.Name}.{point.Name}」第 {slot} 轴槽（{axisName}）目标位置 = {position:0.###}");
+            return 1;
+        }
+
+        /// <summary>点位示教：把点位表各轴槽的当前位置写成该点位的目标位置（现场“开到位置后示教”），
+        /// 真实写回工程并保存；返回写入的轴槽数。</summary>
+        public double PointTeach(string spec)
+        {
+            var (table, point) = ResolvePoint(spec);
+            int written = 0;
+            for (int i = 0; i < PointTable.SlotCount; i++)
+            {
+                string axisName = table.AxisNames.Count > i ? table.AxisNames[i] : string.Empty;
+                if (string.IsNullOrWhiteSpace(axisName)) continue;
+                var ax = FindAxis(axisName);
+                double pos = _bridge.ReadAxisPosition(ax);
+                if (double.IsNaN(pos)) continue;
+                int idx = i;
+                RunOnUiThread(() =>
+                {
+                    point.EnsureSlots();
+                    point.Positions[idx].Position = pos;
+                });
+                written++;
+            }
+            _log?.Invoke($"[点位] 示教「{table.Name}.{point.Name}」：已用当前位置写入 {written} 个轴槽");
+            return written;
+        }
+
+        /// <summary>改工程数据（点位坐标等）必须在 UI 线程做，否则点位页/流程页的绑定集合会抛跨线程异常；
+        /// 改完统一落盘（xlsx），与点位页手工改坐标等价。</summary>
+        private static void RunOnUiThread(Action action)
+        {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+                dispatcher.Invoke(action);      // 脚本在后台线程跑 → 封送到 UI 线程执行
+            else
+                action();
+            ProjectStore.ScheduleSave();
+        }
+
         // ===================== 硬件状态 / 模式 =====================
 
         /// <summary>返回当前对接状态（中文），例：雷赛控制卡已连接（卡数量 1）…</summary>
@@ -368,6 +487,12 @@ namespace NoCodeMotion.Services
 
             script.Globals["TrayPick"] = (Action<string>)api.TrayPick;
             script.Globals["TrayPlace"] = (Action<string>)api.TrayPlace;
+
+            // 点位（点位表 / 点位）：会真开控制卡走到点位、真改点位坐标并落盘
+            // 注意 Func<...> 的最后一个类型参数是**返回值**：PointModify 有 4 个入参 → Func<string,double,double,double,double>
+            script.Globals["PointMove"] = (Func<string, double>)api.PointMove;
+            script.Globals["PointModify"] = (Func<string, double, double, double, double>)api.PointModify;
+            script.Globals["PointTeach"] = (Func<string, double>)api.PointTeach;
 
             // 命名空间式 API（与“脚本流程示例”模板一一对应）。
             // 用 Table + CallbackFunction.FromDelegate 暴露，避免把 CLR 实例直接赋给全局
