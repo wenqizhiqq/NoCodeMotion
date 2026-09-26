@@ -656,6 +656,9 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         <Setter Property="BorderThickness" Value="0"/>
+        <!-- 行底色统一为白色：WPF 默认是 白/灰 斑马纹（交替行），用户要求所有行颜色一致 -->
+        <Setter Property="RowBackground" Value="White"/>
+        <Setter Property="AlternatingRowBackground" Value="White"/>
         <Setter Property="RowHeight" Value="34"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="ColumnHeaderStyle" Value="{DynamicResource GridHeaderStyle}"/>
