@@ -652,6 +652,9 @@ namespace NoCodeMotion.ViewModels
                     case "如果":
                     case "否则如果":
                         {
+                            // 逻辑行自身的功能也执行（与单步引擎一致）：用户常把变量赋值直接写在
+                            // 「如果 / 否则」行上，只当跳转闸口会让该行功能被静默跳过。
+                            ExecuteLeaf(s);
                             bool cond = EvalCondition(s);
                             int endIf = FindEnd(i);
                             if (cond)
@@ -670,6 +673,8 @@ namespace NoCodeMotion.ViewModels
                         }
                     case "否则":
                         {
+                            // 同上：命中「否则」时，否则行自身的功能（如 变量修改为 7）要先执行
+                            ExecuteLeaf(s);
                             int endIf = FindEnd(i);
                             ExecBlock(i + 1, endIf, ct);
                             i = endIf + 1;
