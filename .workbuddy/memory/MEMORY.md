@@ -51,6 +51,7 @@
 - `Editing/LuaSemanticColorizer.cs` 只着色 xshd 认不出的**用户自定义变量/函数**；`XshdCovered`（HardwareList 名字 ∪ ModuleNames）与关键字一律跳过，不覆盖 xshd 颜色。
 - 智能插入面板：`LuaInsertFunc`+`LuaPickItem`；模板用 `{0}` 占位，配中文注释；新增 Kind 别漏 `FuncList_SelectionChanged` 与 `UpdateInsertPreview`。
 - **名称/配置问题一律橙色提示 + 跳过，不 throw**：`Warn` 用 `HashSet` 去重；读类返回安全默认值；等待类名称错时立即返回。
+- ★★ **NgRunner 节点执行零 throw**：配置/执行错误走 `NodeFail(message)` → 写 `_lastNodeError`（节点卡红字 + 顶部提示 + 日志），流程继续。**VS 调试器对勾了"引发时中断"的异常类型会在 throw 处弹窗**（即使上层有 try/catch），所以运行路径上禁止 throw 给用户看的错误。`TcpSendOnce` 返回 `string?`（null=成功）。底层卡家族 SDK 包装的 throw 会被上层 catch 兜住 → 不动。
 - `#nullable disable` 文件：不用 `?`，用 `TryResolveXxx(..., out ...)`；`Func<>` 最后一个类型是返回值。
 - 新增 Lua 函数同步三处：`HardwareApi.Register`、`Editing/LuaApi.cs` 的 `HardwareList`、`Docs/lua-manual/index.html`。
 
@@ -60,3 +61,4 @@
 - 功能列：轴 / 输入IO / 输出IO / 气缸 / 点位 / modbus / 变量 / 系统 / 相机 / 延时。
 - 运算列全中文；改词表必须同步转换器、`ProjectTemplateCatalog`、`AiProjectExchange`、执行/仿真路径（`FlowRunnerService`/`SimFlowPlayer`/`NgRunner`）。
 - 「实际值」列全覆盖，读不到显示「—」。
+- ★ **运行节拍不是每步耗时**：`TickIntervalMs = 30` 只是 UI 刷新/暂停响应粒度；`RunTick()` 一次 Tick 连续推进（上限 `MaxStepsPerTick=500`），只有「延时/等待」步骤按 `DurationMs` 真实等待（`_waitUntil` 截止时间），未填时间用 `DefaultWaitMs=500`。`StepOnce` 返回 bool（true=该步需等待）。

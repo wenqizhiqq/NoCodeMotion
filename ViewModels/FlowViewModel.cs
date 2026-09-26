@@ -65,7 +65,15 @@ namespace NoCodeMotion.ViewModels
         private readonly DispatcherTimer _actualValueRefreshTimer;
 
         // 控制流运行态（与 _currentStep 解耦，避免高亮滞后一行）
-        private const int TickIntervalMs = 1000; // 与 _runTimer.Interval 对齐，单步/运行每步默认耗时（1 秒刷新）
+        // 运行推进节拍（毫秒）：只决定界面刷新与暂停/停止的响应粒度，不再是「每步耗时」。
+        // 一次 Tick 内会连续推进所有不需要等待的步骤，流程不再被人为的 1 秒/行拖慢。
+        private const int TickIntervalMs = 30;
+        // 「延时 / 等待」步骤没填时间时的兜底等待（毫秒）
+        private const int DefaultWaitMs = 500;
+        // 单次 Tick 最多推进的步数：避免超长流程一次性占满 UI 线程，保证暂停/停止可响应
+        private const int MaxStepsPerTick = 500;
+        // 「延时 / 等待」步骤的真实等待截止时间（运行节拍在此期间直接跳过）
+        private DateTime _waitUntil = DateTime.MinValue;
         private int _pendingNext = -1;          // 下一拍要执行的行索引
         private readonly Stack<bool> _ifStack = new();     // 每个「如果」块是否已有分支命中
         private readonly Stack<LoopFrame> _loopStack = new();
@@ -233,7 +241,7 @@ namespace NoCodeMotion.ViewModels
 
             RunCommand = new RelayCommand(_ => Run(false));
             LoopRunCommand = new RelayCommand(_ => Run(true));
-            StepCommand = new RelayCommand(_ => StepOnce());
+            StepCommand = new RelayCommand(_ => { StepOnce(); });
             JumpCommand = new RelayCommand(_ => JumpToRow(), _ => CanJump);
             RunFromRowCommand = new RelayCommand(_ => RunFromRow(), _ => CanRunFromRow);
             PauseCommand = new RelayCommand(_ => Pause());
@@ -253,8 +261,8 @@ namespace NoCodeMotion.ViewModels
             // 【回退】：没有粘贴历史时按钮自动置灰（RelayCommand 走 CommandManager.RequerySuggested）
             RevertPasteCommand = new RelayCommand(_ => RevertPaste(), _ => CanRevertPaste);
 
-            _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
-            _runTimer.Tick += (_, _) => StepOnce();
+            _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(TickIntervalMs) };
+            _runTimer.Tick += (_, _) => RunTick();
 
             // 「实际值」列 1 秒刷新：遍历当前选中流程的步骤，按「功能 + 属性」读实时值写回 ActualValue
             // （变量/轴/输入IO/输出IO/气缸/点位/modbus/相机/系统/延时 全覆盖；读不到显示「—」，不留空行）。
@@ -829,6 +837,7 @@ namespace NoCodeMotion.ViewModels
             }
             _loopRun = loop;
             _loopCount = 0;
+            _waitUntil = DateTime.MinValue;
             IsPaused = false;
             IsRunning = true;
             _runTimer.Start();
@@ -847,10 +856,12 @@ namespace NoCodeMotion.ViewModels
             return true;
         }
 
-        private void StepOnce()
+        /// <summary>执行一步。返回 true = 该步需要真实等待（「延时 / 等待」），运行节拍应停下等它；
+        /// 返回 false = 已推进或已结束，调用方可以紧接着执行下一步。</summary>
+        private bool StepOnce()
         {
             var items = StepPanel.Items;
-            if (items.Count == 0) { Stop(); return; }
+            if (items.Count == 0) { Stop(); return false; }
             // 未开始或已走完时从头开始：保证「单步运行」走完流程后按钮不卡死，可重新点击从头走
             if (!IsRunning && (_currentStep < 0 || _currentStep >= items.Count))
             {
@@ -863,16 +874,18 @@ namespace NoCodeMotion.ViewModels
             if (i >= items.Count)
             {
                 // 循环运行：走到文档末尾后回到第 1 行继续，而不是结束
-                if (!WrapToFirstRow()) { FinishRun(); return; }
+                if (!WrapToFirstRow()) { FinishRun(); return false; }
                 i = 0;
             }
             var step = items[i];
             // Trim 防御：流程数据若从文件加载带有不可见字符/空格（如 "如果 "），switch 会全部落 default → 线性逐行不跳转。
             // 进 switch 前统一去空白，确保 "如果"/"就"/"否则" 等能精确命中分支。
             string logic = (step.Logic ?? string.Empty).Trim();
+            // 只有「延时 / 等待」步骤需要真实等待（按「设置值」里的毫秒数）；其它步骤不再人为等 1 秒，
+            // 运行节拍会在一次 Tick 内连续推进多行，流程瞬间跑完。
             int dur = (logic == "延时" || logic == "等待")
-                ? (step.DurationMs > 0 ? step.DurationMs : TickIntervalMs)
-                : TickIntervalMs;
+                ? (step.DurationMs > 0 ? step.DurationMs : DefaultWaitMs)
+                : 0;
             step.DurationMs = dur;
 
             // 实际值回填：功能=变量时，把变量当前值写回 ActualValue（让「实际值」列显示真实测量值，而不是停留在手动输入的占位）
@@ -957,7 +970,7 @@ namespace NoCodeMotion.ViewModels
                     else
                     {
                         // 无匹配「如果」的「结束」= 流程终止符；循环运行时改为回到第 1 行继续
-                        if (!WrapToFirstRow()) { FinishRun(); return; }
+                        if (!WrapToFirstRow()) { FinishRun(); return false; }
                         next = 0;
                     }
                     break;
@@ -1005,13 +1018,38 @@ namespace NoCodeMotion.ViewModels
             if (next >= items.Count)
             {
                 // 循环运行：一轮结束 → 累计轮数并回到第 1 行继续（当前行保持高亮，下一拍从第 1 行执行）
-                if (!WrapToFirstRow()) { FinishRun(); return; }
+                if (!WrapToFirstRow()) { FinishRun(); return false; }
                 next = 0;
             }
             ClearCurrentFlags();
             step.IsCurrent = true;
             _pendingNext = next;
             CurrentStep = i;
+            return dur > 0;
+        }
+
+        /// <summary>
+        /// 运行节拍（DispatcherTimer 每 30ms 一次）：一次 Tick 内连续推进所有「不需要等待」的步骤，
+        /// 遇到「延时 / 等待」步骤就记下等待截止时间并交回；等待期内后续 Tick 直接返回。
+        /// 这样运控流程不再被人为的 1 秒/行拖慢，只有真正的延时步骤才会耗时。
+        /// 单次最多推进 <see cref="MaxStepsPerTick"/> 步，保证暂停 / 停止按钮与界面刷新仍然跟得上。
+        /// </summary>
+        private void RunTick()
+        {
+            if (DateTime.Now < _waitUntil) return;      // 还在「延时 / 等待」步骤的等待期
+            int budget = MaxStepsPerTick;
+            while (IsRunning && !IsPaused && budget-- > 0)
+            {
+                if (StepOnce())
+                {
+                    // 该步是「延时 / 等待」：用它的 DurationMs 作为等待截止时间，期间不再推进
+                    int ms = _currentStep >= 0 && _currentStep < StepPanel.Items.Count
+                        ? StepPanel.Items[_currentStep].DurationMs
+                        : 0;
+                    _waitUntil = DateTime.Now.AddMilliseconds(Math.Max(ms, 1));
+                    return;
+                }
+            }
         }
 
         private void ClearCurrentFlags()
@@ -1118,6 +1156,7 @@ namespace NoCodeMotion.ViewModels
             IsRunning = false;
             IsPaused = false;
             _loopRun = false;                        // 结束即退出循环运行模式
+            _waitUntil = DateTime.MinValue;
             _pendingNext = -1;
             ClearCurrentFlags();
             _currentStep = StepPanel.Items.Count; // 标记已完成（CurrentStepText 显示“已完成”）
@@ -1395,10 +1434,12 @@ namespace NoCodeMotion.ViewModels
             _ifStack.Clear();
             _loopStack.Clear();
             ClearCurrentFlags();
+            _loopRun = false;                       // 「从指定行运行」始终是单次
+            _waitUntil = DateTime.MinValue;
             CurrentStep = idx;                      // 高亮目标行（也会触发 RaiseRunState）
             IsPaused = false;
             IsRunning = true;
-            _runTimer.Start();                      // 下一拍 StepOnce 即从 idx 执行
+            _runTimer.Start();                      // 下一拍 RunTick 即从 idx 执行
             RaiseRunState();
         }
 
@@ -1417,6 +1458,7 @@ namespace NoCodeMotion.ViewModels
             IsPaused = false;
             _loopRun = false;
             _loopCount = 0;
+            _waitUntil = DateTime.MinValue;
             _pendingNext = -1;
             _ifStack.Clear();
             _loopStack.Clear();
