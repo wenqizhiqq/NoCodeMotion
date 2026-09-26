@@ -236,8 +236,8 @@ namespace NoCodeMotion.ViewModels
             _runTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
             _runTimer.Tick += (_, _) => StepOnce();
 
-            // 「实际值」列 1 秒刷新：遍历当前选中流程的步骤，对 Function=="变量" 的步骤
-            // 重新调用 GetVariableValue 写回 ActualValue；其他步骤 ActualValue 不动。
+            // 「实际值」列 1 秒刷新：遍历当前选中流程的步骤，按「功能 + 属性」读实时值写回 ActualValue
+            // （变量/轴/输入IO/输出IO/气缸/点位/modbus/相机/系统/延时 全覆盖；读不到显示「—」，不留空行）。
             // Timer 与流程选择/运行状态解耦，构造后即开始，迭代的 StepPanel.Items
             // 会在 SelectedItem 变化时随之切换（SetItems 时已经把 Items 换成新流程的 Steps）。
             _actualValueRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
@@ -1197,89 +1197,118 @@ namespace NoCodeMotion.ViewModels
             foreach (var step in items)
             {
                 if (step == null) continue;
-                if (string.IsNullOrWhiteSpace(step.Name)) continue;
-                string fn = step.Function ?? string.Empty;
-                string prop = (step.Property ?? string.Empty).Trim();
-                try
+                try { step.ActualValue = ReadActualValue(step, bridge); }
+                catch { step.ActualValue = "—"; }
+            }
+        }
+
+        /// <summary>
+        /// 按「功能 + 属性」读取该步骤的实时实际值。能读到的读真实值；读不到的显示「—」（不编造）。
+        /// 覆盖全部功能（变量/轴/输入IO/输出IO/气缸/点位/modbus/相机/系统/延时），
+        /// 并且对没有「名称」的控制行（延时/循环/注释等）也回填设置值，保证每一行「实际值」列都有内容。
+        /// </summary>
+        private string ReadActualValue(FlowStep step, IHardwareBridge bridge)
+        {
+            string fn = (step.Function ?? string.Empty).Trim();
+            string prop = (step.Property ?? string.Empty).Trim();
+            string name = step.Name ?? string.Empty;
+            string setv = step.SetValue ?? string.Empty;
+            bool hasName = !string.IsNullOrWhiteSpace(name);
+
+            switch (fn)
+            {
+                case "变量":
+                    return hasName ? GetVariableValue(name) : "—";
+
+                case "轴":
                 {
-                    switch (fn)
+                    if (!hasName) return "—";
+                    var ax = HardwareResolver.ResolveAxis(name);
+                    if (prop == "位置" || prop == "编码器位置")
                     {
-                        case "变量":
-                            step.ActualValue = GetVariableValue(step.Name);
-                            break;
-
-                        case "轴":
-                            var ax = HardwareResolver.ResolveAxis(step.Name);
-                            if (prop == "位置" || prop == "编码器位置")
-                            {
-                                // 优先从真实桥读当前位置（VirtualMotionCard/真实卡族），读不到再回退运行态缓存。
-                                double pos = double.NaN;
-                                if (ax != null && bridge != null)
-                                {
-                                    try { pos = bridge.ReadAxisPosition(ax); }
-                                    catch { pos = double.NaN; }
-                                }
-                                if (double.IsNaN(pos))
-                                    pos = AxisRuntimeState.Get(step.Name);
-                                step.ActualValue = double.IsNaN(pos)
-                                    ? string.Empty
-                                    : pos.ToString("0.###", CultureInfo.InvariantCulture);
-                            }
-                            else if (prop == "速度")
-                            {
-                                step.ActualValue = ax != null ? ax.Speed.ToString("0.###", CultureInfo.InvariantCulture) : string.Empty;
-                            }
-                            else if (prop == "使能")
-                            {
-                                step.ActualValue = ax != null ? (ax.Enabled ? "已使能" : "未使能") : string.Empty;
-                            }
-                            else
-                            {
-                                step.ActualValue = string.Empty;
-                            }
-                            break;
-
-                        case "IO":
-                        case "IO输出":
-                        case "输入IO":
-                        case "输出IO":
+                        // 优先从真实桥读当前位置（VirtualMotionCard/真实卡族），读不到再回退运行态缓存。
+                        double pos = double.NaN;
+                        if (ax != null && bridge != null)
                         {
-                            var ioOut = HardwareResolver.ResolveOutput(step.Name);
-                            if (ioOut != null)
-                            {
-                                step.ActualValue = SimRuntime.GetOutput(step.Name).ToString(CultureInfo.InvariantCulture);
-                            }
-                            else
-                            {
-                                var ioIn = HardwareResolver.ResolveInput(step.Name);
-                                if (ioIn != null && bridge != null)
-                                    step.ActualValue = bridge.ReadInput(ioIn).ToString("0.###", CultureInfo.InvariantCulture);
-                                else
-                                    step.ActualValue = string.Empty;
-                            }
-                            break;
+                            try { pos = bridge.ReadAxisPosition(ax); }
+                            catch { pos = double.NaN; }
                         }
-
-                        case "气缸":
-                            step.ActualValue = SimRuntime.GetCylinder(step.Name) != 0 ? "伸出" : "缩回";
-                            break;
-
-                        case "相机":
-                        {
-                            var cam = ProjectStore.Data?.Cameras?.FirstOrDefault(c => c.Name == step.Name);
-                            step.ActualValue = cam == null ? string.Empty : (cam.IsConnected ? "已连接" : "未连接");
-                            break;
-                        }
-
-                        default:
-                            step.ActualValue = string.Empty;
-                            break;
+                        if (double.IsNaN(pos)) pos = AxisRuntimeState.Get(name);
+                        return pos.ToString("0.###", CultureInfo.InvariantCulture);
                     }
+                    if (prop == "速度") return ax != null ? ax.Speed.ToString("0.###", CultureInfo.InvariantCulture) : "—";
+                    if (prop == "加速度") return ax != null ? ax.Accel.ToString("0.###", CultureInfo.InvariantCulture) : "—";
+                    if (prop == "使能") return ax != null ? (ax.Enabled ? "已使能" : "未使能") : "—";
+                    return "—";                       // 已回零 / 扭矩 / 电流：无运行期读数，不编造
                 }
-                catch
+
+                case "输入IO":
+                case "IO输入":
                 {
-                    step.ActualValue = string.Empty;
+                    if (prop == "报警状态") return "—";     // 输入点无报警读数
+                    if (!hasName) return "—";
+                    var ioIn = HardwareResolver.ResolveInput(name);
+                    if (ioIn != null && bridge != null)
+                    {
+                        try { return bridge.ReadInput(ioIn).ToString("0.###", CultureInfo.InvariantCulture); }
+                        catch { return "—"; }
+                    }
+                    return "—";
                 }
+
+                case "输出IO":
+                    return hasName ? SimRuntime.GetOutput(name).ToString(CultureInfo.InvariantCulture) : "—";
+
+                case "IO":
+                case "IO输出":
+                {
+                    if (!hasName) return "—";
+                    if (HardwareResolver.ResolveOutput(name) != null)
+                        return SimRuntime.GetOutput(name).ToString(CultureInfo.InvariantCulture);
+                    var ioIn = HardwareResolver.ResolveInput(name);
+                    if (ioIn != null && bridge != null)
+                    {
+                        try { return bridge.ReadInput(ioIn).ToString("0.###", CultureInfo.InvariantCulture); }
+                        catch { return "—"; }
+                    }
+                    return "—";
+                }
+
+                case "气缸":
+                    return hasName ? (SimRuntime.GetCylinder(name) != 0 ? "伸出" : "缩回") : "—";
+
+                case "点位":
+                {
+                    var pt = hasName ? HardwareResolver.ResolvePointTable(name) : null;
+                    string pointName = !string.IsNullOrWhiteSpace(setv)
+                        ? setv
+                        : pt?.Points?.FirstOrDefault()?.Name ?? string.Empty;
+                    return string.IsNullOrWhiteSpace(pointName) ? "—" : pointName;
+                }
+
+                case "modbus":
+                    return string.IsNullOrWhiteSpace(setv) ? "—" : setv;
+
+                case "相机":
+                {
+                    var cams = ProjectStore.Data?.Cameras;
+                    var cam = (!hasName ? null : cams?.FirstOrDefault(c => c.Name == name)) ?? cams?.FirstOrDefault();
+                    if (cam == null) return "—";
+                    if (!string.IsNullOrWhiteSpace(cam.LastResult)) return cam.LastResult;
+                    return cam.IsConnected ? "已连接" : "未连接";
+                }
+
+                case "系统":
+                    if (prop == "急停状态") return StatusBarService.EStopped ? "急停" : "正常";
+                    if (prop == "注释") return setv;
+                    // 延时 / 循环 等控制行显示设置值（没有名称也能显示）
+                    return string.IsNullOrWhiteSpace(setv) ? "—" : setv;
+
+                case "延时":
+                    return string.IsNullOrWhiteSpace(setv) ? "—" : setv;
+
+                default:
+                    return string.IsNullOrWhiteSpace(setv) ? "—" : setv;
             }
         }
 

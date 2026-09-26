@@ -90,6 +90,7 @@
 ## 流程页：功能列 / 运算列（2026-09-26）
 - **功能列取值**：轴 / **输入IO** / **输出IO** / 气缸 / 点位 / modbus / 变量 / 系统 / 相机 / 延时。（原「IO」已拆成 输入IO + 输出IO：`FunctionOptions`、`FunctionToNamesConverter`(InIoNames/OutIoNames)、`FunctionToPropertiesConverter`(输入IO→输入/脉冲/报警状态；输出IO→输出状态)、`FunctionToOperationsConverter`、执行分派(`FlowRunnerService`/`SimFlowPlayer`/`FlowViewModel`) 全部同步；`AiProjectExchange` 泛称 IO→输出IO。旧工程里残留的 `Function="IO"` 仍可用（各分派保留 case "IO"）。
 - 新建工程默认步骤来自 `FlowViewModel.GetTemplateSteps`（StepDef 用的是 API 动作名）：`AddTemplateSteps` 里 `NormalizeTemplateStep` 会归一为中文词 + 拆分 IO，**改功能/运算词表时必须同步这里**。
+- **「实际值」列**：`FlowViewModel.RefreshActualValues` → `ReadActualValue(step, bridge)`（1 秒 DispatcherTimer）按「功能 + 属性」**全覆盖**：变量值 / 轴位置·速度·加速度·使能 / 输入IO电平 / 输出IO电平 / 气缸伸出缩回 / 点位目标 / modbus 内容 / 相机结果 / 系统·延时·循环设置值。**读不到一律显示「—」**，且**不要**再写 `if (IsNullOrWhiteSpace(step.Name)) continue`（会把延时/循环/注释这类无名称控制行整行留空）。
 
 ## 运算列 = 功能 + 属性 联动（2026-09-26）
 - `Views/FunctionToOperationsConverter.cs` 是 **IMultiValueConverter**（输入 Function+Property，返回运算项列表）；`FlowPage.xaml` 运算列用 `<MultiBinding>` 绑两者。**已删「修改」只留「修改为」**。矩阵：轴+位置/编码器位置→绝对移动/相对移动/回零/停止；轴+速度/扭矩/电流/加速度→修改为/加/减/乘/除/取模；轴+已回零→比较；IO+输出状态→修改为/置位/复位，其它→比较；气缸+电磁阀→伸出/缩回/复位，其它→比较；modbus→修改为/置位/复位；变量+数值→修改为/加减乘除取模取反/比较，字符串→修改为/等于/大于/小于，布尔→修改为/取反/等于；点位/系统→修改为/等于。
