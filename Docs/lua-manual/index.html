@@ -314,6 +314,7 @@ Print('本循环完成')</code></pre>
 <section id="hardware-api">
   <h2><span class="sec-no">4</span>硬件函数 API（全局函数）</h2>
   <p>以下 28 个函数由框架注册为 Lua 全局函数，<strong>编辑器右侧「智能插入」面板可一键插入（并带中文注释与可直接改的数值）</strong>。调用时设备名必须与工程配置一致；<strong>找不到设备只给「提示」并跳过该条指令，不会抛异常、也不会让脚本崩溃</strong>。</p>
+  <div class="note"><span class="note-title">智能插入面板：</span>左列按功能分组 —— 逻辑结构 / 程序控制（急停检查、主循环、循环 N 次、等待输入含超时、条件分支）/ 日志（Info/Warn/Error/Debug、分隔行）/ 延时 / 轴 / IO / 气缸 / 点位 / <strong>变量（设置数值、设置文本、读取、累加、加减、清零、判断、当作轴目标位置）</strong> / 通讯 / 料盘 / 硬件状态。右侧列表按所选功能给出对应名称（点位为「点位表名.点位名」）或可插入代码块，底部实时预览<strong>将插入的代码</strong>，插入后直接改数字即可运行。</div>
 
   <h3>4.1 轴运动</h3>
   <div class="tbl-wrap"><table>

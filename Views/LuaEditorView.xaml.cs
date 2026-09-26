@@ -866,6 +866,12 @@ namespace NoCodeMotion.Views
                 // 逻辑结构（右侧显示 if / for / while 等代码块）
                 new LuaInsertFunc { Name = "逻辑结构", Kind = "Snippet" },
 
+                // 程序控制（常用中文骨架：急停检查 / 循环；右侧列出可直接插入的代码块）
+                new LuaInsertFunc { Name = "程序控制", Kind = "Control" },
+
+                // 日志（右侧列出可直接插入的代码块）
+                new LuaInsertFunc { Name = "日志", Kind = "Log" },
+
                 // 通用
                 new LuaInsertFunc { Name = "延时-等待毫秒", Kind = "Delay" },
 
@@ -912,6 +918,24 @@ namespace NoCodeMotion.Views
                     Template = "PointModify(\"{0}\", 1, 100, 0)  -- 把该点位第 1 个轴槽目标位置改成 100（轴槽 1~4；最后一位是速度，0 = 不改速度；改完自动保存）" },
                 new LuaInsertFunc { Name = "点位-示教", Source = "Point",
                     Template = "PointTeach(\"{0}\")  -- 把各轴当前位置写成该点位的目标位置并保存" },
+
+                // 变量（读写工程变量表：Variable.Get / Variable.Set，与「变量」页面同一份数据）
+                new LuaInsertFunc { Name = "变量-设置数值", Source = "Variable",
+                    Template = "Variable.Set(\"{0}\", 1)  -- 把变量「{0}」设为 1（改成你要的数值）\nprint(\"{0} = \" .. tostring(Variable.Get(\"{0}\")))" },
+                new LuaInsertFunc { Name = "变量-设置文本", Source = "Variable",
+                    Template = "Variable.Set(\"{0}\", \"OK\")  -- 把变量「{0}」设为文本 OK" },
+                new LuaInsertFunc { Name = "变量-读取", Source = "Variable",
+                    Template = "local v = Variable.Get(\"{0}\")  -- 读变量「{0}」（未定义时是 nil）\nprint(\"{0} = \" .. tostring(v))" },
+                new LuaInsertFunc { Name = "变量-累加(+1)", Source = "Variable",
+                    Template = "Variable.Set(\"{0}\", (Variable.Get(\"{0}\") or 0) + 1)  -- 变量「{0}」加 1（计数用）" },
+                new LuaInsertFunc { Name = "变量-加/减(N)", Source = "Variable",
+                    Template = "Variable.Set(\"{0}\", (Variable.Get(\"{0}\") or 0) + 10)  -- 变量「{0}」加 10（写 -10 就是减）" },
+                new LuaInsertFunc { Name = "变量-清零", Source = "Variable",
+                    Template = "Variable.Set(\"{0}\", 0)  -- 变量「{0}」清零" },
+                new LuaInsertFunc { Name = "变量-判断(达到值)", Source = "Variable",
+                    Template = "if (Variable.Get(\"{0}\") or 0) >= 10 then  -- 变量「{0}」达到 10 时\n\tprint(\"{0} 已达到 10\")\n\t-- TODO: 满足条件要做的事\nend" },
+                new LuaInsertFunc { Name = "变量-当轴目标位置", Source = "Variable",
+                    Template = "MoveAxisAbs(\"X\", (Variable.Get(\"{0}\") or 0))  -- 把变量「{0}」当作 X 轴的目标位置（轴名改成你的）" },
 
                 // 通讯（真实串口 / 网口 / Modbus）
                 new LuaInsertFunc { Name = "通讯-发送文本", Source = "Comm",
@@ -972,6 +996,31 @@ namespace NoCodeMotion.Views
                     new LuaPickItem { Name = "5000 毫秒（5 秒）", Body = "Delay(5000)  -- 等待 5 秒" },
                 };
             }
+            else if (fn.Kind == "Control")
+            {
+                // 程序控制：常用中文骨架，插进去就能改、能跑
+                NameList.ItemsSource = new List<LuaPickItem>
+                {
+                    new LuaPickItem { Name = "急停检查", Body = "if EStop() then\n\tprint(\"检测到急停，中止本次运行\")\n\treturn\nend" },
+                    new LuaPickItem { Name = "主循环（含急停检查）", Body = "while true do\n\t-- 每轮先查急停，保证「停止 / 急停」能立刻退出循环\n\tif EStop() then\n\t\tprint(\"已急停，退出\")\n\t\tbreak\n\tend\n\tWaitStep(20)\n\t-- TODO: 在这里写等待启动信号 / 本轮加工动作\nend" },
+                    new LuaPickItem { Name = "循环 N 次", Body = "for i = 1, 10 do  -- 循环 10 次（改成你要的次数）\n\tprint(\"第 \" .. i .. \" 次\")\n\t-- TODO: 循环体\nend" },
+                    new LuaPickItem { Name = "等待输入信号（含超时）", Body = "-- 等待输入点「启动」变为 1，最多等 30 秒（os.time() 是秒级墙钟时间）\nlocal t0 = os.time()\nwhile ReadIO(\"启动\") ~= 1 do\n\tif EStop() then return end\n\tif os.time() - t0 > 30 then\n\t\tprint(\"等待启动超时\")\n\t\tbreak\n\tend\n\tWaitStep(20)\nend" },
+                    new LuaPickItem { Name = "条件分支（if/else）", Body = "if (Variable.Get(\"计数\") or 0) >= 10 then\n\tprint(\"达到上限，走 A 分支\")\n\t-- TODO: A 分支动作\nelse\n\tprint(\"未达到，走 B 分支\")\n\t-- TODO: B 分支动作\nend" },
+                };
+            }
+            else if (fn.Kind == "Log")
+            {
+                // 日志：几种常用输出，颜色在输出面板里区分
+                NameList.ItemsSource = new List<LuaPickItem>
+                {
+                    new LuaPickItem { Name = "普通信息", Body = "Log.Info(\"步骤完成\")  -- 普通信息（输出面板默认色）" },
+                    new LuaPickItem { Name = "提示 / 警告", Body = "Log.Warn(\"注意：料仓剩余不多\")  -- 警告（橙色）" },
+                    new LuaPickItem { Name = "错误", Body = "Log.Error(\"故障：取料失败\")  -- 错误（红色）" },
+                    new LuaPickItem { Name = "调试信息", Body = "Log.Debug(\"调试：进入取料分支\")  -- 调试信息" },
+                    new LuaPickItem { Name = "分隔行", Body = "print(\"======== 以上为本轮 ========\")  -- 打印一行分隔，便于看日志" },
+                    new LuaPickItem { Name = "打印变量值", Body = "print(\"计数 = \" .. tostring(Variable.Get(\"计数\")))  -- 把变量值打进输出面板" },
+                };
+            }
             else if (fn.Kind == "Hardware")
             {
                 // 硬件对接状态 / 模式切换：不依赖任何配置名称，直接插入整行代码
@@ -1016,7 +1065,7 @@ namespace NoCodeMotion.Views
                 InsertPreview.Text = item!.Body;
                 return;
             }
-            if (fn.Kind is "Snippet" or "Hardware" or "Delay")
+            if (fn.Kind is "Snippet" or "Hardware" or "Delay" or "Control" or "Log")
             {
                 InsertPreview.Text = "（右侧点一个代码块插入）";
                 return;
@@ -1039,6 +1088,8 @@ namespace NoCodeMotion.Views
                 // 点位用「点位表名.点位名」（PointMove/PointModify/PointTeach 都吃这个写法）
                 "Point" => NonEmpty(ProjectStore.Data.PointTables
                     .SelectMany(t => t.Points.Select(p => $"{t.Name}.{p.Name}"))),
+                // 变量：与「变量」页面同一份名称（Variable.Get / Variable.Set）
+                "Variable" => NonEmpty(Catalog.VariableNames),
                 _ => Enumerable.Empty<string>()
             };
         }
