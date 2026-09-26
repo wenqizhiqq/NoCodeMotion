@@ -26,7 +26,7 @@
 - 下拉框候选来自固定值时**勿设 IsEditable**。
 - 资源字典：`App.xaml` 只合 `Resources/AppStyles.xaml`（再合 HandyControl）。`Themes/AppleControls.xaml` 未合并、运行时不存在，勿引用。
 - ★ Window 弹窗只能用 AppStyles 全局键；页面级 `<UserControl.Resources>` 的键在顶层 Window StaticResource 作用域取不到，运行时抛 `XamlParseException 无法找到名为"X"的资源`（编译期不报）。
-- 色彩 红=破坏/橙=反向/蓝=正向/绿=保存/灰=次要。每页底 PageHintBar；EditorPage.Detail 内元素**勿用 x:Name**（MC3093），改用 Tag+FindVisualChildByTag。
+- 色彩 红=破坏/橙=反向/蓝=正向/绿=保存/灰=次要。~~每页底 PageHintBar~~ **2026-09-26 已按用户要求「所有页面的这些全部都删除」全部移除**：①`EditorPage` 里的 `<local:PageHintBar>` 元素 + `HintOperation`/`HintPrecaution` 两个依赖属性（`EditorPage.xaml.cs`）已删；②7 个 EditorPage 子页（Flow/Axis/Cylinder/Tray/Camera/Comm/AxisController）上的 `HintOperation=`/`HintPrecaution=` 属性行已删；③10 个页面里独立的 `<local:PageHintBar .../>`（VisualFlowPage / VariablePage / ProjectManagerPage / PointPage / OperatorPage / IoPage / OperatorManualPage / NodeGraphPage / LuaEditorView / EngineerPage）已删。**控件本体 `Views/PageHintBar.xaml(.cs)` 保留但已无任何引用**；页面底部留空的 `Grid.Row`（Auto）自动塌陷、无视觉残留。EditorPage.Detail 内元素**勿用 x:Name**（MC3093），改用 Tag+FindVisualChildByTag。
 - ★★ **后台线程绝不能改 ObservableCollection**：WPF 抛 `NotSupportedException：该类型的 CollectionView 不支持从调度程序线程以外的线程对其 SourceCollection 进行的更改`。典型链路：流程 / 节点图在后台 `Task` 里写变量 → `SimRuntime.SetVariable` → `WriteVarRow` → `VariableRow` 变更 → `VariableViewModel.OnItemPropertyChanged` → `Catalog.SetVariable` → `Catalog.Set` 里 `Clear()`。`Services/Catalog.cs` 的 `Set` 已加 `Application.Current.Dispatcher.CheckAccess()` 判断 + `BeginInvoke` 封送（新增 `Apply`）；**以后任何「名称库刷新 / 集合重建」逻辑都要同样处理**。
 
 ## 视觉/节点图

@@ -212,6 +212,5 @@
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
-        <local:PageHintBar Grid.Row="3" OperationText="表格内增删变量，填写名称与初始值；值可写算术表达式（如 计数+1、A*2），右侧&quot;解析值&quot;实时显示结果；流程用 {变量名} 引用。" PrecautionText="变量名勿用中文或空格；表达式支持 + - * / % 与括号及引用其它变量；运行期修改即时生效。"/>
     </Grid>
 </UserControl>

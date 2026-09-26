@@ -405,6 +405,5 @@
                 </DockPanel>
             </Border>
         </Grid>
-        <local:PageHintBar Grid.Row="1" Grid.ColumnSpan="2" OperationText="在调试页查看轴 / IO 实时状态，手动下发指令验证动作与信号。" PrecautionText="手动指令直接驱动硬件，确认现场安全；调试完恢复自动模式并复位状态。"/>
     </Grid>
 </UserControl>

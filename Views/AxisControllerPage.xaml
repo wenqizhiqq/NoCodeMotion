@@ -20,9 +20,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
-    <local:EditorPage ShowDefaultAddButton="False"
-        HintOperation="添加控制卡并填写型号、总线与通讯参数；卡内可选择扩展 IO 模块，自动汇总输入 / 输出 IO 数与轴数；轴页通过「控制器」下拉关联到此处。"
-        HintPrecaution="通讯参数（波特率 / 站号 / IP）须与硬件一致；修改后重新连接，掉线时检查线缆与供电；连接状态以底层真实反馈为准。">
+    <local:EditorPage ShowDefaultAddButton="False">
         <local:EditorPage.LeftToolbarContent>
             <StackPanel Orientation="Horizontal">
                 <Button Command="{Binding AddCardCommand}" Style="{StaticResource ToolButtonStyle}">
