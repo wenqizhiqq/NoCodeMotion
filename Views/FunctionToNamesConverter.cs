@@ -19,6 +19,8 @@ namespace NoCodeMotion.Views
             return value switch
             {
                 "轴" => Catalog.AxisNames,
+                "输入IO" => Catalog.InIoNames,
+                "输出IO" => Catalog.OutIoNames,
                 "IO" => Catalog.IoNames,
                 "气缸" => Catalog.CylinderNames,
                 "modbus" => Catalog.CommNames,

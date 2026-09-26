@@ -710,6 +710,8 @@ namespace NoCodeMotion.ViewModels
                         break;
                     case "IO":
                     case "IO输出":
+                    case "输入IO":
+                    case "输出IO":
                         ExecIo(name, setv, s.Operation ?? "");
                         break;
                     case "气缸":

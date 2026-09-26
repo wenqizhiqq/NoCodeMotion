@@ -630,9 +630,9 @@ namespace NoCodeMotion.Services
             if (string.IsNullOrWhiteSpace(func)) return "轴";
 
             // 英文/缩写精确匹配优先（豆包常直接写 "IO"/"Axis"/"Output" 等）
-            if (func.Equals("IO", StringComparison.OrdinalIgnoreCase)
-             || func.Equals("Input", StringComparison.OrdinalIgnoreCase)
-             || func.Equals("Output", StringComparison.OrdinalIgnoreCase)) return "IO";
+            if (func.Equals("Input", StringComparison.OrdinalIgnoreCase)) return "输入IO";
+            if (func.Equals("Output", StringComparison.OrdinalIgnoreCase)) return "输出IO";
+            if (func.Equals("IO", StringComparison.OrdinalIgnoreCase)) return "输出IO";   // 泛称 IO 默认按输出
             if (func.Equals("Axis", StringComparison.OrdinalIgnoreCase)) return "轴";
             if (func.Equals("Cylinder", StringComparison.OrdinalIgnoreCase)) return "气缸";
             if (func.Equals("Point", StringComparison.OrdinalIgnoreCase)) return "点位";
@@ -642,8 +642,8 @@ namespace NoCodeMotion.Services
 
             // 中文包含匹配
             if (func.Contains("轴") || func.Contains("移动")) return "轴";
-            if (func.Contains("输出") || func.Contains("输出点")) return "IO";
-            if (func.Contains("输入") || func.Contains("等待输入")) return "IO";
+            if (func.Contains("输出") || func.Contains("输出点")) return "输出IO";
+            if (func.Contains("输入") || func.Contains("等待输入")) return "输入IO";
             if (func.Contains("气缸") || func.Contains("电磁阀")) return "气缸";
             if (func.Contains("延时") || func.Contains("等待")) return "系统";
             if (func.Contains("点位")) return "点位";
@@ -667,24 +667,27 @@ namespace NoCodeMotion.Services
             if (f == "气缸")
                 return op.Contains("缩回") || op.Equals("Retract", StringComparison.OrdinalIgnoreCase) ? "缩回" : "伸出";
             if (f == "系统") return "延时";
-            if (f == "IO")
-                return op.Contains("复位") || op.Equals("Reset", StringComparison.OrdinalIgnoreCase) ? "复位" : "输出";
+            if (f == "输入IO")
+                return op.Contains("等待") || op.Contains("脉冲") ? "脉冲状态" : "输入状态";
+            if (f == "输出IO" || f == "IO")
+                return "输出状态";
             return "位置";
         }
 
         /// <summary>Operation 槽位：中文/英文动作 → 本软件的运算取值。</summary>
         private static string NormOperation(string func, string op)
         {
-            if (string.IsNullOrWhiteSpace(op)) return "等于";
+            var f = NormFunction(func);
+            string dflt = (f == "输出IO") ? "修改为" : "等于";
+            if (string.IsNullOrWhiteSpace(op)) return dflt;
             if (op.Contains("回零") || op.Equals("Home", StringComparison.OrdinalIgnoreCase)) return "回零";
             if (op.Contains("置位") || op.Contains("打开") || op.Equals("Set", StringComparison.OrdinalIgnoreCase)) return "置位";
             if (op.Contains("复位") || op.Contains("关闭") || op.Equals("Reset", StringComparison.OrdinalIgnoreCase)) return "复位";
             if (op.Contains("伸出") || op.Equals("Extend", StringComparison.OrdinalIgnoreCase)) return "伸出";
             if (op.Contains("缩回") || op.Equals("Retract", StringComparison.OrdinalIgnoreCase)) return "缩回";
-            if (op.Contains("等待") || op.Equals("Wait", StringComparison.OrdinalIgnoreCase)) return "等待";
             if (op.Contains("加") || op.Equals("Add", StringComparison.OrdinalIgnoreCase)) return "加";
             if (op.Contains("减") || op.Equals("Sub", StringComparison.OrdinalIgnoreCase)) return "减";
-            return "等于";
+            return dflt;
         }
 
         private static int ApplyVariables(ProjectData d, JsonElement root)
@@ -797,13 +800,14 @@ namespace NoCodeMotion.Services
 
         /// <summary>「功能」列合法取值（对应 FlowPage.xaml 的 FunctionOptions）。</summary>
         private static readonly string[] LegalFunctions =
-            { "轴", "IO", "气缸", "点位", "modbus", "变量", "系统", "相机", "延时" };
+            { "轴", "输入IO", "输出IO", "气缸", "点位", "modbus", "变量", "系统", "相机", "延时" };
 
         /// <summary>「属性」列合法取值（对应 FunctionToPropertiesConverter 的映射；未列出的功能回退到「速度」）。</summary>
         private static readonly Dictionary<string, string[]> LegalProperties = new()
         {
             ["轴"] = new[] { "速度", "位置", "编码器位置", "扭矩", "电流", "加速度", "已回零" },
-            ["IO"] = new[] { "输入状态", "输出状态", "脉冲状态", "报警状态" },
+            ["输入IO"] = new[] { "输入状态", "脉冲状态", "报警状态" },
+            ["输出IO"] = new[] { "输出状态" },
             ["气缸"] = new[] { "伸出到位", "缩回到位", "电磁阀", "压力", "动作中" },
             ["modbus"] = new[] { "寄存器值", "线圈状态", "保持寄存器", "输入寄存器" },
             ["变量"] = new[] { "数值", "字符串", "布尔" },
@@ -819,7 +823,8 @@ namespace NoCodeMotion.Services
         private static readonly Dictionary<string, string[]> LegalOperations = new()
         {
             ["轴"] = new[] { "绝对移动", "相对移动", "回零", "停止", "修改为", "加", "减", "乘", "除", "取模", "等于", "大于", "小于", "大于等于", "小于等于" },
-            ["IO"] = new[] { "修改为", "置位", "复位", "等于", "大于", "小于", "大于等于", "小于等于", "取反" },
+            ["输入IO"] = new[] { "等于", "大于", "小于", "大于等于", "小于等于", "取反" },
+            ["输出IO"] = new[] { "修改为", "置位", "复位" },
             ["气缸"] = new[] { "伸出", "缩回", "复位", "等于", "大于", "小于", "大于等于", "小于等于", "取反" },
             ["modbus"] = new[] { "修改为", "置位", "复位" },
         };
@@ -1496,7 +1501,9 @@ namespace NoCodeMotion.Services
                 new HashSet<string>(ns.Where(n => !string.IsNullOrWhiteSpace(n)), StringComparer.Ordinal);
 
             var axes   = Set(d.Axes.Select(a => a.Name));
-            var ios    = Set(d.Inputs.Select(i => i.Name).Concat(d.Outputs.Select(i => i.Name)));
+            var ins    = Set(d.Inputs.Select(i => i.Name));
+            var outs   = Set(d.Outputs.Select(i => i.Name));
+            var ios    = Set(ins.Concat(outs));
             var cyls   = Set(d.Cylinders.Select(c => c.Name));
             var comms  = Set(d.Comms.Select(c => c.Name));
             var vars   = Set(d.Variables.SelectMany(v => v.Names()));
@@ -1510,6 +1517,8 @@ namespace NoCodeMotion.Services
                 HashSet<string>? legal = s.Function switch
                 {
                     "轴" => axes,
+                    "输入IO" => ins,
+                    "输出IO" => outs,
                     "IO" => ios,
                     "气缸" => cyls,
                     "modbus" => comms,
@@ -1749,9 +1758,10 @@ namespace NoCodeMotion.Services
                     if (prop == "已回零") return "回零";
                     if (prop == "速度") return "修改为";
                     return "绝对移动";
+                case "输出IO":
+                    return "修改为";
+                case "输入IO":
                 case "IO":
-                    if (prop == "输出状态") return "修改为";
-                    if (prop == "脉冲状态") return "等于";
                     return "等于";
                 case "气缸":
                     return prop == "电磁阀" ? "伸出" : "等于";
@@ -1787,9 +1797,12 @@ namespace NoCodeMotion.Services
                     if (Has("速度", "Speed")) return ("速度", "修改为", v);
                     return ("位置", "绝对移动", v);
 
-                case "IO":
+                case "输入IO":
                     if (Has("等待", "Wait")) return ("脉冲状态", "等于", v);
-                    if (Has("读", "检测", "输入", "Read")) return ("输入状态", "等于", v);
+                    return ("输入状态", "等于", v);
+
+                case "输出IO":
+                case "IO":
                     if (Has("复位", "关闭", "Reset", "OFF"))
                         return ("输出状态", "复位", string.IsNullOrWhiteSpace(v) ? "0" : v);
                     if (Has("置位", "打开", "Set", "ON"))

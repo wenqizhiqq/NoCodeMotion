@@ -28,7 +28,8 @@
         </x:Array>
         <x:Array x:Key="FunctionOptions" Type="sys:String">
             <sys:String>轴</sys:String>
-            <sys:String>IO</sys:String>
+            <sys:String>输入IO</sys:String>
+            <sys:String>输出IO</sys:String>
             <sys:String>气缸</sys:String>
             <sys:String>点位</sys:String>
             <sys:String>modbus</sys:String>

@@ -2519,7 +2519,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
         // 流程步骤构造助手（Name 取自首个参数：模板调用时已传入与所建对象一致的名字，
         // 这样示例流程的「名称」列直接指向真实存在的轴/IO/气缸/通讯，落库后下拉即可选中、运行器能解析）。
         private static FlowStep WaitIO(string ioName, string value, int timeoutMs)
-            => new() { Logic = "如果", Function = "IO", Property = "输入状态", Operation = "等于", SetValue = value, Timeout = "等待3秒就统计", DurationMs = timeoutMs, Name = ioName };
+            => new() { Logic = "如果", Function = "输入IO", Property = "输入状态", Operation = "等于", SetValue = value, Timeout = "等待3秒就统计", DurationMs = timeoutMs, Name = ioName };
         private static FlowStep MoveAxis(string axisName, double position, int durationMs)
             => new() { Logic = "就", Function = "轴", Property = "位置", Operation = "绝对移动", SetValue = position.ToString("0.##"), DurationMs = durationMs, Name = axisName };
         private static FlowStep HomeAxis(string axisName)
@@ -2550,7 +2550,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             => new() { Logic = "结束", Function = "系统" };
 
         private static FlowStep SetIO(string ioName, string value)
-            => new() { Logic = "就", Function = "IO", Property = "输出状态", Operation = "修改为", SetValue = value, Name = ioName };
+            => new() { Logic = "就", Function = "输出IO", Property = "输出状态", Operation = "修改为", SetValue = value, Name = ioName };
 
         // 相机采集步骤：Name 即相机序号（与 ProjectData.Cameras 的下标对应，0 起）。
         // 运行到该步骤时 FlowRunnerService 会调用 VisionEngine.CaptureFrame 取一帧

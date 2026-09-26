@@ -13,8 +13,8 @@ namespace NoCodeMotion.Views
     ///   轴 + 位置/编码器位置 → 绝对移动 / 相对移动 / 回零 / 停止（运动指令）
     ///   轴 + 速度/扭矩/电流/加速度 → 修改为 / 加 / 减 / 乘 / 除 / 取模（设参）
     ///   轴 + 已回零         → 等于 / 大于 / 小于 / 大于等于 / 小于等于 / 取反（状态判读）
-    ///   IO + 输出状态       → 修改为 / 置位 / 复位（写输出）
-    ///   IO + 输入状态等     → 比较运算（判读）
+    ///   输出IO              → 修改为 / 置位 / 复位（写输出）
+    ///   输入IO              → 比较运算（判读）
     ///   气缸 + 电磁阀       → 伸出 / 缩回 / 复位（写阀）
     ///   气缸 + 状态类属性   → 比较运算（判读）
     ///   modbus             → 修改为 / 置位 / 复位
@@ -67,6 +67,10 @@ namespace NoCodeMotion.Views
                         default:
                             return new List<string>(MoveOps);
                     }
+                case "输入IO":
+                    return new List<string>(CondOps);
+                case "输出IO":
+                    return new List<string>(IoWriteOps);
                 case "IO":
                 case "IO输出":
                     return prop == "输出状态" ? new List<string>(IoWriteOps) : new List<string>(CondOps);

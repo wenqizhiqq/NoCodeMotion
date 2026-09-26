@@ -719,7 +719,8 @@ namespace NoCodeMotion.ViewModels
             {
                 // 运控/脚本步骤：带上模板预设的可执行参数，落盘后即可直接运行
                 foreach (var d in defs)
-                    item.Steps.Add(new FlowStep
+                {
+                    var st = new FlowStep
                     {
                         Name = d.Name,
                         Function = d.Function,
@@ -727,9 +728,49 @@ namespace NoCodeMotion.ViewModels
                         Operation = d.Operation,
                         SetValue = d.SetValue,
                         Timeout = d.Timeout
-                    });
+                    };
+                    NormalizeTemplateStep(st);   // 模板内置的是 API 动作名 → 归一为流程页下拉里的中文词
+                    item.Steps.Add(st);
+                }
             }
             // 节点图流程（NodeGraph）：步骤不走 Steps，全部信息存于 GraphJson，此处不生成 FlowStep
+        }
+
+        /// <summary>
+        /// 把内置模板步骤里的「API 动作名」（MoveAxisAbs / WriteOutput / ReadInput / Wait / CylinderMove /
+        /// CylinderReset / HomeAxis / WaitAxisStop / CommSend）归一成流程页「功能/属性/运算」下拉里的中文词，
+        /// 并把旧功能值 "IO" 按属性拆成「输入IO / 输出IO」——否则新建工程的步骤在这几列会显示空白。
+        /// </summary>
+        private static void NormalizeTemplateStep(FlowStep s)
+        {
+            switch ((s.Operation ?? string.Empty).Trim())
+            {
+                case "HomeAxis":
+                    s.Function = "轴"; s.Property = "位置"; s.Operation = "回零"; s.SetValue = ""; break;
+                case "WaitAxisStop":
+                    s.Function = "轴"; s.Property = "已回零"; s.Operation = "等于";
+                    if (string.IsNullOrWhiteSpace(s.SetValue)) s.SetValue = "1";
+                    break;
+                case "MoveAxisAbs":
+                    s.Function = "轴"; s.Property = "位置"; s.Operation = "绝对移动"; break;
+                case "WriteOutput":
+                    s.Function = "输出IO"; s.Property = "输出状态"; s.Operation = "修改为"; break;
+                case "ReadInput":
+                    s.Function = "输入IO"; s.Property = "输入状态"; s.Operation = "等于"; break;
+                case "Wait":
+                    s.Function = "输入IO"; s.Property = "脉冲状态"; s.Operation = "等于"; break;
+                case "CylinderMove":
+                    s.Function = "气缸"; s.Property = "电磁阀"; s.Operation = "伸出"; break;
+                case "CylinderReset":
+                    s.Function = "气缸"; s.Property = "电磁阀"; s.Operation = "复位"; break;
+                case "CommSend":
+                    s.Function = "modbus"; s.Property = "寄存器值"; s.Operation = "修改为"; break;
+                default:
+                    // 非 API 动作名：只把旧功能值 "IO" 按属性拆成 输入IO / 输出IO
+                    if (s.Function == "IO")
+                        s.Function = s.Property == "输出状态" ? "输出IO" : "输入IO";
+                    break;
+            }
         }
 
         private void RaiseRunState()
@@ -801,7 +842,7 @@ namespace NoCodeMotion.ViewModels
             }
 
             // 真实硬件联动：功能为设备类且本行不是纯控制行时，把动作下发到机台（未挂真实桥走桩日志）
-            if ((step.Function == "轴" || step.Function == "IO" || step.Function == "气缸" || step.Function == "modbus" || step.Function == "点位")
+            if ((step.Function == "轴" || step.Function == "IO" || step.Function == "输入IO" || step.Function == "输出IO" || step.Function == "气缸" || step.Function == "modbus" || step.Function == "点位")
                 && logic != "如果" && logic != "否则如果" && logic != "否则" && logic != "结束" && logic != "循环开始" && logic != "循环结束")
             {
                 ExecuteHardwareStep(step);
@@ -956,6 +997,9 @@ namespace NoCodeMotion.ViewModels
                         break;
                     }
                     case "IO":
+                    case "IO输出":
+                    case "输入IO":
+                    case "输出IO":
                     {
                         var io = HardwareResolver.ResolveOutput(step.Name) ?? HardwareResolver.ResolveInput(step.Name);
                         if (io == null) { bridge.Log($"找不到 IO：{step.Name}"); break; }
@@ -1196,6 +1240,9 @@ namespace NoCodeMotion.ViewModels
                             break;
 
                         case "IO":
+                        case "IO输出":
+                        case "输入IO":
+                        case "输出IO":
                         {
                             var ioOut = HardwareResolver.ResolveOutput(step.Name);
                             if (ioOut != null)

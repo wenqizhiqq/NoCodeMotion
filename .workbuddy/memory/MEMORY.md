@@ -8,7 +8,7 @@
 - dotnet 一律 LOLBin 拦截：用 **PowerShell + 绝对 `C:\Program Files\dotnet\dotnet.exe` 前台构建**；PowerShell stdout 不回显，须 `| Out-File C:\tmp\x.txt` 再 Read。禁写 `.ps1`（ExecutionPolicy 拦），用内联命令。
 - 删文件用 `[System.IO.File]::Delete("绝对路径")`（`Remove-Item` 被 safe-delete 钩子拦）。
 - bin 被运行中的 NoCodeMotion.exe 锁定时，构建到 `-p:OutDir=C:\tmp\nocode_out\`。
-- ★★ obj 的 `NoCodeMotion_MarkupCompile.cache` 被锁（开着 Visual Studio/MSBuild 时必现）→ `error MSB4018 UnauthorizedAccessException`（DeleteFile 被拒），Release 同样中招；build-server shutdown 无效、沙箱禁 Stop-Process/删文件。**破解：每次构建换全新 `-p:IntermediateOutputPath=C:\tmp\nocode_intN\` + 全新 `-p:OutDir=C:\tmp\nocode_outN\`**（空目录无缓存可删）。**勿用 `-p:BaseIntermediateOutputPath=`**（obj 脱离 DefaultItemExcludes → `_wpftmp` 把 obj\Debug+obj\Release 的 *.g.cs 一起 glob → 几百条 CS0102/CS0111/CS8646）。判成败只 grep `error CS`/`error MSB`（中文摘要行 GBK→UTF8 变乱码，匹配不到）。
+- ★★ obj 的 `NoCodeMotion_MarkupCompile.cache` 被锁（开着 Visual Studio/MSBuild 时必现）→ `error MSB4018 UnauthorizedAccessException`（DeleteFile 被拒），Release 同样中招；build-server shutdown 无效、沙箱禁 Stop-Process/删文件。**破解：每次构建换全新 `-p:IntermediateOutputPath=C:\tmp\nocode_intN\` + 全新 `-p:OutDir=C:\tmp\nocode_outN\`**（空目录无缓存可删）。**勿用 `-p:BaseIntermediateOutputPath=`**（obj 脱离 DefaultItemExcludes → `_wpftmp` 把 obj\Debug+obj\Release 的 *.g.cs 一起 glob → 几百条 CS0102/CS0111/CS8646）。判成败只 grep `error CS`/`error MSB`（中文摘要行 GBK→UTF8 变乱码，匹配不到）。若报 `NuGet.targets ... 'obj\*.nuget.g.props' is denied`（VS 锁 obj），加 **`--no-restore`** 即可（包已恢复过）。
 - 加载进度：`LoadingService` 静态深度计数（`Show/Report/Hide`，`Progress<0`=不确定）；启动初始化与打开/新建工程都在遮罩下用确定式进度。`Dispatcher.Yield` 须 `System.Windows.Threading.Dispatcher.Yield(...)`（静态方法，在 Window 里写 `Dispatcher.Yield` 会 CS0176）。
 - ★ 启动初始化：`MainWindow.Loaded`→`StartUpAsync()` 在加载遮罩下跑：①载入上次工程（xlsx 后台线程）②逐页预初始化进 `_cache` ③`NavigateTo("Flow")`；`finally` 里 `Hide()`。（不在 App 构造函数里。）
 - ★★「返回 null = 成功」的方法不能用 `?.M() ?? 兜底串`：桥的 `InchAxis/StartAxisJog/SetAxisZero` 成功返回 null，用 `??` 会把成功判失败。必须先显式判桥实例为空再原样返回结果。
@@ -87,7 +87,11 @@
 ## 仿真模板
 - ProjectTemplateCatalog 20 模板；NgTemplates.Build 脚手架。
 
-## 流程页：运算列 = 功能 + 属性 联动（2026-09-26）
+## 流程页：功能列 / 运算列（2026-09-26）
+- **功能列取值**：轴 / **输入IO** / **输出IO** / 气缸 / 点位 / modbus / 变量 / 系统 / 相机 / 延时。（原「IO」已拆成 输入IO + 输出IO：`FunctionOptions`、`FunctionToNamesConverter`(InIoNames/OutIoNames)、`FunctionToPropertiesConverter`(输入IO→输入/脉冲/报警状态；输出IO→输出状态)、`FunctionToOperationsConverter`、执行分派(`FlowRunnerService`/`SimFlowPlayer`/`FlowViewModel`) 全部同步；`AiProjectExchange` 泛称 IO→输出IO。旧工程里残留的 `Function="IO"` 仍可用（各分派保留 case "IO"）。
+- 新建工程默认步骤来自 `FlowViewModel.GetTemplateSteps`（StepDef 用的是 API 动作名）：`AddTemplateSteps` 里 `NormalizeTemplateStep` 会归一为中文词 + 拆分 IO，**改功能/运算词表时必须同步这里**。
+
+## 运算列 = 功能 + 属性 联动（2026-09-26）
 - `Views/FunctionToOperationsConverter.cs` 是 **IMultiValueConverter**（输入 Function+Property，返回运算项列表）；`FlowPage.xaml` 运算列用 `<MultiBinding>` 绑两者。**已删「修改」只留「修改为」**。矩阵：轴+位置/编码器位置→绝对移动/相对移动/回零/停止；轴+速度/扭矩/电流/加速度→修改为/加/减/乘/除/取模；轴+已回零→比较；IO+输出状态→修改为/置位/复位，其它→比较；气缸+电磁阀→伸出/缩回/复位，其它→比较；modbus→修改为/置位/复位；变量+数值→修改为/加减乘除取模取反/比较，字符串→修改为/等于/大于/小于，布尔→修改为/取反/等于；点位/系统→修改为/等于。
 - 执行器 `FlowRunnerService`：`ExecAxis`（绝对移动/相对移动/回零/停止；属性=速度→设速）、`ExecIo(name,setv,op)`（置位→1/复位→0/其余按设置值）、`ExecCylinder`（优先按 op 伸出/缩回/复位，退回兼容设置值）、`ExecVar`（修改为/加/减/乘/除/取模/取反）。
 - ★ 词表三处必须**同步**，否则流程步骤/模板/导入的运算值在下拉里显示空白：①上述转换器 ②`ProjectTemplateCatalog` 的 `MoveAxis/CylOut/CylBack/SetIO/PointStep/CameraStep/WaitStep/LoopStart/CommentStep/CommSend/WaitIO` 等构造助手 ③`AiProjectExchange` 的 `LegalOperations`/`GeneralOperations`/`DefaultOperation`/`MapAction`（**已全改中文运算**，不再用 MoveAxisAbs/HomeAxis/WriteOutput/CylinderMove/CommSend 等 API 名，保证 AI 复制/粘贴往返一致）。

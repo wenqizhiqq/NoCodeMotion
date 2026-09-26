@@ -23,6 +23,8 @@ namespace NoCodeMotion.Views
         private static readonly Dictionary<string, List<string>> Map = new()
         {
             ["轴"] = new() { "速度", "位置", "编码器位置", "扭矩", "电流", "加速度", "已回零" },
+            ["输入IO"] = new() { "输入状态", "脉冲状态", "报警状态" },
+            ["输出IO"] = new() { "输出状态" },
             ["IO"] = new() { "输入状态", "输出状态", "脉冲状态", "报警状态" },
             ["气缸"] = new() { "伸出到位", "缩回到位", "电磁阀", "压力", "动作中" },
             ["modbus"] = new() { "寄存器值", "线圈状态", "保持寄存器", "输入寄存器" },

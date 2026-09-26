@@ -200,6 +200,8 @@ namespace NoCodeMotion.Services
                         break;
                     case "IO":
                     case "IO输出":
+                    case "输入IO":
+                    case "输出IO":
                         // 输出点→置位；输入点（等待）→仿真里当作短延时
                         var outIo = HardwareResolver.ResolveOutput(name);
                         if (outIo != null) list.Add(IoAction(name, ParseInt(setv, 0)));
