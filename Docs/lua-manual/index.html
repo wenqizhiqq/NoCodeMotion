@@ -313,7 +313,7 @@ Print('本循环完成')</code></pre>
 <!-- ===== 4 硬件函数 API ===== -->
 <section id="hardware-api">
   <h2><span class="sec-no">4</span>硬件函数 API（全局函数）</h2>
-  <p>以下 28 个函数由框架注册为 Lua 全局函数，<strong>编辑器右侧「智能插入」面板可一键插入（并带中文注释与可直接改的数值）</strong>，调用时设备名必须与工程配置一致，找不到设备会直接报错。</p>
+  <p>以下 28 个函数由框架注册为 Lua 全局函数，<strong>编辑器右侧「智能插入」面板可一键插入（并带中文注释与可直接改的数值）</strong>。调用时设备名必须与工程配置一致；<strong>找不到设备只给「提示」并跳过该条指令，不会抛异常、也不会让脚本崩溃</strong>。</p>
 
   <h3>4.1 轴运动</h3>
   <div class="tbl-wrap"><table>
@@ -634,7 +634,8 @@ Print('复位完成')</code></pre>
   <h3>8.3 脚本异常处理</h3>
   <div class="card">
     <ul>
-      <li><strong>找不到设备</strong>（轴 / IO / 气缸 / 通讯 / 料盘名称不匹配）：抛 <code>ScriptRuntimeException</code>，错误信息直接显示在输出面板，如「找不到轴：X」。</li>
+      <li><strong>找不到设备</strong>（轴 / IO / 气缸 / 通讯 / 料盘 / 点位名称不匹配）：<strong>不抛异常</strong>，输出面板给一条橙色<strong>「提示」</strong>（如「[提示] 未找到输入 IO「X0」：请到「IO」页添加同名输入点…本条指令已跳过。」），该条指令安全跳过、脚本继续执行。同一条提示只出现一次，不会在循环里刷屏。</li>
+      <li><strong>硬件未就绪</strong>（没连控制卡）：同样只提示「[提示] 硬件未就绪：请到「控制器」页连接控制卡（或选虚拟卡 / 仿真）后再运行。」并跳过运动类指令。</li>
       <li><strong>脚本语法 / 运行错误</strong>：输出面板显示错误信息与行号，流程状态置「异常」，<strong>停止重试</strong>（避免日志刷屏）。</li>
       <li><strong>防死循环</strong>：表格流程有步骤执行数上限保护；Lua 循环建议每轮 <code>WaitStep(ms)</code> 让出节奏并检查 <code>EStop()</code>。</li>
       <li><strong>建议写法</strong>：工艺关键处用 <code>if EStop() then return end</code>；等待外部条件用 <code>WaitIO</code> / <code>IO.Get</code> 轮询 + 急停检查，而不是空转死等。</li>
@@ -670,8 +671,8 @@ Print('复位完成')</code></pre>
   <h3>10.1 名称解析</h3>
   <div class="card">
     <ul>
-      <li>脚本中所有设备名（轴 / 输入 IO / 输出 IO / 气缸 / 通讯 / 料盘）必须与工程配置页名称<strong>完全一致</strong>，区分大小写。</li>
-      <li>找不到设备时抛错并显示在输出面板，流程置「异常」。</li>
+      <li>脚本中所有设备名（轴 / 输入 IO / 输出 IO / 气缸 / 通讯 / 料盘 / 点位「表名.点名」）必须与工程配置页名称<strong>完全一致</strong>，区分大小写。</li>
+      <li><strong>找不到设备不再让脚本崩溃</strong>：输出面板给橙色「提示」说明该去哪一页补配置，本条指令跳过、脚本继续跑（同一条只提示一次）。真正的脚本语法 / 运行错误（如调用 nil、类型不对）才会把流程置「异常」。</li>
     </ul>
   </div>
 
@@ -680,7 +681,7 @@ Print('复位完成')</code></pre>
     <ul>
       <li><code>Delay(ms)</code> 范围 <strong>0 ~ 60000 ms</strong>，超出自动截断。</li>
       <li><code>IO.Get</code> 在<strong>仿真且未配置该输入</strong>时返回 <code>"1"</code>，保证纯仿真脚本可跑通等待逻辑；接真实硬件后以真实电平为准。</li>
-      <li><code>IO.Set</code> 找不到输出时只警告不崩溃；<code>ReadIO / WaitIO / SetIO</code> 找不到则抛错。</li>
+      <li>所有硬件函数（含 <code>ReadIO / WaitIO / SetIO</code>、轴 / 气缸 / 通讯 / 料盘 / 点位）找不到设备或硬件未就绪时都是<strong>橙色「提示」+ 跳过本条指令</strong>，不再抛异常：读类函数返回安全默认值（<code>ReadIO</code> → <code>0</code>、<code>CommRecv</code> → 空串、点位类 → <code>0</code>），等待类函数（<code>WaitIO / WaitAxisDone / WaitCylinder</code>）立即返回，避免「永远等不到」。</li>
       <li><code>Variable.Get</code>：可解析为数字返回 number（可用算术运算），否则返回 string，未定义返回 nil——用 <code>or</code> 给默认值（如 <code>Variable.Get('循环数') or 0</code>）。</li>
       <li>变量表绑定 UI 表格，<code>Variable.Set</code> 自动切到 UI 线程写入，线程安全；不要在脚本里直接修改 <code>ProjectStore</code> 之外的框架对象。</li>
       <li>仿真模式下 <code>Axis.WaitDone</code> 立即返回；真实模式下按卡到位信号阻塞等待。</li>

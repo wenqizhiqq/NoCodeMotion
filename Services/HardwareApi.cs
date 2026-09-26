@@ -19,8 +19,10 @@ namespace NoCodeMotion.Services
     /// 1. 把 Lua 里调用的 <c>AxisMove("轴1")</c> / <c>SetIO("输出1", 1)</c> 等函数，
     ///    注册成 MoonSharp 全局函数（见 <see cref="Register"/>）。
     /// 2. 按名称 Name 从 <see cref="ProjectStore.Data"/> 解析出配置对象
-    ///    （AxisItem / IoItem / CylinderItem / CommItem / TrayItem），找不到时抛
-    ///    <see cref="ScriptRuntimeException"/>，错误信息直接显示在 Lua 输出面板。
+    ///    （AxisItem / IoItem / CylinderItem / CommItem / TrayItem / PointTable）。
+    ///    ★ 找不到时**不抛异常**：输出一条中文「提示」到 Lua 输出面板（橙色，同一内容只提示一次），
+    ///    并安全跳过本次操作（返回 null / 0 / 空串）。这样用户看到的是人话提示，
+    ///    而不是调试器里弹「用户未处理的异常 + .NET 异常栈」。
     /// 3. 把解析好的对象交给 <see cref="IHardwareBridge"/>（真实硬件或桩）执行。
     ///
     /// 真正的“对接”只发生在 IHardwareBridge 里：本类不碰任何设备，只做名称解析与 Lua 绑定。
@@ -29,131 +31,300 @@ namespace NoCodeMotion.Services
     {
         private readonly IHardwareBridge _bridge;
         private readonly Action<string> _log;
+        private readonly Action<string> _warn;
 
-        public HardwareApi(IHardwareBridge bridge, Action<string> log)
+        /// <summary>已提示过的内容（同一处配置问题只提示一次，避免脚本循环里刷屏）。</summary>
+        private readonly System.Collections.Generic.HashSet<string> _warned = new();
+
+        /// <param name="log">普通日志回调（输出面板）。</param>
+        /// <param name="warn">「提示」回调（输出面板橙色行）；不传则并入 log。</param>
+        public HardwareApi(IHardwareBridge bridge, Action<string> log, Action<string> warn = null)
         {
             _bridge = bridge;
             _log = log;
+            _warn = warn;
         }
 
         // ===================== 名称解析 =====================
 
+        // ★ 设计约定：名称 / 配置类问题一律「中文提示 + 跳过本次操作」，不抛异常。
+        // 历史原因：以前这里 throw ScriptRuntimeException，在 Visual Studio 里会弹
+        // 「用户未处理的异常」窗口（报 .NET 异常栈），用户看到的是代码异常而不是人话提示。
+        // 现在：提示一次（去重），本次调用安全跳过（返回 null / 0 / 空串），脚本继续跑。
+
+        private static string Show(string name) => string.IsNullOrWhiteSpace(name) ? "（空名称）" : name;
+
+        /// <summary>输出一条「提示」（橙色，同一内容只提示一次），不抛异常。</summary>
+        private void Warn(string message)
+        {
+            string text = "[提示] " + message;
+            lock (_warned)
+            {
+                if (!_warned.Add(text)) return;
+            }
+            if (_warn != null) _warn(text);
+            else _log?.Invoke(text);
+        }
+
+        /// <summary>取硬件桥；未就绪时给出中文提示并返回 null。</summary>
+        private IHardwareBridge Bridge()
+        {
+            if (_bridge != null) return _bridge;
+            Warn("硬件未就绪：请到「控制器」页连接控制卡（或选虚拟卡 / 仿真）后再运行。");
+            return null;
+        }
+
         private AxisItem FindAxis(string name)
         {
             var ax = ProjectStore.Data.Axes.FirstOrDefault(a => a.Name == name);
-            if (ax == null) throw new ScriptRuntimeException($"找不到轴：{name}");
+            if (ax == null)
+                Warn($"未找到轴「{Show(name)}」：请到「轴」页按实际配置添加同名轴（脚本里的名称必须与配置完全一致）。本条指令已跳过。");
             return ax;
         }
 
         private IoItem FindInput(string name)
         {
             var io = ProjectStore.Data.Inputs.FirstOrDefault(i => i.Name == name);
-            if (io == null) throw new ScriptRuntimeException($"找不到输入 IO：{name}");
+            if (io == null)
+                Warn($"未找到输入 IO「{Show(name)}」：请到「IO」页添加同名输入点（脚本里的名称必须与配置完全一致）。本条指令已跳过。");
             return io;
         }
 
         private IoItem FindOutput(string name)
         {
             var io = ProjectStore.Data.Outputs.FirstOrDefault(i => i.Name == name);
-            if (io == null) throw new ScriptRuntimeException($"找不到输出 IO：{name}");
+            if (io == null)
+                Warn($"未找到输出 IO「{Show(name)}」：请到「IO」页添加同名输出点（脚本里的名称必须与配置完全一致）。本条指令已跳过。");
             return io;
         }
 
         private CylinderItem FindCylinder(string name)
         {
             var c = ProjectStore.Data.Cylinders.FirstOrDefault(x => x.Name == name);
-            if (c == null) throw new ScriptRuntimeException($"找不到气缸：{name}");
+            if (c == null)
+                Warn($"未找到气缸「{Show(name)}」：请到「气缸」页添加同名气缸。本条指令已跳过。");
             return c;
         }
 
         private CommItem FindComm(string name)
         {
             var c = ProjectStore.Data.Comms.FirstOrDefault(x => x.Name == name);
-            if (c == null) throw new ScriptRuntimeException($"找不到通讯：{name}");
+            if (c == null)
+                Warn($"未找到通讯「{Show(name)}」：请到「通讯」页添加同名通道（串口 / 网口 / Modbus）。本条指令已跳过。");
             return c;
         }
 
         private TrayItem FindTray(string name)
         {
             var t = ProjectStore.Data.Trays.FirstOrDefault(x => x.Name == name);
-            if (t == null) throw new ScriptRuntimeException($"找不到料盘：{name}");
+            if (t == null)
+                Warn($"未找到料盘「{Show(name)}」：请到「料盘」页添加同名料盘。本条指令已跳过。");
             return t;
         }
 
         // ===================== 轴 =====================
 
-        public void AxisMove(string name) => _bridge.MoveAxis(FindAxis(name));
-        public void SetAxisSpeed(string name, double speed) => _bridge.SetAxisSpeed(FindAxis(name), speed);
-        public void AxisHome(string name) => _bridge.HomeAxis(FindAxis(name));
-        public void StopAxis(string name) => _bridge.StopAxis(FindAxis(name));
-        public void WaitAxisDone(string name) => _bridge.WaitAxisDone(FindAxis(name));
-        public void EnableAxis(string name) => _bridge.EnableAxis(FindAxis(name));
-        public void MoveAxisRel(string name, double distance) => _bridge.MoveAxisRel(FindAxis(name), distance);
-        public void MoveAxisAbs(string name, double position) => _bridge.MoveAxisAbs(FindAxis(name), position);
+        public void AxisMove(string name)
+        {
+            var ax = FindAxis(name); var br = Bridge();
+            if (ax == null || br == null) return;
+            br.MoveAxis(ax);
+        }
+
+        public void SetAxisSpeed(string name, double speed)
+        {
+            var ax = FindAxis(name); var br = Bridge();
+            if (ax == null || br == null) return;
+            br.SetAxisSpeed(ax, speed);
+        }
+
+        public void AxisHome(string name)
+        {
+            var ax = FindAxis(name); var br = Bridge();
+            if (ax == null || br == null) return;
+            br.HomeAxis(ax);
+        }
+
+        public void StopAxis(string name)
+        {
+            var ax = FindAxis(name); var br = Bridge();
+            if (ax == null || br == null) return;
+            br.StopAxis(ax);
+        }
+
+        public void WaitAxisDone(string name)
+        {
+            var ax = FindAxis(name); var br = Bridge();
+            if (ax == null || br == null) return;      // 名称错时不阻塞等待
+            br.WaitAxisDone(ax);
+        }
+
+        public void EnableAxis(string name)
+        {
+            var ax = FindAxis(name); var br = Bridge();
+            if (ax == null || br == null) return;
+            br.EnableAxis(ax);
+        }
+
+        public void MoveAxisRel(string name, double distance)
+        {
+            var ax = FindAxis(name); var br = Bridge();
+            if (ax == null || br == null) return;
+            br.MoveAxisRel(ax, distance);
+        }
+
+        public void MoveAxisAbs(string name, double position)
+        {
+            var ax = FindAxis(name); var br = Bridge();
+            if (ax == null || br == null) return;
+            br.MoveAxisAbs(ax, position);
+        }
 
         // ===================== 输入 / 输出 IO =====================
 
-        public double ReadIO(string name) => _bridge.ReadInput(FindInput(name));
-        public void WaitIO(string name, int value) => _bridge.WaitInput(FindInput(name), value);
-        public void SetIO(string name, int value) => _bridge.WriteOutput(FindOutput(name), value);
-        public void ToggleIO(string name) => _bridge.ToggleOutput(FindOutput(name));
+        public double ReadIO(string name)
+        {
+            var io = FindInput(name); var br = Bridge();
+            if (io == null || br == null) return 0;     // 读不到按 0，并在输出面板提示
+            return br.ReadInput(io);
+        }
+
+        public void WaitIO(string name, int value)
+        {
+            var io = FindInput(name); var br = Bridge();
+            if (io == null || br == null) return;       // 名称错时不阻塞等待
+            br.WaitInput(io, value);
+        }
+
+        public void SetIO(string name, int value)
+        {
+            var io = FindOutput(name); var br = Bridge();
+            if (io == null || br == null) return;
+            br.WriteOutput(io, value);
+        }
+
+        public void ToggleIO(string name)
+        {
+            var io = FindOutput(name); var br = Bridge();
+            if (io == null || br == null) return;
+            br.ToggleOutput(io);
+        }
 
         // ===================== 气缸 =====================
 
-        public void CylinderMove(string name, int state) => _bridge.CylinderMove(FindCylinder(name), state);
-        public void WaitCylinder(string name) => _bridge.WaitCylinder(FindCylinder(name));
-        public void CylinderReset(string name) => _bridge.CylinderReset(FindCylinder(name));
+        public void CylinderMove(string name, int state)
+        {
+            var c = FindCylinder(name); var br = Bridge();
+            if (c == null || br == null) return;
+            br.CylinderMove(c, state);
+        }
+
+        public void WaitCylinder(string name)
+        {
+            var c = FindCylinder(name); var br = Bridge();
+            if (c == null || br == null) return;        // 名称错时不阻塞等待
+            br.WaitCylinder(c);
+        }
+
+        public void CylinderReset(string name)
+        {
+            var c = FindCylinder(name); var br = Bridge();
+            if (c == null || br == null) return;
+            br.CylinderReset(c);
+        }
 
         // ===================== 通讯 =====================
 
-        public void CommSend(string name, string data) => _bridge.CommSend(FindComm(name), data ?? string.Empty);
-        public string CommRecv(string name) => _bridge.CommRecv(FindComm(name));
+        public void CommSend(string name, string data)
+        {
+            var c = FindComm(name); var br = Bridge();
+            if (c == null || br == null) return;
+            br.CommSend(c, data ?? string.Empty);
+        }
+
+        public string CommRecv(string name)
+        {
+            var c = FindComm(name); var br = Bridge();
+            if (c == null || br == null) return string.Empty;
+            return br.CommRecv(c);
+        }
 
         // ===================== 料盘 =====================
 
-        public void TrayPick(string name) => _bridge.TrayPick(FindTray(name));
-        public void TrayPlace(string name) => _bridge.TrayPlace(FindTray(name));
+        public void TrayPick(string name)
+        {
+            var t = FindTray(name); var br = Bridge();
+            if (t == null || br == null) return;
+            br.TrayPick(t);
+        }
+
+        public void TrayPlace(string name)
+        {
+            var t = FindTray(name); var br = Bridge();
+            if (t == null || br == null) return;
+            br.TrayPlace(t);
+        }
 
         // ===================== 点位（点位表 / 点位） =====================
         // 写法：PointMove("工位1.取料点")（“点位表名.点位名”）；只写点位名时会跨表查唯一匹配。
 
         private PointTable FindPointTable(string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) throw new ScriptRuntimeException("点位表名不能为空");
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                Warn("点位写法不对：应为 \"点位表名.点位名\"（例：PointMove(\"工位1.取料点\")）。本条指令已跳过。");
+                return null;
+            }
             var t = ProjectStore.Data.PointTables.FirstOrDefault(x => x.Name == name);
-            if (t == null) throw new ScriptRuntimeException($"找不到点位表：{name}");
+            if (t == null)
+                Warn($"未找到点位表「{name}」：请到「点位」页添加同名点位表。本条指令已跳过。");
             return t;
         }
 
-        /// <summary>解析 "点位表名.点位名"（也接受只写点位名）。</summary>
-        private (PointTable table, PointItem point) ResolvePoint(string spec)
+        /// <summary>解析 "点位表名.点位名"（也接受只写点位名）。解析不到时提示并返回 false。</summary>
+        private bool TryResolvePoint(string spec, out PointTable table, out PointItem point)
         {
+            table = null;
+            point = null;
             spec = (spec ?? string.Empty).Trim();
-            if (spec.Length == 0) throw new ScriptRuntimeException("点位不能为空，写法：\"点位表名.点位名\"");
+            if (spec.Length == 0)
+            {
+                Warn("点位不能为空：应为 \"点位表名.点位名\"（例：PointMove(\"工位1.取料点\")）。本条指令已跳过。");
+                return false;
+            }
 
             int dot = spec.IndexOfAny(new[] { '.', '．', '/', '\\' });
             if (dot > 0)
             {
                 var t = FindPointTable(spec.Substring(0, dot));
+                if (t == null) return false;
                 string pn = spec.Substring(dot + 1).Trim();
                 var p = t.Points.FirstOrDefault(x => x.Name == pn);
-                if (p == null) throw new ScriptRuntimeException($"点位表「{t.Name}」里没有点位：{pn}");
-                return (t, p);
+                if (p == null)
+                {
+                    Warn($"点位表「{t.Name}」里没有点位「{pn}」：请到「点位」页添加该点位。本条指令已跳过。");
+                    return false;
+                }
+                table = t; point = p;
+                return true;
             }
 
             foreach (var t in ProjectStore.Data.PointTables)
             {
                 var p = t.Points.FirstOrDefault(x => x.Name == spec);
-                if (p != null) return (t, p);
+                if (p != null) { table = t; point = p; return true; }
             }
-            throw new ScriptRuntimeException($"找不到点位：{spec}（建议写全 \"点位表名.点位名\"）");
+            Warn($"未找到点位「{spec}」：建议写全 \"点位表名.点位名\"（例：工位1.取料点）。本条指令已跳过。");
+            return false;
         }
 
         /// <summary>点位移动：按点位表各轴槽把轴真正开到该点位（未填目标位置的槽跳过、不改动该轴）。
         /// 阻塞到各轴到位；返回实际驱动的轴数。</summary>
         public double PointMove(string spec)
         {
-            var (table, point) = ResolvePoint(spec);
+            if (!TryResolvePoint(spec, out var table, out var point)) return 0;
+            var br = Bridge();
+            if (br == null) return 0;
             int moved = 0;
             for (int i = 0; i < PointTable.SlotCount; i++)
             {
@@ -163,9 +334,10 @@ namespace NoCodeMotion.Services
                 if (slot?.Position == null) continue;
 
                 var ax = FindAxis(axisName);
-                if (slot.Speed > 0) _bridge.SetAxisSpeed(ax, slot.Speed);
-                _bridge.MoveAxisAbs(ax, slot.Position.Value);
-                _bridge.WaitAxisDone(ax);
+                if (ax == null) continue;
+                if (slot.Speed > 0) br.SetAxisSpeed(ax, slot.Speed);
+                br.MoveAxisAbs(ax, slot.Position.Value);
+                br.WaitAxisDone(ax);
                 moved++;
             }
             _log?.Invoke($"[点位] 移动到「{table.Name}.{point.Name}」：已驱动 {moved} 个轴到位");
@@ -177,14 +349,21 @@ namespace NoCodeMotion.Services
         /// （speed 不做可选参数：C# 方法组无法转成带可选参数的委托，MoonSharp 注册会 CS0123。）</summary>
         public double PointModify(string spec, double slot, double position, double speed)
         {
-            var (table, point) = ResolvePoint(spec);
+            if (!TryResolvePoint(spec, out var table, out var point)) return 0;
+
             int idx = (int)slot - 1;
             if (idx < 0 || idx >= PointTable.SlotCount)
-                throw new ScriptRuntimeException($"轴槽号只能是 1~{PointTable.SlotCount}，收到：{slot}");
+            {
+                Warn($"轴槽号只能是 1~{PointTable.SlotCount}，收到 {slot}。本条指令已跳过。");
+                return 0;
+            }
 
             string axisName = table.AxisNames.Count > idx ? table.AxisNames[idx] : string.Empty;
             if (string.IsNullOrWhiteSpace(axisName))
-                throw new ScriptRuntimeException($"点位表「{table.Name}」第 {slot} 个轴槽没有配轴，请先到「点位」页选轴");
+            {
+                Warn($"点位表「{table.Name}」第 {slot} 个轴槽还没有配轴：请先到「点位」页给该槽选一个轴。本条指令已跳过。");
+                return 0;
+            }
 
             RunOnUiThread(() =>
             {
@@ -200,14 +379,18 @@ namespace NoCodeMotion.Services
         /// 真实写回工程并保存；返回写入的轴槽数。</summary>
         public double PointTeach(string spec)
         {
-            var (table, point) = ResolvePoint(spec);
+            if (!TryResolvePoint(spec, out var table, out var point)) return 0;
+            var br = Bridge();
+            if (br == null) return 0;
+
             int written = 0;
             for (int i = 0; i < PointTable.SlotCount; i++)
             {
                 string axisName = table.AxisNames.Count > i ? table.AxisNames[i] : string.Empty;
                 if (string.IsNullOrWhiteSpace(axisName)) continue;
                 var ax = FindAxis(axisName);
-                double pos = _bridge.ReadAxisPosition(ax);
+                if (ax == null) continue;
+                double pos = br.ReadAxisPosition(ax);
                 if (double.IsNaN(pos)) continue;
                 int idx = i;
                 RunOnUiThread(() =>

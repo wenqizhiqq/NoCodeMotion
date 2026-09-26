@@ -97,10 +97,13 @@
 - ProjectTemplateCatalog 20 模板；NgTemplates.Build 脚手架。
 
 ## Lua 脚本 API + 「智能插入」面板（2026-09-26）
-- 绑定层 `Services/HardwareApi.cs`：`FindXxx(name)` 解析工程对象 → 抛 `ScriptRuntimeException`（中文），`Register(script, api)` 用 ?? 注册全局函数（MoonSharp）。**UI 绑定/工程数据修改这类动作要 `Dispatcher.Invoke` 封送 + `ProjectStore.ScheduleSave()`**（`RunOnUiThread`，仿 `VariableApi.Set`）。
+- 绑定层 `Services/HardwareApi.cs`：`FindXxx(name)` 解析工程对象，`Register(script, api)` 注册全局函数（MoonSharp）。构造签名 `HardwareApi(bridge, log, warn)`：**第 3 个参数是「提示」回调**（不传则并入 log）。改工程数据要 `Dispatcher.Invoke` 封送 + `ProjectStore.ScheduleSave()`（`RunOnUiThread`）。
+- ★★ **名称 / 配置类问题一律「橙色提示 + 跳过本次操作」，绝不 throw**：以前抛 `ScriptRuntimeException`，在 VS 里会弹「用户未处理的异常」+ .NET 栈，用户看到的是代码异常而不是人话。现在 `Warn(msg)` → `LogKind.Warn`（橙色）+ `HashSet<string> _warned` **同一内容只提示一次**（防循环刷屏）；提示里要写清「去哪一页补什么配置」。`Bridge()` 在 `_bridge==null` 时提示「硬件未就绪…」。**读类返回安全默认值**（ReadIO→0、CommRecv→""、点位→0），**等待类（WaitIO/WaitAxisDone/WaitCylinder）名称错时立即返回**（否则永远等不到）。
+- ★ 本文件是 `#nullable disable`：`HW?`/`(T,T)?`/`Action<string>?` 会报一堆 **CS8632**；要判「解析成功与否」用 `bool TryResolveXxx(..., out ...)` 而不是可空元组。同项目其他 `#nullable disable` 文件同理。
 - ★★ **`Func<...>` 最后一个类型参数是返回值**：`PointModify(string,double,double,double)` → `Func<string,double,double,double,double>`；写成 3 个 double 报 `CS0123 没有与委托匹配的重载`（构建日志中文变 mojibake 极易看错）。另：**方法组不能转成「可选参数」的委托**，被注册的函数参数一律不给默认值。
 - **点位 API**：写法 `"点位表名.点位名"`（也支持只写点位名跨表查；分隔符 `.．/\`）。`PointMove(spec)`＝按 `PointTable.SlotCount` 逐槽 `SetAxisSpeed`(speed>0)+`MoveAxisAbs`+`WaitAxisDone`（未填位置的槽跳过）；`PointModify(spec,轴槽1~4,位置,速度)`＝真改 `PointItem.Positions[idx]`（速度 0=不改）+落盘；`PointTeach(spec)`＝取各轴 `ReadAxisPosition` 写回点位目标位置+落盘。
 - **智能插入面板** `Views/LuaEditorView.xaml(.cs)`：`LuaInsertFunc{Name,Kind,Source,Template}` + `LuaPickItem{Name,Body}`；Kind=Snippet(逻辑结构)/Delay(毫秒档位)/Hardware(硬件命令)/Object(Template 的 `{0}`=右侧选中的名称)。**模板一律带可改的默认参数 + 中文行尾注释**（`MoveAxisAbs("轴1", 100)  -- 轴1：绝对移动到 100`）；`{0}` 是唯一的 string.Format 占位符，模板里**不能再出现别的大括号**。右列名称源 `GetNamesForSource`：Axis/Input/Output/Cylinder/Comm/Tray/**Point（`点位表名.点位名`）**。面板底部 `InsertPreview` 实时显示替换完名称的成品代码。左列宽仅 ~150px，**名字要短，细节放 ToolTip + 预览**。
+- 日志分级 `LogKind`：Info / Output / **Warn（橙 #C77A00）** / Error / Success；`EnqueueLog` 里只有 `Output` 走 120ms 批处理，其余同步 `Log` 事件；`LuaEditorView` 的 kind→brush switch 有**两处**（单条 `AppendLog` + 批量 `AppendLogBatch`），加新 kind 别漏。
 - 新增 Lua 函数必须同步三处：①`HardwareApi.Register` ②`Editing/LuaApi.cs` 的 `HardwareList`（补全/悬停）③`Docs/lua-manual/index.html` 硬件函数表；再考虑加进智能插入面板。
 
 ## 流程页（2026-09-26 最终形态）

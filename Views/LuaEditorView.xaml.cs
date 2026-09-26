@@ -42,6 +42,8 @@ namespace NoCodeMotion.Views
         private static readonly Brush BrushOutput = new SolidColorBrush(Color.FromRgb(0x11, 0x11, 0x11));
         private static readonly Brush BrushError = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
         private static readonly Brush BrushSuccess = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
+        /// <summary>「提示」颜色（橙）：名称没配好 / 硬件未就绪这类可自行修正的信息。</summary>
+        private static readonly Brush BrushWarn = new SolidColorBrush(Color.FromRgb(0xC7, 0x7A, 0x00));
 
         private readonly BreakpointMargin _bpMargin = new BreakpointMargin();
         private readonly LineTimeMargin _lineTimeMargin = new LineTimeMargin();
@@ -672,6 +674,7 @@ namespace NoCodeMotion.Views
                 {
                     LogKind.Error => BrushError,
                     LogKind.Success => BrushSuccess,
+                    LogKind.Warn => BrushWarn,
                     LogKind.Info => BrushInfo,
                     _ => BrushOutput
                 };
@@ -1275,6 +1278,7 @@ namespace NoCodeMotion.Views
             {
                 LogKind.Error => BrushError,
                 LogKind.Success => BrushSuccess,
+                LogKind.Warn => BrushWarn,
                 LogKind.Info => BrushInfo,
                 _ => BrushOutput
             };
@@ -1299,6 +1303,14 @@ namespace NoCodeMotion.Views
                 _diagErrorActive = true;
                 TxtDiagnostics.Text = "✖ " + (text ?? string.Empty);
                 TxtDiagnostics.Foreground = BrushError;
+                TxtDiagnostics.ToolTip = text ?? string.Empty;
+            }
+            else if (kind == LogKind.Warn)
+            {
+                // 「提示」（名称没配好 / 硬件未就绪等）：橙字显示在诊断区，不占用错误标记位，
+                // 让用户一眼看到「要改哪里」，而不是被当成脚本异常。
+                TxtDiagnostics.Text = "!" + (text ?? string.Empty);
+                TxtDiagnostics.Foreground = BrushWarn;
                 TxtDiagnostics.ToolTip = text ?? string.Empty;
             }
         }

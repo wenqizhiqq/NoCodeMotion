@@ -26,6 +26,8 @@ namespace NoCodeMotion.Services
     {
         Info,
         Output,
+        /// <summary>提示（橙色）：名称没配好 / 硬件未就绪这类「可自行修正」的信息，不是错误。</summary>
+        Warn,
         Error,
         Success
     }
@@ -227,9 +229,13 @@ namespace NoCodeMotion.Services
                 Hardware.HardwareLog.Sink = s => EnqueueLog(s, LogKind.Output);
                 Hardware.HardwareSetup.EnsureInitialized();
 
-                // 预留硬件接口：把轴/IO/气缸/通讯/料盘的运动控制函数注册成 Lua 全局函数。
+                // 预留硬件接口：把轴/IO/气缸/通讯/点位 的运动控制函数注册成 Lua 全局函数。
                 // 名称解析与 Lua 绑定在 HardwareApi 里完成，真正的设备对接在 IHardwareBridge。
-                HardwareApi.Register(_script, new HardwareApi(HardwareBridge.Current, s => EnqueueLog(s, LogKind.Output)));
+                // 第 3 个参数是「提示」回调：名称没配好 / 硬件未就绪只提示，不再抛异常（调试器里不会弹未处理异常窗）。
+                HardwareApi.Register(_script, new HardwareApi(
+                    HardwareBridge.Current,
+                    s => EnqueueLog(s, LogKind.Output),
+                    s => EnqueueLog(s, LogKind.Warn)));
 
                 _baselineGlobals = new HashSet<string>(
                     _script.Globals.Pairs.Select(p => p.Key.CastToString() ?? string.Empty));
