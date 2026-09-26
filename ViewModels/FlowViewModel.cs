@@ -888,12 +888,14 @@ namespace NoCodeMotion.ViewModels
                 : 0;
             step.DurationMs = dur;
 
-            // 实际值回填：功能=变量时，把变量当前值写回 ActualValue（让「实际值」列显示真实测量值，而不是停留在手动输入的占位）
-            // 当 Operation="修改" 时，先执行赋值：把变量值改为「设置值」列里的值，再回填 ActualValue 显示新值。
+            // 变量步骤：按「运算」列对变量当前值做**真实运算**并写回工程变量表，
+            // 再把新值回填 ActualValue。加/减/乘/除/取模/取反/修改为 全部生效；
+            // 比较类（大于/小于/等于…）只做逻辑判定、不改值。
             if (step.Function == "变量" && !string.IsNullOrWhiteSpace(step.Name))
             {
-                if (step.Operation == "修改为" || step.Operation == "修改")
-                    SetVariableValue(step.Name, step.SetValue);
+                string cur = GetVariableValue(step.Name);
+                string newVal = ApplyVarOperation((step.Operation ?? string.Empty).Trim(), cur, step.SetValue ?? string.Empty);
+                if (newVal != null) SetVariableValue(step.Name, newVal);
                 step.ActualValue = GetVariableValue(step.Name);
             }
 
@@ -1064,6 +1066,44 @@ namespace NoCodeMotion.ViewModels
             if (string.IsNullOrWhiteSpace(s)) return def;
             return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : def;
         }
+
+        /// <summary>
+        /// 按「运算」词对变量当前值求新值；返回 null = 不修改（比较类 / 不认识的运算）。
+        /// 数值：修改为 / 加 / 减 / 乘 / 除 / 取模 / 取反（当前值非数字时按 0 处理）；
+        /// 布尔（真/假）：修改为 / 取反；字符串：修改为。
+        /// </summary>
+        private static string? ApplyVarOperation(string op, string cur, string setv)
+        {
+            // 布尔变量（当前值或设置值是 真/假）按布尔规则
+            if (cur == "真" || cur == "假" || setv == "真" || setv == "假")
+            {
+                return op switch
+                {
+                    "修改为" or "修改" or "等于" => setv,
+                    "取反" => cur == "真" ? "假" : "真",
+                    _ => null,
+                };
+            }
+
+            // 数值变量：当前值/设置值解析失败按 0 处理，保证「加 2」对空变量也能得到 2
+            double.TryParse(cur, NumberStyles.Any, CultureInfo.InvariantCulture, out double c);
+            double.TryParse(setv, NumberStyles.Any, CultureInfo.InvariantCulture, out double v);
+
+            return op switch
+            {
+                "修改为" or "修改" or "等于" => setv,
+                "加" or "+" => FmtNum(c + v),
+                "减" or "-" => FmtNum(c - v),
+                "乘" or "×" or "*" => FmtNum(c * v),
+                "除" or "÷" or "/" => v != 0 ? FmtNum(c / v) : "0",
+                "取模" or "%" => v != 0 ? FmtNum(c % v) : "0",
+                "取反" => FmtNum(c == 0 ? 1 : 0),
+                _ => null,    // 大于/小于/大于等于… 比较类只做判定，不改值
+            };
+        }
+
+        /// <summary>数值格式化：最多 3 位小数、去尾零，供变量写回。</summary>
+        private static string FmtNum(double d) => d.ToString("0.###", CultureInfo.InvariantCulture);
 
         /// <summary>把流程里“设备类”步骤真实下发到机台：轴 / IO / 气缸 / modbus / 点位。</summary>
         private void ExecuteHardwareStep(FlowStep step)

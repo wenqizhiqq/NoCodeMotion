@@ -225,15 +225,32 @@ namespace NoCodeMotion.Services
                         list.Add(LogAction($"[Modbus] {name} {setv}"));
                         break;
                     case "变量":
-                        // 运行时按当前变量值实时求值（支持 算术表达式 / 引用其它变量），写回仿真变量仓。
+                    {
+                        // 按「运算」列组表达式：加/减/乘/除/取模 在运行时以「(变量名) op (设置值)」
+                        // 对当前变量值实时求值（表达式求值器支持引用变量名）；修改为/其它 → 直接设置值。
+                        // 取反近似为 1-(当前值)（布尔 0↔1 精确，其它值视为逻辑取反的近似）。
+                        string vop = (s.Operation ?? string.Empty).Trim();
+                        string expr = vop switch
+                        {
+                            "加" => $"({name})+({setv})",
+                            "减" => $"({name})-({setv})",
+                            "乘" or "×" or "*" => $"({name})*({setv})",
+                            "除" or "÷" or "/" => $"({name})/({setv})",
+                            "取模" or "%" => $"({name})%({setv})",
+                            "取反" => $"1-({name})",
+                            _ => setv,
+                        };
                         list.Add(new SimAction
                         {
                             VarName = name,
-                            VarExpr = setv,
+                            VarExpr = expr,
                             DurationMs = 250,
-                            Label = $"变量 {name} = {setv}"
+                            Label = string.IsNullOrEmpty(vop) || vop == "修改为" || vop == "修改"
+                                ? $"变量 {name} = {setv}"
+                                : $"变量 {name} {vop} {setv}"
                         });
                         break;
+                    }
                     case "系统":
                         list.Add(LogAction($"[系统] {setv}"));
                         break;
