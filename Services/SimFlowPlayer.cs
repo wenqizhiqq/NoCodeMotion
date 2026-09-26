@@ -331,9 +331,10 @@ namespace NoCodeMotion.Services
                         string mode = P("模式");
                         double v = ParseDouble(P("目标位置"), 0);
                         double cur = AxisRuntimeState.Get(P("轴"));
-                        double tgt = (mode == "相对" || mode == "rel") ? cur + v : v;
+                        bool relMode = mode == "相对" || mode == "rel" || mode == "相对移动";
+                        double tgt = relMode ? cur + v : v;
                         state[P("轴")] = tgt;                      // 更新虚拟状态，供后续分支判断
-                        list.Add(AxisAction(P("轴"), mode == "相对" ? "rel" : "abs", P("目标位置"), ParseDouble(P("速度"), 0)));
+                        list.Add(AxisAction(P("轴"), relMode ? "rel" : "abs", P("目标位置"), ParseDouble(P("速度"), 0)));
                     }
                     break;
                 case NgKind.Home:
@@ -447,7 +448,7 @@ namespace NoCodeMotion.Services
                 var ax = HardwareResolver.ResolveAxis(axis);
                 target = ax != null ? ax.PosLimitMinus : 0;
             }
-            else if (op == "相对" || op == "rel" || op == "相对运动")
+            else if (op == "相对" || op == "rel" || op == "相对运动" || op == "相对移动")
                 target = curPos + ParseDouble(setv, 0);
             else
                 target = ParseDouble(setv, curPos);

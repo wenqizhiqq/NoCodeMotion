@@ -987,11 +987,13 @@ namespace NoCodeMotion.ViewModels
                         var axis = HardwareResolver.ResolveAxis(step.Name);
                         if (axis == null) { bridge.Log($"找不到轴：{step.Name}"); break; }
                         string prop = (step.Property ?? string.Empty).Trim();
+                        string aop = (step.Operation ?? string.Empty).Trim();
                         double val = ParseNum(step.SetValue, 0);
                         if (prop == "速度" || prop == "Speed") bridge.SetAxisSpeed(axis, val);
-                        else if (prop == "回零" || prop == "Home" || prop == "原点") bridge.HomeAxis(axis);
-                        else if (prop == "停止") bridge.StopAxis(axis);
+                        else if (aop == "回零" || prop == "回零" || prop == "Home" || prop == "原点") bridge.HomeAxis(axis);
+                        else if (aop == "停止" || prop == "停止") bridge.StopAxis(axis);
                         else if (prop == "使能") bridge.EnableAxis(axis);
+                        else if (aop == "相对移动" || aop == "相对" || aop == "rel") bridge.MoveAxisRel(axis, val);   // 相对移动：从当前位置偏移 val
                         else if (!string.IsNullOrWhiteSpace(step.SetValue)) bridge.MoveAxisAbs(axis, val);
                         else bridge.MoveAxis(axis);
                         break;

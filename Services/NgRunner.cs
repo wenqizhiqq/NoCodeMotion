@@ -447,7 +447,7 @@ public sealed class NgRunner
                 double pos = GetDoubleProp(node, "目标位置", 0);
                 double spd = GetDoubleProp(node, "速度", 10);
                 _bridge.SetAxisSpeed(ax, spd);
-                if (mode == "相对") _bridge.MoveAxisRel(ax, pos);
+                if (mode == "相对" || mode == "相对移动" || mode == "rel") _bridge.MoveAxisRel(ax, pos);
                 else _bridge.MoveAxisAbs(ax, pos);
                 break;
             }
