@@ -103,7 +103,9 @@ namespace NoCodeMotion.ViewModels
         static FlowRunnerService() { _ = AuthorWatermark.Signature; }   // 作者水印引用（误删 AuthorWatermark.cs 将编译失败）
 
         /// <summary>并发启动所有流程（每个 Flow 一条后台 Thread，内部 while 循环）。不使用 Task——
-        /// 全部走 Thread，结束由看门狗线程在全部流程 Signal 后触发 onComplete。</summary>
+        /// 全部走 Thread，结束由看门狗线程在全部流程 Signal 后触发 onComplete。
+        /// <paramref name="forceLoop"/>：null=按流程角色（主流程循环 / 复位流程单次，操作员页语义）；
+        /// true=强制循环（流程页「循环运行」）；false=强制单次（流程页「运行一次」）。</summary>
         public static void RunAllAsync(
             FlowRunControl ctrl,
             Action<string, LogLevel> log,
@@ -111,7 +113,8 @@ namespace NoCodeMotion.ViewModels
             Action<int, string> onFlowDone,
             Action onComplete,
             CancellationToken ct = default,
-            Func<FlowItem, bool>? filter = null)
+            Func<FlowItem, bool>? filter = null,
+            bool? forceLoop = null)
         {
             var flows = ProjectStore.Data?.Flows?.Where(filter ?? (_ => true)).ToList() ?? new List<FlowItem>();
             if (flows.Count == 0) { onComplete?.Invoke(); return; }
@@ -120,9 +123,10 @@ namespace NoCodeMotion.ViewModels
             {
                 int idx = i;
                 var flow = flows[i];
+                bool loop = forceLoop ?? (flow.Role != FlowRole.Reset);
                 var th = new Thread(() =>
                 {
-                    try { RunOneFlow(flow, idx, ctrl, log, onStep, onFlowDone, ct); }
+                    try { RunOneFlow(flow, idx, ctrl, log, onStep, onFlowDone, ct, loop); }
                     catch (OperationCanceledException) { /* 正常中止 */ }
                     catch (Exception ex) { log?.Invoke($"流程「{flow?.Name}」运行异常：{ex.Message}", LogLevel.Error); }
                     finally { done.Signal(); }
@@ -142,18 +146,18 @@ namespace NoCodeMotion.ViewModels
 
         private static void RunOneFlow(FlowItem flow, int index, FlowRunControl ctrl,
             Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone,
-            CancellationToken ct)
+            CancellationToken ct, bool loop)
         {
             if (flow == null) return;
             var name = flow.Name ?? "(未命名流程)";
             if (flow.Kind == FlowKind.Lua)
             {
-                RunOneFlowLua(flow, index, ctrl, log, onStep, onFlowDone);
+                RunOneFlowLua(flow, index, ctrl, log, onStep, onFlowDone, loop);
                 return;
             }
             if (flow.Kind == FlowKind.Vision)
             {
-                RunOneFlowVision(flow, index, ctrl, log, onStep, onFlowDone);
+                RunOneFlowVision(flow, index, ctrl, log, onStep, onFlowDone, loop);
                 return;
             }
             var steps = flow.Steps?.ToList();
@@ -165,9 +169,9 @@ namespace NoCodeMotion.ViewModels
                 return;
             }
 
-            // 主流程（Role=Main）：循环执行——每轮跑完所有步骤后从头再来，直到停止/急停。
-            // 复位流程（Role=Reset）：单次执行——归位/复位不应循环，跑完即结束。
-            if (flow.Role == FlowRole.Main)
+            // loop=true：循环执行——每轮跑完所有步骤后从头再来，直到停止/急停。
+            // loop=false：单次执行（复位流程 / 流程页「运行一次」）。
+            if (loop)
             {
                 log?.Invoke($"流程「{name}」开始循环运行（{steps.Count} 步/轮，直到停止/急停）。", LogLevel.Info);
                 int cycle = 0;
@@ -215,10 +219,10 @@ namespace NoCodeMotion.ViewModels
                 return;
             }
 
-            // 复位流程：单次执行（保留旧行为）
+            // 单次执行（复位流程 / 流程页「运行一次」）
             SetStatus(flow, FlowStatus.Running);
             var exec2 = new FlowExecutor(flow, index, steps, ctrl, log, onStep);
-            log?.Invoke($"流程「{name}」开始运行（{steps.Count} 步，复位流程单次执行）。", LogLevel.Info);
+            log?.Invoke($"流程「{name}」开始运行（{steps.Count} 步，单次执行）。", LogLevel.Info);
             try
             {
                 exec2.Run(ct);
@@ -253,7 +257,7 @@ namespace NoCodeMotion.ViewModels
         /// 运行行/断点/单步与页面完全一致）；编辑器未就绪或被占用时退化为独立 LuaDebugSession 连续运行，
         /// 并把当前执行行广播给 LuaRunMonitor 供编辑器实时跳行高亮。暂停/停止映射到会话的 RequestPause/Resume/Stop。</summary>
         private static void RunOneFlowLua(FlowItem flow, int index, FlowRunControl ctrl,
-            Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone)
+            Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone, bool loop)
         {
             var name = flow.Name ?? "(未命名流程)";
             SetStatus(flow, FlowStatus.Running);
@@ -261,12 +265,12 @@ namespace NoCodeMotion.ViewModels
             // 避免早前实现的「错误也立即重启」造成的 LuaScriptThread/LuaWatch 死循环刷屏与 UI 卡顿。
             try
             {
-            int luaRound = 0;   // 复位流程只跑一轮：首轮 luaRound==0 进入，之后置 1 → 退出；主流程无限循环
+            int luaRound = 0;   // 单次只跑一轮：首轮 luaRound==0 进入，之后置 1 → 退出；循环模式无限循环
             var editor = LuaEditorView.Active;
             if (editor != null)
             {
-                // 复位流程（Role=Reset）只跑一轮（执行一次）即结束；主流程（Role=Main）持续循环直到停止/急停。
-                while ((flow.Role != FlowRole.Reset || luaRound == 0) && !ctrl.StopRequested && !ctrl.EStopRequested)
+                // loop=true 持续循环直到停止/急停；loop=false（复位流程 / 运行一次）只跑一轮。
+                while ((loop || luaRound == 0) && !ctrl.StopRequested && !ctrl.EStopRequested)
                 {
                     luaRound++;
                     Thread.Sleep(1);   // 让出 CPU，避免紧密循环抢占 UI 线程
@@ -336,8 +340,8 @@ namespace NoCodeMotion.ViewModels
             }
 
             // 退化路径：Lua 编辑器页面未加载，用独立会话连续运行并广播当前行。
-            // 复位流程（Role=Reset）只跑一轮（执行一次）即结束；主流程（Role=Main）持续循环直到停止/急停。
-            while ((flow.Role != FlowRole.Reset || luaRound == 0) && !ctrl.StopRequested && !ctrl.EStopRequested)
+            // loop=true 持续循环直到停止/急停；loop=false（复位流程 / 运行一次）只跑一轮。
+            while ((loop || luaRound == 0) && !ctrl.StopRequested && !ctrl.EStopRequested)
             {
                 luaRound++;
                 Thread.Sleep(1);   // 让出 CPU，避免紧密循环抢占 UI 线程
@@ -415,7 +419,7 @@ namespace NoCodeMotion.ViewModels
         /// 六类算子，每轮跑完整条视觉流程后从头再来（Role=Main 循环；Role=Reset 单次）。运行期高频写回只走
         /// FlowRunStore 与进度回调，界面由 OperatorViewModel 的 DispatcherTimer 周期拉取，不卡界面。</summary>
         private static void RunOneFlowVision(FlowItem flow, int index, FlowRunControl ctrl,
-            Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone)
+            Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone, bool loop)
         {
             var name = flow.Name ?? "(未命名流程)";
             var steps = flow.VisualSteps?.ToList();
@@ -434,8 +438,8 @@ namespace NoCodeMotion.ViewModels
                 FlowRunStore.SetStep(flow, msg);
             });
 
-            // 主流程（Role=Main）：循环运行——每轮跑完整条视觉流程后从头再来，直到停止 / 急停。
-            if (flow.Role == FlowRole.Main)
+            // loop=true：循环运行——每轮跑完整条视觉流程后从头再来，直到停止 / 急停。
+            if (loop)
             {
                 log?.Invoke($"视觉流程「{name}」开始循环运行（{steps.Count} 步/轮，直到停止/急停）。", LogLevel.Info);
                 int cycle = 0;
@@ -632,11 +636,12 @@ namespace NoCodeMotion.ViewModels
                     case "结束":
                         return i + 1;
                     case "注释":
-                    case "就":
-                    case "并且":
-                    case "或者":
                         i++;
                         break;
+                    // 「就 / 并且 / 或者」不再跳过：它们与流程页单步引擎行为保持一致——
+                    // 带功能的行（变量/轴/IO…）要真实执行；不带功能的条件连接词走 ExecuteLeaf 空操作。
+                    // （旧实现把「就」当纯控制行跳过，导致流程页「运行一次/循环运行」对
+                    //   逻辑=就 的变量/设备步骤毫无效果，而单步有效——两套引擎行为分歧。）
                     case "等待":
                     case "延时":
                         {

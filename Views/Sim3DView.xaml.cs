@@ -375,8 +375,8 @@ namespace NoCodeMotion.Views
             // 一旦工程已含轴/流程（如"仿真演示"模板），则显示参数化机台并可直接运行仿真。
             if (ProjectStore.Data?.Axes?.Count > 0) return;
             var def = System.IO.Path.Combine(AppContext.BaseDirectory, "Models", "CAD", "IR-R10-140S-INT-3D-3D.stp");
-            if (System.IO.File.Exists(def))
-                LoadStepFile(def);
+            //if (System.IO.File.Exists(def))
+                //LoadStepFile(def);
         }
 
         /// <summary>刷新流程下拉框：列出当前工程所有流程，默认选中主流程。</summary>

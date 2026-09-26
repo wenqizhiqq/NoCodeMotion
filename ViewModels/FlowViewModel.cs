@@ -108,6 +108,8 @@ namespace NoCodeMotion.ViewModels
                 string baseText = _currentStep < 0
                     ? (IsRunning ? "运行中" : "未开始")
                     : (_currentStep < StepPanel.Items.Count ? $"第 {_currentStep + 1} 步 / 共 {StepPanel.Items.Count} 步" : "已完成");
+                // 后台运行出错时把原因带出来，避免「点了运行没效果也不知道为什么」
+                if (!string.IsNullOrEmpty(_bgLastError)) baseText += $"　·　{_bgLastError}";
                 return _loopRun && IsRunning ? $"{baseText}　·　已循环 {_loopCount} 轮" : baseText;
             }
         }
@@ -821,27 +823,77 @@ namespace NoCodeMotion.ViewModels
                 StepPanel.SelectedItem = null;
         }
 
-        /// <summary>启动运行。<paramref name="loop"/> = true 为「循环运行」（走到末尾自动回到第 1 行，直到点停止），
-        /// false 为「运行一次」（走完一遍即结束）。</summary>
+        // ---------- 后台运行（运行一次 / 循环运行走 FlowRunnerService 后台线程，与界面解耦）----------
+        private FlowRunControl? _bgCtrl;      // 后台运行控制（暂停/停止/变量仓）
+        private int _bgGen;                   // 运行代号：新的 启动/停止 作废旧收尾
+        private volatile bool _bgActive;      // 后台引擎是否在跑
+        private string? _bgLastError;         // 后台运行期间的最后一条错误（完成后显示在状态文本，避免静默失败）
+
+        /// <summary>启动运行。<paramref name="loop"/> = true 为「循环运行」（反复执行直到点停止），
+        /// false 为「运行一次」（走完一遍即结束）。两种都走 FlowRunnerService 后台线程：
+        /// 硬件下发 / 变量运算不占 UI 线程，流程页是否打开、选中谁都无所谓。</summary>
         private void Run(bool loop)
         {
-            if (!CanRun) return;
-            bool fresh = (_currentStep < 0 || _currentStep >= StepPanel.Items.Count);
-            if (fresh)
+            // 暂停中 → 恢复后台运行（不重启）
+            if (IsPaused && _bgActive && _bgCtrl != null)
             {
-                _pendingNext = -1;
-                _ifStack.Clear();
-                _loopStack.Clear();
-                ClearCurrentFlags();
-                CurrentStep = 0;
+                _bgCtrl.PauseRequested = false;
+                _bgCtrl.ResumeEvent.Set();
+                IsPaused = false;
+                IsRunning = true;
+                _loopRun = loop;
+                RaiseRunState();
+                return;
             }
+
+            if (!CanRun) return;
+            var flow = SelectedItem;
+            if (flow?.Steps == null || flow.Steps.Count == 0) return;
+
+            // 单步引擎状态复位（单步仍走 UI 节拍）
+            _pendingNext = -1;
+            _ifStack.Clear();
+            _loopStack.Clear();
+            ClearCurrentFlags();
             _loopRun = loop;
             _loopCount = 0;
             _waitUntil = DateTime.MinValue;
             IsPaused = false;
             IsRunning = true;
-            _runTimer.Start();
+
+            int gen = ++_bgGen;
+            _bgActive = true;
+            _bgLastError = null;
+            _bgCtrl = new FlowRunControl();
+            _bgCtrl.InitVars();                 // 从工程变量表取初值；结束时统一写回
+            FlowRunnerService.RunAllAsync(
+                _bgCtrl,
+                log: (msg, lvl) => { if (lvl == LogLevel.Error) _bgLastError = msg; },   // 错误透出到状态文本，不静默
+                onStep: null,                   // 行高亮由 FlowExecutor 直接刷 FlowStep.IsCurrent
+                onFlowDone: null,
+                onComplete: () => OnBgFinished(gen),
+                filter: f => ReferenceEquals(f, flow),
+                forceLoop: loop);
             RaiseRunState();
+        }
+
+        /// <summary>后台运行结束（正常完成 / 停止 / 急停）的收尾：写回变量并刷新界面状态。</summary>
+        private void OnBgFinished(int gen)
+        {
+            var ctrl = _bgCtrl;
+            try { ctrl?.WriteBackVars(); }      // 无论正常完成还是停止，都把已执行的变量写回工程表
+            catch { /* 写回失败不阻塞收尾 */ }
+
+            var app = System.Windows.Application.Current;
+            void Apply()
+            {
+                if (gen != _bgGen) return;      // 已被新的 启动/停止 取代
+                _bgActive = false;
+                _loopRun = false;
+                FinishRun();
+            }
+            if (app?.Dispatcher == null || app.Dispatcher.CheckAccess()) Apply();
+            else app.Dispatcher.BeginInvoke(Apply);
         }
 
         /// <summary>循环运行：一轮走完时把执行指针拨回第 1 行并累计轮数。
@@ -1467,6 +1519,10 @@ namespace NoCodeMotion.ViewModels
         {
             var items = StepPanel.Items;
             if (items.Count == 0) return;
+            // 先停掉可能还在跑的后台引擎，避免两套运行重叠（后台收尾凭 gen 自动作废）
+            _bgGen++;
+            _bgActive = false;
+            if (_bgCtrl != null) { _bgCtrl.StopRequested = true; _bgCtrl.ResumeEvent.Set(); }
             int idx = _jumpRowNumber - 1;            // 1 基 → 0 基
             if (idx < 0) idx = 0;
             if (idx >= items.Count) idx = items.Count - 1;
@@ -1486,6 +1542,14 @@ namespace NoCodeMotion.ViewModels
         private void Pause()
         {
             if (!CanPause) return;
+            if (_bgActive && _bgCtrl != null)
+            {
+                // 后台运行：引擎在步骤边界响应暂停（AbortCheck 阻塞在 ResumeEvent）
+                _bgCtrl.PauseRequested = true;
+                IsPaused = true;
+                IsRunning = false;
+                return;
+            }
             _runTimer.Stop();
             IsPaused = true;
             IsRunning = false; // 暂停后允许用“运行”继续（_currentStep 未越界时 Run 不会重置）
@@ -1493,6 +1557,14 @@ namespace NoCodeMotion.ViewModels
 
         private void Stop()
         {
+            // 后台运行：请求引擎停止（变量写回由 OnBgFinished 完成，gen 已作废其 UI 收尾）
+            _bgGen++;
+            _bgActive = false;
+            if (_bgCtrl != null)
+            {
+                _bgCtrl.StopRequested = true;
+                _bgCtrl.ResumeEvent.Set();   // 唤醒可能阻塞在暂停门的引擎线程
+            }
             _runTimer.Stop();
             IsRunning = false;
             IsPaused = false;
