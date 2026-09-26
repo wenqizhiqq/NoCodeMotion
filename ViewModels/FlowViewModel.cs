@@ -1136,21 +1136,103 @@ namespace NoCodeMotion.ViewModels
         }
 
         /// <summary>
-        /// 「实际值」列 1 秒定时刷新：遍历当前选中流程的步骤，对 Function=="变量" 的步骤
-        /// 调用 GetVariableValue 把变量当前值写回 ActualValue。
-        /// 其他功能的步骤 ActualValue 由执行器在 StepOnce 中按需回填，这里不动。
-        /// 空集合（未选中流程）直接返回。
+        /// 「实际值」列 1 秒定时刷新：遍历当前选中流程的每一步，
+        /// 按「功能 + 属性」把设备当前真实读数写回 ActualValue。
+        ///   变量 → 当前变量值；
+        ///   轴·位置/编码器位置 → AxisRuntimeState 当前位置；
+        ///   轴·速度 → 轴配置速度；轴·使能 → 已使能/未使能；
+        ///   IO·输出状态 → SimRuntime 输出仓；IO·输入状态 → 真实桥 ReadInput；
+        ///   气缸 → 伸出/缩回；相机 → 已连接/未连接。
+        /// 空集合（未选中流程）直接返回；任意一步读取异常只清空该步，不影响其它。
         /// </summary>
         private void RefreshActualValues()
         {
             var items = StepPanel?.Items;
             if (items == null || items.Count == 0) return;
+            var bridge = HardwareBridge.Current;
             foreach (var step in items)
             {
                 if (step == null) continue;
-                if (step.Function != "变量") continue;
                 if (string.IsNullOrWhiteSpace(step.Name)) continue;
-                step.ActualValue = GetVariableValue(step.Name);
+                string fn = step.Function ?? string.Empty;
+                string prop = (step.Property ?? string.Empty).Trim();
+                try
+                {
+                    switch (fn)
+                    {
+                        case "变量":
+                            step.ActualValue = GetVariableValue(step.Name);
+                            break;
+
+                        case "轴":
+                            var ax = HardwareResolver.ResolveAxis(step.Name);
+                            if (prop == "位置" || prop == "编码器位置")
+                            {
+                                // 优先从真实桥读当前位置（VirtualMotionCard/真实卡族），读不到再回退运行态缓存。
+                                double pos = double.NaN;
+                                if (ax != null && bridge != null)
+                                {
+                                    try { pos = bridge.ReadAxisPosition(ax); }
+                                    catch { pos = double.NaN; }
+                                }
+                                if (double.IsNaN(pos))
+                                    pos = AxisRuntimeState.Get(step.Name);
+                                step.ActualValue = double.IsNaN(pos)
+                                    ? string.Empty
+                                    : pos.ToString("0.###", CultureInfo.InvariantCulture);
+                            }
+                            else if (prop == "速度")
+                            {
+                                step.ActualValue = ax != null ? ax.Speed.ToString("0.###", CultureInfo.InvariantCulture) : string.Empty;
+                            }
+                            else if (prop == "使能")
+                            {
+                                step.ActualValue = ax != null ? (ax.Enabled ? "已使能" : "未使能") : string.Empty;
+                            }
+                            else
+                            {
+                                step.ActualValue = string.Empty;
+                            }
+                            break;
+
+                        case "IO":
+                        {
+                            var ioOut = HardwareResolver.ResolveOutput(step.Name);
+                            if (ioOut != null)
+                            {
+                                step.ActualValue = SimRuntime.GetOutput(step.Name).ToString(CultureInfo.InvariantCulture);
+                            }
+                            else
+                            {
+                                var ioIn = HardwareResolver.ResolveInput(step.Name);
+                                if (ioIn != null && bridge != null)
+                                    step.ActualValue = bridge.ReadInput(ioIn).ToString("0.###", CultureInfo.InvariantCulture);
+                                else
+                                    step.ActualValue = string.Empty;
+                            }
+                            break;
+                        }
+
+                        case "气缸":
+                            step.ActualValue = SimRuntime.GetCylinder(step.Name) != 0 ? "伸出" : "缩回";
+                            break;
+
+                        case "相机":
+                        {
+                            var cam = ProjectStore.Data?.Cameras?.FirstOrDefault(c => c.Name == step.Name);
+                            step.ActualValue = cam == null ? string.Empty : (cam.IsConnected ? "已连接" : "未连接");
+                            break;
+                        }
+
+                        default:
+                            step.ActualValue = string.Empty;
+                            break;
+                    }
+                }
+                catch
+                {
+                    step.ActualValue = string.Empty;
+                }
             }
         }
 

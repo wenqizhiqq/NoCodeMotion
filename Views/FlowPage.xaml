@@ -479,19 +479,19 @@
 
                                 <Button Grid.Column="0" Content="运行" Style="{StaticResource TtBaseBtn}"
                                         Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" Margin="0,0,8,0"/>
-                                <Button Grid.Column="1" Content="单步运行" Style="{StaticResource TtBaseBtn}"
+                                <Button Grid.Column="1" Content="跳到选中行" Style="{StaticResource TtBaseBtn}"
+                                        Command="{Binding JumpCommand}" HorizontalAlignment="Center" Margin="0,0,8,0"/>
+                                <Button Grid.Column="2" Content="单步运行" Style="{StaticResource TtBaseBtn}"
                                         Command="{Binding StepCommand}" IsEnabled="{Binding CanStep}" Margin="0,0,8,0"/>
 
-                                <Button Grid.Column="2" Content="跳到选中行" Style="{StaticResource TtBaseBtn}"
-                                        Command="{Binding JumpCommand}" HorizontalAlignment="Center" Margin="0,0,8,0"/>
 
                                 <Button Grid.Column="3" Content="暂停" Style="{StaticResource TtWarnBtn}"
                                         Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}" Margin="0,0,8,0"/>
                                 <Button Grid.Column="4" Content="停止" Style="{StaticResource TtDeleteBtn}"
                                         Command="{Binding StopCommand}" IsEnabled="{Binding CanStop}"/>
 
-                                <Button Grid.Column="5" Content="步骤预览" Style="{StaticResource TtBaseBtn}"
-                                        Command="{Binding PreviewCommand}" Margin="0,0,8,0" ToolTip="用仿真引擎编译当前流程，弹窗列出展开后的实际执行顺序（分支/循环已展开）。"/>
+                                <!--<Button Grid.Column="5" Content="步骤预览" Style="{StaticResource TtBaseBtn}"
+                                        Command="{Binding PreviewCommand}" Margin="0,0,8,0" ToolTip="用仿真引擎编译当前流程，弹窗列出展开后的实际执行顺序（分支/循环已展开）。"/>-->
 
                                 <TextBlock Grid.Column="6" Text="{Binding CurrentStepText}" VerticalAlignment="Center"
                                            HorizontalAlignment="Right" FontSize="12"
