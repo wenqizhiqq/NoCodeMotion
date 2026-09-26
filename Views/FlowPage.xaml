@@ -71,6 +71,7 @@
         </x:Array>
         <local:FunctionToNamesConverter x:Key="FunctionToNamesConverter"/>
         <local:FunctionToPropertiesConverter x:Key="FunctionToPropertiesConverter"/>
+        <local:FunctionToOperationsConverter x:Key="FunctionToOperationsConverter"/>
 
         <!--
             ========== 表格美化样式（与 IoPage 对齐）==========
@@ -331,7 +332,7 @@
                                     <DataGridTemplateColumn Header="运算" Width="100">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <ComboBox ItemsSource="{StaticResource OperationOptions}"
+                                                <ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToOperationsConverter}}"
                                                           SelectedItem="{Binding Operation, UpdateSourceTrigger=PropertyChanged}"
                                                           Style="{StaticResource CellComboStyle}"/>
                                             </DataTemplate>

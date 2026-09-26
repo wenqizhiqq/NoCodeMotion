@@ -782,13 +782,38 @@ namespace NoCodeMotion.ViewModels
         {
             var ax = HardwareResolver.ResolveAxis(name);
             if (ax == null) { _log?.Invoke($"找不到轴：{name}", LogLevel.Error); return; }
-            if (!double.TryParse(setv, out var target)) { _log?.Invoke($"轴「{name}」目标位置无法解析：{setv}", LogLevel.Error); return; }
             string op = (s.Operation ?? "").Trim();
-            if (double.TryParse(Sub(s.Property), out var sp) && sp > 0) _bridge?.SetAxisSpeed(ax, sp);
-            if (op == "回零" || op == "home" || op == "归零") _bridge?.HomeAxis(ax);
-            else if (op == "停止" || op == "stop") _bridge?.StopAxis(ax);
-            else if (op == "相对" || op == "rel" || op == "相对运动") _bridge?.MoveAxisRel(ax, target);
-            else _bridge?.MoveAxisAbs(ax, target);
+            string prop = (s.Property ?? "").Trim();
+
+            // 属性 = 速度：这是「设速度」而非移动，设置值即速度值（单位/秒）。
+            if (prop == "速度")
+            {
+                if (double.TryParse(setv, out var spd) && spd > 0) _bridge?.SetAxisSpeed(ax, spd);
+                else _log?.Invoke($"轴「{name}」速度无法解析：{setv}", LogLevel.Warn);
+                return;
+            }
+
+            // 回零 / 停止不需要设置值（目标位置）。
+            bool needTarget = !(op == "回零" || op == "home" || op == "归零" || op == "停止" || op == "stop");
+            double target = 0;
+            if (needTarget && !double.TryParse(setv, out target))
+            {
+                _log?.Invoke($"轴「{name}」目标位置无法解析：{setv}", LogLevel.Error);
+                return;
+            }
+
+            switch (op)
+            {
+                case "回零": case "home": case "归零": case "原点":
+                    _bridge?.HomeAxis(ax); break;
+                case "停止": case "stop":
+                    _bridge?.StopAxis(ax); break;
+                case "相对移动": case "相对": case "rel": case "相对运动":
+                    _bridge?.MoveAxisRel(ax, target); break;
+                case "绝对移动": case "修改为": case "修改": case "绝对定位":
+                default:
+                    _bridge?.MoveAxisAbs(ax, target); break;
+            }
             _bridge?.WaitAxisDone(ax);
         }
 
