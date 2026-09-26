@@ -1069,16 +1069,19 @@ namespace NoCodeMotion.ViewModels
                 }
             }
 
-            if (next >= items.Count)
-            {
-                // 循环运行：一轮结束 → 累计轮数并回到第 1 行继续（当前行保持高亮，下一拍从第 1 行执行）
-                if (!WrapToFirstRow()) { FinishRun(); return false; }
-                next = 0;
-            }
+            // 先高亮当前行再判断收尾：原先最后一行会先走 FinishRun（清掉全部高亮）导致它从不显示橙色
             ClearCurrentFlags();
             step.IsCurrent = true;
-            _pendingNext = next;
             CurrentStep = i;
+
+            if (next >= items.Count)
+            {
+                // 循环运行：一轮结束 → 累计轮数并回到第 1 行继续（下一拍从第 1 行执行）
+                if (WrapToFirstRow()) { _pendingNext = 0; return dur > 0; }
+                FinishRun();          // 单次跑完：最后执行的行保持橙色
+                return false;
+            }
+            _pendingNext = next;
             return dur > 0;
         }
 
@@ -1250,7 +1253,7 @@ namespace NoCodeMotion.ViewModels
             _loopRun = false;                        // 结束即退出循环运行模式
             _waitUntil = DateTime.MinValue;
             _pendingNext = -1;
-            ClearCurrentFlags();
+            // 不清当前行高亮：最后执行的行保持橙色，直到下次运行或点「停止」
             _currentStep = StepPanel.Items.Count; // 标记已完成（CurrentStepText 显示“已完成”）
             OnPropertyChanged(nameof(CurrentStepText));
             HighlightCurrent();
