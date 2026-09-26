@@ -795,7 +795,7 @@ namespace NoCodeMotion.ViewModels
             // 当 Operation="修改" 时，先执行赋值：把变量值改为「设置值」列里的值，再回填 ActualValue 显示新值。
             if (step.Function == "变量" && !string.IsNullOrWhiteSpace(step.Name))
             {
-                if (step.Operation == "修改")
+                if (step.Operation == "修改为" || step.Operation == "修改")
                     SetVariableValue(step.Name, step.SetValue);
                 step.ActualValue = GetVariableValue(step.Name);
             }

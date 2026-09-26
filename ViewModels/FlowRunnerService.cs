@@ -710,7 +710,7 @@ namespace NoCodeMotion.ViewModels
                         break;
                     case "IO":
                     case "IO输出":
-                        ExecIo(name, setv);
+                        ExecIo(name, setv, s.Operation ?? "");
                         break;
                     case "气缸":
                         ExecCylinder(s, name, setv);
@@ -811,18 +811,21 @@ namespace NoCodeMotion.ViewModels
                     _bridge?.StopAxis(ax); break;
                 case "相对移动": case "相对": case "rel": case "相对运动":
                     _bridge?.MoveAxisRel(ax, target); break;
-                case "绝对移动": case "修改为": case "修改": case "绝对定位":
+                case "绝对移动": case "修改为": case "绝对定位":
                 default:
                     _bridge?.MoveAxisAbs(ax, target); break;
             }
             _bridge?.WaitAxisDone(ax);
         }
 
-        private void ExecIo(string name, string setv)
+        private void ExecIo(string name, string setv, string op)
         {
             var io = HardwareResolver.ResolveOutput(name) ?? HardwareResolver.ResolveInput(name);
             if (io == null) { _log?.Invoke($"找不到 IO：{name}", LogLevel.Error); return; }
-            int v = ParseInt(setv, 0);
+            int v;
+            if (op == "置位" || op == "set") v = 1;              // 置位：写 1
+            else if (op == "复位" || op == "reset") v = 0;       // 复位：写 0
+            else v = ParseInt(setv, 0);                          // 其余按设置值写入
             _bridge?.WriteOutput(io, v);
         }
 
@@ -830,14 +833,14 @@ namespace NoCodeMotion.ViewModels
         {
             var cy = HardwareResolver.ResolveCylinder(name);
             if (cy == null) { _log?.Invoke($"找不到气缸：{name}", LogLevel.Error); return; }
+            string op = (s.Operation ?? "").Trim();
             var sv = (setv ?? "").Trim();
-            if (sv == "复位" || sv == "reset" || sv == "归位")
+            if (op == "复位" || op == "reset" || op == "归位" || sv == "复位" || sv == "reset" || sv == "归位")
                 _bridge?.CylinderReset(cy);
+            else if (op == "缩回" || op == "retract" || sv == "0" || sv == "缩回" || sv == "retract")
+                _bridge?.CylinderMove(cy, 0);        // 缩回
             else
-            {
-                int state = (sv == "0" || sv == "缩回" || sv == "retract") ? 0 : 1;
-                _bridge?.CylinderMove(cy, state);
-            }
+                _bridge?.CylinderMove(cy, 1);        // 伸出（含旧步骤未指定运算的情况）
             _bridge?.WaitCylinder(cy);
         }
 
@@ -901,7 +904,7 @@ namespace NoCodeMotion.ViewModels
             double res = cur;
             switch (op)
             {
-                case "修改": case "等于": res = val; break;
+                case "修改为": case "等于": res = val; break;
                 case "加": res = cur + val; break;
                 case "减": res = cur - val; break;
                 case "乘": res = cur * val; break;

@@ -332,9 +332,17 @@
                                     <DataGridTemplateColumn Header="运算" Width="100">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <ComboBox ItemsSource="{Binding Function, Converter={StaticResource FunctionToOperationsConverter}}"
-                                                          SelectedItem="{Binding Operation, UpdateSourceTrigger=PropertyChanged}"
-                                                          Style="{StaticResource CellComboStyle}"/>
+                                                <!-- 与「功能 + 属性」联动：运算项随两者自动变化
+                                                     （轴+位置→绝对/相对移动/回零/停止；变量+数值→修改为/加减乘除/比较…）。 -->
+                                                <ComboBox SelectedItem="{Binding Operation, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource CellComboStyle}">
+                                                    <ComboBox.ItemsSource>
+                                                        <MultiBinding Converter="{StaticResource FunctionToOperationsConverter}">
+                                                            <Binding Path="Function"/>
+                                                            <Binding Path="Property"/>
+                                                        </MultiBinding>
+                                                    </ComboBox.ItemsSource>
+                                                </ComboBox>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>

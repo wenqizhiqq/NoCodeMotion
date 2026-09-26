@@ -2519,29 +2519,29 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
         // 流程步骤构造助手（Name 取自首个参数：模板调用时已传入与所建对象一致的名字，
         // 这样示例流程的「名称」列直接指向真实存在的轴/IO/气缸/通讯，落库后下拉即可选中、运行器能解析）。
         private static FlowStep WaitIO(string ioName, string value, int timeoutMs)
-            => new() { Logic = "如果", Function = "IO", Property = "输入状态", Operation = "是否等于", SetValue = value, Timeout = "等待3秒就统计", DurationMs = timeoutMs, Name = ioName };
+            => new() { Logic = "如果", Function = "IO", Property = "输入状态", Operation = "等于", SetValue = value, Timeout = "等待3秒就统计", DurationMs = timeoutMs, Name = ioName };
         private static FlowStep MoveAxis(string axisName, double position, int durationMs)
-            => new() { Logic = "就", Function = "轴", Property = "位置", Operation = "修改", SetValue = position.ToString("0.##"), DurationMs = durationMs, Name = axisName };
+            => new() { Logic = "就", Function = "轴", Property = "位置", Operation = "绝对移动", SetValue = position.ToString("0.##"), DurationMs = durationMs, Name = axisName };
         private static FlowStep HomeAxis(string axisName)
-            => new() { Logic = "就", Function = "轴", Property = "速度", Operation = "等于", SetValue = "0", Timeout = "空", Name = axisName };
+            => new() { Logic = "就", Function = "轴", Property = "速度", Operation = "修改为", SetValue = "0", Timeout = "空", Name = axisName };
         private static FlowStep CylOut(string cylId)
-            => new() { Logic = "就", Function = "气缸", Property = "伸出", Operation = "修改", SetValue = "伸出", Name = cylId };
+            => new() { Logic = "就", Function = "气缸", Property = "电磁阀", Operation = "伸出", SetValue = "伸出", Name = cylId };
         private static FlowStep CylBack(string cylId)
-            => new() { Logic = "就", Function = "气缸", Property = "缩回", Operation = "修改", SetValue = "缩回", Name = cylId };
+            => new() { Logic = "就", Function = "气缸", Property = "电磁阀", Operation = "缩回", SetValue = "缩回", Name = cylId };
         // 等待：真实时间停顿（Logic=等待，引擎按 SetValue 毫秒 Sleep）。替代原 Delay 占位
         // （原 Delay 用 轴+空名+SetValue=0 仅把速度设为 0，并非时间延迟，列里也只显示「就」）。
         private static FlowStep WaitStep(int ms)
-            => new() { Logic = "等待", Function = "系统", Property = "延时", Operation = "修改", SetValue = ms.ToString(), DurationMs = ms };
+            => new() { Logic = "等待", Function = "系统", Property = "延时", Operation = "修改为", SetValue = ms.ToString(), DurationMs = ms };
 
         // 循环结构（循环开始 / 循环结束 成对出现；引擎按 循环开始 的 SetValue 次数重复执行循环体）。
         private static FlowStep LoopStart(int count = 3)
-            => new() { Logic = "循环开始", Function = "系统", Property = "循环", Operation = "修改", SetValue = count.ToString() };
+            => new() { Logic = "循环开始", Function = "系统", Property = "循环", Operation = "修改为", SetValue = count.ToString() };
         private static FlowStep LoopEnd()
             => new() { Logic = "循环结束", Function = "系统" };
 
         // 注释：仅作流程说明，不执行任何动作。
         private static FlowStep CommentStep(string text)
-            => new() { Logic = "注释", Function = "系统", Property = "注释", Operation = "修改", SetValue = text };
+            => new() { Logic = "注释", Function = "系统", Property = "注释", Operation = "修改为", SetValue = text };
 
         // 分支结构（如果 / 否则如果 / 否则 / 结束 成对；否则 之前可接 如果 或 否则如果）。
         private static FlowStep ElseStep()
@@ -2550,19 +2550,19 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             => new() { Logic = "结束", Function = "系统" };
 
         private static FlowStep SetIO(string ioName, string value)
-            => new() { Logic = "就", Function = "IO", Property = "输出状态", Operation = "修改", SetValue = value, Name = ioName };
+            => new() { Logic = "就", Function = "IO", Property = "输出状态", Operation = "修改为", SetValue = value, Name = ioName };
 
         // 相机采集步骤：Name 即相机序号（与 ProjectData.Cameras 的下标对应，0 起）。
         // 运行到该步骤时 FlowRunnerService 会调用 VisionEngine.CaptureFrame 取一帧
         // （仿真桩下返回合成帧），并触发 OnCameraCapture 让 3D 仿真相机预览刷新。
         private static FlowStep CameraStep(string camIdx = "0")
-            => new() { Logic = "就", Function = "相机", Property = "采集", Operation = "修改", SetValue = camIdx, Name = camIdx };
+            => new() { Logic = "就", Function = "相机", Property = "采集", Operation = "修改为", SetValue = camIdx, Name = camIdx };
 
         // 点位步骤：Name = 点位表名，SetValue = 该表下的点位名（留空则取第一个点位）。
         // 运行到该步骤时 FlowRunnerService 会按点位表里的 4 轴槽目标位置驱动各轴，
         // 3D 仿真即随之同步运动。
         private static FlowStep PointStep(string tableName, string pointName = "")
-            => new() { Logic = "就", Function = "点位", Property = "移动到", Operation = "修改", SetValue = pointName, Name = tableName };
+            => new() { Logic = "就", Function = "点位", Property = "移动到", Operation = "修改为", SetValue = pointName, Name = tableName };
 
         // ====================================================================
         // 示例条件：让「新建工程」出来的示例点位自带一份可看的移动条件配置。
@@ -2848,7 +2848,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 Logic = "就",
                 Function = "modbus",
                 Property = "发送",
-                Operation = "修改",
+                Operation = "修改为",
                 SetValue = content,
                 Name = commName,
             };

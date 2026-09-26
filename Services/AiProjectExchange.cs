@@ -812,23 +812,22 @@ namespace NoCodeMotion.Services
         };
 
         /// <summary>
-        /// 「运算」列合法取值。
-        /// 注意：轴/IO/气缸/modbus 用的是内置模板里的 API 名（MoveAxisAbs / HomeAxis / WriteOutput …），
-        /// 这几个**不在** FlowPage 的 OperationOptions 下拉里，但它们是软件自身模板一直在用的写法，
-        /// 生成结果与内置模板保持一致才最安全；其余功能用 OperationOptions 里的中文运算。
+        /// 「运算」列合法取值。与流程页「运算」下拉保持一致（随「功能 + 属性」联动）：
+        /// 轴用中文运动指令（绝对移动 / 相对移动 / 回零 / 停止），IO/气缸/modbus 用中文动作名，
+        /// 其余功能用通用运算（修改为 / 加 / 减 …）。
         /// </summary>
         private static readonly Dictionary<string, string[]> LegalOperations = new()
         {
-            ["轴"] = new[] { "MoveAxisAbs", "HomeAxis", "WaitAxisStop", "SetAxisSpeed" },
-            ["IO"] = new[] { "WriteOutput", "ReadInput", "Wait" },
-            ["气缸"] = new[] { "CylinderMove", "CylinderReset" },
-            ["modbus"] = new[] { "CommSend" },
+            ["轴"] = new[] { "绝对移动", "相对移动", "回零", "停止", "修改为", "加", "减", "乘", "除", "取模", "等于", "大于", "小于", "大于等于", "小于等于" },
+            ["IO"] = new[] { "修改为", "置位", "复位", "等于", "大于", "小于", "大于等于", "小于等于", "取反" },
+            ["气缸"] = new[] { "伸出", "缩回", "复位", "等于", "大于", "小于", "大于等于", "小于等于", "取反" },
+            ["modbus"] = new[] { "修改为", "置位", "复位" },
         };
 
         /// <summary>通用（变量/系统/点位等）的「运算」合法取值（对应 FlowPage.xaml 的 OperationOptions）。</summary>
         private static readonly string[] GeneralOperations =
         {
-            "修改", "修改为", "加", "减", "乘", "除", "等于", "大于", "小于", "大于等于", "小于等于",
+            "修改为", "加", "减", "乘", "除", "等于", "大于", "小于", "大于等于", "小于等于",
             "取模", "取反", "与", "或", "是否等于", "是否不等于", "是否大于", "是否小于", "是否大于等于", "是否小于等于"
         };
 
@@ -1747,19 +1746,19 @@ namespace NoCodeMotion.Services
             switch (func)
             {
                 case "轴":
-                    if (prop == "已回零") return "HomeAxis";
-                    if (prop == "速度") return "SetAxisSpeed";
-                    return "MoveAxisAbs";
+                    if (prop == "已回零") return "回零";
+                    if (prop == "速度") return "修改为";
+                    return "绝对移动";
                 case "IO":
-                    if (prop == "输入状态") return "ReadInput";
-                    if (prop == "脉冲状态") return "Wait";
-                    return "WriteOutput";
+                    if (prop == "输出状态") return "修改为";
+                    if (prop == "脉冲状态") return "等于";
+                    return "等于";
                 case "气缸":
-                    return "CylinderMove";
+                    return prop == "电磁阀" ? "伸出" : "等于";
                 case "modbus":
-                    return "CommSend";
+                    return "修改为";
                 default:
-                    return "修改";
+                    return "修改为";
             }
         }
 
@@ -1783,32 +1782,32 @@ namespace NoCodeMotion.Services
             switch (func)
             {
                 case "轴":
-                    if (Has("回零", "原点", "Home")) return ("已回零", "HomeAxis", "");
-                    if (Has("等待", "到位", "Wait")) return ("已回零", "WaitAxisStop", "");
-                    if (Has("速度", "Speed")) return ("速度", "SetAxisSpeed", v);
-                    return ("位置", "MoveAxisAbs", v);
+                    if (Has("回零", "原点", "Home")) return ("位置", "回零", "");
+                    if (Has("等待", "到位", "Wait")) return ("已回零", "等于", "1");
+                    if (Has("速度", "Speed")) return ("速度", "修改为", v);
+                    return ("位置", "绝对移动", v);
 
                 case "IO":
-                    if (Has("等待", "Wait")) return ("脉冲状态", "Wait", v);
-                    if (Has("读", "检测", "输入", "Read")) return ("输入状态", "ReadInput", v);
+                    if (Has("等待", "Wait")) return ("脉冲状态", "等于", v);
+                    if (Has("读", "检测", "输入", "Read")) return ("输入状态", "等于", v);
                     if (Has("复位", "关闭", "Reset", "OFF"))
-                        return ("输出状态", "WriteOutput", string.IsNullOrWhiteSpace(v) ? "0" : v);
+                        return ("输出状态", "复位", string.IsNullOrWhiteSpace(v) ? "0" : v);
                     if (Has("置位", "打开", "Set", "ON"))
-                        return ("输出状态", "WriteOutput", string.IsNullOrWhiteSpace(v) ? "1" : v);
-                    return ("输出状态", "WriteOutput", v);
+                        return ("输出状态", "置位", string.IsNullOrWhiteSpace(v) ? "1" : v);
+                    return ("输出状态", "修改为", v);
 
                 case "气缸":
-                    if (Has("复位", "Reset")) return ("电磁阀", "CylinderReset", "");
-                    if (Has("缩回", "退回", "Retract")) return ("电磁阀", "CylinderMove", "0");
-                    if (Has("伸出", "推出", "Extend")) return ("电磁阀", "CylinderMove", "1");
+                    if (Has("复位", "Reset")) return ("电磁阀", "复位", "");
+                    if (Has("缩回", "退回", "Retract")) return ("电磁阀", "缩回", "0");
+                    if (Has("伸出", "推出", "Extend")) return ("电磁阀", "伸出", "1");
                     // 没写动作时按「值」判断：0 = 缩回，其余 = 伸出
-                    return ("电磁阀", "CylinderMove", v == "0" ? "0" : "1");
+                    return ("电磁阀", v == "0" ? "缩回" : "伸出", v);
 
                 case "modbus":
-                    return ("寄存器值", "CommSend", v);
+                    return ("寄存器值", "修改为", v);
 
                 case "变量":
-                    return ("数值", ClampTo(a, GeneralOperations, "修改"), v);
+                    return ("数值", ClampTo(a, GeneralOperations, "修改为"), v);
 
                 case "点位":
                     return ("是否等待到位", "等于", string.IsNullOrWhiteSpace(v) ? "1" : v);
@@ -1819,10 +1818,10 @@ namespace NoCodeMotion.Services
                     return ("运行时间", "等于", v);
 
                 case "相机":
-                    return ("数值", "修改", v);
+                    return ("数值", "修改为", v);
 
                 default:
-                    return ("位置", "MoveAxisAbs", v);
+                    return ("位置", "绝对移动", v);
             }
         }
 
