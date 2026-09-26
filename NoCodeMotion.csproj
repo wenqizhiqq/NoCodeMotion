@@ -153,4 +153,10 @@
     <Content Include="IR-R10-140S-INT-3D-3D.stp" Link="Models\CAD\IR-R10-140S-INT-3D-3D.stp" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Lua 编辑器语法高亮定义，嵌入程序集供 AvalonEdit 加载（主路径是 LuaEditorView 里的内联 xshd，
+       此处仅作兜底；注意工程源文件带磁盘加密包装，外部 .xshd 用 XmlReader 直读会失败）。 -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Lua.xshd" />
+  </ItemGroup>
+
 </Project>

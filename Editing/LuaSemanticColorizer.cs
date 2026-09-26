@@ -22,26 +22,32 @@ namespace NoCodeMotion.Editing
     /// </summary>
     public sealed class LuaSemanticColorizer : DocumentColorizingTransformer
     {
-        // 变量 / 表字段：蓝（明显，区别于标准库青绿）；函数：棕（与语法高亮 FunctionCall 一致）；标准库：蓝绿（与 StdLib 一致）
+        // 用户自定义变量 / 表字段：蓝；用户自定义函数：棕（与 xshd 的 Function 色一致）
         private static readonly Brush VarBrush = new SolidColorBrush(Color.FromRgb(0x0F, 0x6C, 0xBD));
         private static readonly Brush FuncBrush = new SolidColorBrush(Color.FromRgb(0x79, 0x5E, 0x26));
-        private static readonly Brush StdBrush = new SolidColorBrush(Color.FromRgb(0x1F, 0x7A, 0x8C));
-        // 控制流关键字：醒目橙色（与 Assets/Lua.xshd 中 ControlFlow #C2410C 一致）
-        private static readonly Brush ControlFlowBrush = new SolidColorBrush(Color.FromRgb(0xC2, 0x41, 0x0C));
 
         private static readonly Regex Identifier = new Regex(@"\b[A-Za-z_][A-Za-z0-9_]*\b", RegexOptions.Compiled);
         private static readonly Regex CommentLine = new Regex(@"--[^\n]*", RegexOptions.Compiled);
         private static readonly Regex StringLiteral = new Regex("\"(\\\\.|[^\"\\\\])*\"|'(\\\\.|[^'\\\\])*'", RegexOptions.Compiled);
-        // 控制流关键字：if/then/else/elseif/end/for/while/do/repeat/until/return/break/function/local
-        private static readonly Regex ControlFlowWord = new Regex(
-            @"\b(if|then|else|elseif|end|for|while|do|repeat|until|return|break|function|local)\b",
-            RegexOptions.Compiled);
+
+        /// <summary>
+        /// 已由 xshd 语法高亮负责的名字（注册硬件函数 + 标准库表名），语义着色器不再覆盖，
+        /// 避免出现「同色冲突 / 颜色被刷掉」：注册函数保持棕色、标准库表保持青绿、关键字保持紫色。
+        /// </summary>
+        private static readonly HashSet<string> XshdCovered = BuildXshdCovered();
+
+        private static HashSet<string> BuildXshdCovered()
+        {
+            var set = new HashSet<string>(StringComparer.Ordinal);
+            foreach (LuaSymbol s in LuaApi.HardwareList) set.Add(s.Name);
+            foreach (string m in LuaApi.ModuleNames) set.Add(m);
+            return set;
+        }
 
         // 按文档内容缓存符号集合，避免每行重复分析
         private string _cacheText;
         private HashSet<string> _funcSet;
         private HashSet<string> _varSet;
-        private HashSet<string> _stdSet;
 
         protected override void ColorizeLine(DocumentLine line)
         {
@@ -59,30 +65,16 @@ namespace NoCodeMotion.Editing
             foreach (Match m in Identifier.Matches(masked))
             {
                 string id = m.Value;
-                if (LuaApi.Keywords.Contains(id)) continue;          // 关键字交给语法高亮 / 控制流着色
+                if (LuaApi.Keywords.Contains(id)) continue;   // 关键字交给 xshd 着色
+                if (XshdCovered.Contains(id)) continue;       // 注册函数 / 标准库表交给 xshd 着色
 
                 Brush brush = null;
                 if (_funcSet.Contains(id)) brush = FuncBrush;
                 else if (_varSet.Contains(id)) brush = VarBrush;
-                else if (_stdSet.Contains(id)) brush = StdBrush;
 
                 if (brush != null)
                     ChangeLinePart(line.Offset + m.Index, line.Offset + m.Index + m.Length,
                         v => v.TextRunProperties.SetForegroundBrush(brush));
-            }
-
-            // 控制流关键字：醒目橙色加粗（双保险：即使 xshd Keywords 规则未生效 / App 未及时重启，也能看到颜色）
-            foreach (Match m in ControlFlowWord.Matches(masked))
-            {
-                int start = line.Offset + m.Index;
-                int end = start + m.Length;
-                ChangeLinePart(start, end, v =>
-                {
-                    var t = v.TextRunProperties.Typeface;
-                    v.TextRunProperties.SetTypeface(
-                        new Typeface(t.FontFamily, t.Style, FontWeights.Bold, t.Stretch));
-                    v.TextRunProperties.SetForegroundBrush(ControlFlowBrush);
-                });
             }
         }
 
@@ -96,9 +88,6 @@ namespace NoCodeMotion.Editing
                 if (s.Kind == SymbolKind.Function) _funcSet.Add(s.Name);
                 else if (s.Kind != SymbolKind.Keyword) _varSet.Add(s.Name);
             }
-
-            _stdSet = new HashSet<string>(StringComparer.Ordinal);
-            foreach (LuaSymbol s in LuaApi.Globals) _stdSet.Add(s.Name);
         }
 
         private static string Blank(string original) =>

@@ -170,23 +170,130 @@ namespace NoCodeMotion.Views
 
         #region 编辑器初始化
 
+        /// <summary>
+        /// Lua 语法高亮定义（xshd）。直接内联在代码里，不走外部文件 / 嵌入资源：
+        /// 本工程的源文件在磁盘上带有加密包装（88 7D 1C 标记），XmlReader 会把 .xshd
+        /// 读成密文导致解析失败；而 .cs 在编译时会被解密，内联字符串必然是明文，最可靠。
+        /// </summary>
+        private const string LuaXshdXml = """
+<?xml version="1.0"?>
+<SyntaxDefinition name="Lua" extensions=".lua" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <!-- 注释：柔和绿色 -->
+  <Color name="Comment" foreground="#6A9955" />
+  <!-- 字符串：深红 -->
+  <Color name="String" foreground="#A31515" />
+  <!-- 数字：teal -->
+  <Color name="Number" foreground="#098658" />
+  <!-- 关键字：紫色 -->
+  <Color name="Keyword" foreground="#AF00DB" />
+  <!-- 注册硬件 / 运动函数：棕色 -->
+  <Color name="Function" foreground="#795E26" />
+  <!-- 标准库表 / 命名空间表：青绿 -->
+  <Color name="StdLib" foreground="#1F7A8C" />
+  <!-- 运算符 / 括号：灰蓝 -->
+  <Color name="Operator" foreground="#5A6C7D" />
+
+  <RuleSet>
+    <!-- 单行注释：从两个减号开始直到行尾 -->
+    <Span color="Comment" begin="--" />
+
+    <!-- 字符串：双引号 / 单引号 -->
+    <Span color="String" begin="&quot;" end="&quot;" />
+    <Span color="String" begin="'" end="'" />
+
+    <!-- Lua 关键字 -->
+    <Keywords color="Keyword">
+      <Word>and</Word>
+      <Word>break</Word>
+      <Word>do</Word>
+      <Word>else</Word>
+      <Word>elseif</Word>
+      <Word>end</Word>
+      <Word>false</Word>
+      <Word>for</Word>
+      <Word>function</Word>
+      <Word>goto</Word>
+      <Word>if</Word>
+      <Word>in</Word>
+      <Word>local</Word>
+      <Word>nil</Word>
+      <Word>not</Word>
+      <Word>or</Word>
+      <Word>repeat</Word>
+      <Word>return</Word>
+      <Word>then</Word>
+      <Word>true</Word>
+      <Word>until</Word>
+      <Word>while</Word>
+    </Keywords>
+
+    <!-- 全局注册的硬件 / 运动 API 函数 -->
+    <Rule color="Function">
+      \b(AxisMove|SetAxisSpeed|AxisHome|StopAxis|WaitAxisDone|EnableAxis|MoveAxisRel|MoveAxisAbs|ReadIO|WaitIO|SetIO|ToggleIO|CylinderMove|WaitCylinder|CylinderReset|CommSend|CommRecv|TrayPick|TrayPlace|PointMove|PointModify|PointTeach|HardwareStatus|HardwareReady|HardwareReconnect|UseRealHardware|UseCardFamilies|UseSimulation|EStop|Delay|WaitStep|Print)\b
+    </Rule>
+
+    <!-- 命名空间式 API 表名（Variable / IO / Axis / Cylinder / Log） -->
+    <Rule color="StdLib">
+      \b(Variable|IO|Axis|Cylinder|Log)\b
+    </Rule>
+
+    <!-- 数字：整数 / 小数 / 十六进制 / 科学计数 -->
+    <Rule color="Number">
+      \b0[xX][0-9a-fA-F]+|(\b\d+(\.[0-9]+)?|\.[0-9]+)(([eE][+-]?[0-9]+)?)\b
+    </Rule>
+
+    <!-- 运算符与括号 -->
+    <Rule color="Operator">
+      (\+\+|--|\+|-|\*|/|%|\^|==|~=|&lt;=|&gt;=|&lt;|&gt;|=|\(|\)|\[|\]|\{|\}|,|\.\.\.|\.\.|\.)
+    </Rule>
+  </RuleSet>
+</SyntaxDefinition>
+""";
+
         private void SetupEditor()
         {
+            bool loaded = false;
+
+            // 主路径：内联 xshd（不受磁盘加密 / 资源打包影响）
             try
             {
-                using (Stream stream = typeof(LuaEditorView).Assembly.GetManifestResourceStream("NoCodeMotion.Assets.Lua.xshd"))
+                using (XmlReader reader = XmlReader.Create(new StringReader(LuaXshdXml)))
                 {
-                    if (stream != null)
-                    {
-                        using (XmlReader reader = XmlReader.Create(stream))
-                            Editor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
-                    }
+                    Editor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+                    loaded = true;
                 }
             }
             catch (Exception ex)
             {
-                AppendLog("语法高亮加载失败：" + ex.Message, LogKind.Error);
+                AppendLog("内联语法高亮加载失败：" + ex.Message, LogKind.Error);
             }
+
+            // 兜底：嵌在程序集里的 Assets/Lua.xshd
+            if (!loaded)
+            {
+                try
+                {
+                    var asm = typeof(LuaEditorView).Assembly;
+                    string[] names = asm.GetManifestResourceNames();
+                    string found = names.FirstOrDefault(n => n.EndsWith("Lua.xshd", StringComparison.OrdinalIgnoreCase));
+                    if (found != null)
+                    {
+                        using (Stream stream = asm.GetManifestResourceStream(found))
+                        using (XmlReader reader = XmlReader.Create(stream))
+                        {
+                            Editor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+                            loaded = true;
+                        }
+                    }
+                }
+                catch (Exception ex2)
+                {
+                    AppendLog("嵌入资源语法高亮加载失败：" + ex2.Message, LogKind.Error);
+                }
+            }
+
+            if (loaded)
+                AppendLog("语法高亮已就绪：注释绿 / 字符串红 / 数字青 / 关键字紫 / 函数棕 / 库表青绿", LogKind.Success);
 
             Editor.Options.ConvertTabsToSpaces = true;
             Editor.Options.IndentationSize = 4;

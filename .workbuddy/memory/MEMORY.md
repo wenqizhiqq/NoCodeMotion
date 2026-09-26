@@ -1,118 +1,60 @@
 # 项目长期记忆（NoCodeMotion — WPF/.NET 10 无代码运动控制）
 
 ## 源码与编码
-- 全部 .cs 明文可直 Read/Edit。GBK/BOM/CRLF 文件若报 binary，用 Python 读写（utf-8-sig→归一化→写回恢复 CRLF/BOM）。禁止用 Write/Edit 直接改这类文件。
-- 作者水印「温启志◆编写◇微信﹕187◆1936◇1399」三处：`Services/AuthorWatermark.cs`、`MainWindow.xaml:4`、`Docs/*.md` 末尾。删 AuthorWatermark.cs 编译失败，AI 不主动删。
+- ★★ **工程目录下所有源文件在磁盘上都带加密包装**（前 3 字节 `88 7D 1C`）：`.cs`/`.xaml`/`.csproj`/**`.xshd`**/等一律如此。Read/Edit 工具能透明读写（拿到的解密后文本）→ 可直接编辑；MSBuild 编译时也解密 → 编译正常。
+  **但运行时用 `XmlReader.Create(路径)`/`File.ReadAllText` 读工程目录里的文件会拿到密文**，报 `Invalid character in the given encoding`。
+  → 需要运行时读取的配置/定义（xshd、json、ini…）**一律内联进 `.cs` 常量**，不要放工程目录当 Content/EmbeddedResource。
+  → 只对 `.cs` 内联/编译才有「自动解密」保障。
+- GBK/BOM/CRLF 文件若报 binary，用 Python 读写（utf-8-sig→归一化→写回恢复 CRLF/BOM）。
+- 作者水印「温启志◆编写◇微信﹕187◆1936◇1399」三处：`Services/AuthorWatermark.cs`、`MainWindow.xaml:4`、`Docs/*.md` 末尾。删 `AuthorWatermark.cs` 编译失败，AI 不主动删。
 
 ## 运行/构建（沙箱铁律）
-- dotnet 一律 LOLBin 拦截：用 **PowerShell + 绝对 `C:\Program Files\dotnet\dotnet.exe` 前台构建**；PowerShell stdout 不回显，须 `| Out-File C:\tmp\x.txt` 再 Read。禁写 `.ps1`（ExecutionPolicy 拦），用内联命令。
+- dotnet 被 LOLBin 拦截 → 用 **PowerShell + 绝对 `C:\Program Files\dotnet\dotnet.exe` 前台构建**；stdout 不回显，须 `| Out-File C:\tmp\x.txt` 再 Read。禁写 `.ps1`。
 - 删文件用 `[System.IO.File]::Delete("绝对路径")`（`Remove-Item` 被 safe-delete 钩子拦）。
-- bin 被运行中的 NoCodeMotion.exe 锁定时，构建到 `-p:OutDir=C:\tmp\nocode_out\`。
-- ★★ obj 的 `NoCodeMotion_MarkupCompile.cache` 被锁（开着 Visual Studio/MSBuild 时必现）→ `error MSB4018 UnauthorizedAccessException`（DeleteFile 被拒），Release 同样中招；build-server shutdown 无效、沙箱禁 Stop-Process/删文件。**破解：每次构建换全新 `-p:IntermediateOutputPath=C:\tmp\nocode_intN\` + 全新 `-p:OutDir=C:\tmp\nocode_outN\`**（空目录无缓存可删）。**勿用 `-p:BaseIntermediateOutputPath=`**（obj 脱离 DefaultItemExcludes → `_wpftmp` 把 obj\Debug+obj\Release 的 *.g.cs 一起 glob → 几百条 CS0102/CS0111/CS8646）。判成败只 grep `error CS`/`error MSB`（中文摘要行 GBK→UTF8 变乱码，匹配不到）。若报 `NuGet.targets ... 'obj\*.nuget.g.props' is denied`（VS 锁 obj），加 **`--no-restore`** 即可（包已恢复过）。
-- 加载进度：`LoadingService` 静态深度计数（`Show/Report/Hide`，`Progress<0`=不确定）；启动初始化与打开/新建工程都在遮罩下用确定式进度。`Dispatcher.Yield` 须 `System.Windows.Threading.Dispatcher.Yield(...)`（静态方法，在 Window 里写 `Dispatcher.Yield` 会 CS0176）。
-- ★ 启动初始化：`MainWindow.Loaded`→`StartUpAsync()` 在加载遮罩下跑：①载入上次工程（xlsx 后台线程）②逐页预初始化进 `_cache` ③`NavigateTo("Flow")`；`finally` 里 `Hide()`。（不在 App 构造函数里。）
-- ★★「返回 null = 成功」的方法不能用 `?.M() ?? 兜底串`：桥的 `InchAxis/StartAxisJog/SetAxisZero` 成功返回 null，用 `??` 会把成功判失败。必须先显式判桥实例为空再原样返回结果。
-- .NET 10 `_wpftmp` CS0579：csproj 加 `GenerateAssemblyInfo=false`+`GenerateTargetFrameworkAttribute=false`；`[assembly:ThemeInfo]` 留根 AssemblyInfo.cs。勿用 UseArtifactsOutput。
-- WPF 重复 XAML：`EnableDefaultPageItems` 把 `Views/*.xaml` 当 Page；探针脚本勿生成同 x:Class 的 `XXX_utf8.xaml`（CS0102+CS8646）。
+- **obj `NoCodeMotion_MarkupCompile.cache` 被锁**：VS/MSBuild 开着时必现 `MSB4018 UnauthorizedAccessException`。破解：每次构建换全新 `-p:IntermediateOutputPath=C:\tmp\nocode_intN\` + `-p:OutDir=C:\tmp\nocode_outN\`。**勿用 `-p:BaseIntermediateOutputPath=`**（`_wpftmp` 会 glob 所有 `*.g.cs` → CS0102/CS0111/CS8646）。
+- 判成败只 grep `error CS`/`error MSB`（中文摘要 GBK→UTF8 变乱码）。报 `NuGet.targets ... 'obj\*.nuget.g.props' is denied` 时加 **`--no-restore`**。
+- .NET 10 `_wpftmp` CS0579：csproj 已设 `GenerateAssemblyInfo=false`+`GenerateTargetFrameworkAttribute=false`；`[assembly:ThemeInfo]` 留根 `AssemblyInfo.cs`。勿用 `UseArtifactsOutput`。
+- WPF 重复 XAML：`EnableDefaultPageItems` 把 `Views/*.xaml` 当 Page；勿生成同 `x:Class` 的探针 XAML。
 
 ## xlsx 工程存储
-- `XlsxProjectStore.cs` 反射式：根 public 集合→sheet（列=标量）；标量→「项目管理」表；IO 由 BuildIoSheet/SplitIoToRoot 合并。
-- 嵌套子集合走「父表.子表」分页（MergedBlockParents={PointTables,Trays,Flows} 跳过合并块单页）。
-- 新增子集合：①元素继承 EditorItemBase；②集合属性带 set；③中文名加 ChildSheetNameOverrides。
-- 只读计算属性勿放数据模型（成脏列）；新增标量字段零改动落盘、向后兼容。
+- `XlsxProjectStore.cs` 反射式：根 public 集合→sheet；标量→「项目管理」表；IO 由 `BuildIoSheet`/`SplitIoToRoot` 合并。
+- 新增子集合：元素继承 `EditorItemBase`、集合属性带 set、中文名加 `ChildSheetNameOverrides`。
+- 只读计算属性勿放数据模型；新增标量字段零改动落盘、向后兼容。
 
 ## 全局 UI 约定
-- DataGrid 行内按钮：DataContext 是页面 VM，命令要 `{Binding DataContext.XxxPanel.Cmd, RelativeSource={AncestorType=DataGrid}}`，漏面板路径静默失效。
+- DataGrid 行内按钮命令路径：`{Binding DataContext.XxxPanel.Cmd, RelativeSource={AncestorType=DataGrid}}`。
 - 下拉框候选来自固定值时**勿设 IsEditable**。
-- 资源字典：`App.xaml` 只合 `Resources/AppStyles.xaml`（再合 HandyControl）。`Themes/AppleControls.xaml` 未合并、运行时不存在，勿引用。
-- ★ Window 弹窗只能用 AppStyles 全局键；页面级 `<UserControl.Resources>` 的键在顶层 Window StaticResource 作用域取不到，运行时抛 `XamlParseException 无法找到名为"X"的资源`（编译期不报）。
-- 色彩 红=破坏/橙=反向/蓝=正向/绿=保存/灰=次要。~~每页底 PageHintBar~~ **2026-09-26 已按用户要求「所有页面的这些全部都删除」全部移除**：①`EditorPage` 里的 `<local:PageHintBar>` 元素 + `HintOperation`/`HintPrecaution` 两个依赖属性（`EditorPage.xaml.cs`）已删；②7 个 EditorPage 子页（Flow/Axis/Cylinder/Tray/Camera/Comm/AxisController）上的 `HintOperation=`/`HintPrecaution=` 属性行已删；③10 个页面里独立的 `<local:PageHintBar .../>`（VisualFlowPage / VariablePage / ProjectManagerPage / PointPage / OperatorPage / IoPage / OperatorManualPage / NodeGraphPage / LuaEditorView / EngineerPage）已删。**控件本体 `Views/PageHintBar.xaml(.cs)` 保留但已无任何引用**；页面底部留空的 `Grid.Row`（Auto）自动塌陷、无视觉残留。EditorPage.Detail 内元素**勿用 x:Name**（MC3093），改用 Tag+FindVisualChildByTag。
-- ★★ **后台线程绝不能改 ObservableCollection**：WPF 抛 `NotSupportedException：该类型的 CollectionView 不支持从调度程序线程以外的线程对其 SourceCollection 进行的更改`。典型链路：流程 / 节点图在后台 `Task` 里写变量 → `SimRuntime.SetVariable` → `WriteVarRow` → `VariableRow` 变更 → `VariableViewModel.OnItemPropertyChanged` → `Catalog.SetVariable` → `Catalog.Set` 里 `Clear()`。`Services/Catalog.cs` 的 `Set` 已加 `Application.Current.Dispatcher.CheckAccess()` 判断 + `BeginInvoke` 封送（新增 `Apply`）；**以后任何「名称库刷新 / 集合重建」逻辑都要同样处理**。
+- `App.xaml` 只合 `Resources/AppStyles.xaml`（再合 HandyControl）。`Themes/AppleControls.xaml` 未合并，勿引用。
+- Window 弹窗只能用 AppStyles 全局键；页面级 `<UserControl.Resources>` 键在顶层 Window 作用域取不到。
+- 色彩：红=破坏/橙=反向/蓝=正向/绿=保存/灰=次要。
+- **PageHintBar 已全删**（2026-09-26）：`EditorPage` 依赖属性 + 各子页/独立页全部移除；控件本体保留但无引用。
+- **后台线程绝不能改 ObservableCollection**：`Catalog.Set` 已加 `Dispatcher.CheckAccess()`+`BeginInvoke`（新增 `Apply`）。任何「名称库刷新/集合重建」都要同样处理。
 
 ## 视觉/节点图
-- VisualFlowPage.ApplySelection() 须覆盖 _vm.Steps/_vm.Name/_vm.SelectedStep；Steps 非空且 SelectedStep=null 自动选 [0]。
-- 节点图 Models/NodeGraph/ 数据驱动；UI 用 ItemsControl+DataTemplate，禁 Children.Add。
-- ★ **端口连线命中**：`Views/NodeGraphPage.xaml.cs` 靠 `FindWithTag(dep,"OUT"/"IN")` 找端口元素（Tag 必须是 "OUT"/"IN"）。端口项是 `NgPortStateViewModel`，**端口名取 `Label`**——`DataContext as string` 是旧形态写法，会恒为 null 导致「按端口只拖节点、连不出线」。连线几何 `NgGeometry.OutputPoint` 必须与布局同步：端口外层 `StackPanel Margin=6` → 首行中心 = `HeaderHeight + 17 + i*22`；输出圆点 `Margin="0,0,-14,0"` 时圆心才 = `x + NodeWidth`。
-- ★ **把 ItemsControl 的 ItemsSource 从「裸值集合」换成「VM 集合」时，必须同步排查 code-behind 里按旧数据形态写的命中/取值逻辑**（`DataContext as string/int`）；这类错误编译期不报、运行时静默失效。
-- ★ **连线删除 / 命中**：`ConnectionTemplate` 里可见线（Path 2.2px）与箭头必须 `IsHitTestVisible="False"`（且都带 `Tag="CONN"`），命中只交给最底层透明 14px 线——否则点在可见线上命中的是无 Tag 的可见元素，连线**选不上也删不掉**。选中高亮由 `NodeGraphConnectionViewModel.IsSelected` → `Brush`（红 #DC2626）/`Thickness` 驱动。删除入口三处：右侧「删除所选」/ `DeleteCommand`、`DesignerCanvas` 的 Delete 键（Canvas 需 `Focusable=True`，左键按下即 `Focus()`）、右键点线直接断、工具栏「✂ 删除全部连线」。
-- ★ **拓扑变更必须同步运行器**：`NodeGraphViewModel.SyncRunnerTopology()`（`_doc.Nodes/Connections = …` + `_runner.Load(_doc)`）要在 `AddNode/Connect/DeleteSelected/DeleteConnection/DeleteAllConnections/ClearAll` 后调用，否则运行器仍按 Load 时的旧连线路由（删掉的线还在走、新增的走不到）。
-- NgRunner（6 按钮+NgStepResult）：WaitResumeAsync 须实例方法按 _state 轮询；Pause 仅节点边界生效。
-- ★ **任何 VM/服务都不要在构造时捕获 `HardwareBridge.Current`**：控制卡在启动后才连接，构造时抓一次会一直用默认桩（Stub）→「运行时轴不动」。执行时实时读 `HardwareBridge.Current`（`FlowRunnerService`、`NgRunner` 都踩过同一个坑）。
-- 节点图属性面板 `Views/NodeGraphPage.xaml`：`NgPropViewModel` 三态显隐 —— `HasOptions`（固定候选下拉）/ **`UsesCatalog` + `CatalogOptions`**（属性名 → Catalog 集合：轴 / 变量 / 输出 / 信号 / 气缸 / 通讯 / 点位 → 名称库下拉）/ `IsPlainText`（自由文本）；**实时值只读行**（轴类节点 = 实际位置，设置变量 / 运算 = 当前值）由 `NodeGraphViewModel` 的 1 秒 `DispatcherTimer` → `SelectedNode.RefreshLiveValue()` 刷新（显隐用 null 安全的 `ShowLiveRow`）。`NgRunner.VarSet` 走 `SimRuntime.SetVariable`（真回写变量页 + 持久化）并支持表达式。
-- 节点执行 `Services/NgRunner.cs` `ExecuteNodeSync`：视觉 6 节点走 `NgVisionExecutor`（VisionEngine 真算子，无相机自动回退合成图）；轴 / 回零 / 等待轴到位 / 气缸 / 写输出 / 等待输入 / 设置变量 / 运算 / Modbus 收发均为真实调用。★ 易错点：**点位移动要用 `HardwareResolver.ResolvePointTable(点位表)`**（`ProjectStore.Data.Points` 是 PointItem 列表，不是点位表）；**TCP发送 / 下位机写要真开 `TcpClient`（host:port，3s 超时）**，不能拿端点当通讯名；ModbusRecv 要读回返回值并校验「关键字」。各节点设 `_lastNodeSummary` 让节点卡摘要行可见结果。
-- **条件分支（NgKind.Decision）多分支模型**：端口 `条件1..条件8` + `否则`；属性 = `分支数`(2..8) + 8 组 `条件N类型`(轴位置|轴速度|输入IO|输出IO|变量) / `条件N名称` / `条件N比较` / `条件N值` + 旧 `条件` 表达式兜底。求值集中在 `Services/NgConditionEvaluator.cs`：**`ResolvePort` 是运行器与 3D 预览唯一入口（面板判定 = 运行路由）**；`IsLegacy`（无结构化分支但有表达式）回归 `True/False` 端口，`NgRunner.NextNode` 做 条件1↔True、条件2/否则↔False 兼容。属性面板按分支**分组**（`NgPropGroupViewModel` + `PanelGroups`：分支设置 / 条件1..条件8 / 高级），组标题右侧显示实时「符合/不符合」，超出「分支数」的组 `IsVisible=false`；`条件N名称` 候选随 `条件N类型` 变（`NotifyDependentChanged`）。节点卡：**条件属性不铺开**（`NgPropViewModel.ShowOnCard`），端口改由 `NgPortStateViewModel`（`OutputPorts`）渲染，左侧显示「符合/不符合」（绿/灰）且圆点变色。`RefreshDecisionState()` 由 1 秒定时器对**所有**节点调用（卡片可见），`NgNodeView`/`NodeGraphPage` 分列渲染。
+- `VisualFlowPage.ApplySelection()` 须覆盖 `_vm.Steps`/`_vm.Name`/`_vm.SelectedStep`；非空时自动选 `[0]`。
+- 节点图数据驱动，UI 用 `ItemsControl`+`DataTemplate`，禁 `Children.Add`。
+- 端口连线命中：Tag 必须是 `"OUT"`/`"IN"`，端口名取 `Label`（`DataContext as string` 已废弃）。
+- 连线删除：可见线/箭头 `IsHitTestVisible="False"`+`Tag="CONN"`，命中交给底层透明 14px 线。
+- 拓扑变更后必须调 `NodeGraphViewModel.SyncRunnerTopology()`。
+- **VM/服务不要在构造时捕获 `HardwareBridge.Current`**，执行时实时读。
+- 条件分支（Decision）：端口 `条件1..条件8`+`否则`；属性面板分组；端口状态由 `NgPortStateViewModel` 渲染并定时刷新。
 
-## CAD/DWG
-- 真实 BREP→OcctNet.Wrapper 0.1.1；STEP Z-up→WPF Y-up 绕 X -90°；BackMaterial 防黑面。
-- DWG/DXF→Aspose.CAD 26.7.0 只迭代矢量实体，绝不 Image.Save 栅格化。
+## 控制卡 + 仿真
+- 桥接类名 **`WenQiZhiCardBridge`**；模式 `CardFamilies`/`Leadshine`/`Simulation`。
+- 硬件读数必须在后台线程；`dispatcher.Invoke` 内不调用 `TryGetRealCounts`/`IsControllerReady`。
+- 模拟卡：`IsSimulation` 判定；spacing 默认 0、设速只认 `SetCardAxisTProfile`、连续运动按 pps/1000 步进、使能 active-low（写 0/读回==0=使能）、无相对坐标、回零前 `EnsureSimReady`。
+- BepuPhysics v2：`Simulation.Create(new SolveDescription(1,1))`；`SpringSettings(30f,1f)`；运动学↔动态用 `BecomeKinematic`/`SetLocalInertia`。
 
-## 仿真体系
-- SimRuntime 静态态驱动 3D+变量页；SimFlowPlayer 编译 List<SimAction>，33ms 驱动。
-- BepuPhysics v2（2.5.0-beta.29）：①Simulation.Create 须 `new SolveDescription(1,1)`；②ConfigureContactManifold 须 `SpringSettings(30f,1f)`；③运动学↔动态用 BecomeKinematic/SetLocalInertia；④推工件用 Velocity.Linear 驱动。
+## Lua 编辑器（2026-09-26）
+- ★ 语法高亮：xshd **内联在 `Views/LuaEditorView.xaml.cs` 的 `LuaXshdXml` 原始字符串常量**里，用 `XmlReader.Create(new StringReader(...))` 加载（外部 `.xshd` 会被磁盘加密，读不了；见「源码与编码」）。颜色：注释绿 #6A9955 / 字符串红 #A31515 / 数字青 #098658 / 关键字紫 #AF00DB / 注册函数棕 #795E26 / 标准库表青绿 #1F7A8C / 运算符灰蓝 #5A6C7D。
+- xshd 里 **XML 注释不能含 `--`**（`<!-- 单行注释 -- -->` 会解析失败）。
+- `Editing/LuaSemanticColorizer.cs` 只着色 xshd 认不出的**用户自定义变量/函数**；`XshdCovered`（HardwareList 名字 ∪ ModuleNames）与关键字一律跳过，不覆盖 xshd 颜色。
+- 智能插入面板：`LuaInsertFunc`+`LuaPickItem`；模板用 `{0}` 占位，配中文注释；新增 Kind 别漏 `FuncList_SelectionChanged` 与 `UpdateInsertPreview`。
+- **名称/配置问题一律橙色提示 + 跳过，不 throw**：`Warn` 用 `HashSet` 去重；读类返回安全默认值；等待类名称错时立即返回。
+- `#nullable disable` 文件：不用 `?`，用 `TryResolveXxx(..., out ...)`；`Func<>` 最后一个类型是返回值。
+- 新增 Lua 函数同步三处：`HardwareApi.Register`、`Editing/LuaApi.cs` 的 `HardwareList`、`Docs/lua-manual/index.html`。
 
-## 控制卡接入 + 控制器连接体验
-- 雷赛实桥 LeadshineHardwareBridge；无卡降级兜底。`HardwareSetup.Mode`：CardFamilies / Leadshine / Simulation。桥接类实际名 **`WenQiZhiCardBridge`**（非 SamsunCardBridge）。
-- 连接链路：`AxisControllerViewModel.Connect()`→`HardwareSetup.EnsureInitialized()`→`CardFamilies.TryConnect`/`Reconnect`+`IsCardReady`。在线状态直接读 `IsControllerReady`/`ControllerStatus`（无 VM 影子字典、不落盘）。
-- 连接后 `FetchDetectedCounts` 回写轴/IO 真实数→`GenerateIoPoints` 清旧+生成；`DetectedCountsChanged` 事件通知轴/IO 页。
-- 连接按钮后台化（`Task.Run`+`IsConnecting` 防重复）；状态栏加控制器在线指示（绿/橙/红/灰）。
-- 自动连接：`ProjectManager.DataReloaded`→`RequestAutoConnect()`，**必须等 `LoadingService.IsLoading==false` 后**才 BeginInvoke 调 `AutoConnectAll`（否则抢原生加载器锁拖住载入）；载入中挂一次性 `LoadingService.StateChanged` 回调。
-- 硬件读数必须在后台线程：`FetchDetectedCounts` 拆 `ReadRealCounts`（后台）+`ApplyRealCounts`（UI 线程）；`dispatcher.Invoke` 里绝不能调 `TryGetRealCounts`/`IsControllerReady`（硬件查询会卡死 UI）。
-- ★★ 硬件桥全局锁铁律：`WenQiZhiCardBridge` 只有一个 `_gate`。锁内只做快速状态读写；慢硬件调用（Initialize/OpenCard/CloseCard）移到 `_gate` 外、用 per-slot `InitLock` 串行。凡共享硬件桥：锁内绝不放慢调用。
-
-## 模拟卡（虚拟运动卡 / DigitalTwinCard）适配 ★关键
-- 判定：`CardFamilyDescriptor.IsSimulation`（`Vendor=="模拟卡" || BusKind=="虚拟" || Key 含 Virtual/DigitalTwin`）。进程内仿真、不依赖原生 dll，是「无硬件自测」正途。
-- 六条语义差异（不处理会看成「指令成功但轴不动」「状态全 —」「点动像绝对定位」）：
-  1. **spacing 默认全 0**→任何非 0 目标夹回 0 并置正负限位；每轴首次运动前 `SetSpacing(轴,0,±1e8)`。**正负限位同时 1 的大数字（如 4102=4096|2|4）是轴状态字不是错误码。**
-  2. **设速只认 `SetCardAxisTProfile`**；`SetCardAxisMotionalVel`/`SetCardVectorProfileMulticoor` 是空实现（return 0）。
-  3. **连续运动按 `(int)(pps/1000)` 脉冲/ms 步进**：pps<1000→每拍+0 但 isRun 照置→「运动中但位置不动」。速度须换算 pps（×脉冲当量）+1000 下限；`MinVel=MaxVel` 走恒速。
-  4. **无无参 `GetAxisCurrentState()`**（状态字用 `GetCardAxisAlarmState`，其内部是 `GetCardAxisIOStatus`）；**`OpenCardAxisEnable` 未实现（恒 -1）**，使能走伺服使能端口 `CardAxisWriteSevonPin`/`GetCardAxisSevonPin`。**★ active-low 约定（早期 bug 根因）：SDK 读回 `1`=失能、`0`=使能（见 VirtualCardSDK「返回 1（失能）」），故「使能」=写 `0`、状态判定=`读回==0`；写成 `1` 反被当失能、且状态永远显示已使能（表现：使能没作用、状态不真实）。** 真实卡族 `GetCardAxisSevonPin()` 返回 `1`=on，仍用 `!=0`。
-  5. **无「相对坐标」**：`CardAxisPMove` 忽略 `posi_mode`，直接 `目标=Dist`（永远绝对）→相对点动须 `SimAbsoluteTarget()` 读当前位+Δ发绝对。真实卡族（MCN420 `DmcCardAxisPMoveUnit(...,PosiMode)`）不受影响。
-  6. **回零靠速度缓冲递减**：`CardAxisHomeMove` 后台循环 `目标 -= (int)(速度缓冲[1]/1000)`/ms，缓冲 0 就永不减→isRun 永久 true；回零前 `EnsureSimReady(axis.HomeSpeed)`。
-- 位置/距离按脉冲下发、读回÷脉冲当量（无卡内换算层）；未填按 1:1。桥内收口 `IsSimulation/EquivOf/BuildSimParam/EnsureSimReady/SendPointMove`。
-- `AxisRawRead.ServoOn`（`bool?`）优先于状态字 bit8 判使能；有状态字时 `AlarmCode` 置 0（bit0 权威），`AlarmCodeText` 显示「—（见状态字 bit0）」。
-
-## IO「功能」列
-- `Services/IoFunctionCatalog.cs`：`InputFunctions`/`OutputFunctions`（默认 None="无"）；`IsValid/Normalize/IsSafetyInput/IsIndicatorOutput`。
-- `OperatorViewModel.UiTimerTick`（150ms）末步 `EvaluateIoFunctions()`：安全输入→`EStop()`；指示输出按 `StatusBarService.IsRunning/EStopped` 自动写。默认「无」=不干预。
-- 选点方向：气缸/轴一律用 `InIoNames`/`OutIoNames`，别用合并的 `IoNames`。
-
-## 气缸页 & IO 名称库
-- IO 名称库三份：`InIoNames`/`OutIoNames`/`IoNames`（合并）。`Catalog.SyncAllFromData`+`IoPanelViewModel.SyncIoCatalog` 维护。
-- 气缸页布局：参数左 / 状态显示右。无「气缸时序动作表」。
-- `CylinderItem` 真实生效：`OutPoint`(伸)/`BackupSensor`(缩,输出第2路,互斥)/`SensorExtend`·`SensorRetract`(输入)/`DelayMs`·`ExtendMs`·`RetractMs`/`TimeoutMs`/`TimeoutAction`/`PulseOutput`·`PulseWidthMs`。
-- 2 路输出：缩回输出配置了就写（不受 DoubleCoil 门控）；超时按 `TimeoutAction` 分支（报警并停止/仅报警/忽略）。
-- 状态显示=按名在 Inputs/Outputs 找 IoItem 读实时 Value（300ms 刷新），与 IO 表联动。
-
-## 轴页（2026-09-24 最终形态，关键）
-- 模型 `Models/AxisItem.cs` 补齐底层参数：StartVel/StopVel/SpeedCurve/SPara、HomeDir/HomeTimeoutMs、SoftLimitEnable/LimitLevel、AlarmEnable/OriginLevel/OriginStopMode/EncoderEnable/EncoderDeviation、AllowManual/AllowHome/AllowSetZero、JogStep/ManualSpeed。
-- 轴状态服务 `Services/Hardware/AxisMonitor.cs`（不改 IHardwareBridge 接口）：`AxisRawRead`/`AxisStatusSnapshot`（**可空布尔=读不到→显示「—」绝不编造**）/`AxisMonitorService.Read|Enable|Stop|Home|Inch|StartJog|SetZero`，按 `HardwareSetup.Mode` 分派；仿真模式返回「未连接」。
-- 状态字位：bit0 报警/bit1 正限位/bit2 负限位/bit3 急停/bit4 原点/bit5 到位/bit6 正软限位/bit7 负软限位/bit8 使能；总线轴用 CiA402==4 覆盖使能。
-- `ViewModels/AxisRowViewModel.cs`（一轴一实例；颜色用 hex 字符串；命令全部 Task.Run 后台+回 UI 报状态栏；`NotConnected` 前置检查——没连卡报「未执行：控制器未连接」不谎报；`NotEnabledHint` 只追加不拦截）。`AxisViewModel` 暴露 `AxisRowViewModel? Monitor`+`HasMonitor`，300ms DispatcherTimer 后台读该轴回 UI；轮询只在轴页可见时开（`AxisPage.xaml.cs` Loaded/Unloaded）。
-- 页面 `Views/AxisPage.xaml`：`WrapPanel ItemWidth="240"`+`VerticalAlignment="Top"`（紧凑，4 列，窗更宽自动多排）；**别用 UniformGrid**（等高=留空白）。8 卡：基本信息/运动参数/回零参数/限位与保护/电平与编码器/轴权限/轴状态/轴控制。**状态与控制是 2 个独立容器**。轴控制 2 列按钮：使能|停止、点动−|点动+、Jog−|Jog+、回零|设零点。
-- 轴状态卡带「报警码」行（原样显示）；只有 `==1` 才算报警，其它非 0 只显示不判定。**Jog 是「按住才走」**，单击只走一瞬。
-- 使能两处职责分开：基本信息「上电使能」（配置项，改值实时下发）+轴控制「使能」按钮（唯一动作）。
-- 返工教训：①状态/控制 UI 不要全轴列表，一律「一个容器=当前选中项」；②状态与控制分容器；③用户数「列数」（要 4 列）；④用户对「按钮是否真起作用」极敏感→真调硬件+前置检查+明确失败提示比 UI 重要。
-
-## 仿真模板
-- ProjectTemplateCatalog 20 模板；NgTemplates.Build 脚手架。
-
-## Lua 脚本 API + 「智能插入」面板（2026-09-26）
-- 绑定层 `Services/HardwareApi.cs`：`FindXxx(name)` 解析工程对象，`Register(script, api)` 注册全局函数（MoonSharp）。构造签名 `HardwareApi(bridge, log, warn)`：**第 3 个参数是「提示」回调**（不传则并入 log）。改工程数据要 `Dispatcher.Invoke` 封送 + `ProjectStore.ScheduleSave()`（`RunOnUiThread`）。
-- ★★ **名称 / 配置类问题一律「橙色提示 + 跳过本次操作」，绝不 throw**：以前抛 `ScriptRuntimeException`，在 VS 里会弹「用户未处理的异常」+ .NET 栈，用户看到的是代码异常而不是人话。现在 `Warn(msg)` → `LogKind.Warn`（橙色）+ `HashSet<string> _warned` **同一内容只提示一次**（防循环刷屏）；提示里要写清「去哪一页补什么配置」。`Bridge()` 在 `_bridge==null` 时提示「硬件未就绪…」。**读类返回安全默认值**（ReadIO→0、CommRecv→""、点位→0），**等待类（WaitIO/WaitAxisDone/WaitCylinder）名称错时立即返回**（否则永远等不到）。
-- ★ 本文件是 `#nullable disable`：`HW?`/`(T,T)?`/`Action<string>?` 会报一堆 **CS8632**；要判「解析成功与否」用 `bool TryResolveXxx(..., out ...)` 而不是可空元组。同项目其他 `#nullable disable` 文件同理。
-- ★★ **`Func<...>` 最后一个类型参数是返回值**：`PointModify(string,double,double,double)` → `Func<string,double,double,double,double>`；写成 3 个 double 报 `CS0123 没有与委托匹配的重载`（构建日志中文变 mojibake 极易看错）。另：**方法组不能转成「可选参数」的委托**，被注册的函数参数一律不给默认值。
-- **点位 API**：写法 `"点位表名.点位名"`（也支持只写点位名跨表查；分隔符 `.．/\`）。`PointMove(spec)`＝按 `PointTable.SlotCount` 逐槽 `SetAxisSpeed`(speed>0)+`MoveAxisAbs`+`WaitAxisDone`（未填位置的槽跳过）；`PointModify(spec,轴槽1~4,位置,速度)`＝真改 `PointItem.Positions[idx]`（速度 0=不改）+落盘；`PointTeach(spec)`＝取各轴 `ReadAxisPosition` 写回点位目标位置+落盘。
-- **智能插入面板** `Views/LuaEditorView.xaml(.cs)`：`LuaInsertFunc{Name,Kind,Source,Template}` + `LuaPickItem{Name,Body}`；Kind=Snippet(逻辑结构)/**Control(程序控制)**/**Log(日志)**/Delay(毫秒档位)/Hardware(硬件命令)/Object(Template 的 `{0}`=右侧选中的名称)。共 40 条（逻辑结构 / 程序控制 / 日志 / 延时 / 轴×8 / IO×4 / 气缸×3 / 点位×3 / **变量×8** / 通讯×7 / 料盘×2 / 硬件状态）。**模板一律带可改的默认参数 + 中文行尾注释**（`MoveAxisAbs("轴1", 100)  -- 轴1：绝对移动到 100`）；`{0}` 是唯一的 string.Format 占位符，模板里**不能再出现别的大括号**。右列名称源 `GetNamesForSource`：Axis/Input/Output/Cylinder/Comm/Tray/**Point（`点位表名.点位名`）**/**Variable（`Catalog.VariableNames`）**。面板底部 `InsertPreview` 实时显示替换完名称的成品代码。左列宽仅 ~150px，**名字要短，细节放 ToolTip + 预览**。加新 Kind 别漏 `FuncList_SelectionChanged` 分支与 `UpdateInsertPreview` 的「代码块类」判定。
-- **变量读写走 Lua 命名空间表** `Variable.Get(name)` / `Variable.Set(name, value)`（未定义返回 nil / 数字返回 number，Set 内部 `Dispatcher.Invoke` + 落盘）——智能插入的「变量」组用的就是它，与「变量」页面同一份数据。
-- ★ Lua 超时计时用 **`os.time()`（秒级墙钟）**，别用 `os.clock()`（CPU 时间：`WaitStep` 是休眠、CPU 时间几乎不走，超时永不触发）。
-- 日志分级 `LogKind`：Info / Output / **Warn（橙 #C77A00）** / Error / Success；`EnqueueLog` 里只有 `Output` 走 120ms 批处理，其余同步 `Log` 事件；`LuaEditorView` 的 kind→brush switch 有**两处**（单条 `AppendLog` + 批量 `AppendLogBatch`），加新 kind 别漏。
-- 新增 Lua 函数必须同步三处：①`HardwareApi.Register` ②`Editing/LuaApi.cs` 的 `HardwareList`（补全/悬停）③`Docs/lua-manual/index.html` 硬件函数表；再考虑加进智能插入面板。
-
-## 流程页（2026-09-26 最终形态）
-- **功能列**：轴 / **输入IO** / **输出IO** / 气缸 / 点位 / modbus / 变量 / 系统 / 相机 / 延时。原「IO」已拆成 输入IO + 输出IO；同步处：`FlowPage.FunctionOptions`、`FunctionToNamesConverter`(InIoNames/OutIoNames)、`FunctionToPropertiesConverter`、`FunctionToOperationsConverter`、执行分派（`FlowRunnerService`/`SimFlowPlayer`/`FlowViewModel`）、`AiProjectExchange`（泛称 IO 归输出IO）。旧工程残留 `Function="IO"` 各分派保留 case 兼容。
-- **运算列**：`Views/FunctionToOperationsConverter.cs` 是 **IMultiValueConverter**（Function+Property → 运算项），`FlowPage.xaml` 用 `<MultiBinding>`；**只有「修改为」没有「修改」**。矩阵：轴+位置/编码器位置→绝对移动/相对移动/回零/停止；轴+速度/扭矩/电流/加速度→修改为/加/减/乘/除/取模；轴+已回零→比较；IO+输出状态→修改为/置位/复位，其余→比较；气缸+电磁阀→伸出/缩回/复位，其余→比较；modbus→修改为/置位/复位；变量+数值→修改为/加减乘除取模/取反/比较，字符串→修改为/等于/大于/小于，布尔→修改为/取反/等于；点位/系统→修改为/等于。
-- **执行器** `FlowRunnerService`：`ExecAxis`（绝对移动/相对移动/回零/停止；属性=速度→设速）、`ExecIo(name,setv,op)`（置位→1/复位→0/其余按设置值）、`ExecCylinder`（优先按 op 伸出/缩回/复位）、`ExecVar`（修改为/加减乘除取模/取反）。
-- ★ 改词表必须**同步三处**，否则流程步骤/模板/导入的运算值在下拉里空白：①上述转换器 ②`ProjectTemplateCatalog` 的 `MoveAxis/CylOut/CylBack/SetIO/PointStep/CameraStep/WaitStep/LoopStart/CommentStep/CommSend/WaitIO` 等助手 ③`AiProjectExchange` 的 `LegalOperations`/`GeneralOperations`/`DefaultOperation`/`MapAction`（已全改中文运算，不再用 MoveAxisAbs/HomeAxis/WriteOutput/CylinderMove/CommSend 等 API 名）。
-- ★★ 新运算词还要在**执行 / 仿真路径**逐个识别，否则「指令成功但轴不动 / 仿真按绝对走」：`FlowRunnerService.ExecAxis`、`FlowViewModel.ExecuteHardwareStep`（单步）、`SimFlowPlayer.AxisAction`（3D 仿真/预览）、`NgRunner`（节点「模式」=绝对/相对）。「相对移动」就同时漏在 `SimFlowPlayer` 与单步路径上。**加新词前先 grep 这些 switch。**
-- 新建工程默认步骤来自 `FlowViewModel.GetTemplateSteps`（StepDef 用 API 动作名），`AddTemplateSteps` 的 `NormalizeTemplateStep` 会归一为中文并拆分 IO —— 改词表必须同步这里。
-- **「实际值」列**：`FlowViewModel.RefreshActualValues` → `ReadActualValue(step, bridge)`（1 秒 DispatcherTimer）按「功能 + 属性」**全覆盖**（变量值 / 轴位置·速度·加速度·使能 / 输入IO / 输出IO / 气缸 / 点位目标 / modbus 内容 / 相机结果 / 系统·延时·循环设置值）。**读不到一律「—」**；**不要**再写 `if (IsNullOrWhiteSpace(step.Name)) continue`（会把延时/循环/注释这类无名称控制行整行留空）。
+## 流程页
+- 功能列：轴 / 输入IO / 输出IO / 气缸 / 点位 / modbus / 变量 / 系统 / 相机 / 延时。
+- 运算列全中文；改词表必须同步转换器、`ProjectTemplateCatalog`、`AiProjectExchange`、执行/仿真路径（`FlowRunnerService`/`SimFlowPlayer`/`NgRunner`）。
+- 「实际值」列全覆盖，读不到显示「—」。
