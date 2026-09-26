@@ -15,22 +15,54 @@ namespace NoCodeMotion.ViewModels;
 public sealed class NgPropViewModel : INotifyPropertyChanged
 {
     private readonly NgProp _model;
+    private readonly NgNode? _owner;
     private readonly System.Action? _onChanged;
+    private static readonly System.Text.RegularExpressions.Regex CondProp =
+        new(@"^条件(\d)(类型|名称|比较|值)$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     public string Name => _model.Name;
     public bool HasOptions => !string.IsNullOrEmpty(_model.Options);
-    /// <summary>属性名 → 名称库下拉候选（轴 / 变量 / 输出 / 信号 / 气缸 / 通讯 / 点位）；无则 null（用自由文本）。</summary>
-    public System.Collections.IEnumerable? CatalogOptions => Name switch
+
+    private bool TryBranchIndex(out int index)
     {
-        "轴" => Catalog.AxisNames,
+        var m = CondProp.Match(Name);
+        index = m.Success ? int.Parse(m.Groups[1].Value) : 0;
+        return m.Success;
+    }
+
+    private string OwnerProp(string name)
+        => _owner?.Props.FirstOrDefault(p => p.Name == name)?.Value ?? string.Empty;
+
+    /// <summary>「条件N名称」的候选随「条件N类型」变：轴位置 / 轴速度 → 轴名，输入IO → 输入点，输出IO → 输出点，变量 → 变量名。</summary>
+    private System.Collections.IEnumerable? BranchNameOptions(int branch) => OwnerProp($"条件{branch}类型") switch
+    {
+        "轴位置" or "轴速度" => Catalog.AxisNames,
+        "输入IO" => Catalog.InIoNames,
+        "输出IO" => Catalog.OutIoNames,
         "变量" => Catalog.VariableNames,
-        "输出" => Catalog.OutIoNames,
-        "信号" => Catalog.InIoNames,
-        "气缸" => Catalog.CylinderNames,
-        "通讯" => Catalog.CommNames,
-        "点位" => Catalog.PointNames,
         _ => null
     };
+
+    /// <summary>属性名 → 名称库下拉候选（轴 / 变量 / 输出 / 信号 / 气缸 / 通讯 / 点位 / 条件N名称）；无则 null（用自由文本）。</summary>
+    public System.Collections.IEnumerable? CatalogOptions
+    {
+        get
+        {
+            if (TryBranchIndex(out int bi) && Name.EndsWith("名称", System.StringComparison.Ordinal))
+                return BranchNameOptions(bi);
+            return Name switch
+            {
+                "轴" => Catalog.AxisNames,
+                "变量" => Catalog.VariableNames,
+                "输出" => Catalog.OutIoNames,
+                "信号" => Catalog.InIoNames,
+                "气缸" => Catalog.CylinderNames,
+                "通讯" => Catalog.CommNames,
+                "点位" => Catalog.PointNames,
+                _ => null
+            };
+        }
+    }
     /// <summary>该属性是否用「名称库」下拉（候选来自工程里已配置的对象）。</summary>
     public bool UsesCatalog => CatalogOptions != null;
     /// <summary>既非固定候选、也非名称库下拉 → 用自由文本输入框。</summary>
@@ -38,20 +70,133 @@ public sealed class NgPropViewModel : INotifyPropertyChanged
     public System.Collections.Generic.List<string> OptionsList
         => _model.Options?.Split('|')?.ToList() ?? new System.Collections.Generic.List<string>();
 
+    /// <summary>节点卡上是否显示该属性行（条件分支的「条件N*」组只在右侧面板分组显示，卡片上不铺开）。</summary>
+    public bool ShowOnCard => !CondProp.IsMatch(Name);
+
+    /// <summary>条件分支里，超出「分支数」的组隐藏（属性面板只显示当前启用的几条分支）。</summary>
+    public bool IsVisible
+    {
+        get
+        {
+            if (!TryBranchIndex(out int bi)) return true;
+            int count = 2;
+            if (int.TryParse(OwnerProp("分支数"), out int c))
+                count = System.Math.Clamp(c, 1, NgConditionEvaluator.MaxBranches);
+            return bi <= count;
+        }
+    }
+
     public string Value
     {
         get => _model.Value;
         set { if (_model.Value != value) { _model.Value = value; OnChanged(); _onChanged?.Invoke(); } }
     }
 
-    public NgPropViewModel(NgProp model, System.Action? onChanged = null)
+    public NgPropViewModel(NgProp model, System.Action? onChanged = null, NgNode? owner = null)
     {
         _model = model;
         _onChanged = onChanged;
+        _owner = owner;
+    }
+
+    /// <summary>兄弟属性变化后刷新依赖项：「条件N类型」变 → 「条件N名称」候选变；「分支数」变 → 各行显隐变。</summary>
+    public void NotifyDependentChanged()
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CatalogOptions)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsVisible)));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnChanged() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value)));
+}
+
+/// <summary>节点卡上的一个输出端口（条件分支端口实时显示「符合 / 不符合」并变色）。</summary>
+public sealed class NgPortStateViewModel : INotifyPropertyChanged
+{
+    public string Label { get; }
+    private string _colorHex = "#64748B";
+    public NgPortStateViewModel(string label) { Label = label; }
+
+    /// <summary>该端口是否参与判定（条件分支的端口才有状态文字）。</summary>
+    private bool _hasState;
+    public bool HasState
+    {
+        get => _hasState;
+        set { if (_hasState != value) { _hasState = value; Notify(nameof(HasState)); Notify(nameof(StateText)); } }
+    }
+
+    private bool _satisfied;
+    public bool Satisfied
+    {
+        get => _satisfied;
+        set
+        {
+            if (_satisfied == value) return;
+            _satisfied = value;
+            Notify(nameof(Satisfied));
+            Notify(nameof(StateText));
+            Notify(nameof(StateColor));
+            Notify(nameof(ColorHex));
+        }
+    }
+
+    /// <summary>「符合 / 不符合」（非判定端口为空串）。</summary>
+    public string StateText => !_hasState ? string.Empty : (_satisfied ? "符合" : "不符合");
+    /// <summary>状态文字颜色：符合=绿、不符合=灰。</summary>
+    public string StateColor => _satisfied ? "#16A34A" : "#94A3B8";
+
+    /// <summary>端口圆点颜色：判定端口按符合状态变色；普通端口用节点颜色。</summary>
+    public string ColorHex
+    {
+        get => _hasState ? StateColor : _colorHex;
+        set { if (_colorHex != value) { _colorHex = value; Notify(nameof(ColorHex)); } }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void Notify(string p) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
+}
+
+/// <summary>属性面板的一组属性（条件分支按「条件1 / 条件2…」分组，便于分辨；组标题可显示实时符合状态）。</summary>
+public sealed class NgPropGroupViewModel : INotifyPropertyChanged
+{
+    public string Title { get; }
+    public bool HasTitle => !string.IsNullOrEmpty(Title);
+    public System.Collections.ObjectModel.ObservableCollection<NgPropViewModel> Items { get; } = new();
+
+    public NgPropGroupViewModel(string title) { Title = title; }
+
+    /// <summary>组标题是否显示「符合 / 不符合」（条件分支的每个条件组）。</summary>
+    private bool _showState;
+    public bool ShowState
+    {
+        get => _showState;
+        set { if (_showState != value) { _showState = value; Notify(nameof(ShowState)); } }
+    }
+
+    private bool _satisfied;
+    public bool Satisfied
+    {
+        get => _satisfied;
+        set
+        {
+            if (_satisfied == value) return;
+            _satisfied = value;
+            Notify(nameof(Satisfied)); Notify(nameof(StateText)); Notify(nameof(StateColor));
+        }
+    }
+    public string StateText => _satisfied ? "符合" : "不符合";
+    public string StateColor => _satisfied ? "#16A34A" : "#94A3B8";
+
+    /// <summary>是否显示该组（条件分支里超出「分支数」的组隐藏）。</summary>
+    private bool _visible = true;
+    public bool IsVisible
+    {
+        get => _visible;
+        set { if (_visible != value) { _visible = value; Notify(nameof(IsVisible)); } }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void Notify(string p) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
 }
 
 /// <summary>节点图节点 ViewModel（INPC）：包裹 POCO 的 NgNode，暴露可绑定的坐标 / 选中态 / 属性。
@@ -142,8 +287,23 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
     public NodeGraphNodeViewModel(NgNode model, System.Action? onPropChanged = null)
     {
         _model = model;
+        // 属性变更时：先刷新「条件N名称候选 / 分支显隐 / 端口判定」，再回调外部（自动保存 / 重绘连线）
         Props = new ObservableCollection<NgPropViewModel>(
-            model.Props.Select(p => new NgPropViewModel(p, onPropChanged)));
+            model.Props.Select(p => new NgPropViewModel(p, () =>
+            {
+                RefreshPropDependencies();
+                RefreshDecisionState();
+                onPropChanged?.Invoke();
+            }, model)));
+        BuildPanelGroups();
+        BuildOutputPorts();
+    }
+
+    /// <summary>某个属性变了 → 刷新所有行的「候选 / 显隐」。
+    /// 例：改「条件1类型」→「条件1名称」候选跟着换；改「分支数」→ 多余的条件组隐藏。</summary>
+    public void RefreshPropDependencies()
+    {
+        foreach (var p in Props) p.NotifyDependentChanged();
     }
 
     /// <summary>输入端口锚点（画布坐标）。</summary>
@@ -206,6 +366,86 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
         catch { pos = double.NaN; }
         if (double.IsNaN(pos)) pos = AxisRuntimeState.Get(axisName);
         LiveValueText = pos.ToString("0.###", CultureInfo.InvariantCulture);
+    }
+
+    // ===================== 属性面板分组 / 端口实时判定 =====================
+
+    /// <summary>属性面板的分组（条件分支按「条件1 / 条件2…」分组，便于分辨；其它节点只有一组、无标题）。</summary>
+    public ObservableCollection<NgPropGroupViewModel> PanelGroups { get; } = new();
+
+    /// <summary>节点卡上的输出端口（条件分支端口实时显示「符合 / 不符合」并变色）。</summary>
+    public ObservableCollection<NgPortStateViewModel> OutputPorts { get; } = new();
+
+    private void BuildPanelGroups()
+    {
+        if (Kind != NgKind.Decision)
+        {
+            var g = new NgPropGroupViewModel("");
+            foreach (var p in Props) g.Items.Add(p);
+            PanelGroups.Add(g);
+            return;
+        }
+        // 条件分支：分支设置 → 每个条件一组 → 高级表达式
+        var head = new NgPropGroupViewModel("分支设置");
+        foreach (var p in Props.Where(x => x.Name == "分支数")) head.Items.Add(p);
+        PanelGroups.Add(head);
+
+        for (int i = 1; i <= NgConditionEvaluator.MaxBranches; i++)
+        {
+            var g = new NgPropGroupViewModel($"条件{i}") { ShowState = true };
+            foreach (var p in Props.Where(x => x.Name.StartsWith($"条件{i}", System.StringComparison.Ordinal) && x.Name != "条件"))
+                g.Items.Add(p);
+            PanelGroups.Add(g);
+        }
+        var adv = new NgPropGroupViewModel("高级（表达式条件）");
+        foreach (var p in Props.Where(x => x.Name == "条件")) adv.Items.Add(p);
+        PanelGroups.Add(adv);
+    }
+
+    private void BuildOutputPorts()
+    {
+        OutputPorts.Clear();
+        bool decision = Kind == NgKind.Decision;
+        foreach (var label in Outputs)
+        {
+            var pm = new NgPortStateViewModel(label) { ColorHex = Color };
+            if (decision) pm.HasState = true;      // 条件分支端口显示 符合 / 不符合
+            OutputPorts.Add(pm);
+        }
+    }
+
+    /// <summary>刷新条件分支的端口与分组判定（1 秒定时器对所有条件分支节点调用 → 卡片端口实时变色）。</summary>
+    public void RefreshDecisionState()
+    {
+        if (Kind != NgKind.Decision) return;
+        int n = NgConditionEvaluator.BranchCount(Model);
+
+        // 端口：每条分支按自身条件判定（符合=绿 / 不符合=灰）；「否则」= 没有任何分支满足时符合
+        bool anyHit = false;
+        for (int i = 1; i <= n; i++) if (NgConditionEvaluator.Evaluate(Model, i)) { anyHit = true; break; }
+        foreach (var pm in OutputPorts)
+        {
+            if (pm.Label == "否则") pm.Satisfied = !anyHit;
+            else if (pm.Label.StartsWith("条件", System.StringComparison.Ordinal)
+                     && int.TryParse(pm.Label.Substring(2), out int i))
+                pm.Satisfied = i <= n && NgConditionEvaluator.Evaluate(Model, i);
+        }
+
+        // 分组：组标题显示 符合/不符合；超出「分支数」的组隐藏
+        foreach (var g in PanelGroups)
+        {
+            if (!g.ShowState) continue;
+            if (!int.TryParse(g.Title.Substring(2), out int bi)) continue;
+            g.IsVisible = bi <= n;
+            g.Satisfied = NgConditionEvaluator.Evaluate(Model, bi);
+        }
+    }
+
+    /// <summary>属性面板 1 秒定时器调用：刷新实时值（轴位置 / 变量当前值）+ 条件分支端口/分组判定。</summary>
+    public void RefreshPanelState()
+    {
+        RefreshLiveValue();
+        RefreshDecisionState();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

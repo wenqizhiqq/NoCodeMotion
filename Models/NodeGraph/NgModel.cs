@@ -202,14 +202,17 @@ public static class NgTemplates
             var s = Node(NgKind.Start, 80, 60);
             var cam = Node(NgKind.CamCapture, 320, 60, ("相机", "相机1"));
             var mt = Node(NgKind.TemplateMatch, 560, 60, ("模板路径", ""), ("分数阈值", "0.8"));
-            var dec = Node(NgKind.Decision, 820, 60, ("条件", "分数 >= 0.8"));
+            var dec = Node(NgKind.Decision, 820, 60,
+                ("分支数", "2"),
+                ("条件1类型", "变量"), ("条件1名称", "匹配分数"), ("条件1比较", "大于等于"), ("条件1值", "0.8"),
+                ("条件2类型", "变量"), ("条件2名称", "匹配分数"), ("条件2比较", "小于"), ("条件2值", "0.8"));
             var mx = Node(NgKind.MoveAxis, 1080, 40, ("轴", "X"), ("目标位置", "0"), ("速度", "100"));
             var e = Node(NgKind.End, 1340, 60);
             Link(s, "Out", cam);
             Link(cam, "Out", mt);
             Link(mt, "Out", dec);
-            Link(dec, "True", mx);
-            Link(dec, "False", e);
+            Link(dec, "条件1", mx);
+            Link(dec, "条件2", e);          // 条件2：分数 < 0.8 → 直接结束
             Link(mx, "Out", e);
             return doc.ToJson();
         }

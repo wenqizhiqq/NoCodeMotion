@@ -11,6 +11,25 @@
         <local:NgInverseBoolToVis x:Key="BoolToVisNeg"/>
         <local:NgStringToBrush x:Key="NgStringToBrush"/>
 
+        <!-- 属性行（分组内复用）：标签 + 固定候选下拉 / 名称库下拉 / 自由文本 -->
+        <DataTemplate x:Key="NgPropRowTemplate">
+            <DockPanel Style="{StaticResource AppleRow}"
+                       Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
+                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="{Binding Name}" Width="84"/>
+                <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding OptionsList}"
+                          SelectedItem="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                          Visibility="{Binding HasOptions, Converter={StaticResource BoolToVis}}"
+                          Style="{StaticResource CellComboStyle}"/>
+                <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding CatalogOptions}"
+                          SelectedItem="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                          Visibility="{Binding UsesCatalog, Converter={StaticResource BoolToVis}}"
+                          Style="{StaticResource CellComboStyle}"/>
+                <TextBox DockPanel.Dock="Right" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                         Visibility="{Binding IsPlainText, Converter={StaticResource BoolToVis}}"
+                         Style="{StaticResource AppleTextField}"/>
+            </DockPanel>
+        </DataTemplate>
+
         <!-- 连线模板：透明粗线用于命中（Tag=CONN），其上叠贝塞尔曲线 + 箭头 -->
         <DataTemplate x:Key="ConnectionTemplate">
             <Grid>
@@ -147,26 +166,23 @@
                         <TextBlock Text="{Binding SelectedNode.DomainText}" FontSize="11" Margin="0,0,0,6"
                                    Foreground="{StaticResource TextSecondaryBrush}"/>
                         <Rectangle Style="{StaticResource AppleHairline}" Margin="0,0,0,6"/>
-                        <ItemsControl ItemsSource="{Binding SelectedNode.Props}">
+                        <!-- 属性：分组显示（条件分支按「条件1 / 条件2…」分组；组标题右侧实时显示 符合 / 不符合） -->
+                        <ItemsControl ItemsSource="{Binding SelectedNode.PanelGroups}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="{Binding Name}" Width="72"/>
-                                        <!-- 固定候选（模式 / 方向 / 状态…）→ 下拉 -->
-                                        <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding OptionsList}"
-                                                  SelectedItem="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
-                                                  Visibility="{Binding HasOptions, Converter={StaticResource BoolToVis}}"
-                                                  Style="{StaticResource CellComboStyle}"/>
-                                        <!-- 轴 / 变量 / 输出 / 信号 / 气缸 / 通讯 / 点位 → 名称库下拉（候选来自工程里已配置的对象） -->
-                                        <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding CatalogOptions}"
-                                                  SelectedItem="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
-                                                  Visibility="{Binding UsesCatalog, Converter={StaticResource BoolToVis}}"
-                                                  Style="{StaticResource CellComboStyle}"/>
-                                        <!-- 其余 → 自由文本 -->
-                                        <TextBox DockPanel.Dock="Right" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
-                                                 Visibility="{Binding IsPlainText, Converter={StaticResource BoolToVis}}"
-                                                 Style="{StaticResource AppleTextField}"/>
-                                    </DockPanel>
+                                    <StackPanel Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
+                                        <Grid Margin="0,6,0,2"
+                                              Visibility="{Binding HasTitle, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="{Binding Title}" FontSize="11.5" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource AccentDarkBrush}"/>
+                                            <TextBlock Text="{Binding StateText}" FontSize="11" FontWeight="SemiBold"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                       Foreground="{Binding StateColor, Converter={StaticResource NgStringToBrush}}"
+                                                       Visibility="{Binding ShowState, Converter={StaticResource BoolToVis}}"/>
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{Binding Items}"
+                                                      ItemTemplate="{StaticResource NgPropRowTemplate}"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -179,6 +195,7 @@
                                        VerticalAlignment="Center" FontWeight="SemiBold"
                                        Foreground="{StaticResource AccentDarkBrush}"/>
                         </DockPanel>
+
                         <TextBlock Text="（选中节点或连线后在此编辑 / 删除）" FontSize="11" Margin="0,10,0,0"
                                    Foreground="{StaticResource TextSecondaryBrush}">
                             <TextBlock.Style>

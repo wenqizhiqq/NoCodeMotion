@@ -206,8 +206,9 @@ public static class NgNodeDefinitions
         [NgKind.Decision] = new()
         {
             Kind = NgKind.Decision, Title = "条件分支", Domain = NgDomain.Motion, Color = "#E9573F",
-            Outputs = new[] { "True", "False" },
-            Props = new[] { new NgPropDef { Name = "条件", Default = "PosX>=10" } }
+            // 多分支：条件1..条件8 + 否则（旧图的 True/False 端口在 NgRunner 里做了兼容回退）
+            Outputs = new[] { "条件1", "条件2", "条件3", "条件4", "条件5", "条件6", "条件7", "条件8", "否则" },
+            Props = BuildDecisionProps()
         },
         [NgKind.Loop] = new()
         {
@@ -332,6 +333,29 @@ public static class NgNodeDefinitions
             }
         },
     };
+
+    /// <summary>
+    /// 「条件分支」节点的属性表：分支数 + 8 组（类型 / 名称 / 比较 / 值）+ 旧版「条件」表达式。
+    /// 类型（轴位置 / 轴速度 / 输入IO / 输出IO / 变量）决定「名称」下拉的候选；
+    /// 超出「分支数」的组在属性面板里自动隐藏（NgPropViewModel.IsVisible）。
+    /// </summary>
+    private static NgPropDef[] BuildDecisionProps()
+    {
+        var list = new System.Collections.Generic.List<NgPropDef>
+        {
+            new NgPropDef { Name = "分支数", Default = "2", Options = "2|3|4|5|6|7|8" }
+        };
+        for (int i = 1; i <= 8; i++)
+        {
+            list.Add(new NgPropDef { Name = $"条件{i}类型", Default = "变量", Options = "轴位置|轴速度|输入IO|输出IO|变量" });
+            list.Add(new NgPropDef { Name = $"条件{i}名称", Default = "" });
+            list.Add(new NgPropDef { Name = $"条件{i}比较", Default = "等于", Options = "等于|不等于|大于|大于等于|小于|小于等于" });
+            list.Add(new NgPropDef { Name = $"条件{i}值", Default = "0" });
+        }
+        // 旧图 / 内置模板用的表达式条件（结构化分支都没配时作为兜底）
+        list.Add(new NgPropDef { Name = "条件", Default = "" });
+        return list.ToArray();
+    }
 
     /// <summary>工具箱分组顺序（视觉 / 运控 / 通讯 / 逻辑）。</summary>
     public static readonly IReadOnlyList<NgDomain> DomainOrder = new[] { NgDomain.Vision, NgDomain.Motion, NgDomain.Comm, NgDomain.Logic };

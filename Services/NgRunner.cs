@@ -314,16 +314,11 @@ public sealed class NgRunner
             await Task.Delay(30, ct);
     }
 
-    private bool EvaluateDecision(NgNode node)
-    {
-        string expr = GetProp(node, "条件", "true");
-        try
-        {
-            if (ExpressionEvaluator.Evaluate(expr, _getVar, out double v)) return v != 0;
-            return false;
-        }
-        catch { return false; }
-    }
+    /// <summary>历史「条件」表达式求值（兼容旧图 / 内置模板）。</summary>
+    private bool EvaluateDecision(NgNode node) => NgConditionEvaluator.EvaluateLegacy(node);
+
+    /// <summary>条件分支路由（与属性面板的实时判定共用 NgConditionEvaluator.ResolvePort）。</summary>
+    private string GetDecisionPort(NgNode node) => NgConditionEvaluator.ResolvePort(node);
 
     /// <summary>循环节点端口选择：首次进入返 Body + 计数-1；计数到 0 返 Exit。</summary>
     private string GetLoopPort(NgNode loop)
@@ -346,9 +341,13 @@ public sealed class NgRunner
     private NgNode? NextNode(string currentId, string? port)
     {
         if (port == null) return null;
-        if (_outMap.TryGetValue(currentId, out var list))
+            if (_outMap.TryGetValue(currentId, out var list))
         {
             var c = list.FirstOrDefault(x => x.SourcePort == port);
+            // 兼容旧图：条件分支旧端口 True / False 分别对应 条件1 / 条件2（「否则」也回退到 False）
+            if (c == null && port == "条件1") c = list.FirstOrDefault(x => x.SourcePort == "True");
+            if (c == null && port == "条件2") c = list.FirstOrDefault(x => x.SourcePort == "False");
+            if (c == null && port == "否则") c = list.FirstOrDefault(x => x.SourcePort == "False");
             if (c != null && _nodeMap.TryGetValue(c.TargetId, out var n)) return n;
         }
         return null;
@@ -401,7 +400,7 @@ public sealed class NgRunner
         {
             string? port = current.Kind switch
             {
-                NgKind.Decision => EvaluateDecision(current) ? "True" : "False",
+                NgKind.Decision => GetDecisionPort(current),
                 NgKind.Loop => GetLoopPort(current),
                 _ => "Out",
             };
@@ -432,6 +431,13 @@ public sealed class NgRunner
             case NgKind.ParallelJoin:
                 // 路由逻辑在 EnqueueNextNodes 中处理；节点本身无业务动作。
                 break;
+
+            case NgKind.Decision: {
+                // 求值只为在节点卡上显示「满足哪条 / 走哪里」；真正的路由在 EnqueueNextNodes。
+                string port = GetDecisionPort(node);
+                _lastNodeSummary = $"走「{port}」（{NgConditionEvaluator.DescribePort(node, port)}）";
+                break;
+            }
 
             case NgKind.Delay: {
                 int ms = GetIntProp(node, "时间ms", 500);

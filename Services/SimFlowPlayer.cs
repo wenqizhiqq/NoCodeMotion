@@ -274,9 +274,10 @@ namespace NoCodeMotion.Services
 
                 if (node.Kind == NgKind.Decision)
                 {
-                    bool sat = EvalCondition(Prop(node, "条件"), state);
-                    list.Add(LogAction($"[分支] {(sat ? "True" : "False")} : {Prop(node, "条件")}"));
-                    node = Next(doc, node, sat ? "True" : "False");
+                    // 与运行器同一套判定（多分支结构化条件，兼容旧「条件」表达式）
+                    string port = NgConditionEvaluator.ResolvePort(node);
+                    list.Add(LogAction($"[分支] {port} · {NgConditionEvaluator.DescribePort(node, port)}"));
+                    node = Next(doc, node, port);
                     continue;
                 }
                 if (node.Kind == NgKind.Loop)

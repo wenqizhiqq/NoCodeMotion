@@ -46,7 +46,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             OnChanged(nameof(SelectedNode));
             OnChanged(nameof(HasSelection));
             OnChanged(nameof(ShowLiveRow));
-            value?.RefreshLiveValue();           // 选中即刷新一次「实时值」
+            value?.RefreshPanelState();          // 选中即刷新一次「实时值 / 条件判定」
         }
     }
 
@@ -124,7 +124,12 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         {
             Interval = System.TimeSpan.FromMilliseconds(1000)
         };
-        _actualPosTimer.Tick += (_, _) => SelectedNode?.RefreshLiveValue();
+        _actualPosTimer.Tick += (_, _) =>
+        {
+            // 条件分支：所有节点的端口 / 分组实时变色（卡片上直接看到 符合 / 不符合）
+            foreach (var n in Nodes) n.RefreshDecisionState();
+            SelectedNode?.RefreshPanelState();
+        };
         _actualPosTimer.Start();
 
         AddNodeCommand = new RelayCommand(p => AddNode(ParseKind(p), DefaultX(), DefaultY()));

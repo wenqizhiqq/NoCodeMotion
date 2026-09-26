@@ -79,20 +79,25 @@
 
             <!-- 主体：先输出端口（紧接标题栏、行高固定 22），后属性摘要 -->
             <StackPanel Grid.Row="1" Margin="6">
-                <!-- 输出端口（分支）-->
-                <ItemsControl ItemsSource="{Binding Outputs}">
+                <!-- 输出端口（分支）：条件分支端口实时显示「符合 / 不符合」并变色 -->
+                <ItemsControl ItemsSource="{Binding OutputPorts}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Grid Height="22">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{Binding}" Foreground="#64748B" FontSize="10.5"
+                                <!-- 左：符合 / 不符合（按状态变色：符合=绿、不符合=灰） -->
+                                <TextBlock Grid.Column="0" Text="{Binding StateText}" FontSize="10.5" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" HorizontalAlignment="Left"
+                                           Foreground="{Binding StateColor, Converter={StaticResource NgStringToBrush}}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Label}" Foreground="#64748B" FontSize="10.5"
                                            VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
-                                <Ellipse Grid.Column="1" Tag="OUT" Width="16" Height="16" Stroke="White" StrokeThickness="2"
+                                <Ellipse Grid.Column="2" Tag="OUT" Width="16" Height="16" Stroke="White" StrokeThickness="2"
                                          Cursor="Cross" VerticalAlignment="Center" Margin="0,0,-8,0"
-                                         Fill="{Binding DataContext.Color, RelativeSource={RelativeSource AncestorType=local:NodeGraphNodeView}, Converter={StaticResource NgStringToBrush}}"/>
+                                         Fill="{Binding ColorHex, Converter={StaticResource NgStringToBrush}}"/>
                             </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -102,7 +107,8 @@
                 <ItemsControl ItemsSource="{Binding Props}" Margin="0,2,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                            <StackPanel Orientation="Horizontal" Margin="0,1"
+                                        Visibility="{Binding ShowOnCard, Converter={StaticResource BoolToVis}}">
                                 <TextBlock Text="{Binding Name}" Foreground="#64748B" FontSize="10.5"/>
                                 <TextBlock Text=":" Foreground="#64748B" FontSize="10.5" Margin="2,0"/>
                                 <TextBlock Text="{Binding Value}" Foreground="#0F172A" FontSize="10.5" FontWeight="SemiBold"

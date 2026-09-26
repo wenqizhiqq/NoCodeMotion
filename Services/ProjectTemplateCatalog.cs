@@ -1915,7 +1915,10 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 var init = N2(NgKind.VarSet, 320, 20, ("变量", "计数"), ("值", "0"));
                 var x0 = N2(NgKind.MoveAxis, 320, 160, ("轴", "X"), ("目标位置", "0"), ("速度", "100"));
                 var y0 = N2(NgKind.MoveAxis, 320, 300, ("轴", "Y"), ("目标位置", "0"), ("速度", "100"));
-                var dec = N2(NgKind.Decision, 600, 230, ("条件", "X >= 0"));
+                var dec = N2(NgKind.Decision, 600, 230,
+                    ("分支数", "2"),
+                    ("条件1类型", "轴位置"), ("条件1名称", "X"), ("条件1比较", "大于等于"), ("条件1值", "0"),
+                    ("条件2类型", "轴位置"), ("条件2名称", "X"), ("条件2比较", "小于"), ("条件2值", "0"));
                 var loop = N2(NgKind.Loop, 860, 230, ("次数", "3"));
                 var inc = N2(NgKind.Compute, 1120, 160, ("变量", "计数"), ("表达式", "计数 + 1"));
                 var co = N2(NgKind.Cylinder, 1120, 300, ("气缸", "夹爪"), ("动作", "伸出"));
@@ -1925,7 +1928,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 var yr = N2(NgKind.MoveAxis, 1640, 440, ("轴", "Y"), ("模式", "相对"), ("目标位置", "30"), ("速度", "100"));
                 var end2 = N2(NgKind.End, 1900, 230);
                 L2(s2, init); L2(init, x0); L2(x0, y0); L2(y0, dec);
-                L2(dec, loop, "True"); L2(dec, end2, "False");
+                L2(dec, loop, "条件1"); L2(dec, end2, "条件2");
                 L2(loop, inc, "Body"); L2(loop, end2, "Exit");
                 L2(inc, co); L2(co, d2); L2(d2, ci); L2(ci, xr); L2(xr, yr); L2(yr, loop);
 
@@ -2031,7 +2034,10 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 var sx = N(NgKind.MoveAxis, 320, 160, ("轴", "X"), ("目标位置", "0"), ("速度", "100"));
                 var sy = N(NgKind.MoveAxis, 320, 300, ("轴", "Y"), ("目标位置", "0"), ("速度", "100"));
                 var cam = N(NgKind.CamCapture, 600, 230, ("相机", "上视相机"));
-                var dec = N(NgKind.Decision, 860, 230, ("条件", "X >= 0"));
+                var dec = N(NgKind.Decision, 860, 230,
+                    ("分支数", "2"),
+                    ("条件1类型", "轴位置"), ("条件1名称", "X"), ("条件1比较", "大于等于"), ("条件1值", "0"),
+                    ("条件2类型", "轴位置"), ("条件2名称", "X"), ("条件2比较", "小于"), ("条件2值", "0"));
                 var loop = N(NgKind.Loop, 1120, 230, ("次数", "4"));
                 var inc = N(NgKind.Compute, 1380, 160, ("变量", "计数"), ("表达式", "计数 + 1"));
                 var cyl = N(NgKind.Cylinder, 1380, 300, ("气缸", "夹爪"), ("动作", "伸出"));
@@ -2041,7 +2047,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 var yr = N(NgKind.MoveAxis, 1900, 440, ("轴", "Y"), ("模式", "相对"), ("目标位置", "40"), ("速度", "100"));
                 var e = N(NgKind.End, 2160, 230);
                 L(a, v0); L(v0, sx); L(sx, sy); L(sy, cam); L(cam, dec);
-                L(dec, loop, "True"); L(dec, e, "False");
+                L(dec, loop, "条件1"); L(dec, e, "条件2");
                 L(loop, inc, "Body"); L(loop, e, "Exit");
                 L(inc, cyl); L(cyl, dl); L(dl, cylb); L(cylb, xr); L(xr, yr); L(yr, loop);
                 d.Flows.Add(new FlowItem { Name = "视觉分拣(节点图)", Kind = FlowKind.NodeGraph, Role = FlowRole.Main, GraphJson = ng.ToJson() });
