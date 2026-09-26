@@ -518,7 +518,7 @@ namespace NoCodeMotion.ViewModels
         private readonly FlowRunControl _ctrl;
         private readonly Action<string, LogLevel> _log;
         private readonly Action<int, string, string> _onStep;
-        private readonly IHardwareBridge _bridge;
+        private IHardwareBridge _bridge => HardwareBridge.Current;
         private long _guard;
         private FlowStep _lastCurrent;
         private bool _pauseActive;     // 当前流程是否处于暂停状态（控制列表右侧"暂"芯片切换）
@@ -527,7 +527,8 @@ namespace NoCodeMotion.ViewModels
             Action<string, LogLevel> log, Action<int, string, string> onStep)
         {
             _flow = flow; _index = index; _steps = steps; _ctrl = ctrl; _log = log; _onStep = onStep;
-            _bridge = HardwareBridge.Current;
+            // 桥接实例不再在构造时缓存，改为每次从 HardwareBridge.Current 读取，
+            // 防止「先打开流程页、后连接控制器」时执行器一直用 Stub 而实际值读真实硬件。
         }
 
         public void Run(CancellationToken ct) => ExecBlock(0, _steps.Count, ct);

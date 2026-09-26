@@ -295,7 +295,7 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
         /// 读取当前指令位置（单位同 axis.Unit）。
         /// 与 <see cref="GetAxisEncoder"/> 一起用可判断「轴是不是真的在走」。
         /// </summary>
-        public double GetAxisPosition(AxisItem axis)
+        public double ReadAxisPosition(AxisItem axis)
         {
             if (!Ready(axis.Name, "读位置")) return 0;
             var (card, no) = Addr(axis);

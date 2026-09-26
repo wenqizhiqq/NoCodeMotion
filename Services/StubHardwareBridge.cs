@@ -59,6 +59,7 @@ namespace NoCodeMotion.Services
             AxisRuntimeState.Set(axis.Name, position);
             Write($"轴绝对移动 → 名称={axis.Name} 轴号={axis.AxisNo} 目标={position}");
         }
+        public double ReadAxisPosition(AxisItem axis) => AxisRuntimeState.Get(axis.Name);
 
         // ---- IO ----
         private readonly Dictionary<string, int> _ioState = new Dictionary<string, int>();

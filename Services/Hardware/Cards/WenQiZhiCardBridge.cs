@@ -530,18 +530,18 @@ namespace NoCodeMotion.Services.Hardware.Cards
         }
 
         /// <summary>读取指令位置（单位同 axis.Unit）。</summary>
-        public double GetAxisPosition(AxisItem axis)
+        public double ReadAxisPosition(AxisItem axis)
         {
             var (slot, a) = AxisOf(axis);
             if (a == null) { WarnNoAxis(axis, "读位置"); return 0; }
             double v = 0;
             Guard(() => v = a.GetCardAxisCurrentPosition(0));   // 0 = 输出脉冲计数器（指令位置）
-            return v;
+            return v / EquivOf(axis);
         }
 
         /// <summary>
         /// 读取编码器反馈位置（单位同 axis.Unit）。
-        /// 与 <see cref="GetAxisPosition"/> 一起用可判断「轴是不是真的在走」：
+        /// 与 <see cref="ReadAxisPosition"/> 一起用可判断「轴是不是真的在走」：
         /// 指令位置在变、编码器不变 → 没使能 / 动力线没接 / 编码器线松。
         /// </summary>
         public double GetAxisEncoder(AxisItem axis)

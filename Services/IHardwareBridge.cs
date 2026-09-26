@@ -50,6 +50,9 @@ namespace NoCodeMotion.Services
         /// <summary>运动到绝对位置 position（单位同 axis.Unit）。</summary>
         void MoveAxisAbs(AxisItem axis, double position);
 
+        /// <summary>读取轴当前指令位置（单位同 axis.Unit）。</summary>
+        double ReadAxisPosition(AxisItem axis);
+
         // ===================== 输入 / 输出 IO =====================
 
         /// <summary>读取输入点当前值，返回 0 / 1（或其它电平值）。</summary>
