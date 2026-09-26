@@ -408,10 +408,10 @@ namespace NoCodeMotion.Services.Hardware.Cards
             if (IsSimulation(slot))
             {
                 // 模拟卡的 OpenCardAxisEnable 未实现（恒返回 -1），使能要走「伺服使能端口」——
-                // 它有状态（CardAxisWriteSevonPin / GetCardAxisSevonPin），状态卡的「使能」行读的也是它。
+                // 它有状态（CardAxisWriteSevonPin / GetCardAxisSevonPin），状态卡的「使能」行读的也是它。★ 模拟卡 SDK 约定 active-low SON：写 0=使能、读回 0=使能（见 VirtualCardSDK「返回 1（失能）」）；写 1 反被当失能、状态恒显已使能。
                 int sevon = 0;
-                Guard(() => sevon = a.CardAxisWriteSevonPin(1));
-                Report("轴使能", sevon, $"[卡族·模拟卡] 轴「{axis.Name}」已使能（伺服使能端口置 1）");
+                Guard(() => sevon = a.CardAxisWriteSevonPin(0));
+                Report("轴使能", sevon, $"[卡族·模拟卡] 轴「{axis.Name}」已使能（伺服使能端口置 0＝低电平 active-low SON）");
                 return;
             }
 
@@ -615,8 +615,8 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 // 而它没有无参 GetAxisCurrentState()，反射取不到 → 直接用这个字当状态字。
                 Try(() => { alarm = a.GetCardAxisAlarmState(cardNo, axisNo); word = unchecked((uint)alarm); hasWord = true; });
 
-                // 使能：模拟卡用「伺服使能端口」（有状态、可读），它的状态字里没有使能位。
-                Try(() => servoOn = a.GetCardAxisSevonPin() != 0);
+                // 使能：模拟卡用「伺服使能端口」（有状态、可读），它的状态字里没有使能位。SDK 约定读回 0=使能、1=失能（active-low SON），故用 == 0 判定（与 EnableAxis 写 0 对应）。
+                Try(() => servoOn = a.GetCardAxisSevonPin() == 0);
             }
             else
             {

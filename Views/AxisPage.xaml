@@ -19,7 +19,7 @@
                     <TextBlock Style="{StaticResource PageHeaderTitle}" Text="轴"/>
                 </StackPanel>
                 <!-- 连接后真实检测到的轴数量（来自底层硬件） -->
-                <Border DockPanel.Dock="Top" Margin="14,0,14,8" Padding="10,8" Background="{StaticResource AccentSoftBrush}" CornerRadius="8">
+                <Border DockPanel.Dock="Top" Margin="12,0,12,6" Padding="8,6" Background="{StaticResource AccentSoftBrush}" CornerRadius="8">
                     <DockPanel>
                         <Path Data="{StaticResource AxisIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                         <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap">
@@ -32,9 +32,9 @@
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <!-- 4 列紧凑容器：WrapPanel 保证每张卡只有自身内容那么高（不拉齐高度，避免大片空白） -->
-                    <WrapPanel Orientation="Horizontal" Margin="14,0,14,10" ItemWidth="250">
+                    <WrapPanel Orientation="Horizontal" Margin="12,0,12,8" ItemWidth="240">
                         <!-- ============ 基本信息 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="基本信息"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -83,7 +83,7 @@
                         </Border>
 
                         <!-- ============ 运动参数 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="运动参数"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -137,7 +137,7 @@
                         </Border>
 
                         <!-- ============ 回零参数 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="回零参数"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -185,7 +185,7 @@
                         </Border>
 
                         <!-- ============ 限位与保护 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="限位与保护"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -219,7 +219,7 @@
                         </Border>
 
                         <!-- ============ 电平与编码器 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="电平与编码器"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -300,7 +300,7 @@
                         </Border>
 
                         <!-- ============ 轴权限 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="轴权限"
                                            ToolTip="只门控「轴控制」里的手动按钮；流程 / 点位 / Lua 的运行指令不受影响。"/>
@@ -322,7 +322,7 @@
                         </Border>
 
                         <!-- ============ 轴状态（只读，针对左侧当前选中的轴） ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="轴状态"
                                            ToolTip="状态全部来自底层真实读数（位置=指令位置，编码器=反馈位置）；读不到的项显示「—」，不编造。"/>
@@ -416,7 +416,7 @@
                         </Border>
 
                         <!-- ============ 轴控制（针对左侧当前选中的轴，真实下发） ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,10,10" VerticalAlignment="Top">
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="轴控制"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
