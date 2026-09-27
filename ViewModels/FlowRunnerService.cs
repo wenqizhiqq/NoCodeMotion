@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using NoCodeMotion.Models;
+using NoCodeMotion.Models.NodeGraph;
 using NoCodeMotion.Services;
 using NoCodeMotion.Services.Vision;
 using NoCodeMotion.Views;
@@ -200,6 +201,11 @@ namespace NoCodeMotion.ViewModels
             if (flow.Kind == FlowKind.Vision)
             {
                 RunOneFlowVision(flow, index, ctrl, log, onStep, onFlowDone, loop);
+                return;
+            }
+            if (flow.Kind == FlowKind.NodeGraph)
+            {
+                RunOneFlowNodeGraph(flow, index, ctrl, log, onStep, onFlowDone, loop);
                 return;
             }
             var steps = flow.Steps?.ToList();
@@ -563,6 +569,114 @@ namespace NoCodeMotion.ViewModels
             {
                 SetStatus(flow, FlowStatus.Exception);
                 log?.Invoke($"视觉流程「{name}」运行异常：{ex.Message}", LogLevel.Error);
+            }
+            finally
+            {
+                onFlowDone?.Invoke(index, name);
+            }
+        }
+
+        /// <summary>节点图流程：与节点图页面同一套 NgRunner 执行器（真硬件 + 变量桥接，读走工程变量表
+        /// GetVariableResolved、写走 SetVariable 双写），后台整图执行。Role=Main 循环（轮间 200ms）；
+        /// Role=Reset / 流程页「运行一次」单次。每次运行新建独立 runner，不与节点图页共用实例——
+        /// 页面开着时两边互不打架（与 Lua 脚本独立会话同一思路）。</summary>
+        private static void RunOneFlowNodeGraph(FlowItem flow, int index, FlowRunControl ctrl,
+            Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone, bool loop)
+        {
+            var name = flow.Name ?? "(未命名流程)";
+            NgDoc doc;
+            try { doc = NgDoc.FromJson(flow.GraphJson ?? ""); }
+            catch (Exception ex)
+            {
+                SetStatus(flow, FlowStatus.Exception);
+                log?.Invoke($"节点图流程「{name}」解析失败：{ex.Message}", LogLevel.Error);
+                onFlowDone?.Invoke(index, name);
+                return;
+            }
+            if (doc.Nodes.Count == 0)
+            {
+                SetStatus(flow, FlowStatus.Idle);
+                log?.Invoke($"节点图流程「{name}」是空图，已跳过。请在流程页选中它并编辑节点。", LogLevel.Info);
+                onFlowDone?.Invoke(index, name);
+                return;
+            }
+
+            var runner = new NgRunner(
+                HardwareResolver.ResolveAxis,
+                HardwareResolver.ResolveInput,
+                HardwareResolver.ResolveOutput,
+                HardwareResolver.ResolveCylinder,
+                HardwareResolver.ResolveComm,
+                SimRuntime.SetVariable,
+                SimRuntime.GetVariableResolved);
+            runner.Load(doc);
+
+            // 一轮完成信号：State 离开 Running/Stepping（Completed/Stopped/Error）即视为本轮结束
+            var roundDone = new ManualResetEventSlim(false);
+            runner.StateChanged += () =>
+            {
+                var st = runner.State;
+                if (st != NgRunState.Running && st != NgRunState.Stepping) roundDone.Set();
+            };
+
+            // 等本轮跑完；等待期间响应 停止/急停 → runner.Stop()（幂等），StateChanged 置位后退出
+            void WaitRound()
+            {
+                while (!roundDone.Wait(40))
+                {
+                    if (ctrl.StopRequested || ctrl.EStopRequested) runner.Stop();
+                }
+            }
+
+            try
+            {
+                if (loop)
+                {
+                    int cycle = 0;
+                    while (!ctrl.StopRequested && !ctrl.EStopRequested)
+                    {
+                        // 暂停：整轮粒度——暂停期间阻塞在 ResumeEvent，恢复后继续下一轮
+                        if (ctrl.PauseRequested)
+                        {
+                            SetStatus(flow, FlowStatus.Paused);
+                            try { ctrl.ResumeEvent?.Wait(); } catch { }
+                            if (ctrl.StopRequested || ctrl.EStopRequested) break;
+                            SetStatus(flow, FlowStatus.Running);
+                        }
+                        cycle++;
+                        SetStatus(flow, FlowStatus.Running);
+                        onStep?.Invoke(index, name, $"节点图 第 {cycle} 轮");
+                        FlowRunStore.SetStep(flow, $"节点图 第 {cycle} 轮");
+                        log?.Invoke($"节点图流程「{name}」第 {cycle} 轮开始。", LogLevel.Info);
+                        roundDone.Reset();
+                        runner.Run();
+                        WaitRound();
+                        if (!string.IsNullOrEmpty(runner.LastError))
+                            log?.Invoke($"节点图流程「{name}」第 {cycle} 轮提示：{runner.LastError}", LogLevel.Warn);
+                        if (ctrl.EStopRequested || ctrl.StopRequested) break;
+                        Thread.Sleep(200);   // 轮间让出 CPU，防空图/瞬时图把线程转满
+                    }
+                    SetStatus(flow, FlowStatus.Stopped);
+                    log?.Invoke(ctrl.EStopRequested
+                        ? $"节点图流程「{name}」已急停（{cycle} 轮）。"
+                        : $"节点图流程「{name}」已停止（{cycle} 轮）。", LogLevel.Warn);
+                }
+                else
+                {
+                    SetStatus(flow, FlowStatus.Running);
+                    log?.Invoke($"节点图流程「{name}」开始运行（单次）。", LogLevel.Info);
+                    onStep?.Invoke(index, name, "节点图 单次运行");
+                    FlowRunStore.SetStep(flow, "节点图 单次运行");
+                    roundDone.Reset();
+                    runner.Run();
+                    WaitRound();
+                    bool halted = ctrl.EStopRequested || ctrl.StopRequested;
+                    if (!string.IsNullOrEmpty(runner.LastError))
+                        log?.Invoke($"节点图流程「{name}」运行提示：{runner.LastError}", halted ? LogLevel.Warn : LogLevel.Error);
+                    SetStatus(flow, halted ? FlowStatus.Stopped : FlowStatus.Idle);
+                    log?.Invoke(halted ? $"节点图流程「{name}」已停止。" : $"节点图流程「{name}」运行结束。",
+                        halted ? LogLevel.Warn : LogLevel.Info);
+                }
             }
             finally
             {

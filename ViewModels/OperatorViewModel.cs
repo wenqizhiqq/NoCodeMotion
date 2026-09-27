@@ -732,7 +732,8 @@ namespace NoCodeMotion.ViewModels
             IsPaused = false;
             _runSw.Restart();
             int gen = ++_runGen;
-            AddLog(LogLevel.Info, $"复位：并发执行 {resetFlows.Count} 个复位流程（单次，不循环）。");
+            // 名单直接写进日志：用户一眼看出自己刚配的流程有没有被复位执行（少猜"为什么没+"）
+            AddLog(LogLevel.Info, $"复位：并发执行 {resetFlows.Count} 个复位流程（单次，不循环）—— {string.Join("、", resetFlows.Select(f => f.Name))}");
             StatusText = $"复位中：执行 {resetFlows.Count} 个复位流程…";
 
             // 复位 = 复位流程的「运行一次」：每条复位流程只跑一遍，绝不循环（forceLoop:false 显式钉死）。

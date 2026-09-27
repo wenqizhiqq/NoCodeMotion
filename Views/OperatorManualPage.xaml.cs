@@ -23,7 +23,7 @@ namespace NoCodeMotion.Views
         private void OnPC(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
 
         /// <summary>可选角色列表（顺序即分段显示顺序）。</summary>
-        public List<string> Roles { get; } = new() { "操作员", "工程师", "维护", "管理员" };
+        public List<string> Roles { get; } = new() { "操作员", "工程师", "维护", "管理员", "关于" };
 
         private string _currentRole = "操作员";
         public string CurrentRole
@@ -39,8 +39,8 @@ namespace NoCodeMotion.Views
             }
         }
 
-        /// <summary>顶部标题（随角色变化）。</summary>
-        public string HeaderText => $"{CurrentRole}使用说明书";
+        /// <summary>顶部标题（随角色变化；「关于」页不用"使用说明书"后缀）。</summary>
+        public string HeaderText => CurrentRole == "关于" ? "关于本软件" : $"{CurrentRole}使用说明书";
 
         private List<ManualSection> _sections = new();
         public List<ManualSection> Sections
@@ -64,6 +64,7 @@ namespace NoCodeMotion.Views
                 "工程师" => EngineerSections(),
                 "维护" => MaintenanceSections(),
                 "管理员" => AdminSections(),
+                "关于" => AboutSections(),
                 _ => OperatorSections()
             };
             var list = new List<ManualSection>();
@@ -363,6 +364,31 @@ namespace NoCodeMotion.Views
                 "权限最小化，按角色分配功能入口。\n" +
                 "操作留痕（谁、何时、改了什么）便于责任追溯。\n" +
                 "定期审计配置与账号，清理闲置权限。")
+        };
+
+        // ============ 关于 ============
+        private static List<(string, string)> AboutSections() => new()
+        {
+            ("关于本软件",
+                "无代码运动控制软件（NoCodeMotion）——无需编程，通过 运控表格 / Lua 脚本 / 视觉流程 / 节点图 四种方式自由搭建自动化流程。\n" +
+                "支持 控制卡 / 轴 / IO / 气缸 / 点位 / 通讯 / 相机视觉 / 变量运算 全要素配置，仿真与真实硬件一体运行。\n" +
+                "本页左侧列表可切换 操作员 / 工程师 / 维护 / 管理员 使用说明书，点击「关于」返回本页。"),
+
+            ("作者签名",
+                "作者：温启志\n" +
+                "本软件由 温启志 独立编写，保留所有权利。\n" +
+                "◆ 温启志 ◆ 编写 ◇ 微信：18719361399 ◇"),
+
+            ("免费使用声明",
+                "本软件【免费使用】：个人学习、教学演示、工业现场均可自由使用，无需支付任何授权费用。\n" +
+                "可以自由复制、分发给别人使用；但请完整保留本「关于」页的作者签名（请勿删除温启志署名与联系方式）。\n" +
+                "软件按「现状」提供：使用本软件产生的任何直接或间接损失，作者不承担责任；请在正式产线使用前先充分测试。"),
+
+            ("联系作者",
+                "使用中遇到问题、需要定制功能或 BUG 反馈，欢迎随时联系：\n" +
+                "作者：温启志\n" +
+                "微信：18719361399（手机号同微信）\n" +
+                "添加时请注明来意（如「NoCodeMotion 咨询」），会尽快回复。")
         };
     }
 }

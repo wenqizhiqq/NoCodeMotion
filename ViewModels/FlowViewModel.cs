@@ -145,7 +145,10 @@ namespace NoCodeMotion.ViewModels
             set { if (SetField(ref _isPaused, value)) RaiseRunState(); }
         }
 
-        public bool CanRun => !IsRunning && StepPanel.Items.Count > 0;
+        // 运行按钮可用：表格流程需有步骤；脚本/视觉/节点图流程的内容分别在
+        // LuaSource / VisualSteps / GraphJson（步骤表为空），选中即可后台运行。
+        public bool CanRun => !IsRunning && SelectedItem != null &&
+            (SelectedItem.Kind != FlowKind.Table || StepPanel.Items.Count > 0);
         public bool CanStep => !IsRunning && StepPanel.Items.Count > 0;
         public bool CanJump => !IsRunning && StepPanel.SelectedItem != null;
         public bool CanPause => IsRunning && !IsPaused;
@@ -848,7 +851,11 @@ namespace NoCodeMotion.ViewModels
 
             if (!CanRun) return;
             var flow = SelectedItem;
-            if (flow?.Steps == null || flow.Steps.Count == 0) return;
+            if (flow == null) return;
+            // 表格流程必须有步骤；脚本 / 视觉 / 节点图流程的内容分别存放在
+            // LuaSource / VisualSteps / GraphJson —— 统一交给 FlowRunnerService
+            // 对应执行器后台运行（与操作员页同一套），不再因 Steps 为空而静默不跑。
+            if (flow.Kind == FlowKind.Table && (flow.Steps == null || flow.Steps.Count == 0)) return;
 
             // 单步引擎状态复位（单步仍走 UI 节拍）
             _pendingNext = -1;
@@ -1639,6 +1646,7 @@ namespace NoCodeMotion.ViewModels
                 StepPanel.SetItems(SelectedItem?.Steps ?? new ObservableCollection<FlowStep>());
                 JumpRowNumber = 1;   // 切换流程时行数不同，起始行重置为 1
                 Stop();
+                RaiseRunState();     // 选中变化会改 CanRun（表格看步骤数，其它类型选中即可跑），刷新按钮使能
                 OnPropertyChanged(nameof(IsKindTable));
                 OnPropertyChanged(nameof(IsKindLua));
                 OnPropertyChanged(nameof(IsKindVision));
