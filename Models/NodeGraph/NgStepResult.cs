@@ -68,11 +68,15 @@ public sealed class NgRunReport
     public string? CurrentNodeId { get; set; }
     public string LastError { get; set; } = string.Empty;
 
+    /// <summary>当前触发的断点节点 Id（null = 未触发）。运行到达断点节点时置位，离开该节点后清除。</summary>
+    public string? TriggeredBreakpointId { get; set; }
+
     public void Reset()
     {
         Results.Clear();
         State = NgRunState.Idle;
         CurrentNodeId = null;
         LastError = string.Empty;
+        TriggeredBreakpointId = null;
     }
 }

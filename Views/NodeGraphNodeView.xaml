@@ -60,7 +60,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- 标题栏：Tag=NODE_HEADER（拖拽手柄）；左侧输入端口溢出；右上角断点小红点 -->
+            <!-- 标题栏：Tag=NODE_HEADER（拖拽手柄）；左侧输入端口溢出；左上"运行到此节点"徽标；右上断点角标（可点击） -->
             <Border Grid.Row="0" Height="30" CornerRadius="8,8,0,0" Tag="NODE_HEADER"
                     Background="{Binding Color, Converter={StaticResource NgStringToBrush}}">
                 <Grid>
@@ -69,11 +69,68 @@
                              HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-8,0,0,0" Cursor="Hand"/>
                     <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold" FontSize="12"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    <!-- 断点小圆点：仅 HasBreakpoint=True 时显示 -->
-                    <Ellipse Width="10" Height="10" Fill="#DC2626" Stroke="White" StrokeThickness="1.2"
-                             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-3,-3,0"
-                             ToolTip="该节点有断点（运行到此暂停）"
-                             Visibility="{Binding HasBreakpoint, Converter={StaticResource BoolToVis}}"/>
+
+                    <!-- 左上角「运行到此节点」徽标：IsCurrent=True 时显示（浮在卡片顶边） -->
+                    <Border CornerRadius="4" Padding="5,1" Background="#2563EB" BorderBrush="#1D4ED8" BorderThickness="1"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-4,-11,0,0"
+                            Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="运行到此节点" FontSize="9.5" FontWeight="Bold" Foreground="White"/>
+                    </Border>
+
+                    <!-- 右上角断点角标：Tag=NODE_BP（画布点击切换断点）。
+                         无断点 = 空心灰点（提示可点击）；有断点 = 红底「存在断点」；触发 = 深红「触发断点」 -->
+                    <Border Tag="NODE_BP" Cursor="Hand" CornerRadius="4" Padding="4,1"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-6,-5,0"
+                            ToolTip="点击设置/取消断点（运行到此节点自动暂停）">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderBrush" Value="#94A3B8"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasBreakpoint}" Value="True">
+                                        <Setter Property="Background" Value="#DC2626"/>
+                                        <Setter Property="BorderBrush" Value="#B91C1C"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding BreakpointTriggered}" Value="True">
+                                        <Setter Property="Background" Value="#991B1B"/>
+                                        <Setter Property="BorderBrush" Value="#7F1D1D"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <!-- 空心小圆点：无断点时的占位（有断点即隐藏，换成文字） -->
+                            <Ellipse Width="7" Height="7" Stroke="#64748B" StrokeThickness="1.2" Margin="1,0">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasBreakpoint}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <!-- 文字：存在断点 / 触发断点 -->
+                            <TextBlock FontSize="9.5" FontWeight="Bold" Foreground="White">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Setter Property="Text" Value="存在断点"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasBreakpoint}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding BreakpointTriggered}" Value="True">
+                                                <Setter Property="Text" Value="触发断点"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
 

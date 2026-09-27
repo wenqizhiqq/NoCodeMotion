@@ -182,6 +182,30 @@ public sealed class NgRunner
 
     public bool HasBreakpoint(string nodeId) => Breakpoints.Contains(nodeId);
 
+    /// <summary>节点 Id → 可读名称（诊断日志用：「移动轴」「条件分支」等；查不到退回原 Id）。</summary>
+    public string DescribeNode(string? id)
+    {
+        if (string.IsNullOrEmpty(id)) return "";
+        if (_nodeMap.TryGetValue(id, out var n) && NgNodeDefinitions.All.TryGetValue(n.Kind, out var def))
+            return def.Title;
+        return id;
+    }
+
+    /// <summary>整体替换断点集合（页面 VM / 共享态注入用）。空集合即清空全部断点。</summary>
+    public void SetBreakpoints(IEnumerable<string> ids)
+    {
+        Breakpoints.Clear();
+        if (ids != null) foreach (var id in ids) if (!string.IsNullOrEmpty(id)) Breakpoints.Add(id);
+        StateChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// 到达断点节点时是否暂停。页面自己的 runner（有「继续」按钮）= true；
+    /// 后台线程（FlowRunnerService 单次/循环）没有「继续」入口，暂停会卡死流程 → 置 false：
+    /// 只把该节点记为「触发断点」（Report.TriggeredBreakpointId）供卡片显示，流程照常继续。
+    /// </summary>
+    public bool BreakOnHit { get; set; } = true;
+
     // ===================== 运行循环 =====================
 
     private async Task RunAsync(CancellationToken ct)
@@ -209,13 +233,24 @@ public sealed class NgRunner
                 var current = branch.Current;
                 if (current == null) continue;
 
-                // 断点：进入节点前先判断
+                // 断点：进入节点前先判断（先清掉上一个节点遗留的"触发断点"标记）
+                if (Report.TriggeredBreakpointId != null)
+                {
+                    Report.TriggeredBreakpointId = null;
+                    ReportChanged?.Invoke();
+                }
                 if (Breakpoints.Contains(current.Id))
                 {
-                    _state = NgRunState.Paused;
-                    StateChanged?.Invoke();
-                    await WaitResumeAsync(ct);
-                    if (ct.IsCancellationRequested) return;
+                    // 标记"触发断点"（卡片右上角显示），无论是否暂停都先让 UI 可见
+                    Report.TriggeredBreakpointId = current.Id;
+                    ReportChanged?.Invoke();
+                    if (BreakOnHit)
+                    {
+                        _state = NgRunState.Paused;
+                        StateChanged?.Invoke();
+                        await WaitResumeAsync(ct);
+                        if (ct.IsCancellationRequested) return;
+                    }
                 }
 
                 // 执行：记开始时间、写 Status=Running，UI 立即可见"运行中"

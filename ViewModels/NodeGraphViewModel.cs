@@ -27,6 +27,8 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     private FlowItem? _flowItem;
     /// <summary>上一拍的运行状态文字：外部（操作员）驱动的循环运行要让本页状态跟着变，仅在变化时触发 INPC。</summary>
     private string _lastRunStateText = "";
+    /// <summary>本页 runner 是否正在跑（运行一次/单步/继续）：结束时据此安全回落共享态状态，不误伤外部循环的状态。</summary>
+    private bool _ownRunActive;
     private readonly NgDoc _doc = new();
     private readonly NgRunner _runner;
     private readonly System.Windows.Threading.DispatcherTimer _actualPosTimer;
@@ -207,15 +209,23 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         StepCommand = new RelayCommand(_ => _runner.Step(), _ => CanStep);
         ResumeCommand = new RelayCommand(_ => _runner.Resume(), _ => CanResume);
         PauseCommand = new RelayCommand(_ => _runner.Pause(), _ => CanPause);
-        // 停止：该流程正被静态管理器循环运行（操作员启动/页面启动）→ 停那条循环；否则停本页自己的运行
+        // 停止：两项都做、任何状态都兜底 —— ① 该流程正被静态管理器循环运行（操作员启动/页面启动）→ 停那条循环；
+        // ② 本页自己的 runner 在跑 → 停本页运行（Idle 时 Stop 内部直接返回，幂等安全）。
         StopCommand = new RelayCommand(_ =>
         {
-            if (FlowLoopManager.IsLooping(_flowItem)) FlowLoopManager.StopLoop(_flowItem);
-            else StopRun();
+            FlowLoopManager.StopLoop(_flowItem);
+            StopRun();
+            OnChanged(nameof(RunStateText));
         }, _ => CanStop);
 
         // 「循环运行」已托管到 FlowLoopManager（静态）——本页不再有自己的循环重启定时器
-        ToggleBreakpointCommand = new RelayCommand(p => _runner.ToggleBreakpoint(p as string ?? string.Empty));
+        // 断点切换：p = 节点 Id（画布点击角标 / 选中后点「断点」按钮两种入口）。
+        // 切换后立即写入共享态 FlowRunStore —— 后台循环运行的新建 NgRunner 从共享态取断点，
+        // 否则断点只在页面自己的「运行一次」里生效（循环运行感知不到）。
+        ToggleBreakpointCommand = new RelayCommand(p =>
+        {
+            if (p is string id && !string.IsNullOrEmpty(id)) ToggleBreakpointAt(id);
+        });
 
         ToolboxGroups = NgNodeDefinitions.DomainOrder.Select(dom => new NgToolGroup
         {
@@ -233,10 +243,25 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         _flowItem = item;
         var doc = NgDoc.FromJson(item.GraphJson);
         BuildViewModels(doc);
+        // 断点恢复：共享态里记过断点（页面重建/重进后）→ 应用到本页 runner；再回写共享态统一来源
+        var stored = FlowRunStore.GetBreakpoints(item);
+        if (stored != null) _runner.SetBreakpoints(stored);
+        FlowRunStore.SetBreakpoints(item, _runner.Breakpoints);
         _runner.Load(doc);
         // 切到正在跑的流程：立即按共享态刷一次"当前节点/结果/状态文字"（此后 200ms 定时器接管）
         RefreshRunFromStore();
         OnChanged(nameof(RunStateText));
+    }
+
+    /// <summary>按节点 Id 切换断点（画布点击断点角标 / 工具栏「断点」按钮共用）。
+    /// 同步：本页 runner 断点集合 → 共享态 FlowRunStore → 立即刷该节点角标（不等 200ms 定时器）。</summary>
+    public void ToggleBreakpointAt(string nodeId)
+    {
+        if (string.IsNullOrEmpty(nodeId)) return;
+        _runner.ToggleBreakpoint(nodeId);
+        FlowRunStore.SetBreakpoints(_flowItem, _runner.Breakpoints);
+        var node = Nodes.FirstOrDefault(n => n.Id == nodeId);
+        if (node != null) node.HasBreakpoint = _runner.HasBreakpoint(nodeId);
     }
 
     private void BuildViewModels(NgDoc doc)
@@ -378,6 +403,28 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         {
             FlowRunStore.SetProgress(_flowItem, nodeId: _runner.CurrentNodeId ?? "");
             FlowRunStore.SetNodeResults(_flowItem, _runner.Report.Results);
+            FlowRunStore.SetTriggeredBreakpoint(_flowItem, _runner.Report.TriggeredBreakpointId ?? "");
+            // ★ 本页 runner 的状态也要写进共享态：单步/运行一次的"当前节点高亮"
+            //   依赖 RefreshRunFromStore 里的状态门槛（Running/Looping/Paused 才点亮 IsCurrent），
+            //   只写 nodeId 不写 Status → 共享态默认 Idle → 单步永远不显示"运行到此节点"。
+            //   结束时安全回落：外部（操作员/FlowLoopManager）循环在跑时绝不覆盖它的状态。
+            var st = _runner.State;
+            if (st is NgRunState.Running or NgRunState.Stepping)
+            {
+                _ownRunActive = true;
+                FlowRunStore.SetStatus(_flowItem, FlowStatus.Running);
+            }
+            else if (st == NgRunState.Paused)
+            {
+                if (_ownRunActive) FlowRunStore.SetStatus(_flowItem, FlowStatus.Paused);
+            }
+            else if (_ownRunActive)
+            {
+                // Completed / Stopped / Error：只有确实是"本页在跑"才回落状态
+                _ownRunActive = false;
+                if (!FlowLoopManager.IsLooping(_flowItem))
+                    FlowRunStore.SetStatus(_flowItem, st == NgRunState.Completed ? FlowStatus.Idle : FlowStatus.Stopped);
+            }
         }
         catch { /* 展示用途，失败不影响运行 */ }
         OnChanged(nameof(RunState));
@@ -415,9 +462,13 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         bool running = st is FlowStatus.Running or FlowStatus.Looping or FlowStatus.Paused;
         var (_, _, nodeId) = FlowRunStore.GetProgress(_flowItem);
         var results = FlowRunStore.GetNodeResults(_flowItem);
+        string trigBp = FlowRunStore.GetTriggeredBreakpoint(_flowItem);
         foreach (var n in Nodes)
         {
             n.HasBreakpoint = _runner.HasBreakpoint(n.Id);
+            // 触发断点：运行中且共享态记录的触发节点 = 本节点 → 右上角「触发断点」
+            bool wantTrig = running && !string.IsNullOrEmpty(trigBp) && n.Id == trigBp;
+            if (n.BreakpointTriggered != wantTrig) n.BreakpointTriggered = wantTrig;
             bool want = running && !string.IsNullOrEmpty(nodeId) && n.Id == nodeId;
             if (n.IsCurrent != want) n.IsCurrent = want;
             if (results != null && results.TryGetValue(n.Id, out var r)) n.StepResult = r;

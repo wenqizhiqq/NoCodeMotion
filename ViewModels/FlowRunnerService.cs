@@ -569,6 +569,12 @@ namespace NoCodeMotion.ViewModels
                 SimRuntime.SetVariable,
                 SimRuntime.GetVariableResolved);
             runner.Load(doc);
+            // 断点：从共享态取页面 VM 设置的断点（页面切换断点时写入 FlowRunStore）。
+            // ★ 后台线程没有「继续」入口 → BreakOnHit=false：到达断点只把该节点记为「触发断点」
+            //   （卡片右上角显示，进度照常推进），不会卡死流程；页面自己的「运行一次」才有断点暂停。
+            var bps = FlowRunStore.GetBreakpoints(flow);
+            if (bps != null) runner.SetBreakpoints(bps);
+            runner.BreakOnHit = false;
             // 进度写共享态（节点图页用定时器轮询刷新"当前节点高亮 + 各节点结果"，运行器不往页面推）。
             void PublishNodeProgress()
             {
@@ -576,6 +582,7 @@ namespace NoCodeMotion.ViewModels
                 {
                     FlowRunStore.SetProgress(flow, nodeId: runner.CurrentNodeId ?? "");
                     FlowRunStore.SetNodeResults(flow, runner.Report.Results);
+                    FlowRunStore.SetTriggeredBreakpoint(flow, runner.Report.TriggeredBreakpointId ?? "");
                 }
                 catch { /* 展示用途，失败不影响运行 */ }
             }
@@ -594,9 +601,24 @@ namespace NoCodeMotion.ViewModels
             // 15ms 轮询：单圈毫秒级的图不因检测延迟拖慢循环节奏。
             void WaitRound()
             {
+                // 卡轮诊断：正常循环时线程也"住"在这里（每轮之间都在等），不是卡死；
+                // 但若某个节点一直不结束（等待类节点在等硬件/信号满足，或图里有回接连线让本轮走不完），
+                // 就会永远停在 WaitRound。同一节点停留 ≥5 秒 → 每 5 秒记一条日志点出卡在哪个节点。
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                string lastNode = "";
+                int logged = 0;
                 while (!roundDone.Wait(1))
                 {
-                    if (ctrl.StopRequested || ctrl.EStopRequested) runner.Stop();
+                    if (ctrl.StopRequested || ctrl.EStopRequested) { runner.Stop(); continue; }
+                    var node = runner.CurrentNodeId ?? "";
+                    if (node != lastNode) { lastNode = node; sw.Restart(); logged = 0; continue; }
+                    int sec = (int)sw.Elapsed.TotalSeconds;
+                    if (sec >= 5 && sec / 5 > logged)
+                    {
+                        logged = sec / 5;
+                        log?.Invoke($"节点图流程「{name}」在节点「{runner.DescribeNode(lastNode)}」上已停留 {sec} 秒" +
+                            $"（等待类节点在等硬件/信号满足，或图里有回接连线导致本轮不结束；点「停止」可立即终止）。", LogLevel.Warn);
+                    }
                 }
             }
 
@@ -660,6 +682,7 @@ namespace NoCodeMotion.ViewModels
             finally
             {
                 FlowRunStore.SetProgress(flow, nodeId: "");   // 运行结束：页面定时器不再高亮"当前节点"（保留最后一次结果）
+                FlowRunStore.SetTriggeredBreakpoint(flow, ""); // 运行结束：清掉"触发断点"角标
                 onFlowDone?.Invoke(index, name);
             }
         }

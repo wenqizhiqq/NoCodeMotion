@@ -269,11 +269,19 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
     public bool HasSummary => !string.IsNullOrWhiteSpace(_stepResult?.Summary) && !HasError;
 
     private bool _hasBreakpoint;
-    /// <summary>是否有断点（标题栏右上小红点）。</summary>
+    /// <summary>是否有断点（右上角「存在断点」角标）。</summary>
     public bool HasBreakpoint
     {
         get => _hasBreakpoint;
         set { if (_hasBreakpoint != value) { _hasBreakpoint = value; OnChanged(nameof(HasBreakpoint)); } }
+    }
+
+    private bool _breakpointTriggered;
+    /// <summary>断点已触发：运行到达该断点节点（右上角变为「触发断点」，红色加重）。</summary>
+    public bool BreakpointTriggered
+    {
+        get => _breakpointTriggered;
+        set { if (_breakpointTriggered != value) { _breakpointTriggered = value; OnChanged(nameof(BreakpointTriggered)); } }
     }
 
     private bool _isCurrent;

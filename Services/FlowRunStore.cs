@@ -79,6 +79,39 @@ namespace NoCodeMotion.Services
         public static System.Collections.Generic.Dictionary<string, Models.NodeGraph.NgStepResult>? GetNodeResults(FlowItem flow)
             => flow != null && _nodeResults.TryGetValue(flow, out var r) ? r : null;
 
+        // —— 节点图：断点共享（页面 VM 是唯一写入方，后台运行线程/页面重建时读取）——
+        // 目的：循环运行由 FlowRunnerService 新建的独立 NgRunner 执行，页面 VM 里设置的断点
+        // 只有放进共享态，后台 runner 才能拿到（否则断点只在页面自己的"运行一次"里生效）。
+        private static readonly ConcurrentDictionary<FlowItem, System.Collections.Generic.HashSet<string>> _breakpoints = new();
+
+        /// <summary>整体替换某流程的断点集合（页面 VM 切换断点 / 加载流程时调用）。传 null/空 = 清空。</summary>
+        public static void SetBreakpoints(FlowItem flow, System.Collections.Generic.IEnumerable<string>? ids)
+        {
+            if (flow == null) return;
+            var set = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+            if (ids != null) foreach (var id in ids) if (!string.IsNullOrEmpty(id)) set.Add(id);
+            _breakpoints[flow] = set;
+        }
+
+        /// <summary>读某流程的断点集合（未记录过则 null —— 调用方据此决定是否覆盖 runner 断点）。</summary>
+        public static System.Collections.Generic.HashSet<string>? GetBreakpoints(FlowItem flow)
+            => flow != null && _breakpoints.TryGetValue(flow, out var s) ? s : null;
+
+        // —— 节点图：当前触发的断点节点 Id（空 = 无；供页面定时器刷"触发断点"角标）——
+        private static readonly ConcurrentDictionary<FlowItem, string> _triggeredBp = new();
+
+        /// <summary>写入/清除「触发断点」节点 Id（运行器进度回调调用；空串 = 清除）。</summary>
+        public static void SetTriggeredBreakpoint(FlowItem flow, string nodeId)
+        {
+            if (flow == null) return;
+            if (string.IsNullOrEmpty(nodeId)) _triggeredBp.TryRemove(flow, out _);
+            else _triggeredBp[flow] = nodeId;
+        }
+
+        /// <summary>读当前「触发断点」的节点 Id（无则空串）。UI 定时器调用。</summary>
+        public static string GetTriggeredBreakpoint(FlowItem flow)
+            => flow != null && _triggeredBp.TryGetValue(flow, out var id) ? id : string.Empty;
+
         /// <summary>读取某流程当前快照；若不存在则返回默认的 就绪/空/0。</summary>
         public static (FlowStatus Status, string Step, int Cycle) Get(FlowItem flow)
         {
@@ -116,7 +149,11 @@ namespace NoCodeMotion.Services
 
         public static void Clear(FlowItem flow)
         {
-            if (flow != null) _map.TryRemove(flow, out _);
+            if (flow != null)
+            {
+                _map.TryRemove(flow, out _);
+                _triggeredBp.TryRemove(flow, out _);   // 断点集合保留（编辑态），只清运行触发的断点标记
+            }
         }
 
         public static void ClearAll() => _map.Clear();

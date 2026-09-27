@@ -113,6 +113,12 @@ public partial class NodeGraphPage : UserControl
             e.Handled = true;
             return;
         }
+        // 1.5) 断点角标命中 → 鼠标点击设置/取消断点（不需要先选中节点；Tag=NODE_BP，在节点卡右上角）
+        if (FindWithTag(dep, "NODE_BP") is FrameworkElement bpEl)
+        {
+            var bpNode = FindNodeVm(bpEl);
+            if (bpNode != null) { _vm.ToggleBreakpointAt(bpNode.Id); e.Handled = true; return; }
+        }
         // 2) 输出端口 → 开始连线
         // 端口现在是 ItemsControl 绑定 OutputPorts（项是 NgPortStateViewModel，不再是裸字符串），
         // 端口名取 VM 的 Label；拿不到再回退旧形态的 string DataContext。
