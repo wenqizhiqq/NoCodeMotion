@@ -628,10 +628,11 @@ namespace NoCodeMotion.ViewModels
                 if (st != NgRunState.Running && st != NgRunState.Stepping) roundDone.Set();
             };
 
-            // 等本轮跑完；等待期间响应 停止/急停 → runner.Stop()（幂等），StateChanged 置位后退出
+            // 等本轮跑完；等待期间响应 停止/急停 → runner.Stop()（幂等），StateChanged 置位后退出。
+            // 15ms 轮询：单圈毫秒级的图不因检测延迟拖慢循环节奏。
             void WaitRound()
             {
-                while (!roundDone.Wait(40))
+                while (!roundDone.Wait(1))
                 {
                     if (ctrl.StopRequested || ctrl.EStopRequested) runner.Stop();
                 }
@@ -642,6 +643,7 @@ namespace NoCodeMotion.ViewModels
                 if (loop)
                 {
                     int cycle = 0;
+                    string lastErr = "";
                     while (!ctrl.StopRequested && !ctrl.EStopRequested)
                     {
                         // 暂停：整轮粒度——暂停期间阻塞在 ResumeEvent，恢复后继续下一轮
@@ -656,14 +658,19 @@ namespace NoCodeMotion.ViewModels
                         SetStatus(flow, FlowStatus.Running);
                         onStep?.Invoke(index, name, $"节点图 第 {cycle} 轮");
                         FlowRunStore.SetStep(flow, $"节点图 第 {cycle} 轮");
-                        log?.Invoke($"节点图流程「{name}」第 {cycle} 轮开始。", LogLevel.Info);
+                        // 高频循环不逐轮刷日志（淹没日志页还拖慢节奏）：第 1 轮 + 之后每 100 轮记一条
+                        if (cycle == 1 || cycle % 100 == 0)
+                            log?.Invoke($"节点图流程「{name}」已循环 {cycle} 轮。", LogLevel.Info);
                         roundDone.Reset();
                         runner.Run();
                         WaitRound();
-                        if (!string.IsNullOrEmpty(runner.LastError))
-                            log?.Invoke($"节点图流程「{name}」第 {cycle} 轮提示：{runner.LastError}", LogLevel.Warn);
+                        if (!string.IsNullOrEmpty(runner.LastError) && runner.LastError != lastErr)
+                        {
+                            lastErr = runner.LastError;
+                            log?.Invoke($"节点图流程「{name}」第 {cycle} 轮提示：{lastErr}", LogLevel.Warn);
+                        }
                         if (ctrl.EStopRequested || ctrl.StopRequested) break;
-                        Thread.Sleep(200);   // 轮间让出 CPU，防空图/瞬时图把线程转满
+                        Thread.Sleep(1);   // 轮间 1ms：单圈毫秒级的图 ≈ 每秒 1000+ 轮；空图也不会占满 CPU
                     }
                     SetStatus(flow, FlowStatus.Stopped);
                     log?.Invoke(ctrl.EStopRequested

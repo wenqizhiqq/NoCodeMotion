@@ -184,10 +184,11 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         PauseCommand = new RelayCommand(_ => _runner.Pause(), _ => CanPause);
         StopCommand = new RelayCommand(_ => StopRun(), _ => CanStop);
 
-        // 循环运行：一轮完成到下一轮开始之间留 200ms，避免空图/瞬时完成把线程转满
+        // 循环运行：一轮完成到下一轮开始之间留 50ms（Run 本身是后台 Task，
+        // 50ms 足够让出 UI 线程；再大会拖慢「开始→运算→结束」这类毫秒级小图的循环节奏）
         _loopRestartTimer = new System.Windows.Threading.DispatcherTimer
         {
-            Interval = System.TimeSpan.FromMilliseconds(200)
+            Interval = System.TimeSpan.FromMilliseconds(1)
         };
         _loopRestartTimer.Tick += (_, _) =>
         {

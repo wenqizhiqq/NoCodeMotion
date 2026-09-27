@@ -59,7 +59,7 @@
 - ★ **四类流程统一走 FlowRunnerService 后台引擎**（2026-09-27）：表格/Lua/视觉/节点图 在 流程页「运行一次/循环运行」与 操作员页「启动/复位」全部经 `FlowRunnerService.RunOneFlow` 按 Kind 分发。`FlowViewModel.CanRun`/`Run()` 只对 Table 校验 Steps 非空——脚本/视觉/节点图内容在 LuaSource/VisualSteps/GraphJson，勿再拿 Steps 空判"没得跑"。节点图由 `RunOneFlowNodeGraph` 执行：独立 NgRunner 实例（Resolve* + SetVariable/GetVariableResolved），Main 循环轮间 200ms、Reset 单次，等待期轮询 Stop/急停 → `runner.Stop()`。
 - ★ **节点图「运算」节点是结构化属性**：`变量 + 运算(加|减|乘|除|取模|取反 下拉) + 值(自由文本，可数字/变量名/表达式)`；runner 按变量当前值真实运算后写回。旧图「表达式」字段保留回退兼容（运算为空才走）。
 - ★ **运行按钮统一约定：每处流程运行入口都提供「运行一次」+「循环运行」**，循环 = 一直跑到点停止。四处：`FlowPage`（表格流程，`FlowViewModel.LoopRunCommand`+`WrapToFirstRow()`）、`LuaEditorView`（`BtnLoopRun`，Ctrl+F5；`StartSession(..., keepLog:true)` 保留输出）、`NodeGraphPage`（`NgRunner.Completed` 触发自动重跑）、`VisualFlowPage`（按钮文案在「循环运行 / 停止循环」间切换）。
-  通用坑：① 循环标记必须在 `Stop`/切换流程/卸载时清掉，否则停止后会被自动重启；② runner 的状态回调常在后台线程，重启用的 `DispatcherTimer.Start()` 必须封送到 UI 线程；③ 轮间留 100~200ms 延时，防空脚本/空图把 UI 线转满。
+  通用坑：① 循环标记必须在 `Stop`/切换流程/卸载时清掉，否则停止后会被自动重启；② runner 的状态回调常在后台线程，重启用的 `DispatcherTimer.Start()` 必须封送到 UI 线程；③ 轮间延时只为防空图占满线程：**UI 线程 DispatcherTimer 重启场景 50ms、后台 Thread 循环 20ms**（2026-09-27 提速，旧的 100~200ms 已废弃）；④ 循环日志勿逐轮记——第 1 轮 + 每 100 轮一条，LastError 变化时才记。
 - 功能列：轴 / 输入IO / 输出IO / 气缸 / 点位 / modbus / 变量 / 系统 / 相机 / 延时。
 - 运算列全中文；改词表必须同步转换器、`ProjectTemplateCatalog`、`AiProjectExchange`、执行/仿真路径（`FlowRunnerService`/`SimFlowPlayer`/`NgRunner`）。
 - 「实际值」列全覆盖，读不到显示「—」。
