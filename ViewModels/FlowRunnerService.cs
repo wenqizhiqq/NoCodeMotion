@@ -40,9 +40,15 @@ namespace NoCodeMotion.ViewModels
         /// <summary>变量表：名称 -> 值（字符串，数值运算时再解析）。与 ProjectStore.Data.Variables 双向同步。</summary>
         public Dictionary<string, string> Vars = new(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>运行期被显式写入过的变量名（脏键）。WriteBackVars 只回写这些键——
+        /// 否则 InitVars 的旧快照会在收尾时把 节点图/Lua 等直写工程表的值（如 运算+1）冲回旧值，
+        /// 表现为「复位后变量没+1」；快速连点时上一次收尾被 gen 作废才侥幸存活。</summary>
+        public readonly HashSet<string> Touched = new(StringComparer.OrdinalIgnoreCase);
+
         public void InitVars()
         {
             Vars.Clear();
+            Touched.Clear();
             if (ProjectStore.Data?.Variables == null) return;
             foreach (var row in ProjectStore.Data.Variables)
             {
@@ -68,6 +74,7 @@ namespace NoCodeMotion.ViewModels
         {
             if (string.IsNullOrEmpty(name)) return;
             Vars[name] = value ?? "";
+            Touched.Add(name);
             var vars = ProjectStore.Data?.Variables;
             if (vars == null) return;
             foreach (var row in vars)
@@ -95,10 +102,12 @@ namespace NoCodeMotion.ViewModels
             }
         }
 
-        /// <summary>把运行期变量写回工程（VariableRow），方便变量页查看。</summary>
+        /// <summary>把运行期变量写回工程（VariableRow），方便变量页查看。
+        /// 只回写 Touched（运行期真正被写过的键）：视觉结果等只进运行仓的键靠这里落表；
+        /// 未触碰的键不回写，避免旧快照覆盖 节点图/Lua 直写工程表的最新值。</summary>
         public void WriteBackVars()
         {
-            if (ProjectStore.Data?.Variables == null) return;
+            if (ProjectStore.Data?.Variables == null || Touched.Count == 0) return;
             foreach (var row in ProjectStore.Data.Variables)
             {
                 Set(row.Name1, row, 1); Set(row.Name2, row, 2);
@@ -109,7 +118,7 @@ namespace NoCodeMotion.ViewModels
         private void Set(string n, VariableRow row, int k)
         {
             if (string.IsNullOrEmpty(n)) return;
-            if (Vars.TryGetValue(n, out var v))
+            if (Touched.Contains(n) && Vars.TryGetValue(n, out var v))
             {
                 switch (k)
                 {
@@ -949,6 +958,7 @@ namespace NoCodeMotion.ViewModels
                             if (cams != null && camIdx >= 0 && camIdx < cams.Count) camName = cams[camIdx].Name;
                             var resKey = $"CamResult{camIdx}";
                             _ctrl.Vars[resKey] = $"{det.X:0.0},{det.Y:0.0}";
+                            _ctrl.Touched.Add(resKey);   // 视觉结果只进运行仓，标记脏键后由 WriteBackVars 落表
                             SimRuntime.SetVariable(resKey, det.Score);   // 分数写入数值仓，便于 {CamResult0} 引用
                             SimRuntime.FlashCamera(camName);
                             // 同步相机页「最近结果 / 匹配分数」展示
