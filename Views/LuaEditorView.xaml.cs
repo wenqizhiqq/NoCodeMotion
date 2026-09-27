@@ -134,12 +134,8 @@ namespace NoCodeMotion.Views
                 if (_loopRun || _loopRestartTimer.IsEnabled) return;  // 编辑器循环的轮间隙：马上重启，不打扰
                 if (_operatorDriven) return;                          // 操作员循环的轮间隙：由运行器负责收尾
                 // ★ 本条脚本正被「操作员启动 / 流程页运行」在后台跑（独立会话，本页看不到它的会话）：
-                //   状态由 LuaRunMonitor 的行号回调维护，这里不能校回「就绪」。
-                if (LuaItem != null && FlowRunStore.Contains(LuaItem))
-                {
-                    var st = FlowRunStore.Get(LuaItem).Status;
-                    if (st == FlowStatus.Running || st == FlowStatus.Looping) return;
-                }
+                //   状态由轮询/广播维护，这里不能校回「就绪」。
+                if (IsFlowRunningInStore(LuaItem).Running) return;
                 SetSessionState(SessionState.Idle);
             };
             _stateSyncTimer.Start();
@@ -1005,52 +1001,80 @@ namespace NoCodeMotion.Views
             }
         }));
 
+        /// <summary>该流程当前是否正在运行/循环运行（读共享态；LuaItem 引用对不上共享态键时**按名称兜底**——
+        /// 工程重载/集合对象替换后 LuaItem 可能指向运行器没在写的旧对象）。返回 (是否运行中, 当前行号)。</summary>
+        private (bool Running, int Line) IsFlowRunningInStore(FlowItem item)
+        {
+            if (item == null) return (false, 0);
+            if (FlowRunStore.Contains(item))
+            {
+                var st = FlowRunStore.Get(item).Status;
+                return (st is FlowStatus.Running or FlowStatus.Looping, FlowRunStore.GetProgress(item).Line);
+            }
+            var flows = Services.ProjectStore.Data?.Flows;
+            if (flows != null && !string.IsNullOrEmpty(item.Name))
+            {
+                foreach (var f in flows)
+                {
+                    if (f == null || f.Name != item.Name || !FlowRunStore.Contains(f)) continue;
+                    var (s2, _, _) = FlowRunStore.Get(f);
+                    if (s2 is FlowStatus.Running or FlowStatus.Looping)
+                        return (true, FlowRunStore.GetProgress(f).Line);
+                }
+            }
+            return (false, 0);
+        }
+
         /// <summary>外部运行（操作员「启动」/ 流程页运行）进度轮询：由 100ms 定时器调用，
-        /// 读共享态 FlowRunStore 的行号/状态刷新"当前行高亮"。
+        /// 读共享态 FlowRunStore 的行号/状态刷新"当前行高亮 + 运行状态/按钮使能"。
         /// ★ 页面靠定时器自己拉状态，不依赖运行器推送——切页、丢订阅都不会再出现"运行中行不跳"。</summary>
         private void PollExternalRun()
         {
-            if (!IsLoaded || Editor?.Document == null) return;
-            var item = LuaItem;
-            if (item == null || !FlowRunStore.Contains(item)) return;
-            var (st, _, _) = FlowRunStore.Get(item);
-            if (st != FlowStatus.Running && st != FlowStatus.Looping) return;
-            if (_session != null && _session.IsBusy) return;    // 本页自己的会话在跑：它自己会跳行
-            if (_uiState != SessionState.Running) SetSessionState(SessionState.Running);
-            int line = FlowRunStore.GetProgress(item).Line;
-            if (line > 0) HighlightLine(line);
+            try
+            {
+                if (!IsLoaded || Editor?.Document == null) return;
+                var item = LuaItem;
+                if (item == null) return;
+                var (running, line) = IsFlowRunningInStore(item);
+                if (!running) return;
+                if (_session != null && _session.IsBusy) return;    // 本页自己的会话在跑：它自己会跳行
+                if (_uiState != SessionState.Running) SetSessionState(SessionState.Running);
+                if (line > 0) HighlightLine(line);
+            }
+            catch { /* 轮询异常绝不外抛（定时器回调里抛异常会打断后续 Tick） */ }
         }
 
-        // —— Operator 运行期跳行高亮（订阅 LuaRunMonitor，仅高亮当前选中的流程）——
+        // —— 外部运行（操作员启动 / 流程页循环）跳行高亮 ——
+        // ★ 广播来自**脚本线程**：整个处理体必须封送到 UI 线程——读 LuaItem（依赖属性）/IsLoaded
+        //   也算 UI 访问，跨线程直接抛异常（异常冒回 MoonSharp → 脚本被判错误 → 循环被 break）。
+        //   运行状态文字 / 按钮使能由 PollExternalRun（100ms UI 定时器）统一维护，这里不碰。
         private void OnMonitorLine(FlowItem flow, int line)
         {
-            if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
-            if (!IsLoaded || Editor == null || Editor.Document == null) return;
-            // 若本编辑器正在手动调试（自己的会话在忙且非 Operator 驱动），不让 Operator 的独立会话
-            // 抢占当前行与滚动位置，否则会覆盖用户正在单步查看的行。
-            if (_session != null && _session.IsBusy && !_operatorDriven) return;
-            // 外部（操作员启动 / 流程页运行）走独立会话、本页没有会话：状态跟着行号一起变成
-            // 「运行中… / 循环运行中…」，不能还停在「就绪」（用户报的现象）。
-            if ((_session == null || !_session.IsBusy) && _uiState != SessionState.Running)
-                SetSessionState(SessionState.Running);
-            Dispatcher.BeginInvoke(new Action(() => HighlightLine(line)));
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
+                if (!IsLoaded || Editor == null || Editor.Document == null) return;
+                // 手动调试中（本页自己的会话在忙）不让外部行号抢占当前行高亮
+                if (_session != null && _session.IsBusy && !_operatorDriven) return;
+                HighlightLine(line);
+            }));
         }
 
         private void OnMonitorEnded(FlowItem flow)
         {
-            if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
-            if (!IsLoaded || Editor == null || Editor.Document == null) return;
-            if (_session != null && _session.IsBusy && !_operatorDriven) return;
-            // 外部独立会话结束：本页没有会话可收尾。若该流程整体仍在跑（循环运行的轮间隙），状态保持运行中，
-            // 避免轮与轮之间闪回「就绪」；整体结束后才收回。
-            if (_session == null || !_session.IsBusy)
+            // ★ 同样来自脚本线程：整体封送 UI 线程处理
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                bool stillRunning = LuaItem != null && FlowRunStore.Contains(LuaItem)
-                    && FlowRunStore.Get(LuaItem).Status is FlowStatus.Running or FlowStatus.Looping;
-                if (!stillRunning)
-                    Dispatcher.BeginInvoke(new Action(() => SetSessionState(SessionState.Idle)));
-            }
-            Dispatcher.BeginInvoke(new Action(ClearCurrentLine));
+                if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
+                if (!IsLoaded || Editor == null || Editor.Document == null) return;
+                if (_session != null && _session.IsBusy && !_operatorDriven) return;
+                // 该流程整体仍在跑（循环轮间隙）→ 状态保持运行中，避免闪回「就绪」；整体结束后才收回
+                if (_session == null || !_session.IsBusy)
+                {
+                    if (!IsFlowRunningInStore(LuaItem).Running) SetSessionState(SessionState.Idle);
+                }
+                ClearCurrentLine();
+            }));
         }
 
         private void HighlightLine(int line)
@@ -1532,8 +1556,7 @@ namespace NoCodeMotion.Views
             // 否则点「停止」只停掉当前会话，运行器下一轮又自动重启——按钮使能永远停在"运行中"（停不下来）。
             // 两种情况都要通知：① _operatorDriven = 编辑器被服务直接驱动；② 后台独立会话（服务退化路径）时
             // 本页没有会话，但共享态显示本条流程在跑 —— 此时也应让运行器停下。
-            bool externallyRunning = LuaItem != null && FlowRunStore.Contains(LuaItem)
-                && FlowRunStore.Get(LuaItem).Status is FlowStatus.Running or FlowStatus.Looping;
+            bool externallyRunning = IsFlowRunningInStore(LuaItem).Running;
             if (_operatorDriven || (_session == null && externallyRunning)) EditorStopRequested = true;
             _session?.Stop();
         }

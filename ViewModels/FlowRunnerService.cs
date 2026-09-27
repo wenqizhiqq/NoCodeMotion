@@ -136,12 +136,33 @@ namespace NoCodeMotion.ViewModels
 
     /// <summary>跨组件广播 Lua 流程的当前执行行，供流程页的 LuaEditorView 实时跳行高亮。
     /// 运行器用独立 LuaDebugSession 跑，编辑器只订阅本监控，按 FlowItem 匹配后高亮，解耦会话实例。</summary>
+    /// <summary>Lua「外部运行」行号广播：独立会话的 LineStepped 在**脚本线程**上触发，
+    /// 订阅者（LuaEditorView.OnMonitorLine 等）自己负责封送 UI 线程；这里逐个订阅者 try/catch，
+    /// 界面处理异常绝不冒回脚本线程（否则 MoonSharp 记成脚本错误 → 整条循环被 break → "点进去就停"）。</summary>
     public static class LuaRunMonitor
     {
         public static event Action<FlowItem, int> LineChanged;
         public static event Action<FlowItem> RunEnded;
-        public static void Report(FlowItem flow, int line) => LineChanged?.Invoke(flow, line);
-        public static void ReportEnded(FlowItem flow) => RunEnded?.Invoke(flow);
+
+        public static void Report(FlowItem flow, int line)
+        {
+            var h = LineChanged;
+            if (h == null) return;
+            foreach (Action<FlowItem, int> d in h.GetInvocationList())
+            {
+                try { d(flow, line); } catch { /* 界面异常不进脚本线程 */ }
+            }
+        }
+
+        public static void ReportEnded(FlowItem flow)
+        {
+            var h = RunEnded;
+            if (h == null) return;
+            foreach (Action<FlowItem> d in h.GetInvocationList())
+            {
+                try { d(flow); } catch { }
+            }
+        }
     }
 
     /// <summary>
@@ -323,9 +344,10 @@ namespace NoCodeMotion.ViewModels
             FlowRunStore.SetStatus(flow, st);
         }
 
-        /// <summary>Lua 脚本流程：优先复用 Lua 编辑器页面自身的运行（RunFlow，用户要求“lua 直接走编辑器页面运行”，
-        /// 运行行/断点/单步与页面完全一致）；编辑器未就绪或被占用时退化为独立 LuaDebugSession 连续运行，
-        /// 并把当前执行行广播给 LuaRunMonitor 供编辑器实时跳行高亮。暂停/停止映射到会话的 RequestPause/Resume/Stop。</summary>
+        /// <summary>Lua 脚本流程：**唯一路径 = 独立后台 LuaDebugSession 连续运行**（thread + while + 1ms），
+        /// 与编辑器页面彻底解耦——进入/离开脚本页面、页面 Loaded/卸载、编辑器忙闲都绝不影响运行。
+        /// 当前行广播给 LuaRunMonitor + 写 FlowRunStore.SetProgress，脚本页用 100ms 轮询定时器刷行号与状态。
+        /// 暂停/停止映射到会话的 RequestPause/Resume/Stop。</summary>
         private static void RunOneFlowLua(FlowItem flow, int index, FlowRunControl ctrl,
             Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone, bool loop)
         {
@@ -334,114 +356,17 @@ namespace NoCodeMotion.ViewModels
             SetStatus(flow, loop ? FlowStatus.Looping : FlowStatus.Running);
             // Lua Main 循环：每轮跑完脚本后判断 Ended.IsError，一旦脚本报错就停止循环并把状态置 Exception，
             // 避免早前实现的「错误也立即重启」造成的 LuaScriptThread/LuaWatch 死循环刷屏与 UI 卡顿。
-            var editor = LuaEditorView.Active;
             try
             {
             int luaRound = 0;   // 单次只跑一轮：首轮 luaRound==0 进入，之后置 1 → 退出；循环模式无限循环
-            if (editor != null)
-            {
-                // loop=true 持续循环直到停止/急停；loop=false（复位流程 / 运行一次）只跑一轮。
-                log?.Invoke($"Lua 流程「{name}」经编辑器页面运行（{(loop ? "循环" : "单次")}）。", LogLevel.Info);
-                int busyRetry = 0;
-                // 用户在编辑器点「停止」→ 编辑器置 EditorStopRequested → 这里消费为 ctrl 停止并清标志。
-                // 否则点「停止」只停掉当前会话、下一轮又自动重启（Lua 循环"停不下来"、按钮使能停在运行中）。
-                while ((loop || luaRound == 0) && !ctrl.StopRequested && !LuaEditorView.EditorStopRequested && !ctrl.EStopRequested)
-                {
-                    if (LuaEditorView.EditorStopRequested) { ctrl.StopRequested = true; LuaEditorView.EditorStopRequested = false; }
-                    Thread.Sleep(1);   // 让出 CPU，避免紧密循环抢占 UI 线程
-                    LuaDebugSession session = null;
-                    ExecutionEndedInfo lastEnded = null;
-                    var editorReady = new ManualResetEventSlim(false);
-                    try
-                    {
-                        // 用 BeginInvoke 异步把 RunFlow 派发到 UI 线程，避免后台线程被 Dispatcher.Invoke 同步阻塞；
-                        // 派发完成后置 editorReady，后台线程再继续（不碰 UI）。
-                        editor.Dispatcher.BeginInvoke(new Action(() =>
-                        {
-                            try
-                            {
-                                session = editor.RunFlow(flow, false);
-                                if (session != null)
-                                {
-                                    session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}", LogLevel.Info);
-                                    session.LineStepped += line =>
-                                    {
-                                        onStep?.Invoke(index, name, $"Lua 行 {line}");
-                                        FlowRunStore.SetStep(flow, $"Lua 行 {line}");
-                                        FlowRunStore.SetProgress(flow, line: line);   // 供脚本页定时器轮询刷新行号高亮
-                                    };
-                                    Action<ExecutionEndedInfo> onEnded = null;
-                                    onEnded = info => { lastEnded = info; };
-                                    session.Ended += onEnded;
-                                }
-                            }
-                            finally { editorReady.Set(); }
-                        }));
-                        if (!editorReady.Wait(2000))
-                        {
-                            // ★ 重试不消耗轮次：旧实现在循环顶部就 luaRound++，超时重试一次
-                            //   就会以"已完成"退出且无任何日志——脚本"从未被调用"的静默根因之一。
-                            log?.Invoke($"Lua 流程「{name}」编辑器派发超时，重试…", LogLevel.Warn);
-                            Thread.Sleep(300);
-                            continue;
-                        }
-                    }
-                    catch (Exception ex) { editorReady.Set(); log?.Invoke($"流程「{name}」Lua 启动异常：{ex.Message}", LogLevel.Error); Thread.Sleep(300); continue; }
-
-                    if (session == null)
-                    {
-                        // 编辑器忙（用户手动调试 / 上一会话尚未停止）→ 等待重试，不消耗轮次，
-                        // 直到编辑器空闲后脚本一定被执行（点「停止」可随时中止等待）。
-                        busyRetry++;
-                        if (busyRetry % 20 == 1)   // 约 2 秒记一条，避免刷屏
-                            log?.Invoke($"Lua 流程「{name}」编辑器忙（手动调试/会话停止中），等待中…", LogLevel.Warn);
-                        Thread.Sleep(1);   // 交接等待 100ms（原 300ms：循环时每轮少等最多 200ms）
-                        continue;
-                    }
-                    busyRetry = 0;
-                    luaRound++;   // 只有成功启动的一轮才计轮数
-                    FlowRunStore.SetCycle(flow, luaRound);
-                    // 循环运行不逐轮刷日志（原来每轮一条，循环时淹没输出面板）：第 1 轮 + 每 100 轮一条
-                    if (!loop || luaRound == 1 || luaRound % 100 == 0)
-                        log?.Invoke($"流程「{name}」开始运行（复用 Lua 编辑器页面，{(loop ? "循环" : "单次")}{(loop ? $"，已 {luaRound} 轮" : "")}）。", LogLevel.Info);
-                    while (session.IsBusy && !ctrl.EStopRequested && !ctrl.StopRequested)
-                    {
-                        Thread.Sleep(1);   // 轮结束检测 10ms（原 40ms：每轮少白等最多 30ms）
-                        if (ctrl.EStopRequested || ctrl.StopRequested) { session.Stop(); break; }
-                        if (ctrl.PauseRequested)
-                        {
-                            SetStatus(flow, FlowStatus.Paused);
-                            session.RequestPause();
-                            while (ctrl.PauseRequested && session.IsBusy) Thread.Sleep(1);
-                            if (session.IsBusy && !ctrl.PauseRequested)
-                            {
-                                session.Resume(DebuggerAction.ActionType.Run);
-                                SetStatus(flow, loop ? FlowStatus.Looping : FlowStatus.Running);
-                            }
-                        }
-                    }
-                    LuaRunMonitor.ReportEnded(flow);
-                    if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。", LogLevel.Warn); break; }
-                    if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。", LogLevel.Warn); break; }
-                    // 脚本以错误结束 → 跳出循环，状态置 Exception，不再重试（早前实现刷屏根因）
-                    if (lastEnded != null && lastEnded.IsError)
-                    {
-                        SetStatus(flow, FlowStatus.Exception);
-                        log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。", LogLevel.Error);
-                        break;
-                    }
-                    // 正常结束一轮 → 轮间隔 50ms 再起下一轮（原 200ms：脚本循环从 ~5 轮/秒 提到 ~20 轮/秒；
-                    // 脚本每轮要新建 Lua 会话，比节点图重，故仍留一点间隔让出 CPU，不贴死循环）。
-                    Thread.Sleep(1);
-                }
-                onFlowDone?.Invoke(index, name);
-                return;
-            }
-
-            // 退化路径：Lua 编辑器页面未加载，用独立会话连续运行并广播当前行。
+            // ★ 唯一路径：独立后台会话（thread + while + 1ms），与编辑器页面彻底解耦——
+            //   进入/离开脚本页面、页面 Loaded/卸载、编辑器忙闲，都绝不影响运行；
+            //   页面用 100ms 轮询定时器（PollExternalRun）+ LuaRunMonitor 广播刷行号与状态。
             // loop=true 持续循环直到停止/急停；loop=false（复位流程 / 运行一次）只跑一轮。
-            while ((loop || luaRound == 0) && !ctrl.StopRequested && !ctrl.EStopRequested)
+            // 用户在脚本页点「停止」→ 编辑器置 EditorStopRequested（本页无会话但共享态显示在跑）→ 这里消费为停止。
+            while ((loop || luaRound == 0) && !ctrl.StopRequested && !LuaEditorView.EditorStopRequested && !ctrl.EStopRequested)
             {
+                if (LuaEditorView.EditorStopRequested) { ctrl.StopRequested = true; LuaEditorView.EditorStopRequested = false; }
                 luaRound++;
                 FlowRunStore.SetCycle(flow, luaRound);
                 Thread.Sleep(1);   // 让出 CPU，避免紧密循环抢占 UI 线程
@@ -508,7 +433,7 @@ namespace NoCodeMotion.ViewModels
             finally
             {
                 LuaEditorView.EditorStopRequested = false;   // 本条 Lua 流程已结束，清掉编辑器停止标志（避免残留影响后续运行）
-                editor?.ClearOperatorDriven();               // 清操作员驱动标记；若编辑器 UI 卡在"运行中"（停止/重启竞态），校回就绪
+                // 运行不再驱动编辑器页面，无需 ClearOperatorDriven（编辑器状态由页面自己的轮询定时器维护）
                 // 收尾状态：被停止 / 急停 → Stopped；脚本错误 → 保持已置 Exception；其它正常完成 → Idle
                 // 注意：必须检查 FlowRunStore 中的实时状态，而不是 flow.Status——
                 // flow.Status 由 OperatorViewModel 的 DispatcherTimer 异步写入，有最多 150ms 滞后，
