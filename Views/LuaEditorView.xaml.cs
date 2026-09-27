@@ -81,6 +81,15 @@ namespace NoCodeMotion.Views
         /// </summary>
         public static volatile bool EditorStopRequested;
 
+        // ---------- 断点注册表（按流程项记忆）：后台运行器（FlowRunnerService）从这里取断点 ----------
+        // 编辑器行号左侧点出的断点存在这里（key=流程项），切换脚本/重进页面都不丢；
+        // 后台 LuaDebugSession（循环运行/运行一次）启动时注入 → 断点有实际效果：命中即暂停。
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<FlowItem, HashSet<int>> _breakpointsByItem = new();
+
+        /// <summary>后台运行器取某条 Lua 流程的断点行集合（无则空集合）。</summary>
+        public static System.Collections.Generic.IReadOnlyCollection<int> GetBreakpoints(FlowItem item)
+            => item != null && _breakpointsByItem.TryGetValue(item, out var s) ? s : System.Array.Empty<int>();
+
         // 编辑器 UI 当前显示的会话状态（SetSessionState 写入）。用于 500ms 状态校准兜底：
         // 停止事件与运行器重启竞态时，按钮使能可能卡在"运行中"——校准器把 UI 拉回与会话一致。
         private SessionState _uiState = SessionState.Idle;
@@ -197,6 +206,8 @@ namespace NoCodeMotion.Views
         {
             _loopRun = false;
             _loopRestartTimer?.Stop();
+            // 切换前：把当前脚本的断点存入注册表（断点按流程项记忆，切回来还能恢复）
+            if (LuaItem != null) _breakpointsByItem[LuaItem] = new HashSet<int>(_bpMargin.Breakpoints);
             // ★ 操作员驱动的会话由后台运行器持有：切换流程/重绑 LuaItem 时不能停它，否则生产运行被打断。
             if (!_operatorDriven) _session?.Stop();
 
@@ -220,6 +231,12 @@ namespace NoCodeMotion.Views
             _varIndex.Clear();
             RebuildInsertPanel();
             _bpMargin.ClearAll();
+            // 恢复该脚本此前设置的断点（注册表记忆）
+            if (LuaItem != null && _breakpointsByItem.TryGetValue(LuaItem, out var savedBps) && savedBps.Count > 0)
+            {
+                foreach (var ln in savedBps) _bpMargin.Breakpoints.Add(ln);
+                _bpMargin.InvalidateVisual();
+            }
             UpdateBreakpointCount();
             SetSessionState(SessionState.Idle);
 
@@ -373,6 +390,7 @@ namespace NoCodeMotion.Views
             {
                 UpdateBreakpointCount();
                 _session?.SetBreakpoints(_bpMargin.Breakpoints);
+                if (LuaItem != null) _breakpointsByItem[LuaItem] = new HashSet<int>(_bpMargin.Breakpoints);
             };
 
             TextView view = Editor.TextArea.TextView;

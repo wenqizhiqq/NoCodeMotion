@@ -789,7 +789,8 @@ namespace NoCodeMotion.ViewModels
             _pauseRequested = false;
             _resumeEvent.Set();
             _flowCtrl.PauseRequested = false; _flowCtrl.ResumeEvent.Set();
-            FlowLoopManager.ResumeAll();   // ★ 继续全部托管循环运行
+            System.Threading.Interlocked.Increment(ref _flowCtrl.ResumeTick);   // 唤醒断点挂起的执行器/watcher
+            FlowLoopManager.ResumeAll();   // ★ 继续全部托管循环运行（含断点挂起的循环）
             IsPaused = false;
             StatusText = "继续运行。";
             AddLog(LogLevel.Info, "继续运行。");

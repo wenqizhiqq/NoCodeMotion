@@ -131,16 +131,18 @@
                     </Button>
                 </StackPanel>
 
-                <!-- 列头：类型 / 耗时 / 结果（全列固定 px，类型只读显示，类型选择移到了右侧参数区） -->
+                <!-- 列头：类型 / 耗时 / 结果 / 断点（全列固定 px，类型只读显示，类型选择移到了右侧参数区） -->
                 <Grid Grid.Row="1" Margin="6,0,6,4">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="140"/>
-                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="130"/>
+                        <ColumnDefinition Width="55"/>
                         <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="34"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="类型" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                     <TextBlock Grid.Column="1" Text="耗时" FontSize="11" Margin="0,0,4,0" TextAlignment="Right" Foreground="{StaticResource TextSecondaryBrush}"/>
                     <TextBlock Grid.Column="2" Text="结果" FontSize="11" TextAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Grid.Column="3" Text="断点" FontSize="11" TextAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
                 </Grid>
 
                 <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}">
@@ -151,9 +153,10 @@
                             <DataTemplate>
                                 <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="140"/>
-                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="55"/>
                                         <ColumnDefinition Width="40"/>
+                                        <ColumnDefinition Width="34"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="{Binding StepType}"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
@@ -181,6 +184,9 @@
                                             </Style>
                                         </TextBlock.Style>
                                     </TextBlock>
+                                    <CheckBox Grid.Column="3" IsChecked="{Binding Breakpoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              ToolTip="断点：后台运行到此步暂停，点「运行/继续」恢复"/>
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>

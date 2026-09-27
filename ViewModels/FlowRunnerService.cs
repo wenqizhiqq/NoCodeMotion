@@ -28,6 +28,11 @@ namespace NoCodeMotion.ViewModels
         public volatile bool PauseRequested;
         public ManualResetEventSlim ResumeEvent = new(true);
 
+        /// <summary>恢复代数：每次「继续」（ResumeLoop/ResumeAll/页面恢复运行）自增。
+        /// 断点挂起的等待方（表格执行器断点闸 / Lua watcher / 节点图 WaitRound）发现代数变化即恢复执行。
+        /// （ResumeEvent 初始为有信号，不能直接用来等"下一次继续"，必须用代数。）</summary>
+        public int ResumeTick;
+
         /// <summary>「相机」步骤真实取帧后回调（byte[]=BGRA, w, h），供 3D 仿真抓拍预览订阅。</summary>
         public Action<byte[], int, int>? OnCameraCapture;
 
@@ -375,6 +380,9 @@ namespace NoCodeMotion.ViewModels
                 try
                 {
                     var session = new LuaDebugSession();
+                    // 断点：注入编辑器里为该脚本设置的断点行（命中即暂停，watcher 里等「继续」）
+                    var luaBps = LuaEditorView.GetBreakpoints(flow);
+                    if (luaBps.Count > 0) session.SetBreakpoints(luaBps);
                     session.Log += (m, k) => log?.Invoke($"[Lua:{name}] {m}", LogLevel.Info);
                     session.LineStepped += line =>
                     {
@@ -398,6 +406,21 @@ namespace NoCodeMotion.ViewModels
                         while (!ended.Wait(10))
                         {
                             if (ctrl.EStopRequested || ctrl.StopRequested) { session?.Stop(); break; }
+                            // ★ 断点命中：会话被 MoonSharp 暂停 → 状态置 Breakpoint，挂起等「继续」
+                            //   （流程页「运行一次/循环运行」、脚本页/节点图页「继续」、操作员「继续」都会自增 ResumeTick）
+                            if (session.State == SessionState.Paused)
+                            {
+                                SetStatus(flow, FlowStatus.Breakpoint);
+                                int tick0 = ctrl.ResumeTick;
+                                while (session.State == SessionState.Paused && !ended.Wait(10))
+                                {
+                                    if (ctrl.StopRequested || ctrl.EStopRequested || LuaEditorView.EditorStopRequested)
+                                    { session?.Stop(); break; }
+                                    if (ctrl.ResumeTick != tick0) session?.Resume(DebuggerAction.ActionType.Run);
+                                }
+                                if (ctrl.StopRequested || ctrl.EStopRequested || LuaEditorView.EditorStopRequested) break;
+                                SetStatus(flow, loop ? FlowStatus.Looping : FlowStatus.Running);
+                            }
                             if (ctrl.PauseRequested)
                             {
                                 SetStatus(flow, FlowStatus.Paused);
@@ -489,11 +512,31 @@ namespace NoCodeMotion.ViewModels
                         cycle++;
                         FlowRunStore.SetCycle(flow, cycle);
                         SetStatus(flow, FlowStatus.Looping);   // 循环运行状态（列表芯片显示「循环」）
+                        // 断点闸：视觉步骤设了断点 → 状态 Breakpoint 挂起，等「继续」（ResumeTick 变化）或停止/急停
+                        void VisionBreakpointGate(Models.VisualFlowStep s)
+                        {
+                            FlowRunStore.SetStatus(flow, FlowStatus.Breakpoint);
+                            int tick0 = ctrl.ResumeTick;
+                            while (ctrl.ResumeTick == tick0)
+                            {
+                                if (ctrl.StopRequested || ctrl.EStopRequested)
+                                    throw new OperationCanceledException();
+                                Thread.Sleep(15);
+                            }
+                            FlowRunStore.SetStatus(flow, FlowStatus.Looping);
+                        }
                         try
                         {
-                            var report = VisionEngine.Run(steps, progress);
+                            var report = VisionEngine.Run(steps, progress, VisionBreakpointGate);
                             bool anyFail = report.Results.Any(r => !r.Ok);
                             log?.Invoke($"视觉流程「{name}」第 {cycle} 轮完成（{(anyFail ? "有失败步骤" : "全部通过")}，{report.Results.Count} 步）。", LogLevel.Info);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // 断点挂起期间点停止/急停：按停止收尾（不是异常）
+                            SetStatus(flow, FlowStatus.Stopped);
+                            log?.Invoke($"视觉流程「{name}」在断点处被停止。", LogLevel.Warn);
+                            break;
                         }
                         catch (Exception ex)
                         {
@@ -515,14 +558,30 @@ namespace NoCodeMotion.ViewModels
                 return;
             }
 
-            // 复位流程：单次执行（跑完即结束，不循环）
+            // 复位流程：单次执行（跑完即结束，不循环）。断点闸：视觉步骤设了断点 → 挂起等「继续」。
             SetStatus(flow, FlowStatus.Running);
             log?.Invoke($"视觉流程「{name}」开始运行（{steps.Count} 步，复位流程单次执行）。", LogLevel.Info);
+            void VisionBreakpointGateSingle(Models.VisualFlowStep s)
+            {
+                FlowRunStore.SetStatus(flow, FlowStatus.Breakpoint);
+                int tick0 = ctrl.ResumeTick;
+                while (ctrl.ResumeTick == tick0)
+                {
+                    if (ctrl.StopRequested || ctrl.EStopRequested) throw new OperationCanceledException();
+                    Thread.Sleep(15);
+                }
+                FlowRunStore.SetStatus(flow, FlowStatus.Running);
+            }
             try
             {
-                var report = VisionEngine.Run(steps, progress);
+                var report = VisionEngine.Run(steps, progress, VisionBreakpointGateSingle);
                 SetStatus(flow, FlowStatus.Idle);
                 log?.Invoke($"视觉流程「{name}」运行结束。", LogLevel.Info);
+            }
+            catch (OperationCanceledException)
+            {
+                SetStatus(flow, FlowStatus.Stopped);
+                log?.Invoke($"视觉流程「{name}」在断点处被停止。", LogLevel.Warn);
             }
             catch (Exception ex)
             {
@@ -574,7 +633,9 @@ namespace NoCodeMotion.ViewModels
             //   （卡片右上角显示，进度照常推进），不会卡死流程；页面自己的「运行一次」才有断点暂停。
             var bps = FlowRunStore.GetBreakpoints(flow);
             if (bps != null) runner.SetBreakpoints(bps);
-            runner.BreakOnHit = false;
+            // 断点语义：循环运行 → 到断点真暂停（挂起等「继续」，ResumeTick 唤醒，见 WaitRound）；
+            // 后台单次（复位流程/流程页运行一次）→ 只标记「触发断点」不暂停（单次没有统一恢复入口，暂停会卡死流程）。
+            runner.BreakOnHit = loop;
             // 进度写共享态（节点图页用定时器轮询刷新"当前节点高亮 + 各节点结果"，运行器不往页面推）。
             void PublishNodeProgress()
             {
@@ -619,6 +680,20 @@ namespace NoCodeMotion.ViewModels
                         log?.Invoke($"节点图流程「{name}」在节点「{runner.DescribeNode(lastNode)}」上已停留 {sec} 秒" +
                             $"（等待类节点在等硬件/信号满足，或图里有回接连线导致本轮不结束；点「停止」可立即终止）。", LogLevel.Warn);
                     }
+                }
+                // 断点暂停（循环运行 BreakOnHit=true）：本轮没结束而是停在断点节点 → 挂起，
+                // 直到「继续」（节点图页「继续」/流程页「运行」/操作员「继续」→ ResumeTick 变化）或 停止/急停。
+                if (runner.State == NgRunState.Paused)
+                {
+                    SetStatus(flow, FlowStatus.Breakpoint);
+                    int tick0 = ctrl.ResumeTick;
+                    while (runner.State == NgRunState.Paused)
+                    {
+                        if (ctrl.StopRequested || ctrl.EStopRequested) { runner.Stop(); return; }
+                        if (ctrl.ResumeTick != tick0) runner.Resume();
+                        else Thread.Sleep(15);
+                    }
+                    if (!ctrl.StopRequested && !ctrl.EStopRequested) SetStatus(flow, FlowStatus.Looping);
                 }
             }
 
@@ -760,10 +835,17 @@ namespace NoCodeMotion.ViewModels
             }
         }
 
-        /// <summary>暂停某条流程的循环运行（整轮粒度）。</summary>
+        /// <summary>暂停某条流程的循环运行（整轮/步骤边界粒度）。
+        /// ★ 必须 Reset ResumeEvent：引擎的暂停门是 `ResumeEvent.Wait()`，事件初始为有信号，
+        ///   不 Reset 的话 Wait 立即返回 → 流程继续跑（暂停形同虚设）。恢复时 ResumeLoop 再 Set。</summary>
         public static void PauseLoop(FlowItem? flow)
         {
-            if (flow != null && _loops.TryGetValue(flow, out var c)) c.PauseRequested = true;
+            if (flow != null && _loops.TryGetValue(flow, out var c))
+            {
+                c.PauseRequested = true;
+                c.ResumeEvent.Reset();
+                FlowRunStore.SetStatus(flow, FlowStatus.Paused);   // 立即反映到列表芯片/状态文字（线程到边界时会再写一次）
+            }
         }
 
         /// <summary>继续某条流程的循环运行。</summary>
@@ -773,6 +855,7 @@ namespace NoCodeMotion.ViewModels
             {
                 c.PauseRequested = false;
                 c.ResumeEvent.Set();
+                System.Threading.Interlocked.Increment(ref c.ResumeTick);   // 唤醒断点挂起的等待方
             }
         }
 
@@ -787,10 +870,15 @@ namespace NoCodeMotion.ViewModels
             _loops.Clear();
         }
 
-        /// <summary>暂停全部循环运行。</summary>
+        /// <summary>暂停全部循环运行（操作员页「暂停」= 暂停所有流程）。</summary>
         public static void PauseAll()
         {
-            foreach (var kv in _loops) kv.Value.PauseRequested = true;
+            foreach (var kv in _loops)
+            {
+                kv.Value.PauseRequested = true;
+                kv.Value.ResumeEvent.Reset();
+                FlowRunStore.SetStatus(kv.Key, FlowStatus.Paused);
+            }
         }
 
         /// <summary>继续全部循环运行。</summary>
@@ -800,6 +888,7 @@ namespace NoCodeMotion.ViewModels
             {
                 kv.Value.PauseRequested = false;
                 kv.Value.ResumeEvent.Set();
+                System.Threading.Interlocked.Increment(ref kv.Value.ResumeTick);
             }
         }
     }
@@ -829,6 +918,22 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>运行结束/中止后清除当前行高亮（写共享态，页面定时器轮询刷新）。</summary>
         public void ClearCurrent() => FlowRunStore.SetProgress(_flow, stepIndex: -1);
+
+        /// <summary>断点闸：当前行设置了断点 → 状态置 Breakpoint（页面显示「触发断点」）并挂起本线程，
+        /// 直到「继续」（ResumeTick 变化：流程页「运行/循环运行」、操作员「继续」都会自增）或 停止/急停。
+        /// 恢复后状态回 Looping/Running，继续往下执行；下一轮再经过该行仍会暂停（真断点语义）。</summary>
+        private void BreakpointGate(CancellationToken ct)
+        {
+            FlowRunStore.SetStatus(_flow, FlowStatus.Breakpoint);
+            int tick = _ctrl.ResumeTick;
+            while (_ctrl.ResumeTick == tick)
+            {
+                if (_ctrl.EStopRequested || _ctrl.StopRequested) throw new OperationCanceledException();
+                ct.ThrowIfCancellationRequested();
+                Thread.Sleep(15);
+            }
+            FlowRunStore.SetStatus(_flow, _loop ? FlowStatus.Looping : FlowStatus.Running);
+        }
 
         private void AbortCheck(CancellationToken ct)
         {
@@ -862,6 +967,7 @@ namespace NoCodeMotion.ViewModels
                 Thread.Sleep(1);   // 每步让出 CPU，避免密集步骤循环抢占 UI 线程
                 AbortCheck(ct);
                 var s = _steps[i];
+                if (s.Breakpoint) BreakpointGate(ct);   // ★ 断点行：挂起等「继续」（有实际效果的断点）
                 var logic = (s.Logic ?? "").Trim();
                 _onStep?.Invoke(_index, _flow.Name ?? "", $"第 {i + 1}/{_steps.Count} 步 · {logic}");
                 // 行序号写共享态：流程页 300ms 定时器轮询刷新"当前行高亮"（运行器不碰 UI 集合）

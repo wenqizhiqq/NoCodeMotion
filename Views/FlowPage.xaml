@@ -373,6 +373,23 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
+                                    <!-- 断点：勾选后运行到此行暂停（状态显示「触发断点」），点「运行一次/循环运行」继续 -->
+                                    <DataGridTemplateColumn Header="断点" Width="46" CanUserResize="False">
+                                        <DataGridTemplateColumn.HeaderStyle>
+                                            <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource FlowHeaderStyle}">
+                                                <Setter Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                                <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}"/>
+                                            </Style>
+                                        </DataGridTemplateColumn.HeaderStyle>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding Breakpoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          ToolTip="断点：运行到此行暂停，再点「运行一次/循环运行」继续"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
                                     <DataGridTemplateColumn Header="耗时(ms)" Width="90">
                                         <DataGridTemplateColumn.HeaderStyle>
                                             <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource FlowHeaderStyle}">

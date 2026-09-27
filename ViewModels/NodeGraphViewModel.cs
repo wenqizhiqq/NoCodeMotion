@@ -114,6 +114,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
                     case FlowStatus.Looping: return $"循环运行中（操作员/页面启动）　·　已循环 {cycle} 轮";
                     case FlowStatus.Running: return "运行中（外部启动）";
                     case FlowStatus.Paused: return "已暂停（操作员）";
+                    case FlowStatus.Breakpoint: return "触发断点（循环挂起，点「继续」恢复）";
                 }
             }
             string baseText = RunState switch
@@ -142,8 +143,12 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     public bool CanStartRun => CanRun;
     /// <summary>「单步」按钮可用：允许单步的状态。</summary>
     public bool CanStartStep => CanStep;
-    public bool CanResume => _runner.State == NgRunState.Paused;
-    public bool CanPause => _runner.State is NgRunState.Running or NgRunState.Stepping;
+    public bool CanResume => _runner.State == NgRunState.Paused || IsLoopPaused;
+    /// <summary>循环运行（页面/操作员启动）处于暂停或断点挂起 → 「暂停」「继续」按钮都可用并路由到 FlowLoopManager。</summary>
+    public bool IsLoopPaused => FlowLoopManager.IsLooping(_flowItem) && _flowItem != null
+        && FlowRunStore.Contains(_flowItem)
+        && FlowRunStore.Get(_flowItem).Status is FlowStatus.Paused or FlowStatus.Breakpoint;
+    public bool CanPause => _runner.State is NgRunState.Running or NgRunState.Stepping || IsLoopRunning;
     /// <summary>「停止」可用：本页 runner 在跑，或该流程正被静态管理器循环运行（操作员启动/页面启动）。</summary>
     public bool CanStop => _runner.State != NgRunState.Idle || FlowLoopManager.IsLooping(_flowItem);
 
@@ -207,8 +212,18 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         //   节点高亮由 200ms 定时器轮询共享态完成。
         LoopRunCommand = new RelayCommand(_ => FlowLoopManager.StartLoop(_flowItem), _ => CanStartRun && _flowItem != null);
         StepCommand = new RelayCommand(_ => _runner.Step(), _ => CanStep);
-        ResumeCommand = new RelayCommand(_ => _runner.Resume(), _ => CanResume);
-        PauseCommand = new RelayCommand(_ => _runner.Pause(), _ => CanPause);
+        // 暂停：循环运行（页面/操作员启动）→ 暂停那条循环（整轮/断点粒度）；本页 runner 在跑 → 暂停本页运行
+        PauseCommand = new RelayCommand(_ =>
+        {
+            if (FlowLoopManager.IsLooping(_flowItem)) FlowLoopManager.PauseLoop(_flowItem);
+            else _runner.Pause();
+        }, _ => CanPause);
+        // 继续：本页 runner 暂停（断点/单步）→ 恢复本页运行；循环运行暂停/断点挂起 → 恢复那条循环
+        ResumeCommand = new RelayCommand(_ =>
+        {
+            if (_runner.State == NgRunState.Paused) _runner.Resume();
+            else if (IsLoopPaused) FlowLoopManager.ResumeLoop(_flowItem);
+        }, _ => CanResume);
         // 停止：两项都做、任何状态都兜底 —— ① 该流程正被静态管理器循环运行（操作员启动/页面启动）→ 停那条循环；
         // ② 本页自己的 runner 在跑 → 停本页运行（Idle 时 Stop 内部直接返回，幂等安全）。
         StopCommand = new RelayCommand(_ =>
@@ -459,7 +474,8 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     {
         if (_flowItem == null || !FlowRunStore.Contains(_flowItem)) return;
         var (st, _, _) = FlowRunStore.Get(_flowItem);
-        bool running = st is FlowStatus.Running or FlowStatus.Looping or FlowStatus.Paused;
+        // Breakpoint（循环在断点节点挂起）也要算"在跑"：否则挂起期间当前节点高亮/触发断点标记会被清掉
+        bool running = st is FlowStatus.Running or FlowStatus.Looping or FlowStatus.Paused or FlowStatus.Breakpoint;
         var (_, _, nodeId) = FlowRunStore.GetProgress(_flowItem);
         var results = FlowRunStore.GetNodeResults(_flowItem);
         string trigBp = FlowRunStore.GetTriggeredBreakpoint(_flowItem);

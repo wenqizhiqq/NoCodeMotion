@@ -88,7 +88,8 @@ namespace NoCodeMotion.Services.Vision
     /// </summary>
     public static class VisionEngine
     {
-        public static VisionReport Run(IEnumerable<VisualFlowStep> steps, IProgress<string>? progress = null)
+        public static VisionReport Run(IEnumerable<VisualFlowStep> steps, IProgress<string>? progress = null,
+            Action<VisualFlowStep>? breakpointGate = null)
         {
             var report = new VisionReport();
             Cv.Mat? cur = null;
@@ -117,6 +118,7 @@ namespace NoCodeMotion.Services.Vision
                         progress?.Report($"跳过（已禁用）：{s.Name}");
                         continue;
                     }
+                    if (s.Breakpoint) breakpointGate?.Invoke(s);   // ★ 断点步：挂起等「继续」（gate 由运行器提供）
                     var sw = Stopwatch.StartNew();
                     int before = report.Results.Count;
                     try

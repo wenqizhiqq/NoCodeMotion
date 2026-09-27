@@ -71,6 +71,10 @@ namespace NoCodeMotion.Models
         public string StepType { get => _stepType; set => Set(ref _stepType, value); }
         public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
 
+        private bool _breakpoint;
+        /// <summary>断点：运行到此步暂停（状态「触发断点」），点「继续/运行」恢复（随工程落盘）。</summary>
+        public bool Breakpoint { get => _breakpoint; set => Set(ref _breakpoint, value); }
+
         public string CameraId { get => _cameraId; set => Set(ref _cameraId, value); }
         public string SavePath { get => _savePath; set => Set(ref _savePath, value); }
         public double ExposureMs { get => _exposureMs; set => Set(ref _exposureMs, value); }

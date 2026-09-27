@@ -35,7 +35,9 @@
 ## 流程运行架构（铁律，2026-09-27 定版）
 - ★★ **运行全在后台 thread+while(true)+1ms；页面一律定时器轮询共享态刷新**。运行器只写 `FlowRunStore`（SetStatus/SetStep/SetCycle/SetProgress/SetNodeResults/SetTriggeredBreakpoint），绝不碰 UI；页面 200~300ms 定时器读共享态刷高亮/状态。
 - ★ **循环统一托管 `FlowLoopManager`（静态）**：StartLoop/StopLoop/PauseLoop/ResumeLoop/StopAll/PauseAll/ResumeAll/IsLooping。所有入口（表格页/Lua页/节点图页/操作员页）必须走它，勿自建循环。`StopLoop` 置 ctrl.StopRequested+ResumeEvent.Set，轮内 WaitRound 轮询到即 `runner.Stop()`。
-- ★ 四类流程统一 `FlowRunnerService.RunOneFlow` 按 Kind 分发；`FlowStatus` 7 种含 Looping；判定在跑必须 `Running or Looping`；`PushStatuses()` 是共享态→FlowItem.Status 唯一推送口。
+- ★★ **暂停/断点铁律**：① 置 `PauseRequested=true` 必须同时 `ResumeEvent.Reset()`（暂停门靠它阻塞，不 Reset 等于没暂停）；② 断点闸感知恢复用 **`ctrl.ResumeTick`（恢复代数）**——所有「继续」入口（ResumeLoop/ResumeAll/页面 Run 恢复/操作员 Resume）都自增它，等待方记录进入时 tick、变化即恢复；勿用 ResumeEvent.Wait 等"下一次继续"（初始有信号会立即通过）。
+- ★ **断点（2026-09-27 全类型落地）**：表格 `FlowStep.Breakpoint`（FlowPage 断点列）→ `FlowExecutor.BreakpointGate`；Lua 编辑器断点 → `_breakpointsByItem` 注册表 → RunOneFlowLua 注入 session + watcher 等 tick → `session.Resume(Run)`；节点图 `runner.BreakOnHit=loop`（循环真暂停/后台单次 flash 防卡死）+ WaitRound Paused 处理；视觉 `VisualFlowStep.Breakpoint` + `VisionEngine.Run(..., breakpointGate)`。挂起状态=FlowStatus.Breakpoint（页面显示「触发断点」）；恢复入口=流程页「运行」（IsLoopPaused 含 Paused/Breakpoint）/单次由 300ms 定时器映射 IsPaused/操作员「继续」。
+- ★ 四类流程统一 `FlowRunnerService.RunOneFlow` 按 Kind 分发；`FlowStatus` 7 种含 Looping/Breakpoint；判定在跑必须 `Running or Looping`（部分场景含 Paused/Breakpoint）；`PushStatuses()` 是共享态→FlowItem.Status 唯一推送口。
 - ⚠ 共享 `FlowRunControl` 是整批的：单条流程失败用 `FlowAbortException`，绝不置共享 StopRequested（防"一运行全停"）。
 - ⚠ 脚本/后台线程→UI 的回调：第一行封送 Dispatcher 且 try/catch（含判 HasShutdownStarted）；`SimRuntime.Changed` 逐订阅者 try/catch——宿主异常冒回脚本线程会被判脚本报错而停流程。静态监视器（LuaRunMonitor/NodeGraphRunMonitor）订阅/退订必须 Loaded/Unloaded 成对。
 - ⚠ `FlowViewModel.Stop()` 会被切流程/选中触发——停循环只能走显式「停止」。

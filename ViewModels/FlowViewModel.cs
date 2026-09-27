@@ -118,6 +118,7 @@ namespace NoCodeMotion.ViewModels
                         case FlowStatus.Looping: return $"循环运行中　·　已循环 {cyc} 轮{tail}";
                         case FlowStatus.Running: return $"运行中（外部启动）{tail}";
                         case FlowStatus.Paused: return $"已暂停{tail}";
+                        case FlowStatus.Breakpoint: return $"触发断点{tail}";
                     }
                 }
                 string baseText = _currentStep < 0
@@ -164,7 +165,10 @@ namespace NoCodeMotion.ViewModels
         // LuaSource / VisualSteps / GraphJson（步骤表为空），选中即可后台运行。
         // ★ 该流程正被 FlowLoopManager 循环运行时：运行/循环/单步禁用，停止/暂停可用。
         public bool IsFlowLooping => FlowLoopManager.IsLooping(SelectedItem);
-        public bool CanRun => !IsRunning && !IsFlowLooping && SelectedItem != null &&
+        /// <summary>循环运行正处于暂停/断点挂起（共享态状态 = Paused/Breakpoint）：此时运行/循环按钮放行可点 = 继续执行。</summary>
+        public bool IsLoopPaused => IsFlowLooping && SelectedItem != null
+            && FlowRunStore.Get(SelectedItem).Status is FlowStatus.Paused or FlowStatus.Breakpoint;
+        public bool CanRun => !IsRunning && SelectedItem != null && (!IsFlowLooping || IsLoopPaused) &&
             (SelectedItem.Kind != FlowKind.Table || StepPanel.Items.Count > 0);
         public bool CanStep => !IsRunning && !IsFlowLooping && StepPanel.Items.Count > 0;
         public bool CanJump => !IsRunning && StepPanel.SelectedItem != null;
@@ -305,6 +309,14 @@ namespace NoCodeMotion.ViewModels
             {
                 FlowRunStore.PushStatuses();          // 共享态 → 列表状态芯片（循环/运行/暂停/异常/停止）
                 RefreshRowHighlightFromStore();       // 表格行高亮
+                // 本页后台运行（运行一次）在断点行挂起：映射为暂停态 → 「运行一次」按钮可点 = 继续
+                if (_bgActive && SelectedItem != null && FlowRunStore.Contains(SelectedItem)
+                    && FlowRunStore.Get(SelectedItem).Status == FlowStatus.Breakpoint
+                    && !IsPaused)
+                {
+                    IsPaused = true;
+                    IsRunning = false;
+                }
                 RaiseRunState();                      // 按钮使能（CanRun/CanStop/CanPause/IsFlowLooping）
                 OnPropertyChanged(nameof(CurrentStepText));
             };
@@ -870,11 +882,12 @@ namespace NoCodeMotion.ViewModels
         /// 硬件下发 / 变量运算不占 UI 线程，流程页是否打开、选中谁都无所谓。</summary>
         private void Run(bool loop)
         {
-            // 暂停中 → 恢复后台运行（不重启）
+            // 暂停中 → 恢复后台运行（不重启）。断点挂起也走这里（定时器已把 Breakpoint 映射为 IsPaused）。
             if (IsPaused && _bgActive && _bgCtrl != null)
             {
                 _bgCtrl.PauseRequested = false;
                 _bgCtrl.ResumeEvent.Set();
+                System.Threading.Interlocked.Increment(ref _bgCtrl.ResumeTick);   // 唤醒断点闸
                 IsPaused = false;
                 IsRunning = true;
                 _loopRun = loop;
@@ -891,7 +904,13 @@ namespace NoCodeMotion.ViewModels
             if (flow.Kind == FlowKind.Table && (flow.Steps == null || flow.Steps.Count == 0)) return;
 
             // 该流程正被 FlowLoopManager 循环运行（可能处于暂停）：点「运行一次/循环运行」= 继续
-            if (IsFlowLooping) { FlowLoopManager.ResumeLoop(flow); return; }
+            if (IsFlowLooping)
+            {
+                FlowLoopManager.ResumeLoop(flow);
+                IsPaused = false;           // 恢复：清掉页面暂停标记
+                RaiseRunState();
+                return;
+            }
 
             // ★ 循环运行 → 托管到 FlowLoopManager（静态、页面无关）：
             //   独立后台 Thread + while 循环在这里持续跑，切页 / 页面卸载 / 重新绑定都**不会停止**；
@@ -1620,12 +1639,15 @@ namespace NoCodeMotion.ViewModels
         private void Pause()
         {
             if (!CanPause) return;
-            // ★ 该流程由 FlowLoopManager 托管循环运行（页面启动 / 操作员启动）→ 暂停那条循环
-            if (IsFlowLooping) { FlowLoopManager.PauseLoop(SelectedItem); return; }
+            // ★ 该流程由 FlowLoopManager 托管循环运行（页面启动 / 操作员启动）→ 暂停那条循环。
+            //   IsPaused 置位：页面有暂停反馈；运行/循环按钮因 IsLoopPaused 放行可点 = 继续。
+            if (IsFlowLooping) { FlowLoopManager.PauseLoop(SelectedItem); IsPaused = true; return; }
             if (_bgActive && _bgCtrl != null)
             {
-                // 后台运行：引擎在步骤边界响应暂停（AbortCheck 阻塞在 ResumeEvent）
+                // 后台运行：引擎在步骤边界响应暂停（AbortCheck 阻塞在 ResumeEvent）。
+                // ★ 必须 Reset 事件：暂停门靠 Wait() 阻塞，不 Reset 就立即返回、流程根本停不下来。
                 _bgCtrl.PauseRequested = true;
+                _bgCtrl.ResumeEvent.Reset();
                 IsPaused = true;
                 IsRunning = false;
                 return;

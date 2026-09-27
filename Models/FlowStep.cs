@@ -34,6 +34,11 @@ namespace NoCodeMotion.Models
         /// <summary>运行态：当前是否正在执行此行（用于流程表格高亮，不落盘）。</summary>
         [JsonIgnore]
         public bool IsCurrent { get => _isCurrent; set => SetField(ref _isCurrent, value); }
+
+        private bool _breakpoint;
+        /// <summary>断点：运行（运行一次/循环运行）到达此行时暂停，点「运行/循环运行」继续（随工程落盘）。</summary>
+        public bool Breakpoint { get => _breakpoint; set => SetField(ref _breakpoint, value); }
+
         public string ActualValue { get => _actualValue; set => SetField(ref _actualValue, value); }
     }
 }
