@@ -70,6 +70,13 @@ namespace NoCodeMotion.Views
         private bool _settingText;
         // 当前会话是否由 Operator 运行器驱动（而非用户手动 F5/F10）。用于区分广播来源，避免抢占手动调试。
         private bool _operatorDriven;
+
+        /// <summary>
+        /// 用户在编辑器点「停止」时置位（仅当会话由操作员/流程页后台驱动）。
+        /// 运行器（FlowRunnerService / FlowViewModel）在循环条件里检查并消费此标志，
+        /// 否则编辑器点「停止」只停掉当前会话，运行器下一轮又自动重启——Lua 循环"停不下来"。
+        /// </summary>
+        public static volatile bool EditorStopRequested;
         // 诊断区当前是否正驻留一条"错误"（语法错误或运行异常）。若为 true，周期性的 CheckSyntaxNow 在
         // 语法通过时不再把诊断区刷成"语法正确"，避免把用户要看到的运动异常红字冲掉——直到本次运行成功才复位。
         private bool _diagErrorActive;
@@ -775,10 +782,26 @@ namespace NoCodeMotion.Views
         }
 
         /// <summary>供 Operator 运行器直接驱动：在本编辑器页面运行指定 Lua 流程（载入其脚本、清除断点、启动会话）。
-        /// 返回本次运行的调试会话；若本页面当前已有会话在忙（例如用户正在手动单步）则返回 null，调用方应自行退化。</summary>
+        /// 若编辑器自身的循环运行 / 旧会话还在忙，先停掉并有限等待其退出——
+        /// 旧实现直接返回 null 让调用方重试，但编辑器忙的来源（循环运行自动重启会话）不会自己结束，
+        /// 导致操作员「复位 / 启动」的 Lua 流程一次都执行不了（运控表格无此问题：其停止由运行标志直接驱动）。</summary>
         public LuaDebugSession RunFlow(FlowItem flow, bool breakAtEntry = false)
         {
-            if (_session != null && _session.IsBusy) return null;
+            // ① 停掉编辑器自身的循环运行：否则会话一结束就被自动重启，编辑器永远"忙"，
+            //    操作员驱动的 RunFlow 永远拿不到会话（重试多少次都没用）。
+            if (_loopRun)
+            {
+                _loopRun = false;
+                _loopRestartTimer?.Stop();
+            }
+            // ② 旧会话在忙 → 强制停止并有限等待退出（脚本线程在调试回调处响应停止，通常几十毫秒）
+            if (_session != null && _session.IsBusy)
+            {
+                _session.Stop();
+                for (int i = 0; i < 50 && _session.IsBusy; i++)
+                    System.Threading.Thread.Sleep(20);   // 最多等 1 秒（RunFlow 已在 UI 线程，脚本行数少等待极短）
+            }
+            // ③ 载入目标流程脚本并启动新会话
             LuaItem = flow;            // 自动把 flow.LuaSource 载入编辑器
             _bpMargin.ClearAll();      // 连续运行不卡在断点上
             UpdateBreakpointCount();
@@ -1318,7 +1341,7 @@ namespace NoCodeMotion.Views
             bool running = state == SessionState.Running;
 
             BtnRun.IsEnabled = idle || paused;
-            RunLabel.Text = paused ? "继续" : "运行";
+            RunLabel.Text = paused ? "继续运行" : "运行一次";
             // 循环运行与「运行」同规则：只在空闲 / 暂停时可点；运行中用「停止」退出（防止运行中重复启动会话）
             BtnLoopRun.IsEnabled = idle || paused;
             BtnPause.IsEnabled = running;
@@ -1406,6 +1429,9 @@ namespace NoCodeMotion.Views
             // 先退掉循环标记，否则 OnSessionEnded 会把脚本重新跑起来
             _loopRun = false;
             _loopRestartTimer?.Stop();
+            // 会话是操作员/流程页后台驱动时：通知运行器退出循环。
+            // 否则点「停止」只停掉当前会话，运行器下一轮又自动重启——按钮使能永远停在"运行中"（停不下来）。
+            if (_operatorDriven) EditorStopRequested = true;
             _session?.Stop();
         }
 

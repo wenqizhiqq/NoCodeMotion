@@ -864,6 +864,7 @@ namespace NoCodeMotion.ViewModels
             int gen = ++_bgGen;
             _bgActive = true;
             _bgLastError = null;
+            Views.LuaEditorView.EditorStopRequested = false;   // 清掉上次的编辑器停止标志
             _bgCtrl = new FlowRunControl();
             _bgCtrl.InitVars();                 // 从工程变量表取初值；结束时统一写回
             _bgCtrl.StepPaceMs = 250;           // 每步 250ms 可视化节奏：橙色当前行肉眼可见地逐行移动

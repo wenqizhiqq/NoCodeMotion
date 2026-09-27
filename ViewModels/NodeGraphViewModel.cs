@@ -143,7 +143,11 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
 
     public NodeGraphViewModel()
     {
-        // 构造 NgRunner：把 name→对象 的解析 + 变量读写桥接给 runner
+        // 构造 NgRunner：把 name→对象 的解析 + 变量读写桥接给 runner。
+        // ★ 读必须走 GetVariableResolved（工程变量表优先，与变量页/流程页同一数据源）：
+        //   原来读 SimRuntime 内存仓（不认识工程表里的当前值），导致「计算+1」第一次
+        //   就以 0 为基数把工程表覆盖成 1——"真实加减乘除"全是错的。
+        //   写走 SetVariable（内存仓 + 工程表双写，变量页 INPC 即时刷新）。
         _runner = new NgRunner(
             HardwareResolver.ResolveAxis,
             HardwareResolver.ResolveInput,
@@ -151,7 +155,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             HardwareResolver.ResolveCylinder,
             HardwareResolver.ResolveComm,
             SimRuntime.SetVariable,
-            SimRuntime.GetVariable);
+            SimRuntime.GetVariableResolved);
         _runner.StateChanged += OnRunnerStateChanged;
         _runner.ReportChanged += OnRunnerReportChanged;
 

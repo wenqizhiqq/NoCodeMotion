@@ -576,6 +576,7 @@ namespace NoCodeMotion.ViewModels
             ctrl.InitVars();
             ctrl.OnCameraCapture = (b, w, h) => _uiQueue.Enqueue(() => SetCapture(b, w, h));
             _flowCtrl = ctrl;
+            Views.LuaEditorView.EditorStopRequested = false;   // 清掉上次的编辑器停止标志
 
             // 运行线程只写共享态 FlowRunStore，UI 由定时器拉取；日志/动作入队，定时器在 UI 线程排空。
             // 全部流程结束后由看门狗线程触发 onComplete（入队到 UI 线程执行），全程不依赖 Task。
@@ -705,8 +706,17 @@ namespace NoCodeMotion.ViewModels
             var resetFlows = ProjectStore.Data.Flows?.Where(f => f.Role == FlowRole.Reset).ToList();
             if (resetFlows == null || resetFlows.Count == 0)
             {
-                StatusText = "已复位，点「启动」运行（按全部流程并发）。";
-                AddLog(LogLevel.Info, "系统已复位（无复位流程）。");
+                StatusText = "复位完成（未配置复位流程）";
+                AddLog(LogLevel.Warn, "未找到复位流程：在流程页「修改」对话框里把流程角色设为「复位流程」后，复位按钮会按「运行一次」执行它。");
+                // 弹窗明确告知（状态栏/日志容易被忽略——曾导致用户以为复位已执行脚本）
+                MessageBox.Show(
+                    "当前没有配置「复位流程」，复位按钮没有可执行的内容。\n\n" +
+                    "设置方法：\n" +
+                    "1. 打开「流程」页，在左侧选中要作为复位的流程；\n" +
+                    "2. 点「修改」，把角色改为「复位流程」，确定；\n" +
+                    "3. 设置成功后，该流程左侧会出现橙色「复位」标签。\n\n" +
+                    "之后再点「复位」，就会按「运行一次」执行它。",
+                    "未配置复位流程", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -715,6 +725,7 @@ namespace NoCodeMotion.ViewModels
             ctrl.InitVars();
             ctrl.OnCameraCapture = (b, w, h) => _uiQueue.Enqueue(() => SetCapture(b, w, h));
             _flowCtrl = ctrl;
+            Views.LuaEditorView.EditorStopRequested = false;   // 清掉上次的编辑器停止标志
             FlowRunStore.ClearAll();
             _runActive = true;
             IsRunning = true;
@@ -735,7 +746,7 @@ namespace NoCodeMotion.ViewModels
             );
         }
 
-        /// <summary>复位流程全部执行完的收尾（由 UI 定时器队列在 UI 线程执行）：复位运行态、写回变量、刷新状态文本。</summary>
+        /// <summary>复位流程全部执行完的收尾（由 UI 定时器队列在 UI 线程执行）：复位运行态、写回变量、显示「复位完成」。</summary>
         private void FinalizeReset(int gen, int count = 0)
         {
             if (gen != _runGen) return;   // 已被新的 启动/复位 取代，丢弃旧收尾
@@ -743,10 +754,8 @@ namespace NoCodeMotion.ViewModels
             IsRunning = false;
             IsPaused = false;
             _flowCtrl?.WriteBackVars();
-            StatusText = count > 0
-                ? $"执行完成：{count} 个复位流程已全部执行。点「启动」运行（按全部流程并发）。"
-                : "执行完成：复位流程已全部执行。点「启动」运行（按全部流程并发）。";
-            AddLog(LogLevel.Info, $"复位流程执行完成（{count} 个）。");
+            StatusText = "复位完成";
+            AddLog(LogLevel.Info, $"复位完成（{count} 个复位流程已按「运行一次」执行完毕，变量已写回）。点「启动」开始生产。");
         }
 
         /// <summary>把各流程状态芯片重置为 就绪（UI 线程调用）。</summary>
