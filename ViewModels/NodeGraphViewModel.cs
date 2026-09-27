@@ -197,6 +197,16 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             // 状态文字（循环运行中（操作员启动）/ 运行中（外部启动））跟着刷新
             string text = RunStateText;
             if (text != _lastRunStateText) { _lastRunStateText = text; OnChanged(nameof(RunStateText)); }
+            // ★ 循环运行由静态 FlowLoopManager 托管，状态变化不经过页面 runner 事件 →
+            //   CanPause/CanStop/CanResume 这些**显式 IsEnabled 绑定**只认 PropertyChanged，
+            //   不通知就一直保持初始灰（"循环运行后暂停/停止按钮没使能"的根因）。每拍主动通知。
+            OnChanged(nameof(CanPause));
+            OnChanged(nameof(CanStop));
+            OnChanged(nameof(CanResume));
+            OnChanged(nameof(CanStartRun));
+            OnChanged(nameof(CanStartStep));
+            OnChanged(nameof(IsLoopRunning));
+            OnChanged(nameof(IsLoopPaused));
             // 轮询会改变 CanRun/CanStop 等（外部循环运行时：运行/循环禁用、停止可用）→ 主动刷新命令状态
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         };
@@ -210,7 +220,11 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         RunCommand = new RelayCommand(_ => { _runner.Run(); }, _ => CanRun);
         // ★ 循环运行 → 托管到 FlowLoopManager（静态、页面无关）：切页/卸载不影响运行；
         //   节点高亮由 200ms 定时器轮询共享态完成。
-        LoopRunCommand = new RelayCommand(_ => FlowLoopManager.StartLoop(_flowItem), _ => CanStartRun && _flowItem != null);
+        LoopRunCommand = new RelayCommand(_ =>
+        {
+            FlowLoopManager.StartLoop(_flowItem);
+            RaiseAllRunButtons();   // 立即使能 停止/暂停（不等 200ms 定时器）
+        }, _ => CanStartRun && _flowItem != null);
         StepCommand = new RelayCommand(_ => _runner.Step(), _ => CanStep);
         // 暂停：循环运行（页面/操作员启动）→ 暂停那条循环（整轮/断点粒度）；本页 runner 在跑 → 暂停本页运行
         PauseCommand = new RelayCommand(_ =>
@@ -230,6 +244,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         {
             FlowLoopManager.StopLoop(_flowItem);
             StopRun();
+            RaiseAllRunButtons();
             OnChanged(nameof(RunStateText));
         }, _ => CanStop);
 
@@ -405,6 +420,20 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    /// <summary>一次性通知全部运行按钮相关属性（显式 IsEnabled 绑定只认 PropertyChanged）。</summary>
+    private void RaiseAllRunButtons()
+    {
+        OnChanged(nameof(CanRun));
+        OnChanged(nameof(CanStep));
+        OnChanged(nameof(CanStartRun));
+        OnChanged(nameof(CanStartStep));
+        OnChanged(nameof(CanResume));
+        OnChanged(nameof(CanPause));
+        OnChanged(nameof(CanStop));
+        OnChanged(nameof(IsLoopRunning));
+        OnChanged(nameof(IsLoopPaused));
+    }
 
     // ===================== 本页运行：只写共享态（回显由 200ms 定时器轮询完成） =====================
 
