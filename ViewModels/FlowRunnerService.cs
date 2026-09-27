@@ -305,10 +305,10 @@ namespace NoCodeMotion.ViewModels
             SetStatus(flow, FlowStatus.Running);
             // Lua Main 循环：每轮跑完脚本后判断 Ended.IsError，一旦脚本报错就停止循环并把状态置 Exception，
             // 避免早前实现的「错误也立即重启」造成的 LuaScriptThread/LuaWatch 死循环刷屏与 UI 卡顿。
+            var editor = LuaEditorView.Active;
             try
             {
             int luaRound = 0;   // 单次只跑一轮：首轮 luaRound==0 进入，之后置 1 → 退出；循环模式无限循环
-            var editor = LuaEditorView.Active;
             if (editor != null)
             {
                 // loop=true 持续循环直到停止/急停；loop=false（复位流程 / 运行一次）只跑一轮。
@@ -469,6 +469,7 @@ namespace NoCodeMotion.ViewModels
             finally
             {
                 LuaEditorView.EditorStopRequested = false;   // 本条 Lua 流程已结束，清掉编辑器停止标志（避免残留影响后续运行）
+                editor?.ClearOperatorDriven();               // 清操作员驱动标记；若编辑器 UI 卡在"运行中"（停止/重启竞态），校回就绪
                 // 收尾状态：被停止 / 急停 → Stopped；脚本错误 → 保持已置 Exception；其它正常完成 → Idle
                 // 注意：必须检查 FlowRunStore 中的实时状态，而不是 flow.Status——
                 // flow.Status 由 OperatorViewModel 的 DispatcherTimer 异步写入，有最多 150ms 滞后，

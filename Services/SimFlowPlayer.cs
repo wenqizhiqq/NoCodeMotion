@@ -391,9 +391,31 @@ namespace NoCodeMotion.Services
                     break;
                 case NgKind.Compute:
                     {
-                        double v = EvalExpr(P("表达式"), state);
-                        state[P("变量")] = v;
-                        list.Add(new SimAction { VarName = P("变量"), VarValue = v, DurationMs = 200, Label = $"运算 {P("变量")} = {v:0.###}" });
+                        string varName = P("变量");
+                        string op = P("运算");
+                        double v;
+                        if (!string.IsNullOrWhiteSpace(op))
+                        {
+                            // 结构化运算：变量当前值 op 值
+                            double cur = state.TryGetValue(varName, out var c) ? c : 0;
+                            double right = EvalExpr(P("值"), state);
+                            v = op switch
+                            {
+                                "加" => cur + right,
+                                "减" => cur - right,
+                                "乘" => cur * right,
+                                "除" => right == 0 ? 0 : cur / right,
+                                "取模" => right == 0 ? 0 : cur % right,
+                                "取反" => -cur,
+                                _ => cur
+                            };
+                        }
+                        else
+                        {
+                            v = EvalExpr(P("表达式"), state);
+                        }
+                        state[varName] = v;
+                        list.Add(new SimAction { VarName = varName, VarValue = v, DurationMs = 200, Label = $"运算 {varName} = {v:0.###}" });
                     }
                     break;
                 case NgKind.ModbusSend:

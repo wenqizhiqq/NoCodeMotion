@@ -307,10 +307,13 @@ public static class NgNodeDefinitions
         [NgKind.Compute] = new()
         {
             Kind = NgKind.Compute, Title = "运算", Domain = NgDomain.Logic, Color = "#DA4453",
+            // 结构化运算：下拉选「运算」(加/减/乘/除/取模/取反) + 自由文本「值」(可为数字或其它变量名/表达式)。
+            // 例：变量=计数，运算=加，值=1 → 计数 当前值 + 1。彻底避免「+1 被当成设置为 1」的歧义。
             Props = new[]
             {
                 new NgPropDef { Name = "变量", Default = "结果" },
-                new NgPropDef { Name = "表达式", Default = "计数 + 1" },
+                new NgPropDef { Name = "运算", Default = "加", Options = "加|减|乘|除|取模|取反" },
+                new NgPropDef { Name = "值", Default = "1" },
             }
         },
 

@@ -1920,7 +1920,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                     ("条件1类型", "轴位置"), ("条件1名称", "X"), ("条件1比较", "大于等于"), ("条件1值", "0"),
                     ("条件2类型", "轴位置"), ("条件2名称", "X"), ("条件2比较", "小于"), ("条件2值", "0"));
                 var loop = N2(NgKind.Loop, 860, 230, ("次数", "3"));
-                var inc = N2(NgKind.Compute, 1120, 160, ("变量", "计数"), ("表达式", "计数 + 1"));
+                var inc = N2(NgKind.Compute, 1120, 160, ("变量", "计数"), ("运算", "加"), ("值", "1"));
                 var co = N2(NgKind.Cylinder, 1120, 300, ("气缸", "夹爪"), ("动作", "伸出"));
                 var d2 = N2(NgKind.Delay, 1380, 300, ("时间ms", "200"));
                 var ci = N2(NgKind.Cylinder, 1380, 440, ("气缸", "夹爪"), ("动作", "缩回"));
@@ -2039,7 +2039,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                     ("条件1类型", "轴位置"), ("条件1名称", "X"), ("条件1比较", "大于等于"), ("条件1值", "0"),
                     ("条件2类型", "轴位置"), ("条件2名称", "X"), ("条件2比较", "小于"), ("条件2值", "0"));
                 var loop = N(NgKind.Loop, 1120, 230, ("次数", "4"));
-                var inc = N(NgKind.Compute, 1380, 160, ("变量", "计数"), ("表达式", "计数 + 1"));
+                var inc = N(NgKind.Compute, 1380, 160, ("变量", "计数"), ("运算", "加"), ("值", "1"));
                 var cyl = N(NgKind.Cylinder, 1380, 300, ("气缸", "夹爪"), ("动作", "伸出"));
                 var dl = N(NgKind.Delay, 1640, 300, ("时间ms", "200"));
                 var cylb = N(NgKind.Cylinder, 1640, 440, ("气缸", "夹爪"), ("动作", "缩回"));
@@ -2130,7 +2130,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 var sx = N(NgKind.MoveAxis, 320, 160, ("轴", "X"), ("目标位置", "0"), ("速度", "120"));
                 var sy = N(NgKind.MoveAxis, 320, 300, ("轴", "Y"), ("目标位置", "0"), ("速度", "120"));
                 var loop = N(NgKind.Loop, 600, 230, ("次数", "6"));
-                var inc = N(NgKind.Compute, 860, 160, ("变量", "计数"), ("表达式", "计数 + 1"));
+                var inc = N(NgKind.Compute, 860, 160, ("变量", "计数"), ("运算", "加"), ("值", "1"));
                 var cylo = N(NgKind.Cylinder, 860, 300, ("气缸", "点胶阀"), ("动作", "伸出"));
                 var dl = N(NgKind.Delay, 1120, 300, ("时间ms", "150"));
                 var cylb = N(NgKind.Cylinder, 1120, 440, ("气缸", "点胶阀"), ("动作", "缩回"));

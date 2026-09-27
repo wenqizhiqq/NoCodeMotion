@@ -735,6 +735,8 @@ namespace NoCodeMotion.ViewModels
             AddLog(LogLevel.Info, $"复位：并发执行 {resetFlows.Count} 个复位流程（单次，不循环）。");
             StatusText = $"复位中：执行 {resetFlows.Count} 个复位流程…";
 
+            // 复位 = 复位流程的「运行一次」：每条复位流程只跑一遍，绝不循环（forceLoop:false 显式钉死）。
+            // 全部跑完 → FinalizeReset 显示「复位完成」。
             FlowRunnerService.RunAllAsync(
                 ctrl,
                 log: (msg, lvl) => _logQueue.Enqueue((msg, lvl)),
@@ -742,7 +744,8 @@ namespace NoCodeMotion.ViewModels
                 onFlowDone: (idx, name) => { },
                 onComplete: () => _uiQueue.Enqueue(() => FinalizeReset(gen, resetFlows.Count)),
                 ct: CancellationToken.None,
-                filter: f => f.Role == FlowRole.Reset
+                filter: f => f.Role == FlowRole.Reset,
+                forceLoop: false
             );
         }
 

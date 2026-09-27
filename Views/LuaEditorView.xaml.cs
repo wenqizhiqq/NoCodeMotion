@@ -77,6 +77,11 @@ namespace NoCodeMotion.Views
         /// 否则编辑器点「停止」只停掉当前会话，运行器下一轮又自动重启——Lua 循环"停不下来"。
         /// </summary>
         public static volatile bool EditorStopRequested;
+
+        // 编辑器 UI 当前显示的会话状态（SetSessionState 写入）。用于 500ms 状态校准兜底：
+        // 停止事件与运行器重启竞态时，按钮使能可能卡在"运行中"——校准器把 UI 拉回与会话一致。
+        private SessionState _uiState = SessionState.Idle;
+        private readonly DispatcherTimer _stateSyncTimer;
         // 诊断区当前是否正驻留一条"错误"（语法错误或运行异常）。若为 true，周期性的 CheckSyntaxNow 在
         // 语法通过时不再把诊断区刷成"语法正确"，避免把用户要看到的运动异常红字冲掉——直到本次运行成功才复位。
         private bool _diagErrorActive;
@@ -115,6 +120,19 @@ namespace NoCodeMotion.Views
                 if (!_loopRun) return;
                 StartSession(false, _operatorDriven, keepLog: true);
             };
+
+            // 状态校准兜底（500ms）：停止事件与运行器重启竞态时，按钮使能可能卡在"运行中"。
+            // 会话已回 Idle 而 UI 还卡在非 Idle、且没有任何循环/操作员在等待重启 → 校回就绪。
+            _stateSyncTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            _stateSyncTimer.Tick += (s, e) =>
+            {
+                if (_uiState == SessionState.Idle) return;
+                if (_session != null && _session.IsBusy) return;      // 会话真在跑：UI 正确
+                if (_loopRun || _loopRestartTimer.IsEnabled) return;  // 编辑器循环的轮间隙：马上重启，不打扰
+                if (_operatorDriven) return;                          // 操作员循环的轮间隙：由运行器负责收尾
+                SetSessionState(SessionState.Idle);
+            };
+            _stateSyncTimer.Start();
 
             Loaded += (s, e) =>
             {
@@ -794,12 +812,13 @@ namespace NoCodeMotion.Views
                 _loopRun = false;
                 _loopRestartTimer?.Stop();
             }
-            // ② 旧会话在忙 → 强制停止并有限等待退出（脚本线程在调试回调处响应停止，通常几十毫秒）
+            // ② 旧会话在忙 → 只发停止请求，**不在 UI 线程等待**（RunFlow 在 UI 线程上，
+            //    Sleep 等待会阻塞 UI，且与脚本线程卡在 Variable.Set 的 Dispatcher.Invoke 互等）。
+            //    返回旧会话，由调用方（后台线程）的等待循环轮询其退出后重试——重试不消耗轮次。
             if (_session != null && _session.IsBusy)
             {
                 _session.Stop();
-                for (int i = 0; i < 50 && _session.IsBusy; i++)
-                    System.Threading.Thread.Sleep(20);   // 最多等 1 秒（RunFlow 已在 UI 线程，脚本行数少等待极短）
+                return _session;
             }
             // ③ 载入目标流程脚本并启动新会话
             LuaItem = flow;            // 自动把 flow.LuaSource 载入编辑器
@@ -807,6 +826,18 @@ namespace NoCodeMotion.Views
             UpdateBreakpointCount();
             StartSession(breakAtEntry, operatorDriven: true);
             return _session;
+        }
+
+        /// <summary>运行器结束 Lua 循环后调用：清除操作员驱动标记；
+        /// 若会话已停止而编辑器 UI 还卡在"运行中"（停止事件与重启竞态导致按钮使能没恢复），一并校回就绪。</summary>
+        public void ClearOperatorDriven()
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _operatorDriven = false;
+                if (_uiState != SessionState.Idle && (_session == null || !_session.IsBusy))
+                    SetSessionState(SessionState.Idle);
+            }));
         }
 
         private void OnSessionLog(string text, LogKind kind) =>
@@ -1336,6 +1367,7 @@ namespace NoCodeMotion.Views
 
         private void SetSessionState(SessionState state, int line = 0)
         {
+            _uiState = state;   // 记录 UI 显示的状态（状态校准定时器据此判断是否卡死）
             bool idle = state == SessionState.Idle;
             bool paused = state == SessionState.Paused;
             bool running = state == SessionState.Running;

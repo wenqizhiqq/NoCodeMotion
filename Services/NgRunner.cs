@@ -555,14 +555,38 @@ public sealed class NgRunner
 
             case NgKind.Compute: {
                 string name = GetProp(node, "变量", "");
-                string expr = GetProp(node, "表达式", "0");
-                if (ExpressionEvaluator.Evaluate(expr, _getVar, out double r))
+                string op = GetProp(node, "运算", "");
+                if (!string.IsNullOrWhiteSpace(op))
                 {
+                    // 结构化运算：变量「当前值」op「值」后写回（取反 忽略值）。
+                    // 值 可为数字 / 其它变量名 / 表达式，经 EvalOperand 实时求值。
+                    double cur = _getVar(name);
+                    double right = EvalOperand(GetProp(node, "值", "0"));
+                    double r = op switch
+                    {
+                        "加" => cur + right,
+                        "减" => cur - right,
+                        "乘" => cur * right,
+                        "除" => right == 0 ? 0 : cur / right,
+                        "取模" => right == 0 ? 0 : cur % right,
+                        "取反" => -cur,
+                        _ => cur
+                    };
                     _setVar(name, r);
-                    _lastNodeSummary = $"{name} = {expr} = {r:0.###}";
+                    _lastNodeSummary = $"{name} {op} {GetProp(node, "值", "0")} → {r:0.###}";
                 }
                 else
-                    NodeFail($"表达式无法求值：「{expr}」：请检查变量名与运算符（如 计数+1）");
+                {
+                    // 兼容旧图：直接用「表达式」字段求值
+                    string expr = GetProp(node, "表达式", "0");
+                    if (ExpressionEvaluator.Evaluate(expr, _getVar, out double r))
+                    {
+                        _setVar(name, r);
+                        _lastNodeSummary = $"{name} = {expr} = {r:0.###}";
+                    }
+                    else
+                        NodeFail($"表达式无法求值：「{expr}」：请检查变量名与运算符（如 计数+1）");
+                }
                 break;
             }
 
@@ -679,5 +703,13 @@ public sealed class NgRunner
     {
         var s = GetProp(n, name, def.ToString(CultureInfo.InvariantCulture));
         return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : def;
+    }
+
+    /// <summary>运算节点的「值」操作数求值：可为数字 / 其它变量名 / 表达式，按当前变量值实时求。失败时记 0。</summary>
+    private double EvalOperand(string v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return 0;
+        if (ExpressionEvaluator.Evaluate(v, _getVar, out double r)) return r;
+        return 0;
     }
 }
