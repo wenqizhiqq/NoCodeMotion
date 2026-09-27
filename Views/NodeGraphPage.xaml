@@ -291,14 +291,16 @@
                             <TextBlock Text="循环运行" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <!-- 单步 = 次要操作 → 灰（与操作员页「手动」一致；规范：灰=次要） -->
                     <Button Command="{Binding StepCommand}" IsEnabled="{Binding CanStartStep}"
-                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
+                            Style="{StaticResource TtGrayBtn}" Height="34" Margin="0,0,4,0" Padding="8,4"
                             ToolTip="单步执行（运行一个节点后暂停）；从空闲启动时也生效">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⤼" Foreground="#2563EB" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="⤼" Foreground="#64748B" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
                             <TextBlock Text="单步" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <!-- 继续 = 正向恢复 → 蓝（规范：蓝=正向） -->
                     <Button Command="{Binding ResumeCommand}" IsEnabled="{Binding CanResume}"
                             Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
                             ToolTip="从暂停处继续执行">
@@ -307,26 +309,29 @@
                             <TextBlock Text="继续" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <!-- 暂停 = 次要操作 → 灰（与操作员页一致；不再用橙/蓝） -->
                     <Button Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}"
-                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
+                            Style="{StaticResource TtGrayBtn}" Height="34" Margin="0,0,4,0" Padding="8,4"
                             ToolTip="暂停当前执行">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⏸" Foreground="#F59E0B" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="⏸" Foreground="#64748B" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
                             <TextBlock Text="暂停" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <!-- 停止 = 次要操作 → 灰（与操作员页一致；红只留给急停/删除类破坏操作） -->
                     <Button Command="{Binding StopCommand}" IsEnabled="{Binding CanStop}"
-                            Style="{StaticResource TtPillRedBtn}" Margin="0,0,4,0" Padding="8,4"
+                            Style="{StaticResource TtGrayBtn}" Height="34" Margin="0,0,4,0" Padding="8,4"
                             ToolTip="立即停止当前执行">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="■" Foreground="White" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                            <TextBlock Text="停止" Foreground="White" VerticalAlignment="Center"/>
+                            <TextBlock Text="■" Foreground="#64748B" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="停止" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <!-- 断点 = 次要开关 → 灰；红点保留为断点标记 -->
                     <Button Command="{Binding ToggleBreakpointCommand}"
                             CommandParameter="{Binding SelectedNode.Id}"
                             IsEnabled="{Binding HasSelection}"
-                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,4,0" Padding="8,4"
+                            Style="{StaticResource TtGrayBtn}" Height="34" Margin="0,0,4,0" Padding="8,4"
                             ToolTip="为选中节点切换断点（运行到此节点自动暂停）">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="●" Foreground="#DC2626" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>

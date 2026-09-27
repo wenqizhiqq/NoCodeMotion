@@ -490,25 +490,27 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- 运行一次 / 循环运行：循环运行会反复执行整个流程，直到点「停止」 -->
+                                <!-- 运行一次 / 循环运行：正向运行 → 蓝（规范：蓝=正向；绿只用于保存） -->
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,0">
                                     <Button Content="运行一次" Style="{StaticResource TtBaseBtn}"
                                             Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
                                             Margin="0,0,8,0"
                                             ToolTip="从头执行一遍当前流程，走到末尾即结束。"/>
-                                    <Button Content="循环运行" Style="{StaticResource TtLoopBtn}"
+                                    <Button Content="循环运行" Style="{StaticResource TtBaseBtn}"
                                             Command="{Binding LoopRunCommand}" IsEnabled="{Binding CanRun}"
                                             ToolTip="反复执行整个流程（每轮结束后自动回到第 1 行），点「停止」退出。"/>
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="跳到选中行" Style="{StaticResource TtBaseBtn}"
                                         Command="{Binding JumpCommand}" HorizontalAlignment="Center" Margin="0,0,8,0"/>
-                                <Button Grid.Column="2" Content="单步运行" Style="{StaticResource TtBaseBtn}"
+                                <!-- 单步 = 次要操作 → 灰（与操作员页「手动」一致） -->
+                                <Button Grid.Column="2" Content="单步运行" Style="{StaticResource TtGrayBtn}"
                                         Command="{Binding StepCommand}" IsEnabled="{Binding CanStep}" Margin="0,0,8,0"/>
 
 
-                                <Button Grid.Column="3" Content="暂停" Style="{StaticResource TtWarnBtn}"
+                                <!-- 暂停 / 停止 = 次要操作 → 灰（与操作员页一致；橙只留给复位，红只留给急停/删除） -->
+                                <Button Grid.Column="3" Content="暂停" Style="{StaticResource TtGrayBtn}"
                                         Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}" Margin="0,0,8,0"/>
-                                <Button Grid.Column="4" Content="停止" Style="{StaticResource TtDeleteBtn}"
+                                <Button Grid.Column="4" Content="停止" Style="{StaticResource TtGrayBtn}"
                                         Command="{Binding StopCommand}" IsEnabled="{Binding CanStop}"/>
 
                                 <!--<Button Grid.Column="5" Content="步骤预览" Style="{StaticResource TtBaseBtn}"
