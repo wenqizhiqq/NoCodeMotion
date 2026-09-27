@@ -45,7 +45,7 @@ namespace NoCodeMotion.Services
                     {
                         var st = FlowRunStore.Get(f).Status;
                         if (st == FlowStatus.Exception) anyErr = true;
-                        else if (st == FlowStatus.Running) anyRun = true;
+                        else if (st == FlowStatus.Running || st == FlowStatus.Looping) anyRun = true;   // 循环运行也算运行中（绿灯）
                         else if (st == FlowStatus.Paused || st == FlowStatus.Breakpoint) anyPause = true;
                     }
                 }

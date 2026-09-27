@@ -51,6 +51,30 @@ namespace NoCodeMotion.Services
         /// <summary>仅当该流程有运行记录时返回 true（用于定时器判断是否需要推送状态）。</summary>
         public static bool Contains(FlowItem flow) => flow != null && _map.ContainsKey(flow);
 
+        /// <summary>
+        /// 把共享运行态推送到 FlowItem.Status（必须在 UI 线程调用；同值不触发 INPC，无抖动）。
+        /// 操作员页 150ms 定时器、流程页/节点图页的 1s 定时器都会调用它 —— 这样**无论当前停在哪个页面**，
+        /// 左侧流程列表的状态芯片都能实时反映「循环 / 运行 / 暂停 / 异常 / 停止」。
+        /// 返回（正在运行含循环的流程数，其中循环运行的流程数）。
+        /// </summary>
+        public static (int Running, int Looping) PushStatuses()
+        {
+            var flows = ProjectStore.Data?.Flows;
+            if (flows == null) return (0, 0);
+            int running = 0, looping = 0;
+            foreach (var f in flows)
+            {
+                if (!_map.TryGetValue(f, out var e)) continue;
+                if (f.Status != e.Status) f.Status = e.Status;
+                if (e.Status == FlowStatus.Running || e.Status == FlowStatus.Looping)
+                {
+                    running++;
+                    if (e.Status == FlowStatus.Looping) looping++;
+                }
+            }
+            return (running, looping);
+        }
+
         public static void Clear(FlowItem flow)
         {
             if (flow != null) _map.TryRemove(flow, out _);

@@ -1395,8 +1395,13 @@ namespace NoCodeMotion.Views
             }
             else if (running)
             {
+                // 循环运行（编辑器自己的「循环运行」，或操作员页「启动」在后台循环跑本条脚本）
+                // → 状态文字显示「循环运行中…」，与运行器写入流程列表芯片的「循环」状态一致。
+                bool looping = _loopRun
+                    || (LuaItem != null && FlowRunStore.Contains(LuaItem)
+                        && FlowRunStore.Get(LuaItem).Status == FlowStatus.Looping);
                 StateDot.Fill = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
-                TxtState.Text = "运行中…";
+                TxtState.Text = looping ? "循环运行中…" : "运行中…";
             }
             else
             {

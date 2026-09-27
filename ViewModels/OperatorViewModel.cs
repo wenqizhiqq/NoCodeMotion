@@ -411,24 +411,23 @@ namespace NoCodeMotion.ViewModels
             // 3) 运行期：把共享态推到 FlowItem.Status（UI 线程安全；SetField 同值不触发 INPC，无抖动）
             if (_runActive)
             {
-                var flows = ProjectStore.Data.Flows;
-                if (flows != null)
+                // 共用推送：把 FlowRunStore 状态写回每条流程的 Status（含「循环」= 操作员「启动」跑的循环运行），
+                // 并返回（执行中数量，其中循环运行数量）——流程列表状态芯片/各流程页面据此显示。
+                var (runningCount, loopingCount) = FlowRunStore.PushStatuses();
+                if (runningCount > 0)
                 {
                     string? runningStep = null;
-                    int runningCount = 0;
-                    foreach (var f in flows)
-                    {
-                        if (!FlowRunStore.Contains(f)) continue;
-                        var (st, step, _) = FlowRunStore.Get(f);
-                        if (f.Status != st) f.Status = st;
-                        if (st == FlowStatus.Running)
+                    var flows = ProjectStore.Data.Flows;
+                    if (flows != null)
+                        foreach (var f in flows)
                         {
-                            runningCount++;
-                            if (runningStep == null) runningStep = step;
+                            var (st, step, _) = FlowRunStore.Get(f);
+                            if (st == FlowStatus.Running || st == FlowStatus.Looping) { runningStep = step; break; }
                         }
-                    }
-                    if (runningCount > 0 && runningStep != null)
-                        StatusText = $"运行中：{runningCount} 个流程执行中 · {runningStep}";
+                    string stepTail = string.IsNullOrEmpty(runningStep) ? "" : $" · {runningStep}";
+                    StatusText = loopingCount > 0
+                        ? $"循环运行中：{runningCount} 个流程执行中{stepTail}"
+                        : $"运行中：{runningCount} 个流程执行中{stepTail}";
                 }
                 var el = _runSw.Elapsed;
                 RunElapsedText = $"{(int)el.TotalMinutes:D2}:{el.Seconds:D2}";

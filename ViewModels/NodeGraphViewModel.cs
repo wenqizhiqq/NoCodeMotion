@@ -25,6 +25,8 @@ public sealed class NgToolGroup
 public sealed class NodeGraphViewModel : INotifyPropertyChanged
 {
     private FlowItem? _flowItem;
+    /// <summary>上一拍的运行状态文字：外部（操作员）驱动的循环运行要让本页状态跟着变，仅在变化时触发 INPC。</summary>
+    private string _lastRunStateText = "";
     private readonly NgDoc _doc = new();
     private readonly NgRunner _runner;
     private readonly System.Windows.Threading.DispatcherTimer _actualPosTimer;
@@ -102,6 +104,19 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     {
         get
         {
+            // ★ 外部运行（操作员页「启动」/ 流程页「循环运行」在后台跑本条流程）时，本页自己的 runner 是闲的。
+            //   读共享态 FlowRunStore 把真实状态显示出来——否则页面会一直显示「未运行」与实际不符。
+            if (_flowItem != null
+                && _runner.State is NgRunState.Idle or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error
+                && FlowRunStore.Contains(_flowItem))
+            {
+                switch (FlowRunStore.Get(_flowItem).Status)
+                {
+                    case FlowStatus.Looping: return "循环运行中（操作员启动）";
+                    case FlowStatus.Running: return "运行中（外部启动）";
+                    case FlowStatus.Paused: return "已暂停（操作员）";
+                }
+            }
             string baseText = RunState switch
             {
                 NgRunState.Idle => "未运行",
@@ -169,6 +184,11 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             // 条件分支：所有节点的端口 / 分组实时变色（卡片上直接看到 符合 / 不符合）
             foreach (var n in Nodes) n.RefreshDecisionState();
             SelectedNode?.RefreshPanelState();
+            // 外部运行状态：把共享态推到 FlowItem.Status（左侧流程列表状态芯片 → 「循环 / 运行」），
+            // 并在状态文字变化时刷新本页「循环运行中（操作员启动）」显示（只在变化时触发 INPC，避免抖动）。
+            FlowRunStore.PushStatuses();
+            string text = RunStateText;
+            if (text != _lastRunStateText) { _lastRunStateText = text; OnChanged(nameof(RunStateText)); }
         };
         _actualPosTimer.Start();
 

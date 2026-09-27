@@ -105,6 +105,19 @@ namespace NoCodeMotion.ViewModels
         {
             get
             {
+                // ★ 外部运行（操作员页「启动」跑的就是本条流程的循环运行）：本页自己的执行引擎是闲的，
+                //   读共享态 FlowRunStore 显示真实状态，避免「流程在循环运行、本页却写未开始」的不一致。
+                if (!IsRunning && SelectedItem != null && FlowRunStore.Contains(SelectedItem))
+                {
+                    var (st, step, _) = FlowRunStore.Get(SelectedItem);
+                    string tail = string.IsNullOrWhiteSpace(step) ? "" : $"　·　{step}";
+                    switch (st)
+                    {
+                        case FlowStatus.Looping: return $"循环运行中（操作员启动）{tail}";
+                        case FlowStatus.Running: return $"运行中（外部启动）{tail}";
+                        case FlowStatus.Paused: return $"已暂停（操作员）{tail}";
+                    }
+                }
                 string baseText = _currentStep < 0
                     ? (IsRunning ? "运行中" : "未开始")
                     : (_currentStep < StepPanel.Items.Count ? $"第 {_currentStep + 1} 步 / 共 {StepPanel.Items.Count} 步" : "已完成");
@@ -274,7 +287,13 @@ namespace NoCodeMotion.ViewModels
             // Timer 与流程选择/运行状态解耦，构造后即开始，迭代的 StepPanel.Items
             // 会在 SelectedItem 变化时随之切换（SetItems 时已经把 Items 换成新流程的 Steps）。
             _actualValueRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
-            _actualValueRefreshTimer.Tick += (_, _) => RefreshActualValues();
+            _actualValueRefreshTimer.Tick += (_, _) =>
+            {
+                RefreshActualValues();
+                // 外部运行（操作员启动）→ 把共享态推到流程列表状态芯片，并刷新「循环运行中（操作员启动）」状态文字
+                FlowRunStore.PushStatuses();
+                OnPropertyChanged(nameof(CurrentStepText));
+            };
             _actualValueRefreshTimer.Start();
         }
 

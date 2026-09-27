@@ -60,6 +60,7 @@
 - ★ **节点图「运算」节点是结构化属性**：`变量 + 运算(加|减|乘|除|取模|取反 下拉) + 值(自由文本，可数字/变量名/表达式)`；runner 按变量当前值真实运算后写回。旧图「表达式」字段保留回退兼容（运算为空才走）。
 - ★ **运行按钮统一约定：每处流程运行入口都提供「运行一次」+「循环运行」**，循环 = 一直跑到点停止。四处：`FlowPage`（表格流程，`FlowViewModel.LoopRunCommand`+`WrapToFirstRow()`）、`LuaEditorView`（`BtnLoopRun`，Ctrl+F5；`StartSession(..., keepLog:true)` 保留输出）、`NodeGraphPage`（`NgRunner.Completed` 触发自动重跑）、`VisualFlowPage`（按钮文案在「循环运行 / 停止循环」间切换）。
   通用坑：① 循环标记必须在 `Stop`/切换流程/卸载时清掉，否则停止后会被自动重启；② runner 的状态回调常在后台线程，重启用的 `DispatcherTimer.Start()` 必须封送到 UI 线程；③ 轮间延时只为防空图占满线程（节点图页 Timer 1ms、后台 Thread 循环 1ms 即"全速"）；④ 循环日志勿逐轮记——第 1 轮 + 每 100 轮一条，LastError 变化时才记；⑤ **Lua 脚本循环单独提速（2026-09-27，用户要求"只修改脚本"）**：检测 10ms、编辑器忙交接 100ms、轮间隔 50ms；`FlowRunPace` 统一轮间隔方案已被用户否决并回滚，勿再引入。
+- ★ **流程状态有 7 种：`FlowStatus` = Idle/Running(单次)/Paused/Breakpoint/Exception/Stopped/**`Looping`(循环运行)**（2026-09-27）。**循环分支写 `Looping`、单次分支写 `Running`**；判定"是否在跑"必须 `Running or Looping`（`SignalTowerService`、`OperatorViewModel` 已改）。列表芯片 `Looping→"循环"` 青绿 #0D9488。`FlowRunStore.PushStatuses()` 是唯一的共享态→`FlowItem.Status` 推送口（操作员页 150ms + 流程页/节点图页 1s 定时器调用），勿再各写一份循环。页面状态文字在"本页引擎空闲但外部（操作员）在跑"时读 `FlowRunStore` 显示「循环运行中（操作员启动）」。
 - 功能列：轴 / 输入IO / 输出IO / 气缸 / 点位 / modbus / 变量 / 系统 / 相机 / 延时。
 - 运算列全中文；改词表必须同步转换器、`ProjectTemplateCatalog`、`AiProjectExchange`、执行/仿真路径（`FlowRunnerService`/`SimFlowPlayer`/`NgRunner`）。
 - 「实际值」列全覆盖，读不到显示「—」。

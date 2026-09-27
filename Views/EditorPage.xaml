@@ -48,6 +48,11 @@
                     <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#10B981"/>
                 </DataTrigger>
+                <!-- 循环运行（跑完一轮自动回第一轮）：青绿，与单次「运行」的绿区分 -->
+                <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Looping}">
+                    <Setter Property="Visibility" Value="Visible"/>
+                    <Setter Property="Background" Value="#0D9488"/>
+                </DataTrigger>
                 <DataTrigger Binding="{Binding Status}" Value="{x:Static models:FlowStatus.Paused}">
                     <Setter Property="Visibility" Value="Visible"/>
                     <Setter Property="Background" Value="#F59E0B"/>

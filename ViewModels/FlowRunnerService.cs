@@ -237,7 +237,7 @@ namespace NoCodeMotion.ViewModels
                     while (!ctrl.StopRequested && !ctrl.EStopRequested)
                     {
                         cycle++;
-                        SetStatus(flow, FlowStatus.Running);
+                        SetStatus(flow, FlowStatus.Looping);   // 循环运行状态（列表芯片显示「循环」）
                         var exec = new FlowExecutor(flow, index, steps, ctrl, log, onStep);
                         try
                         {
@@ -317,7 +317,8 @@ namespace NoCodeMotion.ViewModels
             Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone, bool loop)
         {
             var name = flow.Name ?? "(未命名流程)";
-            SetStatus(flow, FlowStatus.Running);
+            // 循环运行 → Looping（列表芯片显示「循环」）；单次（运行一次 / 复位流程）→ Running
+            SetStatus(flow, loop ? FlowStatus.Looping : FlowStatus.Running);
             // Lua Main 循环：每轮跑完脚本后判断 Ended.IsError，一旦脚本报错就停止循环并把状态置 Exception，
             // 避免早前实现的「错误也立即重启」造成的 LuaScriptThread/LuaWatch 死循环刷屏与 UI 卡顿。
             var editor = LuaEditorView.Active;
@@ -400,7 +401,7 @@ namespace NoCodeMotion.ViewModels
                             if (session.IsBusy && !ctrl.PauseRequested)
                             {
                                 session.Resume(DebuggerAction.ActionType.Run);
-                                SetStatus(flow, FlowStatus.Running);
+                                SetStatus(flow, loop ? FlowStatus.Looping : FlowStatus.Running);
                             }
                         }
                     }
@@ -463,7 +464,7 @@ namespace NoCodeMotion.ViewModels
                                 if (!ended.IsSet && !ctrl.PauseRequested)
                                 {
                                     session?.Resume(DebuggerAction.ActionType.Run);
-                                    SetStatus(flow, FlowStatus.Running);
+                                    SetStatus(flow, loop ? FlowStatus.Looping : FlowStatus.Running);
                                 }
                             }
                         }
@@ -541,10 +542,10 @@ namespace NoCodeMotion.ViewModels
                             SetStatus(flow, FlowStatus.Paused);
                             try { ctrl.ResumeEvent?.Wait(); } catch { }
                             if (ctrl.StopRequested || ctrl.EStopRequested) break;
-                            SetStatus(flow, FlowStatus.Running);
+                            SetStatus(flow, FlowStatus.Looping);   // 循环运行状态
                         }
                         cycle++;
-                        SetStatus(flow, FlowStatus.Running);
+                        SetStatus(flow, FlowStatus.Looping);   // 循环运行状态（列表芯片显示「循环」）
                         try
                         {
                             var report = VisionEngine.Run(steps, progress);
@@ -658,10 +659,10 @@ namespace NoCodeMotion.ViewModels
                             SetStatus(flow, FlowStatus.Paused);
                             try { ctrl.ResumeEvent?.Wait(); } catch { }
                             if (ctrl.StopRequested || ctrl.EStopRequested) break;
-                            SetStatus(flow, FlowStatus.Running);
+                            SetStatus(flow, FlowStatus.Looping);   // 循环运行状态
                         }
                         cycle++;
-                        SetStatus(flow, FlowStatus.Running);
+                        SetStatus(flow, FlowStatus.Looping);   // 循环运行状态（列表芯片显示「循环」）
                         onStep?.Invoke(index, name, $"节点图 第 {cycle} 轮");
                         FlowRunStore.SetStep(flow, $"节点图 第 {cycle} 轮");
                         // 高频循环不逐轮刷日志（淹没日志页还拖慢节奏）：第 1 轮 + 之后每 100 轮记一条

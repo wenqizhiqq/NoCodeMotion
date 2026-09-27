@@ -33,7 +33,7 @@ namespace NoCodeMotion.Models
     {
         /// <summary>未运行（默认 / 正常结束）。</summary>
         Idle = 0,
-        /// <summary>正在执行步骤。</summary>
+        /// <summary>正在执行步骤（单次运行：运行一次 / 复位流程）。</summary>
         Running = 1,
         /// <summary>用户触发「暂停」，等待恢复。</summary>
         Paused = 2,
@@ -42,7 +42,10 @@ namespace NoCodeMotion.Models
         /// <summary>运行过程中发生异常。</summary>
         Exception = 4,
         /// <summary>用户触发「停止 / 急停」而终止。</summary>
-        Stopped = 5
+        Stopped = 5,
+        /// <summary>正在循环运行（跑完一轮自动回到第一轮，直到点「停止」）。
+        /// 操作员页「启动」调用的就是每条主流程的循环运行，故运行期间各流程页面/列表芯片显示本状态。</summary>
+        Looping = 6
     }
 
     /// <summary>流程项目：左侧列表中的一项，自身包含若干步骤（FlowStep）。</summary>

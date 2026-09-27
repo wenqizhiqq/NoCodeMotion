@@ -19,7 +19,8 @@ namespace NoCodeMotion.Views
                 switch (st)
                 {
                     case FlowStatus.Idle: return "就绪";      // 浅灰（始终显示，便于一眼辨别未运行 vs 已停/异常）
-                    case FlowStatus.Running: return "运行";     // 绿
+                    case FlowStatus.Running: return "运行";     // 绿（单次运行：运行一次 / 复位流程）
+                    case FlowStatus.Looping: return "循环";     // 青绿（循环运行：跑完一轮自动回到第一轮）
                     case FlowStatus.Paused: return "暂停";        // 橙
                     case FlowStatus.Breakpoint: return "断点";   // 红
                     case FlowStatus.Exception: return "异常";    // 深红
