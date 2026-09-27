@@ -63,6 +63,8 @@ namespace NoCodeMotion.ViewModels
         // 「实际值」列 1 秒定时刷新：不管是否在运行，每秒把当前选中流程里
         // Function=="变量" 的步骤 ActualValue 回填为变量当前值，方便用户实时看到变量读数变化。
         private readonly DispatcherTimer _actualValueRefreshTimer;
+        /// <summary>回显定时器（300ms）：轮询共享态刷新行高亮/状态/按钮使能。</summary>
+        private readonly DispatcherTimer _displayTimer;
 
         // 控制流运行态（与 _currentStep 解耦，避免高亮滞后一行）
         // 运行推进节拍（毫秒）：只决定界面刷新与暂停/停止的响应粒度，不再是「每步耗时」。
@@ -105,17 +107,17 @@ namespace NoCodeMotion.ViewModels
         {
             get
             {
-                // ★ 外部运行（操作员页「启动」跑的就是本条流程的循环运行）：本页自己的执行引擎是闲的，
+                // ★ 外部运行（操作员页「启动」/ FlowLoopManager 循环运行）：本页自己的执行引擎是闲的，
                 //   读共享态 FlowRunStore 显示真实状态，避免「流程在循环运行、本页却写未开始」的不一致。
                 if (!IsRunning && SelectedItem != null && FlowRunStore.Contains(SelectedItem))
                 {
-                    var (st, step, _) = FlowRunStore.Get(SelectedItem);
+                    var (st, step, cyc) = FlowRunStore.Get(SelectedItem);
                     string tail = string.IsNullOrWhiteSpace(step) ? "" : $"　·　{step}";
                     switch (st)
                     {
-                        case FlowStatus.Looping: return $"循环运行中（操作员启动）{tail}";
+                        case FlowStatus.Looping: return $"循环运行中　·　已循环 {cyc} 轮{tail}";
                         case FlowStatus.Running: return $"运行中（外部启动）{tail}";
-                        case FlowStatus.Paused: return $"已暂停（操作员）{tail}";
+                        case FlowStatus.Paused: return $"已暂停{tail}";
                     }
                 }
                 string baseText = _currentStep < 0
@@ -127,8 +129,8 @@ namespace NoCodeMotion.ViewModels
             }
         }
 
-        /// <summary>当前是否处于「循环运行」模式（运行中 + 走到末尾会自动回第 1 行）。</summary>
-        public bool IsLoopRunning => _loopRun && IsRunning;
+        /// <summary>当前是否处于「循环运行」模式（本页自己的循环，或该流程正被 FlowLoopManager 循环运行）。</summary>
+        public bool IsLoopRunning => (_loopRun && IsRunning) || IsFlowLooping;
 
         /// <summary>跳到指定行运行：用户填的起始行号（1 基）。出界时 <see cref="RunFromRow"/> 自动夹紧到首尾。</summary>
         public int JumpRowNumber
@@ -160,12 +162,14 @@ namespace NoCodeMotion.ViewModels
 
         // 运行按钮可用：表格流程需有步骤；脚本/视觉/节点图流程的内容分别在
         // LuaSource / VisualSteps / GraphJson（步骤表为空），选中即可后台运行。
-        public bool CanRun => !IsRunning && SelectedItem != null &&
+        // ★ 该流程正被 FlowLoopManager 循环运行时：运行/循环/单步禁用，停止/暂停可用。
+        public bool IsFlowLooping => FlowLoopManager.IsLooping(SelectedItem);
+        public bool CanRun => !IsRunning && !IsFlowLooping && SelectedItem != null &&
             (SelectedItem.Kind != FlowKind.Table || StepPanel.Items.Count > 0);
-        public bool CanStep => !IsRunning && StepPanel.Items.Count > 0;
+        public bool CanStep => !IsRunning && !IsFlowLooping && StepPanel.Items.Count > 0;
         public bool CanJump => !IsRunning && StepPanel.SelectedItem != null;
-        public bool CanPause => IsRunning && !IsPaused;
-        public bool CanStop => IsRunning || IsPaused || _currentStep >= 0;
+        public bool CanPause => (IsRunning && !IsPaused) || IsFlowLooping;
+        public bool CanStop => IsRunning || IsPaused || _currentStep >= 0 || IsFlowLooping;
 
         // ---------- 新建流程的三个具体添加命令 ----------
         private FlowKind _nextAddKind = FlowKind.Table;
@@ -263,7 +267,8 @@ namespace NoCodeMotion.ViewModels
             JumpCommand = new RelayCommand(_ => JumpToRow(), _ => CanJump);
             RunFromRowCommand = new RelayCommand(_ => RunFromRow(), _ => CanRunFromRow);
             PauseCommand = new RelayCommand(_ => Pause());
-            StopCommand = new RelayCommand(_ => Stop());
+            // 「停止」是用户显式动作：先停 FlowLoopManager 托管的循环运行（若有），再停本页自己的运行
+            StopCommand = new RelayCommand(_ => StopFromUser());
             PreviewCommand = new RelayCommand(_ => Preview(), _ => SelectedItem != null);
 
             AddTableFlowCommand = new RelayCommand(_ => OpenCreateDialog(FlowKind.Table));
@@ -290,11 +295,20 @@ namespace NoCodeMotion.ViewModels
             _actualValueRefreshTimer.Tick += (_, _) =>
             {
                 RefreshActualValues();
-                // 外部运行（操作员启动）→ 把共享态推到流程列表状态芯片，并刷新「循环运行中（操作员启动）」状态文字
-                FlowRunStore.PushStatuses();
-                OnPropertyChanged(nameof(CurrentStepText));
             };
             _actualValueRefreshTimer.Start();
+
+            // ★ 回显定时器（300ms）：轮询共享态刷新「表格行高亮 / 列表状态芯片 / 状态文字 / 按钮使能」。
+            //   运行器只写共享态、不碰 UI —— 切页面/切流程都不影响运行。
+            _displayTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+            _displayTimer.Tick += (_, _) =>
+            {
+                FlowRunStore.PushStatuses();          // 共享态 → 列表状态芯片（循环/运行/暂停/异常/停止）
+                RefreshRowHighlightFromStore();       // 表格行高亮
+                RaiseRunState();                      // 按钮使能（CanRun/CanStop/CanPause/IsFlowLooping）
+                OnPropertyChanged(nameof(CurrentStepText));
+            };
+            _displayTimer.Start();
         }
 
         private void OnFlowsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -876,6 +890,22 @@ namespace NoCodeMotion.ViewModels
             // 对应执行器后台运行（与操作员页同一套），不再因 Steps 为空而静默不跑。
             if (flow.Kind == FlowKind.Table && (flow.Steps == null || flow.Steps.Count == 0)) return;
 
+            // 该流程正被 FlowLoopManager 循环运行（可能处于暂停）：点「运行一次/循环运行」= 继续
+            if (IsFlowLooping) { FlowLoopManager.ResumeLoop(flow); return; }
+
+            // ★ 循环运行 → 托管到 FlowLoopManager（静态、页面无关）：
+            //   独立后台 Thread + while 循环在这里持续跑，切页 / 页面卸载 / 重新绑定都**不会停止**；
+            //   行高亮 / 状态文字 / 列表芯片由本页 1s 定时器轮询共享态刷新。
+            if (loop)
+            {
+                FlowLoopManager.StartLoop(flow);
+                _loopRun = false;
+                IsPaused = false;
+                RaiseRunState();
+                OnPropertyChanged(nameof(CurrentStepText));
+                return;
+            }
+
             // 单步引擎状态复位（单步仍走 UI 节拍）
             _pendingNext = -1;
             _ifStack.Clear();
@@ -1407,6 +1437,23 @@ namespace NoCodeMotion.ViewModels
         ///   气缸 → 伸出/缩回；相机 → 已连接/未连接。
         /// 空集合（未选中流程）直接返回；任意一步读取异常只清空该步，不影响其它。
         /// </summary>
+        /// <summary>表格行高亮：按共享态的步骤号设"当前行"（300ms 回显定时器调用，UI 线程）。
+        /// 只在该流程处于 运行/循环/暂停 时生效；本页单步引擎的高亮不在共享态里，互不干扰。</summary>
+        private void RefreshRowHighlightFromStore()
+        {
+            var flow = SelectedItem;
+            if (flow == null || flow.Kind != FlowKind.Table || !FlowRunStore.Contains(flow)) return;
+            var (st, _, _) = FlowRunStore.Get(flow);
+            if (st != FlowStatus.Running && st != FlowStatus.Looping && st != FlowStatus.Paused) return;
+            var (idx, _, _) = FlowRunStore.GetProgress(flow);
+            for (int i = 0; i < StepPanel.Items.Count; i++)
+            {
+                bool want = idx >= 0 && i == idx;
+                if (StepPanel.Items[i].IsCurrent != want) StepPanel.Items[i].IsCurrent = want;
+            }
+        }
+
+        /// <summary>刷新「实际值」列（1s）。</summary>
         private void RefreshActualValues()
         {
             var items = StepPanel?.Items;
@@ -1573,6 +1620,8 @@ namespace NoCodeMotion.ViewModels
         private void Pause()
         {
             if (!CanPause) return;
+            // ★ 该流程由 FlowLoopManager 托管循环运行（页面启动 / 操作员启动）→ 暂停那条循环
+            if (IsFlowLooping) { FlowLoopManager.PauseLoop(SelectedItem); return; }
             if (_bgActive && _bgCtrl != null)
             {
                 // 后台运行：引擎在步骤边界响应暂停（AbortCheck 阻塞在 ResumeEvent）
@@ -1586,9 +1635,18 @@ namespace NoCodeMotion.ViewModels
             IsRunning = false; // 暂停后允许用“运行”继续（_currentStep 未越界时 Run 不会重置）
         }
 
+        /// <summary>用户显式点「停止」：停 FlowLoopManager 托管的循环运行（若有）+ 本页自己的运行。</summary>
+        private void StopFromUser()
+        {
+            FlowLoopManager.StopLoop(SelectedItem);
+            Stop();
+        }
+
         private void Stop()
         {
-            // 后台运行：请求引擎停止（变量写回由 OnBgFinished 完成，gen 已作废其 UI 收尾）
+            // ★ 内部停止（切流程/选中变化/Kind 变化都会调）：**绝不能停 FlowLoopManager 托管的循环运行**！
+            //   否则切到一条正在循环的流程就会把它停掉（用户报"切到流程页面就停止了"）。
+            //   用户显式点「停止」走 StopFromUser()，才会停托管循环。
             _bgGen++;
             _bgActive = false;
             if (_bgCtrl != null)

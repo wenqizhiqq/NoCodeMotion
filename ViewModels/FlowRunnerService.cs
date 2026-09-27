@@ -181,7 +181,12 @@ namespace NoCodeMotion.ViewModels
                     try { RunOneFlow(flow, idx, ctrl, log, onStep, onFlowDone, ct, loop); }
                     catch (OperationCanceledException) { /* 正常中止 */ }
                     catch (Exception ex) { log?.Invoke($"流程「{flow?.Name}」运行异常：{ex.Message}", LogLevel.Error); }
-                    finally { done.Signal(); }
+                    finally
+                    {
+                        done.Signal();
+                        // ★ 退出指纹：一条流程线程结束就记一行（含停止标志）——用来定位"是谁把所有流程停掉的"
+                        log?.Invoke($"流程「{flow?.Name}」执行结束（{(loop ? "循环" : "单次")}·Stop={ctrl.StopRequested}·EStop={ctrl.EStopRequested}）。", LogLevel.Info);
+                    }
                 })
                 { IsBackground = true, Name = $"Flow-{idx}" };
                 th.Start();
@@ -237,8 +242,9 @@ namespace NoCodeMotion.ViewModels
                     while (!ctrl.StopRequested && !ctrl.EStopRequested)
                     {
                         cycle++;
+                        FlowRunStore.SetCycle(flow, cycle);
                         SetStatus(flow, FlowStatus.Looping);   // 循环运行状态（列表芯片显示「循环」）
-                        var exec = new FlowExecutor(flow, index, steps, ctrl, log, onStep);
+                        var exec = new FlowExecutor(flow, index, steps, ctrl, log, onStep, loop);
                         try
                         {
                             exec.Run(ct);
@@ -250,6 +256,13 @@ namespace NoCodeMotion.ViewModels
                             log?.Invoke(ctrl.EStopRequested
                                 ? $"流程「{name}」在第 {cycle} 轮急停。"
                                 : $"流程「{name}」在第 {cycle} 轮停止。", LogLevel.Warn);
+                            return;
+                        }
+                        catch (FlowAbortException abx)
+                        {
+                            // 本流程被主动中止（如点位移动条件未满足）：只结束这一条，同批次其它流程继续跑
+                            SetStatus(flow, FlowStatus.Exception);
+                            log?.Invoke($"流程「{name}」已中止：{abx.Message}", LogLevel.Error);
                             return;
                         }
                         catch (Exception ex)
@@ -355,6 +368,7 @@ namespace NoCodeMotion.ViewModels
                                     {
                                         onStep?.Invoke(index, name, $"Lua 行 {line}");
                                         FlowRunStore.SetStep(flow, $"Lua 行 {line}");
+                                        FlowRunStore.SetProgress(flow, line: line);   // 供脚本页定时器轮询刷新行号高亮
                                     };
                                     Action<ExecutionEndedInfo> onEnded = null;
                                     onEnded = info => { lastEnded = info; };
@@ -386,6 +400,7 @@ namespace NoCodeMotion.ViewModels
                     }
                     busyRetry = 0;
                     luaRound++;   // 只有成功启动的一轮才计轮数
+                    FlowRunStore.SetCycle(flow, luaRound);
                     // 循环运行不逐轮刷日志（原来每轮一条，循环时淹没输出面板）：第 1 轮 + 每 100 轮一条
                     if (!loop || luaRound == 1 || luaRound % 100 == 0)
                         log?.Invoke($"流程「{name}」开始运行（复用 Lua 编辑器页面，{(loop ? "循环" : "单次")}{(loop ? $"，已 {luaRound} 轮" : "")}）。", LogLevel.Info);
@@ -428,6 +443,7 @@ namespace NoCodeMotion.ViewModels
             while ((loop || luaRound == 0) && !ctrl.StopRequested && !ctrl.EStopRequested)
             {
                 luaRound++;
+                FlowRunStore.SetCycle(flow, luaRound);
                 Thread.Sleep(1);   // 让出 CPU，避免紧密循环抢占 UI 线程
                 var ended = new ManualResetEventSlim(false);
                 ExecutionEndedInfo lastEnded = null;
@@ -440,6 +456,7 @@ namespace NoCodeMotion.ViewModels
                         LuaRunMonitor.Report(flow, line);
                         onStep?.Invoke(index, name, $"Lua 行 {line}");
                         FlowRunStore.SetStep(flow, $"Lua 行 {line}");
+                        FlowRunStore.SetProgress(flow, line: line);   // 供脚本页定时器轮询刷新行号高亮
                     };
                     session.Ended += info =>
                     {
@@ -545,6 +562,7 @@ namespace NoCodeMotion.ViewModels
                             SetStatus(flow, FlowStatus.Looping);   // 循环运行状态
                         }
                         cycle++;
+                        FlowRunStore.SetCycle(flow, cycle);
                         SetStatus(flow, FlowStatus.Looping);   // 循环运行状态（列表芯片显示「循环」）
                         try
                         {
@@ -626,6 +644,18 @@ namespace NoCodeMotion.ViewModels
                 SimRuntime.SetVariable,
                 SimRuntime.GetVariableResolved);
             runner.Load(doc);
+            // 进度写共享态（节点图页用定时器轮询刷新"当前节点高亮 + 各节点结果"，运行器不往页面推）。
+            void PublishNodeProgress()
+            {
+                try
+                {
+                    FlowRunStore.SetProgress(flow, nodeId: runner.CurrentNodeId ?? "");
+                    FlowRunStore.SetNodeResults(flow, runner.Report.Results);
+                }
+                catch { /* 展示用途，失败不影响运行 */ }
+            }
+            runner.ReportChanged += PublishNodeProgress;
+            runner.StateChanged += PublishNodeProgress;
 
             // 一轮完成信号：State 离开 Running/Stepping（Completed/Stopped/Error）即视为本轮结束
             var roundDone = new ManualResetEventSlim(false);
@@ -662,6 +692,7 @@ namespace NoCodeMotion.ViewModels
                             SetStatus(flow, FlowStatus.Looping);   // 循环运行状态
                         }
                         cycle++;
+                        FlowRunStore.SetCycle(flow, cycle);
                         SetStatus(flow, FlowStatus.Looping);   // 循环运行状态（列表芯片显示「循环」）
                         onStep?.Invoke(index, name, $"节点图 第 {cycle} 轮");
                         FlowRunStore.SetStep(flow, $"节点图 第 {cycle} 轮");
@@ -703,6 +734,7 @@ namespace NoCodeMotion.ViewModels
             }
             finally
             {
+                FlowRunStore.SetProgress(flow, nodeId: "");   // 运行结束：页面定时器不再高亮"当前节点"（保留最后一次结果）
                 onFlowDone?.Invoke(index, name);
             }
         }
@@ -718,6 +750,112 @@ namespace NoCodeMotion.ViewModels
     }
 
     /// <summary>单条流程的执行器：递归解释 循环开始/循环结束、如果/否则如果/否则/结束 等逻辑，并执行各功能步骤。</summary>
+    /// <summary>单条流程中止（**只结束这一条**，同批次其它流程继续跑）。
+    /// 用于防撞类场景，如「点位移动条件未满足」：旧实现把共享的 `_ctrl.StopRequested` 置位，
+    /// 结果操作员一次启动里的**所有**流程全被拖停（用户报"一运行就都停了"）。</summary>
+    internal sealed class FlowAbortException : Exception
+    {
+        public FlowAbortException(string message) : base(message) { }
+    }
+
+    /// <summary>循环运行管理器（**静态、与页面生命周期无关**）：
+    /// 每条流程的「循环运行」都在这里托管 —— 独立后台 Thread（FlowRunnerService）+ 独立 FlowRunControl
+    /// （每条流程可单独 停止 / 暂停 / 继续）。
+    /// ★ 页面（流程页 / 脚本页 / 节点图页 / 操作员页）只是"调用入口 + 定时器轮询显示"：
+    ///   切页、页面卸载、重新绑定都**不会影响正在运行的循环**（thread + while 循环在静态类里持续跑）。</summary>
+    public static class FlowLoopManager
+    {
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<FlowItem, FlowRunControl> _loops = new();
+
+        /// <summary>该流程当前是否正在循环运行。</summary>
+        public static bool IsLooping(FlowItem? flow)
+            => flow != null && _loops.TryGetValue(flow, out var c) && !c.StopRequested && !c.EStopRequested;
+
+        /// <summary>启动某条流程的循环运行（已在跑则忽略）。每条流程独立 ctrl → 可单独 停止/暂停/继续。
+        /// <paramref name="configure"/>：调用方对 ctrl 的附加配置（如操作员页的 3D 取像回调）。</summary>
+        public static void StartLoop(FlowItem flow, Action<FlowRunControl>? configure = null)
+        {
+            if (flow == null || IsLooping(flow)) return;
+            _loops.TryGetValue(flow, out var old);
+            var ctrl = new FlowRunControl();
+            ctrl.InitVars();
+            ctrl.StepPaceMs = 0;
+            configure?.Invoke(ctrl);
+            _loops[flow] = ctrl;
+            FlowRunStore.Clear(flow);
+            FlowRunStore.SetStatus(flow, FlowStatus.Looping);
+            FlowRunStore.SetCycle(flow, 0);
+            FlowRunnerService.RunAllAsync(
+                ctrl,
+                log: null,
+                onStep: null,
+                onFlowDone: null,
+                onComplete: () =>
+                {
+                    // 只清理仍然指向本 ctrl 的条目（避免误删新一轮）
+                    if (_loops.TryGetValue(flow, out var c) && ReferenceEquals(c, ctrl))
+                        _loops.TryRemove(flow, out _);
+                    FlowRunStore.SetStatus(flow, FlowStatus.Idle);
+                },
+                filter: f => ReferenceEquals(f, flow),
+                forceLoop: true);
+        }
+
+        /// <summary>停止某条流程的循环运行（未在跑则忽略）。</summary>
+        public static void StopLoop(FlowItem? flow)
+        {
+            if (flow == null) return;
+            if (_loops.TryRemove(flow, out var ctrl))
+            {
+                ctrl.StopRequested = true;
+                ctrl.ResumeEvent.Set();
+            }
+        }
+
+        /// <summary>暂停某条流程的循环运行（整轮粒度）。</summary>
+        public static void PauseLoop(FlowItem? flow)
+        {
+            if (flow != null && _loops.TryGetValue(flow, out var c)) c.PauseRequested = true;
+        }
+
+        /// <summary>继续某条流程的循环运行。</summary>
+        public static void ResumeLoop(FlowItem? flow)
+        {
+            if (flow != null && _loops.TryGetValue(flow, out var c))
+            {
+                c.PauseRequested = false;
+                c.ResumeEvent.Set();
+            }
+        }
+
+        /// <summary>停止全部循环运行（操作员页「停止 / 急停 / 复位」用）。</summary>
+        public static void StopAll()
+        {
+            foreach (var kv in _loops)
+            {
+                kv.Value.StopRequested = true;
+                kv.Value.ResumeEvent.Set();
+            }
+            _loops.Clear();
+        }
+
+        /// <summary>暂停全部循环运行。</summary>
+        public static void PauseAll()
+        {
+            foreach (var kv in _loops) kv.Value.PauseRequested = true;
+        }
+
+        /// <summary>继续全部循环运行。</summary>
+        public static void ResumeAll()
+        {
+            foreach (var kv in _loops)
+            {
+                kv.Value.PauseRequested = false;
+                kv.Value.ResumeEvent.Set();
+            }
+        }
+    }
+
     internal class FlowExecutor
     {
         private readonly FlowItem _flow;
@@ -728,28 +866,21 @@ namespace NoCodeMotion.ViewModels
         private readonly Action<int, string, string> _onStep;
         private IHardwareBridge _bridge => HardwareBridge.Current;
         private long _guard;
-        private FlowStep _lastCurrent;
         private bool _pauseActive;     // 当前流程是否处于暂停状态（控制列表右侧"暂"芯片切换）
+        private readonly bool _loop;   // 是否循环运行（暂停恢复后状态回 Looping 而非 Running）
 
         public FlowExecutor(FlowItem flow, int index, List<FlowStep> steps, FlowRunControl ctrl,
-            Action<string, LogLevel> log, Action<int, string, string> onStep)
+            Action<string, LogLevel> log, Action<int, string, string> onStep, bool loop = false)
         {
-            _flow = flow; _index = index; _steps = steps; _ctrl = ctrl; _log = log; _onStep = onStep;
+            _flow = flow; _index = index; _steps = steps; _ctrl = ctrl; _log = log; _onStep = onStep; _loop = loop;
             // 桥接实例不再在构造时缓存，改为每次从 HardwareBridge.Current 读取，
             // 防止「先打开流程页、后连接控制器」时执行器一直用 Stub 而实际值读真实硬件。
         }
 
         public void Run(CancellationToken ct) => ExecBlock(0, _steps.Count, ct);
 
-        /// <summary>运行结束/中止后清除当前行高亮。</summary>
-        public void ClearCurrent()
-        {
-            UiSet(() =>
-            {
-                if (_lastCurrent != null) _lastCurrent.IsCurrent = false;
-                _lastCurrent = null;
-            });
-        }
+        /// <summary>运行结束/中止后清除当前行高亮（写共享态，页面定时器轮询刷新）。</summary>
+        public void ClearCurrent() => FlowRunStore.SetProgress(_flow, stepIndex: -1);
 
         private void AbortCheck(CancellationToken ct)
         {
@@ -760,14 +891,13 @@ namespace NoCodeMotion.ViewModels
                 if (!_pauseActive)
                 {
                     _pauseActive = true;
-                    // FlowExecutor 在自身线程内调自己的 UiSet（FlowExecutor.UiSet，跨类不可见）
-                    UiSet(() => _flow.Status = FlowStatus.Paused);
+                    FlowRunStore.SetStatus(_flow, FlowStatus.Paused);
                 }
                 _ctrl.ResumeEvent?.Wait(ct);
                 if (_pauseActive)
                 {
                     _pauseActive = false;
-                    UiSet(() => _flow.Status = FlowStatus.Running);
+                    FlowRunStore.SetStatus(_flow, _loop ? FlowStatus.Looping : FlowStatus.Running);
                 }
                 if (_ctrl.EStopRequested || _ctrl.StopRequested) throw new OperationCanceledException();
             }
@@ -786,13 +916,9 @@ namespace NoCodeMotion.ViewModels
                 var s = _steps[i];
                 var logic = (s.Logic ?? "").Trim();
                 _onStep?.Invoke(_index, _flow.Name ?? "", $"第 {i + 1}/{_steps.Count} 步 · {logic}");
+                // 行序号写共享态：流程页 300ms 定时器轮询刷新"当前行高亮"（运行器不碰 UI 集合）
                 FlowRunStore.SetStep(_flow, $"第 {i + 1}/{_steps.Count} 步 · {logic}");
-                UiSet(() =>
-                {
-                    if (_lastCurrent != null && !ReferenceEquals(_lastCurrent, s)) _lastCurrent.IsCurrent = false;
-                    s.IsCurrent = true;
-                    _lastCurrent = s;
-                });
+                FlowRunStore.SetProgress(_flow, stepIndex: i);
 
                 switch (logic)
                 {
@@ -1087,9 +1213,8 @@ namespace NoCodeMotion.ViewModels
             // （与操作员页自动运行失败即 _stopRequested = true 的处理保持一致）。
             if (!PointConditionGate.EnsureSilent(item, "流程", _flow?.Name))
             {
-                _log?.Invoke($"点位「{item.Name}」移动条件未满足，已中止流程。", LogLevel.Error);
-                _ctrl.StopRequested = true;
-                return;
+                // 只中止**本条**流程：不再置共享 _ctrl.StopRequested（那会把同批次其它流程一起停掉）
+                throw new FlowAbortException($"点位「{item.Name}」移动条件未满足，已中止本流程。");
             }
             for (int i = 0; i < PointTable.SlotCount; i++)
             {

@@ -18,6 +18,10 @@ namespace NoCodeMotion.Services
             public FlowStatus Status = FlowStatus.Idle;
             public string Step = string.Empty;
             public int Cycle;
+            // —— 进度（供各流程页面用定时器轮询刷新"行序号 / 当前节点"）——
+            public int StepIndex = -1;          // 表格/视觉：当前步骤下标（-1 = 无）
+            public int Line = 0;                // Lua：当前执行行（0 = 无）
+            public string NodeId = string.Empty;// 节点图：当前节点 Id（空 = 无）
         }
 
         private static readonly ConcurrentDictionary<FlowItem, Entry> _map = new();
@@ -39,6 +43,41 @@ namespace NoCodeMotion.Services
             if (flow == null) return;
             _map.GetOrAdd(flow, _ => new Entry()).Cycle = cycle;
         }
+
+        /// <summary>写进度（供各流程页面定时器轮询）：<paramref name="stepIndex"/> 表格/视觉当前步骤下标、
+        /// <paramref name="line"/> Lua 当前行、<paramref name="nodeId"/> 节点图当前节点 Id。传 null / 负数即不改那一项。</summary>
+        public static void SetProgress(FlowItem flow, int? stepIndex = null, int? line = null, string? nodeId = null)
+        {
+            if (flow == null) return;
+            var e = _map.GetOrAdd(flow, _ => new Entry());
+            if (stepIndex.HasValue) e.StepIndex = stepIndex.Value;
+            if (line.HasValue) e.Line = line.Value;
+            if (nodeId != null) e.NodeId = nodeId;
+        }
+
+        /// <summary>读进度快照（UI 定时器调用）：步骤下标 / Lua 行 / 节点图当前节点 Id。</summary>
+        public static (int StepIndex, int Line, string NodeId) GetProgress(FlowItem flow)
+        {
+            if (flow != null && _map.TryGetValue(flow, out var e)) return (e.StepIndex, e.Line, e.NodeId);
+            return (-1, 0, string.Empty);
+        }
+
+        // —— 节点图：节点 Id → 步骤结果（只读给页面定时器刷新节点卡片用）——
+        private static readonly ConcurrentDictionary<FlowItem, System.Collections.Generic.Dictionary<string, Models.NodeGraph.NgStepResult>> _nodeResults = new();
+
+        /// <summary>运行器把节点图的"每节点结果"快照放进共享态；节点图页定时器读它给节点卡片上色/显示耗时摘要。
+        /// 传 null 表示本条流程本轮已结束（页面据此不再高亮"当前节点"，但保留最后一次结果便于查看）。</summary>
+        public static void SetNodeResults(FlowItem flow, System.Collections.Generic.Dictionary<string, Models.NodeGraph.NgStepResult>? results)
+        {
+            if (flow == null) return;
+            if (results == null) _nodeResults.TryRemove(flow, out _);
+            else _nodeResults[flow] = results;
+        }
+
+        /// <summary>读节点图的每节点结果（无则 null）。UI 定时器调用，读到的对象是运行器持有的引用，
+        /// 仅用于展示（耗时/摘要/状态色），不修改。</summary>
+        public static System.Collections.Generic.Dictionary<string, Models.NodeGraph.NgStepResult>? GetNodeResults(FlowItem flow)
+            => flow != null && _nodeResults.TryGetValue(flow, out var r) ? r : null;
 
         /// <summary>读取某流程当前快照；若不存在则返回默认的 就绪/空/0。</summary>
         public static (FlowStatus Status, string Step, int Cycle) Get(FlowItem flow)

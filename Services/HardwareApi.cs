@@ -405,14 +405,24 @@ namespace NoCodeMotion.Services
         }
 
         /// <summary>改工程数据（点位坐标等）必须在 UI 线程做，否则点位页/流程页的绑定集合会抛跨线程异常；
-        /// 改完统一落盘（xlsx），与点位页手工改坐标等价。</summary>
+        /// 改完统一落盘（xlsx），与点位页手工改坐标等价。
+        /// ★ 异常一律吞掉（切页/重建可视树期间绑定集合可能拒绝修改）：绝不冒回脚本线程被当成"脚本报错"。</summary>
         private static void RunOnUiThread(Action action)
         {
-            var dispatcher = Application.Current?.Dispatcher;
-            if (dispatcher != null && !dispatcher.CheckAccess())
-                dispatcher.Invoke(action);      // 脚本在后台线程跑 → 封送到 UI 线程执行
-            else
-                action();
+            try
+            {
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                {
+                    if (dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished) return;
+                    dispatcher.Invoke(action);      // 脚本在后台线程跑 → 封送到 UI 线程执行
+                }
+                else
+                {
+                    action();
+                }
+            }
+            catch { /* 界面/调度异常忽略 */ }
             ProjectStore.ScheduleSave();
         }
 
@@ -498,16 +508,21 @@ namespace NoCodeMotion.Services
             private readonly HardwareApi _owner;
             public VariableApi(HardwareApi owner) => _owner = owner;
 
-            /// <summary>返回变量值：可解析为数字时返回 number，否则返回字符串；未定义返回 nil。</summary>
+            /// <summary>返回变量值：可解析为数字时返回 number，否则返回字符串；未定义返回 nil。
+            /// 读失败（切页瞬间工程数据重建等）返回 nil，绝不把异常抛回脚本线程。</summary>
             public DynValue Get(string name)
             {
-                var (row, col) = FindVar(name);
-                if (row == null) return DynValue.Nil;
-                string raw = GetVal(row, col);
-                if (string.IsNullOrWhiteSpace(raw)) return DynValue.Nil;
-                if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out double d))
-                    return DynValue.NewNumber(d);
-                return DynValue.NewString(raw);
+                try
+                {
+                    var (row, col) = FindVar(name);
+                    if (row == null) return DynValue.Nil;
+                    string raw = GetVal(row, col);
+                    if (string.IsNullOrWhiteSpace(raw)) return DynValue.Nil;
+                    if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out double d))
+                        return DynValue.NewNumber(d);
+                    return DynValue.NewString(raw);
+                }
+                catch { return DynValue.Nil; }
             }
 
             /// <summary>写入变量值（数字或字符串都会以字符串形式存回变量表，并实时打印）。
@@ -521,10 +536,19 @@ namespace NoCodeMotion.Services
                 var dispatcher = Application.Current?.Dispatcher;
                 if (dispatcher != null && !dispatcher.CheckAccess())
                 {
-                    dispatcher.Invoke(new Action(() => SetCore(name, value)));
+                    // ★★ 绝不让 UI 侧的异常冒回脚本线程：切页面时 UI 线程正在重建可视树/布局，
+                    //    dispatcher.Invoke 可能失败（或 DataGrid/CollectionView 刷新抛异常），
+                    //    异常一旦冒回去会被 LuaDebugSession 记成「脚本报错（行 0）」→ 运行器把循环 break，
+                    //    现象就是"切到流程页后变量不再增加"。这里整段 try/catch 吞掉，写入失败也不终止流程。
+                    try
+                    {
+                        if (dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished) return;
+                        dispatcher.Invoke(new Action(() => SetCore(name, value)));
+                    }
+                    catch { /* 界面/调度异常忽略 */ }
                     return;
                 }
-                SetCore(name, value);
+                try { SetCore(name, value); } catch { /* 同上 */ }
             }
 
             private void SetCore(string name, object value)

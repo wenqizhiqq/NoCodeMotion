@@ -556,8 +556,9 @@ namespace NoCodeMotion.ViewModels
             _runThread.Start();
         }
 
-        /// <summary>启动 = 并发跑 ProjectStore.Data.Flows 里每个 Flow 的「循环开始/循环结束」等逻辑区域（次数取 SetValue）。
-        /// 通过 FlowRunnerService 为每条流程起一条后台 Thread（内部 while 循环），真实驱动机台；支持暂停 / 停止 / 急停。</summary>
+        /// <summary>启动 = **逐条调用每个主流程的「循环运行」**（FlowLoopManager 静态托管，每条流程
+        /// 独立后台 Thread + 独立 ctrl）：与流程页/脚本页/节点图页的「循环运行」完全同一套，因此
+        /// 各流程页面内部的状态/行号/节点高亮都正常跟随，切页面不影响运行；流程页里还能单独停某一条。</summary>
         private void StartFlows()
         {
             var flows = ProjectStore.Data.Flows;
@@ -571,29 +572,20 @@ namespace NoCodeMotion.ViewModels
             _runStart = DateTime.Now;
             _runSw.Restart();
 
-            var ctrl = new FlowRunControl();
-            ctrl.InitVars();
-            ctrl.OnCameraCapture = (b, w, h) => _uiQueue.Enqueue(() => SetCapture(b, w, h));
-            _flowCtrl = ctrl;
-            Views.LuaEditorView.EditorStopRequested = false;   // 清掉上次的编辑器停止标志
-
-            // 运行线程只写共享态 FlowRunStore，UI 由定时器拉取；日志/动作入队，定时器在 UI 线程排空。
-            // 全部流程结束后由看门狗线程触发 onComplete（入队到 UI 线程执行），全程不依赖 Task。
             FlowRunStore.ClearAll();
             _runActive = true;
 
-            AddLog(LogLevel.Info, $"启动运行（自动）：并发执行 {flows.Count} 个流程。");
-            StatusText = $"运行中：并发执行 {flows.Count} 个流程…";
-
-            int gen = ++_runGen;
-            FlowRunnerService.RunAllAsync(
-                ctrl,
-                log: (msg, lvl) => _logQueue.Enqueue((msg, lvl)),
-                onStep: (idx, name, cur) => { },
-                onFlowDone: (idx, name) => _uiQueue.Enqueue(() => AdvanceProduction()),
-                onComplete: () => _uiQueue.Enqueue(() => FinalizeRun(gen)),
-                ct: CancellationToken.None
-            );
+            int started = 0;
+            foreach (var f in flows.Where(f => f.Role == FlowRole.Main).ToList())
+            {
+                // 每条主流程 = 一次「循环运行」（独立线程 + 独立 ctrl，可单独停止/暂停）
+                FlowLoopManager.StartLoop(f, c => c.OnCameraCapture = (b, w, h) => _uiQueue.Enqueue(() => SetCapture(b, w, h)));
+                started++;
+            }
+            AddLog(LogLevel.Info, $"启动：{started} 个主流程进入循环运行（独立线程，切页不影响）。");
+            StatusText = started > 0
+                ? $"循环运行中：{started} 个主流程…"
+                : "没有主流程可执行（请在流程页添加并确认角色为主流程）。";
         }
 
         /// <summary>全部流程运行结束后的收尾（由 UI 定时器队列在 UI 线程执行）：复位运行态、写回变量、刷新状态文本。</summary>
@@ -630,6 +622,7 @@ namespace NoCodeMotion.ViewModels
             _stopRequested = true;
             _resumeEvent.Set();
             _flowCtrl?.StopRequested = true; _flowCtrl?.ResumeEvent.Set();
+            FlowLoopManager.StopAll();   // ★ 停掉全部托管循环运行（每条主流程一条）
             IsRunning = false;
             IsPaused = false;
             _runActive = false;
@@ -648,6 +641,7 @@ namespace NoCodeMotion.ViewModels
             _stopRequested = true;
             _resumeEvent.Set();
             _flowCtrl?.EStopRequested = true; _flowCtrl?.StopRequested = true; _flowCtrl?.ResumeEvent.Set();
+            FlowLoopManager.StopAll();   // ★ 急停 = 停掉全部托管循环运行
             // 立即切断所有运动：停轴 + 复位气缸 + 清输出
             var bridge = HardwareBridge.Current;
             try
@@ -681,6 +675,7 @@ namespace NoCodeMotion.ViewModels
             _resumeEvent.Set();
             _eStopRequested = false;
             _pauseRequested = false;
+            FlowLoopManager.StopAll();   // ★ 复位也停掉全部托管循环运行（之后若有复位流程则按运行一次执行）
             IsRunning = false;
             IsPaused = false;
             EStopped = false;
@@ -782,6 +777,7 @@ namespace NoCodeMotion.ViewModels
             _pauseRequested = true;
             _resumeEvent.Reset();
             _flowCtrl.PauseRequested = true; _flowCtrl.ResumeEvent.Reset();
+            FlowLoopManager.PauseAll();   // ★ 暂停全部托管循环运行
             IsPaused = true;
             StatusText = "已暂停。";
             AddLog(LogLevel.Warn, "运行已暂停。");
@@ -793,6 +789,7 @@ namespace NoCodeMotion.ViewModels
             _pauseRequested = false;
             _resumeEvent.Set();
             _flowCtrl.PauseRequested = false; _flowCtrl.ResumeEvent.Set();
+            FlowLoopManager.ResumeAll();   // ★ 继续全部托管循环运行
             IsPaused = false;
             StatusText = "继续运行。";
             AddLog(LogLevel.Info, "继续运行。");

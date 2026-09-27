@@ -31,11 +31,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     private readonly NgRunner _runner;
     private readonly System.Windows.Threading.DispatcherTimer _actualPosTimer;
 
-    // ---------- 循环运行：一轮跑完自动再跑一轮，直到点「停止」 ----------
-    private bool _loopRun;
-    private int _loopCount;
-    private readonly System.Windows.Threading.DispatcherTimer _loopRestartTimer;
-
+    // 「循环运行」已托管到 FlowLoopManager（静态、页面无关）：本页只负责入口调用 + 200ms 轮询显示。
     public ObservableCollection<NodeGraphNodeViewModel> Nodes { get; } = new();
     public ObservableCollection<NodeGraphConnectionViewModel> Connections { get; } = new();
 
@@ -110,9 +106,10 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
                 && _runner.State is NgRunState.Idle or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error
                 && FlowRunStore.Contains(_flowItem))
             {
-                switch (FlowRunStore.Get(_flowItem).Status)
+                var (est, _, cycle) = FlowRunStore.Get(_flowItem);
+                switch (est)
                 {
-                    case FlowStatus.Looping: return "循环运行中（操作员启动）";
+                    case FlowStatus.Looping: return $"循环运行中（操作员/页面启动）　·　已循环 {cycle} 轮";
                     case FlowStatus.Running: return "运行中（外部启动）";
                     case FlowStatus.Paused: return "已暂停（操作员）";
                 }
@@ -128,23 +125,25 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
                 NgRunState.Stopped => "已停止",
                 _ => string.Empty,
             };
-            return _loopRun ? $"{baseText}　·　循环运行第 {_loopCount + 1} 轮" : baseText;
+            return baseText;
         }
     }
 
-    /// <summary>当前是否处于「循环运行」模式。</summary>
-    public bool IsLoopRunning => _loopRun;
-    public bool CanRun => _runner.State is NgRunState.Idle or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error;
-    public bool CanStep => _runner.State is NgRunState.Idle or NgRunState.Paused or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error;
+    /// <summary>当前是否处于「循环运行」模式（该流程正被 FlowLoopManager 循环运行）。</summary>
+    public bool IsLoopRunning => FlowLoopManager.IsLooping(_flowItem);
+    public bool CanRun => _runner.State is NgRunState.Idle or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error
+        && !FlowLoopManager.IsLooping(_flowItem);
+    public bool CanStep => _runner.State is NgRunState.Idle or NgRunState.Paused or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error
+        && !FlowLoopManager.IsLooping(_flowItem);
 
-    /// <summary>「运行一次 / 循环运行」按钮可用：runner 可启动且当前不在循环运行中（循环中用「停止」退出，
-    /// 避免轮间间隙误点打断循环）。</summary>
-    public bool CanStartRun => CanRun && !_loopRun;
-    /// <summary>「单步」按钮可用：允许单步的状态且不在循环运行中。</summary>
-    public bool CanStartStep => CanStep && !_loopRun;
+    /// <summary>「运行一次 / 循环运行」按钮可用：runner 可启动且当前不在循环运行中（循环中用「停止」退出）。</summary>
+    public bool CanStartRun => CanRun;
+    /// <summary>「单步」按钮可用：允许单步的状态。</summary>
+    public bool CanStartStep => CanStep;
     public bool CanResume => _runner.State == NgRunState.Paused;
     public bool CanPause => _runner.State is NgRunState.Running or NgRunState.Stepping;
-    public bool CanStop => _runner.State != NgRunState.Idle;
+    /// <summary>「停止」可用：本页 runner 在跑，或该流程正被静态管理器循环运行（操作员启动/页面启动）。</summary>
+    public bool CanStop => _runner.State != NgRunState.Idle || FlowLoopManager.IsLooping(_flowItem);
 
     /// <summary>「运行一次」：从开始节点连续执行整个流程一遍。</summary>
     public ICommand RunCommand { get; }
@@ -171,24 +170,28 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             HardwareResolver.ResolveComm,
             SimRuntime.SetVariable,
             SimRuntime.GetVariableResolved);
-        _runner.StateChanged += OnRunnerStateChanged;
-        _runner.ReportChanged += OnRunnerReportChanged;
+        _runner.StateChanged += OnOwnRunnerProgress;
+        _runner.ReportChanged += OnOwnRunnerProgress;
 
-        // 属性面板「实际位置」1 秒刷新（运行时随轴运动实时变化）；只刷新当前选中节点，代价极小。
+        // 属性面板「实际位置」等回显：200ms 定时器轮询（运行时随轴运动实时变化）；只刷新当前选中节点，代价极小。
         _actualPosTimer = new System.Windows.Threading.DispatcherTimer
         {
-            Interval = System.TimeSpan.FromMilliseconds(1000)
+            Interval = System.TimeSpan.FromMilliseconds(200)
         };
         _actualPosTimer.Tick += (_, _) =>
         {
             // 条件分支：所有节点的端口 / 分组实时变色（卡片上直接看到 符合 / 不符合）
             foreach (var n in Nodes) n.RefreshDecisionState();
             SelectedNode?.RefreshPanelState();
-            // 外部运行状态：把共享态推到 FlowItem.Status（左侧流程列表状态芯片 → 「循环 / 运行」），
-            // 并在状态文字变化时刷新本页「循环运行中（操作员启动）」显示（只在变化时触发 INPC，避免抖动）。
-            FlowRunStore.PushStatuses();
+            // ★ 回显全部走定时器轮询共享态（运行器只写共享态、不往页面推）：
+            //   刷"当前节点高亮 + 各节点结果"，无论本页启动还是操作员启动，节点都正常依次跳转/变色。
+            RefreshRunFromStore();
+            FlowRunStore.PushStatuses();   // 共享态 → 左侧流程列表状态芯片（循环 / 运行）
+            // 状态文字（循环运行中（操作员启动）/ 运行中（外部启动））跟着刷新
             string text = RunStateText;
             if (text != _lastRunStateText) { _lastRunStateText = text; OnChanged(nameof(RunStateText)); }
+            // 轮询会改变 CanRun/CanStop 等（外部循环运行时：运行/循环禁用、停止可用）→ 主动刷新命令状态
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         };
         _actualPosTimer.Start();
 
@@ -197,25 +200,21 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         DeleteAllConnectionsCommand = new RelayCommand(_ => DeleteAllConnections(), _ => Connections.Count > 0);
         ClearCommand = new RelayCommand(_ => ClearAll());
 
-        RunCommand = new RelayCommand(_ => { _loopRun = false; _loopCount = 0; _runner.Run(); }, _ => CanRun);
-        LoopRunCommand = new RelayCommand(_ => { _loopRun = true; _loopCount = 0; _runner.Run(); }, _ => CanRun);
-        StepCommand = new RelayCommand(_ => { _loopRun = false; _runner.Step(); }, _ => CanStep);
+        RunCommand = new RelayCommand(_ => { _runner.Run(); }, _ => CanRun);
+        // ★ 循环运行 → 托管到 FlowLoopManager（静态、页面无关）：切页/卸载不影响运行；
+        //   节点高亮由 200ms 定时器轮询共享态完成。
+        LoopRunCommand = new RelayCommand(_ => FlowLoopManager.StartLoop(_flowItem), _ => CanStartRun && _flowItem != null);
+        StepCommand = new RelayCommand(_ => _runner.Step(), _ => CanStep);
         ResumeCommand = new RelayCommand(_ => _runner.Resume(), _ => CanResume);
         PauseCommand = new RelayCommand(_ => _runner.Pause(), _ => CanPause);
-        StopCommand = new RelayCommand(_ => StopRun(), _ => CanStop);
+        // 停止：该流程正被静态管理器循环运行（操作员启动/页面启动）→ 停那条循环；否则停本页自己的运行
+        StopCommand = new RelayCommand(_ =>
+        {
+            if (FlowLoopManager.IsLooping(_flowItem)) FlowLoopManager.StopLoop(_flowItem);
+            else StopRun();
+        }, _ => CanStop);
 
-        // 循环运行：一轮完成到下一轮开始之间留 50ms（Run 本身是后台 Task，
-        // 50ms 足够让出 UI 线程；再大会拖慢「开始→运算→结束」这类毫秒级小图的循环节奏）
-        _loopRestartTimer = new System.Windows.Threading.DispatcherTimer
-        {
-            Interval = System.TimeSpan.FromMilliseconds(1)
-        };
-        _loopRestartTimer.Tick += (_, _) =>
-        {
-            _loopRestartTimer.Stop();
-            if (!_loopRun) return;
-            _runner.Run();
-        };
+        // 「循环运行」已托管到 FlowLoopManager（静态）——本页不再有自己的循环重启定时器
         ToggleBreakpointCommand = new RelayCommand(p => _runner.ToggleBreakpoint(p as string ?? string.Empty));
 
         ToolboxGroups = NgNodeDefinitions.DomainOrder.Select(dom => new NgToolGroup
@@ -235,6 +234,9 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         var doc = NgDoc.FromJson(item.GraphJson);
         BuildViewModels(doc);
         _runner.Load(doc);
+        // 切到正在跑的流程：立即按共享态刷一次"当前节点/结果/状态文字"（此后 200ms 定时器接管）
+        RefreshRunFromStore();
+        OnChanged(nameof(RunStateText));
     }
 
     private void BuildViewModels(NgDoc doc)
@@ -364,12 +366,20 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-    // ===================== NgRunner 事件回调 =====================
+    // ===================== 本页运行：只写共享态（回显由 200ms 定时器轮询完成） =====================
 
-    private void OnRunnerStateChanged()
+    /// <summary>本页 runner 的状态/报告回调：**只把进度写进共享态 FlowRunStore**（线程安全），
+    /// 绝不直接改 Nodes 集合 —— 节点卡片的高亮/变色由 200ms 定时器轮询共享态完成。
+    /// 这样"运行中切流程/切页面"（LoadFrom 重建 Nodes 集合）也不会与运行器并发冲突。</summary>
+    private void OnOwnRunnerProgress()
     {
-        // 同步所有节点的断点标记（断点是 runner 全局态）
-        foreach (var n in Nodes) n.HasBreakpoint = _runner.HasBreakpoint(n.Id);
+        if (_flowItem == null) return;
+        try
+        {
+            FlowRunStore.SetProgress(_flowItem, nodeId: _runner.CurrentNodeId ?? "");
+            FlowRunStore.SetNodeResults(_flowItem, _runner.Report.Results);
+        }
+        catch { /* 展示用途，失败不影响运行 */ }
         OnChanged(nameof(RunState));
         OnChanged(nameof(RunStateText));
         OnChanged(nameof(CurrentNodeId));
@@ -381,31 +391,11 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         OnChanged(nameof(CanResume));
         OnChanged(nameof(CanPause));
         OnChanged(nameof(CanStop));
-
-        // 循环运行：本轮正常完成 → 延时自动开下一轮；异常 / 被停止 → 退出循环模式。
-        // 注意：本回调来自 NgRunner 的后台线程，DispatcherTimer 只能在 UI 线程启停，故 Start 走封送。
-        if (_loopRun)
-        {
-            if (_runner.State == NgRunState.Completed)
-            {
-                _loopCount++;
-                OnChanged(nameof(RunStateText));
-                DispatcherSafe(() => _loopRestartTimer.Start());
-            }
-            else if (_runner.State is NgRunState.Error or NgRunState.Stopped)
-            {
-                _loopRun = false;
-                OnChanged(nameof(RunStateText));
-                OnChanged(nameof(IsLoopRunning));
-            }
-        }
     }
 
-    /// <summary>「停止」：退出循环运行并中止 runner。</summary>
+    /// <summary>「停止」：中止本页 runner（循环运行由 FlowLoopManager 负责，见 StopCommand 路由）。</summary>
     private void StopRun()
     {
-        _loopRun = false;
-        _loopRestartTimer?.Stop();
         _runner.Stop();
         OnChanged(nameof(CanStartRun));
         OnChanged(nameof(CanStartStep));
@@ -413,21 +403,24 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         OnChanged(nameof(IsLoopRunning));
     }
 
-    /// <summary>把动作封送到 UI 线程（NgRunner 的状态回调可能来自后台线程）。</summary>
-    private static void DispatcherSafe(Action action)
-    {
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher == null || dispatcher.CheckAccess()) action();
-        else dispatcher.BeginInvoke(action);
-    }
+    // ===================== 回显：定时器轮询共享态（本页运行 / 操作员运行统一） =====================
 
-    private void OnRunnerReportChanged()
+    /// <summary>由 200ms 定时器调用：读 <see cref="FlowRunStore"/> 把「当前节点 → IsCurrent 高亮」
+    /// 「每节点结果 → 卡片状态色/耗时/摘要」「断点标记」套到节点 VM 上，并清掉不再运行的状态。
+    /// ★ 全程 UI 线程、只读共享态 —— 运行器不参与，切页面/切流程都不会打断运行。</summary>
+    private void RefreshRunFromStore()
     {
-        // 每步执行完同步到节点 VM（StepResult + IsCurrent）
+        if (_flowItem == null || !FlowRunStore.Contains(_flowItem)) return;
+        var (st, _, _) = FlowRunStore.Get(_flowItem);
+        bool running = st is FlowStatus.Running or FlowStatus.Looping or FlowStatus.Paused;
+        var (_, _, nodeId) = FlowRunStore.GetProgress(_flowItem);
+        var results = FlowRunStore.GetNodeResults(_flowItem);
         foreach (var n in Nodes)
         {
-            n.StepResult = _runner.Report.Results.TryGetValue(n.Id, out var r) ? r : null;
-            n.IsCurrent = n.Id == _runner.CurrentNodeId;
+            n.HasBreakpoint = _runner.HasBreakpoint(n.Id);
+            bool want = running && !string.IsNullOrEmpty(nodeId) && n.Id == nodeId;
+            if (n.IsCurrent != want) n.IsCurrent = want;
+            if (results != null && results.TryGetValue(n.Id, out var r)) n.StepResult = r;
         }
     }
 }

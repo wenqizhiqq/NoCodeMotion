@@ -30,6 +30,20 @@ namespace NoCodeMotion.Services
         /// <summary>任意状态变化（IO 输出 / 气缸 / 相机闪光 / 变量）时触发，供 3D 视图订阅刷新。</summary>
         public static event Action? Changed;
 
+        /// <summary>安全广播状态变化：逐个订阅者 try/catch。
+        /// ★ 订阅者（各页面刷新）的异常**绝不冒回调用方**——调用方往往是脚本线程 / 流程线程，
+        /// 一次界面刷新异常（如切页时 Dispatcher 正忙、DataGrid.Refresh 被布局打断）会被上层当成
+        /// "脚本报错"，直接把 Lua 流程的循环 break 掉（用户报的"切到流程页变量就不再增加"）。</summary>
+        private static void RaiseChanged()
+        {
+            var h = Changed;
+            if (h == null) return;
+            foreach (var d in h.GetInvocationList())
+            {
+                try { ((Action)d)(); } catch { /* 订阅者自身异常忽略：界面刷新失败不该影响运行 */ }
+            }
+        }
+
         public static void Reset()
         {
             lock (_gate)
@@ -43,7 +57,7 @@ namespace NoCodeMotion.Services
             if (ProjectStore.Data?.Variables != null)
                 foreach (var r in ProjectStore.Data.Variables)
                     for (int c = 1; c <= 5; c++) SetVarCell(r, c, "0");
-            Changed?.Invoke();
+            RaiseChanged();
         }
 
         // —— IO 输出 ——
@@ -62,7 +76,7 @@ namespace NoCodeMotion.Services
                 changed = !_outputs.TryGetValue(name, out var cur) || cur != v;
                 if (changed) _outputs[name] = v;
             }
-            if (changed) Changed?.Invoke();
+            if (changed) RaiseChanged();
         }
 
         // —— 气缸 ——
@@ -81,7 +95,7 @@ namespace NoCodeMotion.Services
                 changed = !_cylinders.TryGetValue(name, out var cur) || cur != v;
                 if (changed) _cylinders[name] = v;
             }
-            if (changed) Changed?.Invoke();
+            if (changed) RaiseChanged();
         }
 
         // —— 相机闪光（记录最近一次触发时刻，由视图按时间衰减还原）——
@@ -94,7 +108,7 @@ namespace NoCodeMotion.Services
         {
             if (string.IsNullOrEmpty(name)) return;
             lock (_gate) _camFlash[name] = DateTime.Now;
-            Changed?.Invoke();
+            RaiseChanged();
         }
 
         // —— 变量（与变量页 VariableRow 实时双向：仿真写回，页面显示）——
@@ -133,7 +147,7 @@ namespace NoCodeMotion.Services
             if (string.IsNullOrEmpty(name)) return;
             lock (_gate) _variables[name] = value;
             WriteVarRow(name, value);
-            Changed?.Invoke();
+            RaiseChanged();
         }
 
         private static void WriteVarRow(string name, double value)

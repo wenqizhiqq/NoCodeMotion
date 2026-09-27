@@ -63,6 +63,9 @@ namespace NoCodeMotion.Views
         private int _loopCount;
         // 一轮结束到下一轮开始之间的短延时：防止空脚本 / 瞬间完成的脚本把 UI 线程转满
         private readonly DispatcherTimer _loopRestartTimer;
+        /// <summary>外部运行（操作员「启动」/ 流程页运行）进度轮询定时器：100ms 读共享态的行号/状态刷行高亮。
+        /// 常开；没有外部运行时首行即返回，开销可忽略。与推送（LuaRunMonitor）互为兜底。</summary>
+        private readonly DispatcherTimer _externalPollTimer;
 
         private LuaDebugSession _session;
         private CompletionWindow _completionWindow;
@@ -130,20 +133,40 @@ namespace NoCodeMotion.Views
                 if (_session != null && _session.IsBusy) return;      // 会话真在跑：UI 正确
                 if (_loopRun || _loopRestartTimer.IsEnabled) return;  // 编辑器循环的轮间隙：马上重启，不打扰
                 if (_operatorDriven) return;                          // 操作员循环的轮间隙：由运行器负责收尾
+                // ★ 本条脚本正被「操作员启动 / 流程页运行」在后台跑（独立会话，本页看不到它的会话）：
+                //   状态由 LuaRunMonitor 的行号回调维护，这里不能校回「就绪」。
+                if (LuaItem != null && FlowRunStore.Contains(LuaItem))
+                {
+                    var st = FlowRunStore.Get(LuaItem).Status;
+                    if (st == FlowStatus.Running || st == FlowStatus.Looping) return;
+                }
                 SetSessionState(SessionState.Idle);
             };
             _stateSyncTimer.Start();
 
+            // 外部运行进度轮询（100ms）：页面用定时器刷新行序号/状态，不依赖运行器推送。
+            _externalPollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            _externalPollTimer.Tick += (_, _) => PollExternalRun();
+            _externalPollTimer.Start();
+
             Loaded += (s, e) =>
             {
                 Active = this;
+                // ★ 重新订阅行号广播：Unloaded 里退订过，若不在 Loaded 补回，切走再回到本页就再也收不到
+                //   「操作员启动 / 流程页运行」的独立会话广播 → 行高亮不刷新（用户报的"运行中但不跳行"）。
+                LuaRunMonitor.LineChanged -= OnMonitorLine;
+                LuaRunMonitor.RunEnded -= OnMonitorEnded;
+                LuaRunMonitor.LineChanged += OnMonitorLine;
+                LuaRunMonitor.RunEnded += OnMonitorEnded;
                 Editor?.Focus();
             };
             Unloaded += (s, e) =>
             {
                 _loopRun = false;
                 _loopRestartTimer.Stop();
-                _session?.Stop();
+                // ★ 操作员驱动（会话由后台运行器持有）时**不能**停会话：否则一离开流程页/一切页面，
+                //   生产运行就被打断（用户报"切换到流程页就停止了"）。只在用户自己的调试会话上停。
+                if (!_operatorDriven) _session?.Stop();
                 // 关键：卸载时退订静态监控，避免已释放实例仍被广播回调（会触碰已销毁的 Editor 抛异常，
                 // 进而把异常抛回 LuaDebugSession.GetAction 的脚本线程，破坏单步/连续运行）。
                 LuaRunMonitor.LineChanged -= OnMonitorLine;
@@ -178,7 +201,8 @@ namespace NoCodeMotion.Views
         {
             _loopRun = false;
             _loopRestartTimer?.Stop();
-            _session?.Stop();
+            // ★ 操作员驱动的会话由后台运行器持有：切换流程/重绑 LuaItem 时不能停它，否则生产运行被打断。
+            if (!_operatorDriven) _session?.Stop();
 
             // 退订上一个流程项，订阅新的
             if (_subscribedItem != null)
@@ -981,6 +1005,22 @@ namespace NoCodeMotion.Views
             }
         }));
 
+        /// <summary>外部运行（操作员「启动」/ 流程页运行）进度轮询：由 100ms 定时器调用，
+        /// 读共享态 FlowRunStore 的行号/状态刷新"当前行高亮"。
+        /// ★ 页面靠定时器自己拉状态，不依赖运行器推送——切页、丢订阅都不会再出现"运行中行不跳"。</summary>
+        private void PollExternalRun()
+        {
+            if (!IsLoaded || Editor?.Document == null) return;
+            var item = LuaItem;
+            if (item == null || !FlowRunStore.Contains(item)) return;
+            var (st, _, _) = FlowRunStore.Get(item);
+            if (st != FlowStatus.Running && st != FlowStatus.Looping) return;
+            if (_session != null && _session.IsBusy) return;    // 本页自己的会话在跑：它自己会跳行
+            if (_uiState != SessionState.Running) SetSessionState(SessionState.Running);
+            int line = FlowRunStore.GetProgress(item).Line;
+            if (line > 0) HighlightLine(line);
+        }
+
         // —— Operator 运行期跳行高亮（订阅 LuaRunMonitor，仅高亮当前选中的流程）——
         private void OnMonitorLine(FlowItem flow, int line)
         {
@@ -989,6 +1029,10 @@ namespace NoCodeMotion.Views
             // 若本编辑器正在手动调试（自己的会话在忙且非 Operator 驱动），不让 Operator 的独立会话
             // 抢占当前行与滚动位置，否则会覆盖用户正在单步查看的行。
             if (_session != null && _session.IsBusy && !_operatorDriven) return;
+            // 外部（操作员启动 / 流程页运行）走独立会话、本页没有会话：状态跟着行号一起变成
+            // 「运行中… / 循环运行中…」，不能还停在「就绪」（用户报的现象）。
+            if ((_session == null || !_session.IsBusy) && _uiState != SessionState.Running)
+                SetSessionState(SessionState.Running);
             Dispatcher.BeginInvoke(new Action(() => HighlightLine(line)));
         }
 
@@ -997,6 +1041,15 @@ namespace NoCodeMotion.Views
             if (flow == null || (flow != LuaItem && flow.Name != LuaItem?.Name)) return;
             if (!IsLoaded || Editor == null || Editor.Document == null) return;
             if (_session != null && _session.IsBusy && !_operatorDriven) return;
+            // 外部独立会话结束：本页没有会话可收尾。若该流程整体仍在跑（循环运行的轮间隙），状态保持运行中，
+            // 避免轮与轮之间闪回「就绪」；整体结束后才收回。
+            if (_session == null || !_session.IsBusy)
+            {
+                bool stillRunning = LuaItem != null && FlowRunStore.Contains(LuaItem)
+                    && FlowRunStore.Get(LuaItem).Status is FlowStatus.Running or FlowStatus.Looping;
+                if (!stillRunning)
+                    Dispatcher.BeginInvoke(new Action(() => SetSessionState(SessionState.Idle)));
+            }
             Dispatcher.BeginInvoke(new Action(ClearCurrentLine));
         }
 
@@ -1012,7 +1065,10 @@ namespace NoCodeMotion.Views
             // 持续运行期：脚本每跨一行都会触发一次 HighlightLine。ScrollToLine + 移动光标是重活（重新生成 VisualLines +
             // 触发 Caret.PositionChanged → InspectAtCaret），持续运行期每秒上百次会让 AvalonEdit 把消息泵拖垮，
             // 这里仅"轻刷"——背景渲染层标高亮，到运行结束 / 暂停 / 单步时再由对应回调做一次性滚动 + 光标归位。
-            bool running = _session != null && _session.IsBusy && _session.State == SessionState.Running;
+            // 外部（操作员启动）运行同样按"运行中"处理：只轻刷，不滚动。
+            bool running = (_session != null && _session.IsBusy && _session.State == SessionState.Running)
+                || (_session == null && LuaItem != null && FlowRunStore.Contains(LuaItem)
+                    && FlowRunStore.Get(LuaItem).Status is FlowStatus.Running or FlowStatus.Looping);
             if (running) return;
 
             Editor.ScrollToLine(line);
@@ -1441,20 +1497,22 @@ namespace NoCodeMotion.Views
             }
         }
 
-        /// <summary>「循环运行」：脚本跑完自动重跑，直到点「停止」。</summary>
+        /// <summary>「循环运行」：脚本跑完自动重跑，直到点「停止」。
+        /// ★ 托管到 <see cref="FlowLoopManager"/>（静态、页面无关）：切页/页面卸载都不会停止运行；
+        ///   行号与状态由本页 100ms 轮询定时器刷新。</summary>
         private void BtnLoopRun_Click(object sender, RoutedEventArgs e)
         {
+            if (LuaItem == null)
+            {
+                AppendLog("请先选择一个脚本流程再点「循环运行」。", LogKind.Warn);
+                return;
+            }
+            // 编辑器暂停中的会话 → 先恢复为运行（保留断点语义）
             if (_session != null && _session.State == SessionState.Paused)
             {
-                _loopRun = true;
                 Resume(DebuggerAction.ActionType.Run);
             }
-            else
-            {
-                _loopRun = true;
-                _loopRestartTimer.Stop();
-                StartSession(false);
-            }
+            FlowLoopManager.StartLoop(LuaItem);   // 已在跑则自动忽略
         }
 
         private void BtnPause_Click(object sender, RoutedEventArgs e)
@@ -1468,9 +1526,15 @@ namespace NoCodeMotion.Views
             // 先退掉循环标记，否则 OnSessionEnded 会把脚本重新跑起来
             _loopRun = false;
             _loopRestartTimer?.Stop();
+            // ★ 该流程由 FlowLoopManager 托管循环运行（页面启动 / 操作员启动）→ 停那条循环
+            FlowLoopManager.StopLoop(LuaItem);
             // 会话是操作员/流程页后台驱动时：通知运行器退出循环。
             // 否则点「停止」只停掉当前会话，运行器下一轮又自动重启——按钮使能永远停在"运行中"（停不下来）。
-            if (_operatorDriven) EditorStopRequested = true;
+            // 两种情况都要通知：① _operatorDriven = 编辑器被服务直接驱动；② 后台独立会话（服务退化路径）时
+            // 本页没有会话，但共享态显示本条流程在跑 —— 此时也应让运行器停下。
+            bool externallyRunning = LuaItem != null && FlowRunStore.Contains(LuaItem)
+                && FlowRunStore.Get(LuaItem).Status is FlowStatus.Running or FlowStatus.Looping;
+            if (_operatorDriven || (_session == null && externallyRunning)) EditorStopRequested = true;
             _session?.Stop();
         }
 
