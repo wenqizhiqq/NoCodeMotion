@@ -628,9 +628,8 @@ namespace NoCodeMotion.ViewModels
                 SimRuntime.SetVariable,
                 SimRuntime.GetVariableResolved);
             runner.Load(doc);
+            FlowRunStore.SetLoopRunner(flow, runner);   // 注册后台 runner：页面「单步」在暂停/断点挂起时推进它
             // 断点：从共享态取页面 VM 设置的断点（页面切换断点时写入 FlowRunStore）。
-            // ★ 后台线程没有「继续」入口 → BreakOnHit=false：到达断点只把该节点记为「触发断点」
-            //   （卡片右上角显示，进度照常推进），不会卡死流程；页面自己的「运行一次」才有断点暂停。
             var bps = FlowRunStore.GetBreakpoints(flow);
             if (bps != null) runner.SetBreakpoints(bps);
             // 断点语义：循环运行 → 到断点真暂停（挂起等「继续」，ResumeTick 唤醒，见 WaitRound）；
@@ -668,32 +667,39 @@ namespace NoCodeMotion.ViewModels
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 string lastNode = "";
                 int logged = 0;
-                while (!roundDone.Wait(1))
+                while (true)
                 {
-                    if (ctrl.StopRequested || ctrl.EStopRequested) { runner.Stop(); continue; }
-                    var node = runner.CurrentNodeId ?? "";
-                    if (node != lastNode) { lastNode = node; sw.Restart(); logged = 0; continue; }
-                    int sec = (int)sw.Elapsed.TotalSeconds;
-                    if (sec >= 5 && sec / 5 > logged)
-                    {
-                        logged = sec / 5;
-                        log?.Invoke($"节点图流程「{name}」在节点「{runner.DescribeNode(lastNode)}」上已停留 {sec} 秒" +
-                            $"（等待类节点在等硬件/信号满足，或图里有回接连线导致本轮不结束；点「停止」可立即终止）。", LogLevel.Warn);
-                    }
-                }
-                // 断点暂停（循环运行 BreakOnHit=true）：本轮没结束而是停在断点节点 → 挂起，
-                // 直到「继续」（节点图页「继续」/流程页「运行」/操作员「继续」→ ResumeTick 变化）或 停止/急停。
-                if (runner.State == NgRunState.Paused)
-                {
-                    SetStatus(flow, FlowStatus.Breakpoint);
-                    int tick0 = ctrl.ResumeTick;
-                    while (runner.State == NgRunState.Paused)
+                    if (!roundDone.Wait(1))
                     {
                         if (ctrl.StopRequested || ctrl.EStopRequested) { runner.Stop(); return; }
-                        if (ctrl.ResumeTick != tick0) runner.Resume();
-                        else Thread.Sleep(15);
+                        var node = runner.CurrentNodeId ?? "";
+                        if (node != lastNode) { lastNode = node; sw.Restart(); logged = 0; continue; }
+                        int sec = (int)sw.Elapsed.TotalSeconds;
+                        if (sec >= 5 && sec / 5 > logged)
+                        {
+                            logged = sec / 5;
+                            log?.Invoke($"节点图流程「{name}」在节点「{runner.DescribeNode(lastNode)}」上已停留 {sec} 秒" +
+                                $"（等待类节点在等硬件/信号满足，或图里有回接连线导致本轮不结束；点「停止」可立即终止）。", LogLevel.Warn);
+                        }
+                        continue;
                     }
-                    if (!ctrl.StopRequested && !ctrl.EStopRequested) SetStatus(flow, FlowStatus.Looping);
+                    // roundDone 置位：Completed/Stopped/Error = 本轮结束；Paused = 断点/单步挂起。
+                    // 挂起期间：继续（ResumeTick 变化）→ 跑到本轮结束；单步（页面直接推进 runner）→ 走一个节点再挂起。
+                    if (runner.State == NgRunState.Paused)
+                    {
+                        SetStatus(flow, FlowStatus.Breakpoint);
+                        int tick0 = ctrl.ResumeTick;
+                        while (runner.State == NgRunState.Paused)
+                        {
+                            if (ctrl.StopRequested || ctrl.EStopRequested) { runner.Stop(); return; }
+                            if (ctrl.ResumeTick != tick0) { runner.Resume(); break; }
+                            Thread.Sleep(15);
+                        }
+                        if (!ctrl.StopRequested && !ctrl.EStopRequested) SetStatus(flow, FlowStatus.Looping);
+                        roundDone.Reset();   // 恢复/单步后：继续等本轮真正结束（单步会再次 Paused）
+                        continue;
+                    }
+                    return;   // 本轮真正结束
                 }
             }
 
@@ -722,7 +728,10 @@ namespace NoCodeMotion.ViewModels
                         if (cycle == 1 || cycle % 100 == 0)
                             log?.Invoke($"节点图流程「{name}」已循环 {cycle} 轮。", LogLevel.Info);
                         roundDone.Reset();
-                        runner.Run();
+                        // 「单步」可能在暂停期间启动了 step-mode run（state=Paused）→ 不要 Run() 把它重置，
+                        // 预置 roundDone 让 WaitRound 直接进入挂起分支（等 继续/再单步）
+                        if (runner.State != NgRunState.Paused) runner.Run();
+                        else roundDone.Set();
                         WaitRound();
                         if (!string.IsNullOrEmpty(runner.LastError) && runner.LastError != lastErr)
                         {
@@ -758,6 +767,7 @@ namespace NoCodeMotion.ViewModels
             {
                 FlowRunStore.SetProgress(flow, nodeId: "");   // 运行结束：页面定时器不再高亮"当前节点"（保留最后一次结果）
                 FlowRunStore.SetTriggeredBreakpoint(flow, ""); // 运行结束：清掉"触发断点"角标
+                FlowRunStore.SetLoopRunner(flow, null);        // 运行结束：注销后台 runner
                 onFlowDone?.Invoke(index, name);
             }
         }

@@ -112,6 +112,21 @@ namespace NoCodeMotion.Services
         public static string GetTriggeredBreakpoint(FlowItem flow)
             => flow != null && _triggeredBp.TryGetValue(flow, out var id) ? id : string.Empty;
 
+        // —— 节点图：后台循环运行的 NgRunner 引用（供页面「单步」在暂停/断点挂起时推进它）——
+        private static readonly ConcurrentDictionary<FlowItem, NgRunner> _loopRunners = new();
+
+        /// <summary>注册/注销后台循环 runner（RunOneFlowNodeGraph 创建时注册、结束时注销）。</summary>
+        public static void SetLoopRunner(FlowItem flow, NgRunner? runner)
+        {
+            if (flow == null) return;
+            if (runner == null) _loopRunners.TryRemove(flow, out _);
+            else _loopRunners[flow] = runner;
+        }
+
+        /// <summary>取后台循环 runner（未在跑则 null）。页面「单步」用它推进挂起中的循环。</summary>
+        public static NgRunner? GetLoopRunner(FlowItem flow)
+            => flow != null && _loopRunners.TryGetValue(flow, out var r) ? r : null;
+
         /// <summary>读取某流程当前快照；若不存在则返回默认的 就绪/空/0。</summary>
         public static (FlowStatus Status, string Step, int Cycle) Get(FlowItem flow)
         {
@@ -153,6 +168,7 @@ namespace NoCodeMotion.Services
             {
                 _map.TryRemove(flow, out _);
                 _triggeredBp.TryRemove(flow, out _);   // 断点集合保留（编辑态），只清运行触发的断点标记
+                _loopRunners.TryRemove(flow, out _);
             }
         }
 

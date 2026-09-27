@@ -136,8 +136,9 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     public bool IsLoopRunning => FlowLoopManager.IsLooping(_flowItem);
     public bool CanRun => _runner.State is NgRunState.Idle or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error
         && !FlowLoopManager.IsLooping(_flowItem);
-    public bool CanStep => _runner.State is NgRunState.Idle or NgRunState.Paused or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error
-        && !FlowLoopManager.IsLooping(_flowItem);
+    /// <summary>「单步」可用：允许单步的状态；循环运行处于暂停/断点挂起时也可用（推进后台循环 runner）。</summary>
+    public bool CanStep => (_runner.State is NgRunState.Idle or NgRunState.Paused or NgRunState.Completed or NgRunState.Stopped or NgRunState.Error)
+        && (!FlowLoopManager.IsLooping(_flowItem) || IsLoopPaused);
 
     /// <summary>「运行一次 / 循环运行」按钮可用：runner 可启动且当前不在循环运行中（循环中用「停止」退出）。</summary>
     public bool CanStartRun => CanRun;
@@ -225,7 +226,17 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             FlowLoopManager.StartLoop(_flowItem);
             RaiseAllRunButtons();   // 立即使能 停止/暂停（不等 200ms 定时器）
         }, _ => CanStartRun && _flowItem != null);
-        StepCommand = new RelayCommand(_ => _runner.Step(), _ => CanStep);
+        // 单步：循环运行（暂停/断点挂起）→ 推进后台循环 runner 一个节点（走完仍挂起，可继续单步或继续）；
+        //       否则推进本页自己的 runner。
+        StepCommand = new RelayCommand(_ =>
+        {
+            if (FlowLoopManager.IsLooping(_flowItem))
+            {
+                FlowRunStore.GetLoopRunner(_flowItem)?.Step();
+                return;
+            }
+            _runner.Step();
+        }, _ => CanStep);
         // 暂停：循环运行（页面/操作员启动）→ 暂停那条循环（整轮/断点粒度）；本页 runner 在跑 → 暂停本页运行
         PauseCommand = new RelayCommand(_ =>
         {
