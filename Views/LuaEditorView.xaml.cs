@@ -112,8 +112,8 @@ namespace NoCodeMotion.Views
                     _lineTimeMargin.SetLineTimes(_session.GetLineTimesSnapshot());
             };
 
-            // 循环运行：一轮结束后延时 200ms 再开下一轮（保留输出面板内容，不清屏）
-            _loopRestartTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            // 循环运行：一轮结束后延时 50ms 再开下一轮（原 200ms；保留输出面板内容，不清屏）
+            _loopRestartTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(10) };
             _loopRestartTimer.Tick += (s, e) =>
             {
                 _loopRestartTimer.Stop();
@@ -973,7 +973,9 @@ namespace NoCodeMotion.Views
             if (_loopRun && !info.IsError && !info.Terminated)
             {
                 _loopCount++;
-                AppendLog($"↻ 循环运行：已完成 {_loopCount} 轮，即将开始下一轮（点「停止」退出）", LogKind.Info);
+                // 循环运行不逐轮刷日志（原来每轮一条，循环时淹没输出面板）：第 1 轮 + 每 100 轮一条
+                if (_loopCount == 1 || _loopCount % 100 == 0)
+                    AppendLog($"↻ 循环运行：已完成 {_loopCount} 轮，即将开始下一轮（点「停止」退出）", LogKind.Info);
                 SetSessionState(SessionState.Running);
                 _loopRestartTimer.Start();
             }

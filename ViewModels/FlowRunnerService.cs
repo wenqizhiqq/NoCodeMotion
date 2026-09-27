@@ -378,23 +378,25 @@ namespace NoCodeMotion.ViewModels
                         // 编辑器忙（用户手动调试 / 上一会话尚未停止）→ 等待重试，不消耗轮次，
                         // 直到编辑器空闲后脚本一定被执行（点「停止」可随时中止等待）。
                         busyRetry++;
-                        if (busyRetry % 7 == 1)   // 约 2 秒记一条，避免刷屏
+                        if (busyRetry % 20 == 1)   // 约 2 秒记一条，避免刷屏
                             log?.Invoke($"Lua 流程「{name}」编辑器忙（手动调试/会话停止中），等待中…", LogLevel.Warn);
-                        Thread.Sleep(300);
+                        Thread.Sleep(1);   // 交接等待 100ms（原 300ms：循环时每轮少等最多 200ms）
                         continue;
                     }
                     busyRetry = 0;
                     luaRound++;   // 只有成功启动的一轮才计轮数
-                    log?.Invoke($"流程「{name}」开始运行（复用 Lua 编辑器页面，{(loop ? "循环" : "单次")}）。", LogLevel.Info);
+                    // 循环运行不逐轮刷日志（原来每轮一条，循环时淹没输出面板）：第 1 轮 + 每 100 轮一条
+                    if (!loop || luaRound == 1 || luaRound % 100 == 0)
+                        log?.Invoke($"流程「{name}」开始运行（复用 Lua 编辑器页面，{(loop ? "循环" : "单次")}{(loop ? $"，已 {luaRound} 轮" : "")}）。", LogLevel.Info);
                     while (session.IsBusy && !ctrl.EStopRequested && !ctrl.StopRequested)
                     {
-                        Thread.Sleep(40);
+                        Thread.Sleep(1);   // 轮结束检测 10ms（原 40ms：每轮少白等最多 30ms）
                         if (ctrl.EStopRequested || ctrl.StopRequested) { session.Stop(); break; }
                         if (ctrl.PauseRequested)
                         {
                             SetStatus(flow, FlowStatus.Paused);
                             session.RequestPause();
-                            while (ctrl.PauseRequested && session.IsBusy) Thread.Sleep(40);
+                            while (ctrl.PauseRequested && session.IsBusy) Thread.Sleep(1);
                             if (session.IsBusy && !ctrl.PauseRequested)
                             {
                                 session.Resume(DebuggerAction.ActionType.Run);
@@ -412,8 +414,9 @@ namespace NoCodeMotion.ViewModels
                         log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。", LogLevel.Error);
                         break;
                     }
-                    // 正常结束一轮 → 节流后再起下一轮，避免脚本短到几毫秒时紧贴循环独占 CPU。
-                    Thread.Sleep(200);
+                    // 正常结束一轮 → 轮间隔 50ms 再起下一轮（原 200ms：脚本循环从 ~5 轮/秒 提到 ~20 轮/秒；
+                    // 脚本每轮要新建 Lua 会话，比节点图重，故仍留一点间隔让出 CPU，不贴死循环）。
+                    Thread.Sleep(1);
                 }
                 onFlowDone?.Invoke(index, name);
                 return;
@@ -443,18 +446,20 @@ namespace NoCodeMotion.ViewModels
                         if (info.IsError) log?.Invoke($"[Lua:{name}] 运行错误（行 {info.ErrorLine}）：{info.Message}", LogLevel.Error);
                         ended.Set();
                     };
-                    log?.Invoke($"流程「{name}」开始连续运行（Lua，直到停止）。", LogLevel.Info);
+                    // 循环运行不逐轮刷日志（原来每轮一条，循环时淹没输出面板）：第 1 轮 + 每 100 轮一条
+                    if (!loop || luaRound == 1 || luaRound % 100 == 0)
+                        log?.Invoke($"流程「{name}」开始连续运行（Lua{(loop ? $"，已 {luaRound} 轮" : "，单次")}）。", LogLevel.Info);
                     session.Start(flow.LuaSource ?? "", false);
                     var watcher = new Thread(() =>
                     {
-                        while (!ended.Wait(40))
+                        while (!ended.Wait(10))
                         {
                             if (ctrl.EStopRequested || ctrl.StopRequested) { session?.Stop(); break; }
                             if (ctrl.PauseRequested)
                             {
                                 SetStatus(flow, FlowStatus.Paused);
                                 session?.RequestPause();
-                                while (ctrl.PauseRequested && !ended.Wait(40)) { }
+                                while (ctrl.PauseRequested && !ended.Wait(10)) { }
                                 if (!ended.IsSet && !ctrl.PauseRequested)
                                 {
                                     session?.Resume(DebuggerAction.ActionType.Run);
@@ -477,7 +482,8 @@ namespace NoCodeMotion.ViewModels
                     log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。", LogLevel.Error);
                     break;
                 }
-                Thread.Sleep(200);
+                // 正常结束一轮 → 轮间隔 50ms 再起下一轮（原 200ms）
+                Thread.Sleep(50);
             }
             onFlowDone?.Invoke(index, name);
             }
