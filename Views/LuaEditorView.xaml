@@ -268,12 +268,12 @@
                             <TextBlock Text="循环运行" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="BtnPause" Style="{StaticResource LuaDbgButton}" Background="#FF9500" Click="BtnPause_Click" ToolTip="中断执行 (F6)" Margin="6,0,0,0">
+                    <!--<Button x:Name="BtnPause" Style="{StaticResource LuaDbgButton}" Background="#FF9500" Click="BtnPause_Click" ToolTip="暂停执行 (F6)：下一条语句处挂起，点「运行/继续」恢复" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource LuaPauseIcon}" Width="13" Height="13" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="中断" VerticalAlignment="Center"/>
+                            <TextBlock Text="暂停" VerticalAlignment="Center"/>
                         </StackPanel>
-                    </Button>
+                    </Button>-->
                     <Button x:Name="BtnStop" Style="{StaticResource LuaDbgButton}" Background="#FF3B30" Click="BtnStop_Click" ToolTip="停止 (Shift+F5)" Margin="6,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource LuaStopIcon}" Width="13" Height="13" Stretch="Uniform" Fill="White" Margin="0,0,6,0" VerticalAlignment="Center"/>

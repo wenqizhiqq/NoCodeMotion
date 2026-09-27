@@ -1524,9 +1524,16 @@ namespace NoCodeMotion.Views
 
         #region 工具栏 / 快捷键
 
-        /// <summary>「运行一次」：脚本跑完一遍即停。</summary>
+        /// <summary>「运行一次」：脚本跑完一遍即停。后台循环被暂停/断点挂起时点它 = 恢复那条循环。</summary>
         private void BtnRun_Click(object sender, RoutedEventArgs e)
         {
+            // 后台循环运行处于暂停/断点挂起（本页没有会话在跑）→ 「运行/继续」= 恢复那条循环
+            if ((_session == null || !_session.IsBusy) && LuaItem != null && FlowLoopManager.IsLooping(LuaItem)
+                && FlowRunStore.Get(LuaItem).Status is FlowStatus.Paused or FlowStatus.Breakpoint)
+            {
+                FlowLoopManager.ResumeLoop(LuaItem);
+                return;
+            }
             if (_session != null && _session.State == SessionState.Paused)
             {
                 _loopRun = false;                       // 暂停后点「运行一次」= 只跑完这一遍
@@ -1549,6 +1556,13 @@ namespace NoCodeMotion.Views
                 AppendLog("请先选择一个脚本流程再点「循环运行」。", LogKind.Warn);
                 return;
             }
+            // 该流程已在循环运行中：暂停/断点挂起 → 「循环运行」= 恢复；否则忽略（已在跑）
+            if (FlowLoopManager.IsLooping(LuaItem))
+            {
+                if (FlowRunStore.Get(LuaItem).Status is FlowStatus.Paused or FlowStatus.Breakpoint)
+                    FlowLoopManager.ResumeLoop(LuaItem);
+                return;
+            }
             // 编辑器暂停中的会话 → 先恢复为运行（保留断点语义）
             if (_session != null && _session.State == SessionState.Paused)
             {
@@ -1557,10 +1571,24 @@ namespace NoCodeMotion.Views
             FlowLoopManager.StartLoop(LuaItem);   // 已在跑则自动忽略
         }
 
+        /// <summary>「暂停」：下一条语句处真实挂起。
+        /// ① 本页自己的会话在跑 → 直接 RequestPause；② 后台循环运行（本页「循环运行」/操作员「启动」驱动）
+        /// → PauseLoop 那条循环（watcher 会对后台会话 RequestPause，恢复点「运行/继续」）。</summary>
         private void BtnPause_Click(object sender, RoutedEventArgs e)
         {
-            _session?.RequestPause();
-            AppendLog("… 已请求中断，将在下一条语句处暂停", LogKind.Info);
+            if (_session != null && _session.IsBusy)
+            {
+                _session.RequestPause();
+                AppendLog("… 已请求暂停，将在下一条语句处暂停", LogKind.Info);
+                return;
+            }
+            if (LuaItem != null && FlowLoopManager.IsLooping(LuaItem))
+            {
+                FlowLoopManager.PauseLoop(LuaItem);
+                AppendLog("… 已请求暂停循环运行，将在下一条语句处暂停；点「运行/继续」恢复", LogKind.Info);
+                return;
+            }
+            AppendLog("当前没有正在运行的脚本。", LogKind.Warn);
         }
 
         private void BtnStop_Click(object sender, RoutedEventArgs e)
