@@ -289,7 +289,7 @@
                                       FontSize="12"
                                       AlternatingRowBackground="Transparent">
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn Header="逻辑" Width="78">
+                                    <DataGridTemplateColumn Header="逻辑" Width="120">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <ComboBox ItemsSource="{StaticResource LogicOptions}"
