@@ -91,7 +91,7 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <local:EditorPage>
+    <local:EditorPage EmptyHint="还没有气缸，请点击左上角的「添加」按钮新增一个气缸。">
         <!-- 注入列表项模板：让 EditorPage 用含内联按钮的版本 -->
         <local:EditorPage.LeftListItemTemplate>
             <DataTemplate>

@@ -3,10 +3,24 @@
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Markup;
 
 namespace NoCodeMotion.Views
 {
+    /// <summary>
+    /// 字符串非空（非 null / 非空白）转 bool。用于 EditorPage 的空列表提示：
+    /// 仅当宿主页设置了非空 EmptyHint 时才启用「空列表隐藏右侧详情 + 显示添加提示」。
+    /// </summary>
+    public class StringNotEmptyConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => !string.IsNullOrWhiteSpace(value as string);
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => DependencyProperty.UnsetValue;
+    }
+
     /// <summary>
     /// 通用编辑页框架：顶部"添加/删除/重命名"工具栏 + 左侧项目列表 + 右侧详情区。
     /// 每个业务页（轴/IO/气缸…）只需把具体表单放进 Detail 属性即可复用整套布局与增删逻辑。
@@ -47,6 +61,20 @@ namespace NoCodeMotion.Views
         {
             get => (UIElement?)GetValue(LeftToolbarContentProperty);
             set => SetValue(LeftToolbarContentProperty, value);
+        }
+
+        /// <summary>
+        /// 空列表提示文案。设了非空文案后，当左侧 Items 为空（Count==0）时隐藏右侧 Detail、
+        /// 改为显示这条「请添加」提示；不设置（默认 null/空）则保持旧行为（始终显示 Detail）。
+        /// 这样只有显式需要的页（控制器 / 轴 / 气缸…）才启用，其它页不受影响。
+        /// </summary>
+        public static readonly DependencyProperty EmptyHintProperty =
+            DependencyProperty.Register(nameof(EmptyHint), typeof(string), typeof(EditorPage), new PropertyMetadata(null));
+
+        public string? EmptyHint
+        {
+            get => (string?)GetValue(EmptyHintProperty);
+            set => SetValue(EmptyHintProperty, value);
         }
 
         /// <summary>自定义左侧列表项模板。宿主页（如气缸页）想给每行加内联按钮时设置此属性；

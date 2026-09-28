@@ -8,6 +8,8 @@
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
     <UserControl.Resources>
+        <!-- 空列表提示用：字符串非空 → true。只有宿主页设了非空 EmptyHint 才启用「空列表隐藏详情」。 -->
+        <local:StringNotEmptyConverter x:Key="StringNotEmptyConverter"/>
         <!-- 复位角色标签：紧凑橙色药丸，仅在 Role==Reset 时显示 -->
         <Style x:Key="FlowResetChipStyle" TargetType="Border">
             <Setter Property="Visibility" Value="Collapsed"/>
@@ -199,8 +201,47 @@
                  Detail 由 Border 约束到 EditorPage 的 * 行高度；
                  表格型页（FlowPage）用自身 * 行内部滚动；
                  表单型页（Axis/Comm/Cylinder/Tray）各自包一层 ScrollViewer 负责滚动。 -->
-            <Border Grid.Column="1" Style="{StaticResource DetailPanelStyle}">
+            <Border Grid.Column="1">
                 <ContentControl Content="{Binding Detail, RelativeSource={RelativeSource AncestorType=local:EditorPage}}"/>
+                <!-- 空列表（Items.Count==0 且宿主页设了非空 EmptyHint）时隐藏右侧详情 -->
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource DetailPanelStyle}">
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding Items.Count}" Value="0"/>
+                                    <Condition Binding="{Binding EmptyHint, RelativeSource={RelativeSource AncestorType=local:EditorPage}, Converter={StaticResource StringNotEmptyConverter}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+            </Border>
+
+            <!-- 空列表提示：仅当 Items 为空且宿主页设置非空 EmptyHint 时显示（与上面 Detail 互斥）。
+                 覆盖在同一列上，居中显示「添加」图标 + 提示文案，引导用户去左上角添加按钮。 -->
+            <Border Grid.Column="1" Background="{StaticResource CanvasBrush}" Visibility="Collapsed">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="28">
+                    <Path Data="{StaticResource AddIcon}" Width="40" Height="40" Stretch="Uniform"
+                          Fill="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,0,0,14"/>
+                    <TextBlock Text="{Binding EmptyHint, RelativeSource={RelativeSource AncestorType=local:EditorPage}}"
+                               HorizontalAlignment="Center" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="14" MaxWidth="340"/>
+                </StackPanel>
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding Items.Count}" Value="0"/>
+                                    <Condition Binding="{Binding EmptyHint, RelativeSource={RelativeSource AncestorType=local:EditorPage}, Converter={StaticResource StringNotEmptyConverter}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
             </Border>
         </Grid>
     </Grid>

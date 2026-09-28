@@ -20,7 +20,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
-    <local:EditorPage ShowDefaultAddButton="False">
+    <local:EditorPage ShowDefaultAddButton="False" EmptyHint="还没有控制器，请点击左上角的「添加控制卡」或「自动识别硬件」新增一张控制卡。">
         <local:EditorPage.LeftToolbarContent>
             <StackPanel Orientation="Horizontal">
                 <Button Command="{Binding AddCardCommand}" Style="{StaticResource ToolButtonStyle}">
