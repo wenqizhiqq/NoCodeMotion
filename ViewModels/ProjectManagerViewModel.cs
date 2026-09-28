@@ -67,6 +67,7 @@ namespace NoCodeMotion.ViewModels
 
         public ICommand NewCommand => new RelayCommand(async _ => { await New(); });
         public ICommand OpenCommand => new RelayCommand(async _ => { await Open(); }, _ => SelectedEntry != null);
+        public ICommand OpenFileCommand => new RelayCommand(async _ => { await OpenFromFileDialogAsync(); });
         public ICommand SaveCommand => new RelayCommand(_ => Save());
         public ICommand DeleteCommand => new RelayCommand(_ => Delete(), _ => SelectedEntry != null);
         public ICommand RenameCommand => new RelayCommand(_ => Rename(), _ => SelectedEntry != null);
@@ -229,6 +230,21 @@ namespace NoCodeMotion.ViewModels
         {
             if (SelectedEntry == null) return;
             await ProjectManager.OpenProjectAsync(SelectedEntry.Name);
+        }
+
+        /// <summary>工具栏「打开」按钮：弹窗选择工程文件（*.xlsx），复制到 Projects/ 后打开。</summary>
+        private async Task OpenFromFileDialogAsync()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "打开工程文件",
+                Filter = "工程文件 (*.xlsx)|*.xlsx|所有文件 (*.*)|*.*",
+                InitialDirectory = System.IO.Path.GetFullPath(ProjectManager.RootDir),
+                CheckFileExists = true,
+                CheckPathExists = true
+            };
+            if (dlg.ShowDialog() != true) return;
+            await ProjectManager.OpenFromFileAsync(dlg.FileName);
         }
 
         private void Save()

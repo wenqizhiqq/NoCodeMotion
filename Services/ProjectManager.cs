@@ -213,6 +213,25 @@ namespace NoCodeMotion.Services
             }
         }
 
+        /// <summary>
+        /// 通过文件对话框打开任意路径的工程文件：先复制到 Projects/ 目录（如不在该目录），
+        /// 然后按工程名打开。同名工程会被覆盖，以「打开所选文件」为优先。
+        /// </summary>
+        public static async Task OpenFromFileAsync(string? filePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
+            var name = Path.GetFileNameWithoutExtension(filePath);
+            var target = FileFor(name);
+            try
+            {
+                Directory.CreateDirectory(RootDir);
+                if (!string.Equals(Path.GetFullPath(filePath), Path.GetFullPath(target), StringComparison.OrdinalIgnoreCase))
+                    File.Copy(filePath, target, overwrite: true);
+            }
+            catch { return; }
+            await OpenProjectAsync(name);
+        }
+
         /// <summary>保存当前工程（写入 name；默认保存到当前工程名）。</summary>
         public static void SaveCurrent(string? name = null)
         {
