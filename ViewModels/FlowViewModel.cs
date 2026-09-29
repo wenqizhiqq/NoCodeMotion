@@ -1298,6 +1298,16 @@ namespace NoCodeMotion.ViewModels
                         if (table == null) { bridge.Log($"找不到点位表：{step.Name}"); break; }
                         foreach (var p in table.Points)
                         {
+                            // 防撞：该点位「使用中且已填名称」的移动条件必须全部满足；不满足 →
+                            // 写报警列表 + 阻止移动并停止本流程运行（与流程运行器 ExecPoint 同一口径）。
+                            var fails = PointConditionService.Evaluate(p);
+                            if (fails.Count > 0)
+                            {
+                                PointConditionGate.RaiseAlarms(p, fails, "流程", SelectedItem?.Name);
+                                bridge.Log($"[防撞] 点位「{p.Name}」移动条件未满足，已阻止移动并停止运行。");
+                                Stop();
+                                break;
+                            }
                             for (int i = 0; i < PointTable.SlotCount; i++)
                             {
                                 var an = table.AxisNames.Count > i ? table.AxisNames[i] : string.Empty;

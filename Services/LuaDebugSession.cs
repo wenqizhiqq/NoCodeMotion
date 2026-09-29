@@ -209,6 +209,9 @@ namespace NoCodeMotion.Services
             _worker.Start();
         }
 
+        /// <summary>关联流程名（FlowRunnerService 启动时设置；点位防撞报警里标出来自哪条流程）。</summary>
+        public string FlowName { get; set; } = string.Empty;
+
         private void Execute(string code, bool breakAtEntry)
         {
             var sw = Stopwatch.StartNew();
@@ -235,7 +238,7 @@ namespace NoCodeMotion.Services
                 HardwareApi.Register(_script, new HardwareApi(
                     HardwareBridge.Current,
                     s => EnqueueLog(s, LogKind.Output),
-                    s => EnqueueLog(s, LogKind.Warn)));
+                    s => EnqueueLog(s, LogKind.Warn), FlowName));
 
                 _baselineGlobals = new HashSet<string>(
                     _script.Globals.Pairs.Select(p => p.Key.CastToString() ?? string.Empty));

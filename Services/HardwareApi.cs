@@ -32,17 +32,20 @@ namespace NoCodeMotion.Services
         private readonly IHardwareBridge _bridge;
         private readonly Action<string> _log;
         private readonly Action<string> _warn;
+        /// <summary>关联流程名（Lua 流程运行时由会话注入；防撞报警里标出来源流程）。</summary>
+        private readonly string _flowName;
 
         /// <summary>已提示过的内容（同一处配置问题只提示一次，避免脚本循环里刷屏）。</summary>
         private readonly System.Collections.Generic.HashSet<string> _warned = new();
 
         /// <param name="log">普通日志回调（输出面板）。</param>
         /// <param name="warn">「提示」回调（输出面板橙色行）；不传则并入 log。</param>
-        public HardwareApi(IHardwareBridge bridge, Action<string> log, Action<string> warn = null)
+        public HardwareApi(IHardwareBridge bridge, Action<string> log, Action<string> warn = null, string flowName = "")
         {
             _bridge = bridge;
             _log = log;
             _warn = warn;
+            _flowName = flowName;
         }
 
         // ===================== 名称解析 =====================
@@ -325,6 +328,17 @@ namespace NoCodeMotion.Services
             if (!TryResolvePoint(spec, out var table, out var point)) return 0;
             var br = Bridge();
             if (br == null) return 0;
+
+            // 防撞：移动到点位前，其「使用中且已填名称」的条件必须全部满足；不满足 →
+            // 写报警列表（流程无人值守，绝不弹窗）+ 抛错中止脚本执行。
+            // 脚本继续往下跑等于机台状态与预期不符还动作，有撞机风险（与表格流程 ExecPoint 同一口径）。
+            var fails = PointConditionService.Evaluate(point);
+            if (fails.Count > 0)
+            {
+                PointConditionGate.RaiseAlarms(point, fails, "流程", _flowName);
+                throw new ScriptRuntimeException($"点位「{point.Name}」移动条件未满足，已阻止移动并中止脚本：" + string.Join("；", fails));
+            }
+
             int moved = 0;
             for (int i = 0; i < PointTable.SlotCount; i++)
             {

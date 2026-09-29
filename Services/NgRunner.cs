@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 // 节点图（NodeGraph）解释器：按 NgDoc 拓扑遍历执行节点，支持 6 按钮调试器。
 //
 // 状态机 NgRunState: Idle → Running → (Paused|Stepping) → Running → Completed/Stopped/Error
@@ -206,6 +206,9 @@ public sealed class NgRunner
     /// </summary>
     public bool BreakOnHit { get; set; } = true;
 
+    /// <summary>关联流程名（FlowRunnerService 后台运行时设置；点位防撞报警里标出来源流程）。</summary>
+    public string? FlowName { get; set; }
+
     // ===================== 运行循环 =====================
 
     private async Task RunAsync(CancellationToken ct)
@@ -283,6 +286,18 @@ public sealed class NgRunner
                     {
                         res.Status = NgStepStatus.Done;
                     }
+                }
+                catch (ViewModels.FlowAbortException abx)
+                {
+                    // 安全阻断（防撞等）：中止整图运行，不再走下一个节点；状态 → Error。
+                    res.Status = NgStepStatus.Error;
+                    res.ErrorText = abx.Message;
+                    Report.LastError = abx.Message;
+                    _state = NgRunState.Error;
+                    try { _bridge.Log("[中止] " + abx.Message); } catch { }
+                    ReportChanged?.Invoke();
+                    StateChanged?.Invoke();
+                    return;
                 }
                 catch (Exception ex)
                 {
@@ -539,6 +554,14 @@ public sealed class NgRunner
                 string want = GetProp(node, "点位", "");
                 var item = pt.Points.FirstOrDefault(p => p.Name == want) ?? pt.Points.FirstOrDefault();
                 if (item == null) { NodeFail($"点位表「{pt.Name}」里还没有点位，请先在「点位」页添加"); break; }
+                // 防撞：条件不满足 → 写报警列表（无人值守，绝不弹窗）+ 阻止移动并中止整图
+                // （与流程页 ExecPoint 同一口径：机台状态与预期不符还继续动作，有撞机风险）。
+                var ptFails = PointConditionService.Evaluate(item);
+                if (ptFails.Count > 0)
+                {
+                    PointConditionGate.RaiseAlarms(item, ptFails, "流程", FlowName);
+                    throw new ViewModels.FlowAbortException($"点位「{item.Name}」移动条件未满足，已中止本流程。");
+                }
                 // 与流程页一致：按点位表各轴槽真驱到位（未填位置的槽跳过，不改动该轴）。
                 int moved = 0;
                 for (int i = 0; i < PointTable.SlotCount; i++)

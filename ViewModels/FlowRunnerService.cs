@@ -380,6 +380,7 @@ namespace NoCodeMotion.ViewModels
                 try
                 {
                     var session = new LuaDebugSession();
+                    session.FlowName = name;   // 点位防撞报警里标出是哪条流程
                     // 断点：注入编辑器里为该脚本设置的断点行（命中即暂停，watcher 里等「继续」）
                     var luaBps = LuaEditorView.GetBreakpoints(flow);
                     if (luaBps.Count > 0) session.SetBreakpoints(luaBps);
@@ -627,6 +628,7 @@ namespace NoCodeMotion.ViewModels
                 HardwareResolver.ResolveComm,
                 SimRuntime.SetVariable,
                 SimRuntime.GetVariableResolved);
+            runner.FlowName = name;   // 点位防撞报警里标出是哪条流程
             runner.Load(doc);
             FlowRunStore.SetLoopRunner(flow, runner);   // 注册后台 runner：页面「单步」在暂停/断点挂起时推进它
             // 断点：从共享态取页面 VM 设置的断点（页面切换断点时写入 FlowRunStore）。
@@ -737,6 +739,12 @@ namespace NoCodeMotion.ViewModels
                         {
                             lastErr = runner.LastError;
                             log?.Invoke($"节点图流程「{name}」第 {cycle} 轮提示：{lastErr}", LogLevel.Warn);
+                        }
+                        // 安全阻断（如点位移动条件未满足）：报警已写，结束循环不再逐轮重试刷屏
+                        if (runner.State == NgRunState.Error)
+                        {
+                            log?.Invoke($"节点图流程「{name}」已中止：{runner.LastError}", LogLevel.Error);
+                            break;
                         }
                         if (ctrl.EStopRequested || ctrl.StopRequested) break;
                         Thread.Sleep(1);   // 轮间 1ms：单圈毫秒级的图 ≈ 每秒 1000+ 轮；空图也不会占满 CPU
