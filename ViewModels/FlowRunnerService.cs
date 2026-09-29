@@ -448,8 +448,8 @@ namespace NoCodeMotion.ViewModels
                     log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。", LogLevel.Error);
                     break;
                 }
-                // 正常结束一轮 → 轮间隔 50ms 再起下一轮（原 200ms）
-                Thread.Sleep(50);
+                // 正常结束一轮 → 轮间隔 1ms 再起下一轮（while 循环只需 1ms 让出 CPU）
+                Thread.Sleep(1);
             }
             onFlowDone?.Invoke(index, name);
             }
