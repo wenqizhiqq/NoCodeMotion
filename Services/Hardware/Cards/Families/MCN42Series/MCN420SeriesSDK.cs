@@ -1407,7 +1407,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <returns>short类型值</returns>
         public int DmcSetCardAxisEquiv(int CardNo, int axis, double equiv)
         {
-            return MCN420.YK_set_axis_out_pulse_mode((ushort)CardNo, (ushort)axis, (uint)equiv);
+            // ★ NoCodeMotion 修正（2026-09-30）：脉冲当量对应研控的「指令位置比率」YK_set_command_ratio，
+            //   单位正是 pulses/unit —— 见 Native/MCN420.cs 的原生声明注释：
+            //     「功能：设置指令位置比率；command_ratio：表示指定轴的比率（puls/unit）；
+            //       指令比率设置说明：… 10000 个脉冲电机转一圈，螺距 1234.5mm，则指令比率 = 10000/1234.5 = 8.100445」
+            //   原实现错映射到 YK_set_axis_out_pulse_mode —— 那是 0~15 的**脉冲输出模式**
+            //   （脉冲+方向 / CW-CCW / 倍频…），把当量写进去会把脉冲输出模式改成非法值，越修越坏。
+            //   卡族里所有指令都是 unit 版（YK_vmove / YK_set_command_position …），卡内要靠这个比率做
+            //   unit→脉冲 换算；比率没设（为 0）时这些指令会被卡直接拒绝，只回一个错误码。
+            return MCN420.YK_set_command_ratio((ushort)CardNo, (ushort)axis, equiv);
         }
         /// <summary>
         /// 获取轴的脉冲当量
@@ -1418,11 +1426,8 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <returns>脉冲当量</returns>
         public int DmcGetCardAxisEquiv(int CardNo, int axis, ref double equiv)
         {
-            uint mode = 0;
-            var res = MCN420.YK_get_axis_out_pulse_mode((ushort)CardNo, (ushort)axis, ref mode);
-            equiv = mode;
-            return res;
-
+            // 与 DmcSetCardAxisEquiv 对应：读的是「指令位置比率」（pulses/unit）。
+            return MCN420.YK_get_command_ratio((ushort)CardNo, (ushort)axis, ref equiv);
         }
         #endregion
 
@@ -3989,7 +3994,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <returns>错误代码</returns>
         public int NmcSetCardAxisEnable(int CardNo, int axis)
         {
-            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 1);
+            // ★ NoCodeMotion 修正（2026-09-30）：YK_set_sevon_config 的第 3 个参数是**伺服使能端口的电平**，
+            //   不是逻辑使能 —— 见 Native/MCN420.cs 的原生声明注释：
+            //     「sevon_en: 设置伺服使能端口电平，0低电平；1高电平；」
+            //   研控脉冲卡的伺服使能信号是**低电平有效**（同一份原生声明里 GetCardAxisSevonPin 的注释：
+            //     「伺服使能端口电平，0：低电平(on)，1：高电平(off)」），
+            //   所以「使能」要写 0（低电平），「不使能」要写 1（高电平）。
+            //
+            //   原实现把两者写反了 → 现场症状：点「使能」反而给伺服下电，点「不使能」反而锁轴；
+            //   而「轴未锁轴」时控制卡会拒绝运动 / 置位指令（研控官方 FAQ 第 3 条：轴未锁轴，
+            //   界面显示有脉冲但轴不转），于是 Jog / 设零点跟着一起失败（返回 8194 / 20480 这类
+            //   看不出原因的错误码）。三件事其实是同一个根因。
+            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 0);
         }
 
         /// <summary>
@@ -4000,7 +4016,8 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <returns>错误代码</returns>
         public int NmcSetCardAxisDisable(int CardNo, int axis)
         {
-            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 0);
+            // 见 NmcSetCardAxisEnable 的说明：1 = 高电平 = 不使能（active-low SON）。
+            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 1);
         }
 
         /// <summary>

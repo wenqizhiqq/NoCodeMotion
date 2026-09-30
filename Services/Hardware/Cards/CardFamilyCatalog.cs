@@ -510,7 +510,11 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 Aliases = new[] { "MCN42", "MCC42", "MCN420", "42系列", "0x1A4", "0x1A5" },
                 Note = "MCN420.dll。固定规格：8 轴 / 16 入 / 16 出（底层实现离线返回 0、IO 默认填 24，需目录规格兜底）。"
                      + "轴号 0~7、IO 位号 0~15，均从 0 开始。★ 伺服使能（Sevon，占用通用输出 OUT32~OUT35）"
-                     + "只对 0~3 轴有效，4~7 轴没有该功能，这几根轴请在驱动器侧处理使能信号。",
+                     + "只对 0~3 轴有效，4~7 轴没有该功能，这几根轴请在驱动器侧处理使能信号。"
+                     + "★ Sevon 为低电平有效（写 0 = 使能、写 1 = 不使能），本工程已在该卡族层统一翻转，界面只暴露「使能 / 不使能」。"
+                     + "★ 本卡族指令全部是 unit 版，卡内靠「指令位置比率」YK_set_command_ratio（pulses/unit，即脉冲当量）"
+                     + "做 unit↔脉冲 换算，所以每次连接与运动前都会把「轴」页的「脉冲当量」下发到卡；"
+                     + "当量为 0 或被卡拒绝时会返回 8194 / 20480 这类错误码。",
                 AxisCount = 8, InIoCount = 16, OutIoCount = 16,
                 Create = F(() => new WenQiZhi.Domain.MotionCard.Common.YKMCN42Series.CardRealization(),
                            () => new WenQiZhi.Domain.MotionCard.Common.YKMCN42Series.AxisRealization(),

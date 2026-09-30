@@ -295,6 +295,10 @@ namespace NoCodeMotion.Services.Hardware.Cards
             Log($"[卡族] 控制器「{ctl.Name}」{slot.Status}。{family.Note}");
             if (slot.Ready && cardTypes != null && cardTypes.Length > 0 && cardTypes[0] != 0)
                 Log($"[卡族] 控制器「{ctl.Name}」固件卡型 = 0x{cardTypes[0]:X}（可用于确认卡型号是否填对）。");
+
+            // ★ 连上就把每根轴的「脉冲当量」下发到卡（见 EnsureAxisRatio 的说明）：
+            //   卡内当量为 0 时，所有以 unit 为单位的运动 / 置位指令都会被卡拒绝。
+            if (slot.Ready) PushAxisRatios(slot);
         }
 
         /// <summary>
@@ -412,6 +416,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             if (a == null) { WarnNoAxis(axis, $"设速 {speed}"); return; }
 
             int res = 0;
+            EnsureAxisRatio(slot, a, axis);       // 单位换算依赖卡内当量，先确保已下发
             Guard(() => res = a.SetCardAxisMotionalVel(BuildMotionParam(axis, slot.CardNo, 0, 1, speed)));
             Report("轴设速", res, $"[卡族] 轴「{axis.Name}」速度已设为 {speed} {axis.Unit}/s（卡{slot.CardNo} 轴{axis.AxisNo}）");
         }
@@ -743,6 +748,95 @@ namespace NoCodeMotion.Services.Hardware.Cards
         private static double EquivOf(AxisItem axis) => axis != null && axis.PulsePerUnit > 0 ? axis.PulsePerUnit : 1;
 
         /// <summary>
+        /// 把工程里该轴的「脉冲当量」真正下发到控制卡（卡族层走 <see cref="IAxis.SetCardAxisPulseEquival"/>）。
+        ///
+        /// <para>★ 为什么必须下发：卡族的轴接口全部是 <b>unit 版</b>（研控 MCN420 的 <c>YK_vmove</c> /
+        /// <c>YK_pmove</c> / <c>YK_set_command_position</c> …），卡内要靠「指令位置比率」
+        /// （pulses/unit，即脉冲当量）把 unit 换算成脉冲。当量没写进卡（卡里为 0）时，
+        /// 这些指令会被卡直接拒绝、只回一个错误码 —— 现场就是
+        /// 「Jog 下发失败（卡返回 8194）」「设零点失败（卡返回 20480）」这种完全看不出原因的报错，
+        /// 而纯脉冲量的接口（设速度曲线之类）却"成功"。</para>
+        ///
+        /// <para>模拟卡不需要：模拟卡没有这一层换算，由 <see cref="BuildSimParam"/> 自己乘当量。
+        /// 雷赛层也不需要：<c>LeadshineHardwareBridge</c> 在每次运动前会走 <c>ApplyAxisProfile</c>
+        /// 一起下发当量，卡族层原本漏了这一步。</para>
+        /// </summary>
+        private void EnsureAxisRatio(CardSlot slot, IAxis a, AxisItem axis)
+        {
+            if (slot == null || a == null || axis == null) return;
+            if (IsSimulation(slot)) return;
+
+            int cardNo = slot.CardNo;
+            int axisNo = Math.Max(axis.AxisNo, 0);
+            double equiv = EquivOf(axis);
+
+            try
+            {
+                int res = a.SetCardAxisPulseEquival(cardNo, axisNo, (int)Math.Round(equiv));
+                if (res != 0)
+                    Log($"[卡族·提示] 轴「{axis.Name}」（卡{cardNo} 轴{axisNo}，卡族 {slot.Family?.Key}）"
+                        + $"脉冲当量下发返回非 0（{res}），当前当量 = {equiv:0.###} pulse/unit。"
+                        + "卡内当量为 0 时，以 unit 为单位的运动 / 置位指令会被卡拒绝；"
+                        + "请到「轴」页确认「脉冲当量」与机械实际一致（或该卡族是否需要另行在厂商工具里设当量）。");
+            }
+            catch (Exception ex)
+            {
+                // 参考实现里不少卡族的这个接口是未完成的（直接 throw）——只提示，不改变既有行为。
+                Log($"[卡族·提示] 轴「{axis.Name}」下发脉冲当量失败：{ex.GetType().Name}；"
+                    + "该卡族的脉冲当量接口可能未实现，以 unit 为单位的运动 / 置位指令可能不可用。");
+            }
+        }
+
+        /// <summary>
+        /// 连接成功后，把工程里属于该控制器的所有轴的脉冲当量一次性下发到卡。
+        /// 这样用户点完「连接控制器」再点 Jog / 设零点就不会因为当量没下发而失败。
+        /// </summary>
+        private void PushAxisRatios(CardSlot slot)
+        {
+            if (slot == null || !slot.Ready || IsSimulation(slot)) return;
+
+            List<AxisItem> axes;
+            try
+            {
+                axes = ProjectStore.Data?.Axes?
+                    .Where(x => x != null && x.Controller == slot.ControllerName).ToList();
+            }
+            catch { return; }
+            if (axes == null || axes.Count == 0) return;
+
+            int done = 0;
+            foreach (var ax in axes)
+            {
+                IAxis a = null;
+                try { (_, a) = AxisOf(ax); } catch { continue; }
+                if (a == null) continue;
+                EnsureAxisRatio(slot, a, ax);
+                done++;
+            }
+            if (done > 0)
+                Log($"[卡族] 控制器「{slot.ControllerName}」已按工程配置下发 {done} 根轴的脉冲当量"
+                    + "（卡内 unit↔脉冲 换算依赖它，不下发会导致 Jog / 设零点等 unit 指令被卡拒绝）。");
+        }
+
+        /// <summary>
+        /// 轴类指令被卡拒绝（返回非 0）时追加的「现场可执行」排查提示。
+        /// <para>卡只回一个数字（如 Jog 8194 / 设零点 20480），不查手册根本看不出原因，
+        /// 所以把现场真正会踩到的几件事直接写进报错里，别让操作员对着数字猜。</para>
+        /// </summary>
+        private static string AxisFailHint(AxisItem axis)
+        {
+            double equiv = EquivOf(axis);
+            return "。请依次确认："
+                 + "① 该轴是否已「使能」——伺服未锁轴时卡会拒绝运动 / 置位指令"
+                 + "（研控 Sevon 低电平有效，点「使能」后伺服应锁轴）"
+                 + "；②「轴」页的「脉冲当量」是否为机械实际值（当前按 "
+                 + equiv.ToString("0.###") + " pulse/unit 下发；为 0 或填错都会让卡拒绝以 unit 为单位的指令）"
+                 + "；③ 该轴「轴号」与卡上轴号是否一致（卡轴号从 0 开始，8 轴卡是 0~7）"
+                 + "；④ 伺服是否报警、正负限位是否被压住（看该轴「报警 / 正极限 / 负极限」列）"
+                 + "；⑤「控制器」页的卡型号是否与实物一致。";
+        }
+
+        /// <summary>
         /// 拼一个「模拟卡」用的运动参数：距离与速度都换算成脉冲 / pps。
         /// 真实卡是卡内按脉冲当量换算的，模拟卡没有这一层，得由我们换算；读回位置时再除回来（见 TryReadAxisRaw）。
         /// </summary>
@@ -800,6 +894,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 return a.CardAxisPointMovement(mpm);
             }
 
+            EnsureAxisRatio(slot, a, axis);       // unit→脉冲 换算依赖卡内当量
             a.SetCardAxisMotionalVel(BuildMotionParam(axis, slot.CardNo, 0, 1, speed));
             return a.CardAxisPointMovement(BuildMotionParam(axis, slot.CardNo, target, posiMode, speed));
         }
@@ -851,11 +946,12 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 }
                 else
                 {
+                    EnsureAxisRatio(slot, a, axis);   // unit→脉冲 换算依赖卡内当量
                     int r1 = a.SetCardAxisMotionalVel(BuildMotionParam(axis, cardNo, 0, 1, v));
                     if (r1 != 0) return $"点动失败：下发速度曲线返回 {r1}（检查脉冲当量 / 加减速是否合理）";
 
                     int res = a.CardAxisPointMovement(BuildMotionParam(axis, cardNo, distance, 0, v));   // 0 = 相对
-                    if (res != 0) return $"点动下发失败（卡返回 {res}）";
+                    if (res != 0) return $"点动下发失败（卡返回 {res}）{AxisFailHint(axis)}";
                 }
 
                 Log($"[卡族{(sim ? "·模拟卡" : "")}] 轴「{axis.Name}」点动 {distance} {axis.Unit}（速度 {v} {axis.Unit}/s）");
@@ -893,6 +989,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 }
                 else
                 {
+                    EnsureAxisRatio(slot, a, axis);   // unit→脉冲 换算依赖卡内当量
                     int r1 = a.SetCardAxisMotionalVel(BuildMotionParam(axis, cardNo, 0, 1, v));
                     if (r1 != 0) return $"Jog 失败：下发速度曲线返回 {r1}（检查脉冲当量 / 加减速是否合理）";
                     mpm = BuildMotionParam(axis, cardNo, 0, 0, v);
@@ -900,7 +997,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
                 mpm.Dir = positive ? 1 : 0;                 // 0 = 负方向，1 = 正方向
                 int res = a.CardAxisSerialMovement(mpm);
-                if (res != 0) return $"Jog 下发失败（卡返回 {res}）";
+                if (res != 0) return $"Jog 下发失败（卡返回 {res}）{AxisFailHint(axis)}";
 
                 Log($"[卡族{(sim ? "·模拟卡" : "")}] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动（速度 {v} {axis.Unit}/s），松开按钮停止");
                 return null;
@@ -921,11 +1018,10 @@ namespace NoCodeMotion.Services.Hardware.Cards
             {
                 int cardNo = slot != null ? slot.CardNo : 0;
                 int axisNo = Math.Max(axis.AxisNo, 0);
+                EnsureAxisRatio(slot, a, axis);   // unit→脉冲 换算依赖卡内当量
                 int res = a.SetCardAxisCurrentPosition(cardNo, axisNo, 0);
                 if (res != 0)
-                    return $"设零点失败（卡{cardNo} 轴{axisNo}，卡族 {slot?.Family?.Key} 返回 {res}）"
-                         + "。总线轴（EtherCAT / CAN）请先「使能」并确认伺服已就绪、脉冲当量已配置后再试；"
-                         + "脉冲卡若持续失败，请核对「控制器」页的卡型号是否与实物一致。";
+                    return $"设零点失败（卡{cardNo} 轴{axisNo}，卡族 {slot?.Family?.Key} 返回 {res}）{AxisFailHint(axis)}";
                 Log($"[卡族] 轴「{axis.Name}」当前位置已置零");
                 return null;
             }

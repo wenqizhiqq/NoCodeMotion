@@ -29,6 +29,9 @@
 - ★★ **寻址一律 0 基**：`AxisItem.AxisNo` = 卡轴号（→ `IAxis.AxisID`）；`IoItem.Sequence` = 卡上位号（`MainBoardBit = ModuleNo × BitsPerModule + Sequence`，雷赛 `BitNo` 同式）。自动生成轴 / IO（`AxisControllerViewModel.GenerateAxisPoints/GenerateIoPoints`）与手工新增（`IoViewModel.MakeNew`）都必须从 0 起 —— 曾按 1..N 生成导致「轴使能设置不了（错位/越界）+ IO 位号整体偏移一位」。
 - ★ 卡族层轴 / IO 动作**返回非 0 只记日志不抛**，界面若要报「成功」必须自己**读回真实状态**（见 `AxisRowViewModel.InvokeEnable`），否则现场看到「点了没反应也没报错」。
 - ★ 移植卡族的 `*SDK.cs` 里不少函数是「未添加」（直接 throw，如 MCN420SeriesSDK.DmcGetCardAxisIOState）。要读轴 IO 状态字时，先确认该函数实现了没有；没实现就用该卡原生 `YK_*` 单点读接口按 dmc_axis_io_status 位布局自己拼（MCN42Series 已这么做）。
+- ★★ **使能是「端口电平」不是逻辑值**：研控 Sevon **低电平有效** —— `YK_set_sevon_config(card, axis, 0)` = 使能、`1` = 不使能（原生声明原文「0低电平；1高电平」）。电平翻转**只在卡族 SDK 包装层做一次**（`MCN420SeriesSDK.NmcSetCardAxisEnable/Disable`），状态字 bit8 判据要同步（读回 0 才是使能，见 `AxisRealization.NormalizeSevon`）。写反的现场症状 = 点使能反而不使能。
+- ★★ **脉冲当量必须真正下发到卡**：卡族指令全是 **unit 版**（`YK_vmove`/`YK_pmove`/`YK_set_command_position`），卡内靠「指令位置比率」换算 → 研控叫 `YK_set_command_ratio(card, axis, pulses/unit)`（**不是** `YK_set_axis_out_pulse_mode`，那是 0~15 的脉冲输出模式；DLL 里没有别的 equiv 接口）。当量为 0 时这些指令被卡**直接拒绝、只回一个数字**（如 Jog 8194 / 设零点 20480），而纯脉冲接口照旧「成功」，极难定位。推当量的位置：`WenQiZhiCardBridge.EnsureAxisRatio` + 连接后 `PushAxisRatios`（雷赛层本来就在 `ApplyAxisProfile` 里带当量，卡族层原本漏了）。
+- ★ 看到裸错误码（8194 / 20480 之类）先按这个顺序查：**使能 → 脉冲当量 → 轴号(0 基) → 报警/限位 → 卡型号**（`AxisFailHint` 已把五条写进报错文案）。
 
 ## Lua 编辑器
 - xshd 内联在 `Views/LuaEditorView.xaml.cs` 的 `LuaXshdXml` 常量（外部文件被磁盘加密读不了）；xshd 注释不能含 `--`。
