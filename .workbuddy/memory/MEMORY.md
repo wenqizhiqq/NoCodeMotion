@@ -32,6 +32,9 @@
 - ★★ **使能是「端口电平」不是逻辑值**：研控 Sevon **低电平有效** —— `YK_set_sevon_config(card, axis, 0)` = 使能、`1` = 不使能（原生声明原文「0低电平；1高电平」）。电平翻转**只在卡族 SDK 包装层做一次**（`MCN420SeriesSDK.NmcSetCardAxisEnable/Disable`），状态字 bit8 判据要同步（读回 0 才是使能，见 `AxisRealization.NormalizeSevon`）。写反的现场症状 = 点使能反而不使能。
 - ★★ **脉冲当量必须真正下发到卡**：卡族指令全是 **unit 版**（`YK_vmove`/`YK_pmove`/`YK_set_command_position`），卡内靠「指令位置比率」换算 → 研控叫 `YK_set_command_ratio(card, axis, pulses/unit)`（**不是** `YK_set_axis_out_pulse_mode`，那是 0~15 的脉冲输出模式；DLL 里没有别的 equiv 接口）。当量为 0 时这些指令被卡**直接拒绝、只回一个数字**（如 Jog 8194 / 设零点 20480），而纯脉冲接口照旧「成功」，极难定位。推当量的位置：`WenQiZhiCardBridge.EnsureAxisRatio` + 连接后 `PushAxisRatios`（雷赛层本来就在 `ApplyAxisProfile` 里带当量，卡族层原本漏了）。
 - ★ 看到裸错误码（8194 / 20480 之类）先按这个顺序查：**使能 → 脉冲当量 → 轴号(0 基) → 报警/限位 → 卡型号**（`AxisFailHint` 已把五条写进报错文案）。
+- ★★ **凡是界面能「写」的，都要能「读」回来并定时刷新**（只有写没有读 = 界面在骗人）。IO 原本只有 `ReadInput`/`WriteOutput`/`ToggleOutput` → 输出表只能显示**界面期望值**，外部改过看不出。已补 `IHardwareBridge.ReadOutput(IoItem)`（三实现齐：卡族 `OutIo.GetCardPortNoOutState` / 扩展 `ExtOut.EGetExpandIOOutBit`；雷赛 `ReadOutBit`/`ReadOutBitBus`；仿真回放 `_ioState`），且**读失败一律 `return io.Value`（不清零不抛）**。`IoPage` 的 250ms 定时器现在 `RefreshLevels()` 同时刷输入+输出；**仿真/卡未就绪时输出读 `SimRuntime.GetOutput`**。
+  ⚠️ 刷新采样必须跳过**正在编辑的行**，但 WPF 没有 `DataGrid.GetEditingRow()`（CS1061）→ 用 `grid.IsKeyboardFocusWithin && grid.CurrentCell.IsValid && ReferenceEquals(cell.Item, item)`。
+  ⚠️ `IHardwareBridge` 默认**不加**接口（要同步 3 个实现类）；**例外**仅限「三边都能真实提供、且实现简单」的通用能力（如 `ReadOutput`），卡族特有知识（Jog/回零点/当量）一律走静态分派服务。
 
 ## Lua 编辑器
 - xshd 内联在 `Views/LuaEditorView.xaml.cs` 的 `LuaXshdXml` 常量（外部文件被磁盘加密读不了）；xshd 注释不能含 `--`。

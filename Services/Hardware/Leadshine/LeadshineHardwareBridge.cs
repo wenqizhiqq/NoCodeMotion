@@ -501,6 +501,41 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             io.Value = value;
         }
 
+        /// <summary>
+        /// 读回输出点**真实**状态（卡上的实际输出，已按电平设置还原为逻辑值）。
+        /// <para>用于 IO 页定时刷新：外部（PLC / 手操盒 / 流程）动过输出时能如实反映。
+        /// 读失败 / 卡未就绪 → 返回当前 <c>io.Value</c>（不清零、不抛）。</para>
+        /// </summary>
+        public double ReadOutput(IoItem io)
+        {
+            if (!_cardReady) return io.Value;
+
+            ushort card = CardNoOf(io);
+            int raw = 0;
+            try
+            {
+                if (UseBusIo(io))
+                {
+                    ushort node = (ushort)Math.Max(io.ModuleNo, 0);
+                    ushort bit = (ushort)Math.Max(io.Sequence, 0);
+                    Guard(() => raw = _card.ReadOutBitBus(card, node, bit));
+                }
+                else
+                {
+                    ushort bit = BitNo(io);
+                    Guard(() => raw = _card.ReadOutBit(card, bit));
+                }
+            }
+            catch
+            {
+                return io.Value;   // 定时刷新用：单点读失败不影响其它点
+            }
+
+            int value = ApplyLevel(raw, io.Level);
+            io.Value = value;
+            return value;
+        }
+
         public void ToggleOutput(IoItem io)
         {
             if (!_cardReady) { WarnNoCard($"取反输出「{io.Name}」"); return; }

@@ -354,11 +354,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
             if (axis >= 0 && axis <= 3 &&
                 MCN420.YK_get_axis_inp_status((uint)card, (uint)axis) == 1) status |= 1u << 5;              // 到位 INP
 
-            // 伺服使能端口电平：★ 研控脉冲卡的 Sevon 是**低电平有效**（见 GetCardAxisSevonPin 的注释
-            //   「伺服使能端口电平，0：低电平(on)，1：高电平(off)」），所以读回 0 才是「已使能」，
-            //   写 0 才是让伺服上电（见 MCN420SeriesSDK.NmcSetCardAxisEnable）。
-            //   状态字 bit8 的语义是「Sevon 信号为 ON」，因此把读回 0 归一化成 bit8 = 1。
-            if (MCN420.YK_get_sevon_config((uint)card, (uint)axis) == 0) status |= 1u << 8;               // Sevon 使能（低有效）
+            // 伺服使能端口电平：★ 研控 MCN420 是**高电平有效**（使能时读回 1）—— 见
+            //   MCN420SeriesSDK.NmcSetCardAxisEnable 的两条证据（参考实现写 1；卡错误码表第 26 条
+            //   「0 不使能；1 使能」）。状态字 bit8 的语义是「Sevon 信号为 ON」，读回 1 才置位。
+            if (MCN420.YK_get_sevon_config((uint)card, (uint)axis) == 1) status |= 1u << 8;               // Sevon 使能
 
             return (int)status;
         }
@@ -402,14 +401,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
 
         /// <summary>
         /// 把 <c>YK_get_sevon_config</c> 的原始返回值归一化成「1 = 伺服已使能」。
-        /// <para>研控脉冲卡的伺服使能端口（Sevon）是<b>低电平有效</b>：读回 0 = 使能、1 = 不使能
-        /// （原生声明注释：「伺服使能端口电平，0：低电平(on)，1：高电平(off)」）。
-        /// 本类对外统一成「1 = 使能信号 ON」，避免各处直接比较原始电平而写反。</para>
+        /// <para>研控 MCN420 的 Sevon 是<b>高电平有效</b>：使能时读回 1、不使能读回 0
+        /// （见 <c>MCN420SeriesSDK.NmcSetCardAxisEnable</c> 的两条证据：参考实现写 1；
+        /// 卡错误码表第 26 条「0 不使能；1 使能」）。</para>
+        /// <para>保留这个函数是为了让「读回值 → 使能语义」只有一处，将来换卡族只改这里；
+        /// 目前它是恒等映射，不是笔误。</para>
         /// </summary>
         private static int NormalizeSevon(int rawSevon)
         {
-            if (rawSevon == 0) return 1;      // 低电平 = 使能信号 ON
-            if (rawSevon == 1) return 0;      // 高电平 = OFF
+            if (rawSevon == 0) return 0;      // 0 = 不使能
+            if (rawSevon == 1) return 1;      // 1 = 使能
             return rawSevon;                  // 其它值（错误码 / 未实现）原样返回，不猜测
         }
 
@@ -671,9 +672,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <summary>
         /// 让伺服使能。  0失能 1或者非0值使能
         /// <para>★ 参数是「逻辑使能」而不是端口电平：0 = 失能，非 0 = 使能。
-        /// 内部由 <see cref="YK_MCN42SeriesSDK.NmcSetCardAxisEnable"/> /
-        /// <see cref="YK_MCN42SeriesSDK.NmcSetCardAxisDisable"/> 翻译成端口电平
-        /// （研控 Sevon 低电平有效：使能写 0、失能写 1），全工程只在这一层做电平翻转。</para>
+        /// 内部转交 <see cref="YK_MCN42SeriesSDK.NmcSetCardAxisEnable"/> /
+        /// <see cref="YK_MCN42SeriesSDK.NmcSetCardAxisDisable"/>，由它们写
+        /// <c>YK_set_sevon_config</c> 的逻辑使能位（<b>1 = 使能、0 = 不使能</b>）。</para>
+        /// <para>★ 研控 MCN420 的 Sevon <b>不是</b>低电平有效 —— 不要与雷赛 / 模拟卡的
+        /// <c>dmc_write_sevon_pin</c>（低电平有效，0 = 使能）混为一谈。两套方向相反。</para>
         /// </summary>
         /// <param name="on_off"></param>
         /// <returns></returns>
@@ -1759,11 +1762,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         }
 
         /// <summary>
-        /// 读取指定轴的伺服使能端口的电平
+        /// 读取指定轴的 CiA402 状态机值（<b>不是</b>伺服使能端口电平）。
+        /// <para>★ 与本函数的名字 / 原返回值文档不一致，是移植时留下的：实现直接返回
+        /// <c>NmcGetCardAxisStateMachine</c> 的原始值（0~7，4 = 操作使能），
+        /// 而不是「0 = 低电平(on)」那种端口电平语义。当前全工程没有调用方 ——
+        /// 轴页的「使能」列读的是 <see cref="GetAxisCurrentState()"/> 的状态字 bit8。</para>
         /// </summary>
-        /// <param name="CardNo">控制卡卡号</param>
-        /// <param name="axis">指定轴号</param>
-        /// <returns>伺服使能端口电平，0：低电平(on)，1：高电平(off)</returns>
+        /// <returns>CiA402 状态机值（0~7，4 = 操作使能）</returns>
         public int GetCardAxisSevonPin()
         {
             ushort status = 0;

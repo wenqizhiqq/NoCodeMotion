@@ -1,0 +1,691 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<errorcodes>
+  <errorcode code="0">
+    <zh_cn>
+      成功
+    </zh_cn>
+    <en_us>
+      Success
+    </en_us>
+  </errorcode>
+  <errorcode code="1">
+    <zh_cn>
+      卡号参数设置错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="2">
+    <zh_cn>
+      轴号参数设置错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="3">
+    <zh_cn>
+      轴数参数设置错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="4">
+    <zh_cn>
+      脉冲输出模式错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="5">
+    <zh_cn>
+      轴报警使能错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="6">
+    <zh_cn>
+      手轮倍率为0了，手轮倍率不能为零
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="7">
+    <zh_cn>
+     输入端口超出[0-127] 的范围
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="8">
+    <zh_cn>
+      IO 计数器号有效范围超限，有效范围[0,7]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="9">
+    <zh_cn>
+      停止模式错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="10">
+    <zh_cn>
+      回零低速错误，取值范围（0.00001,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="11">
+    <zh_cn>
+      回零高速错误，取值范围（0.00001,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="12">
+    <zh_cn>
+      回零加速度错误，取值范围（0.00001,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="13">
+    <zh_cn>
+      指令加加速度错误，取值范围（0.00001,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="14">
+    <zh_cn>
+      指令减减速度错误，取值范围（0.00001,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="15">
+    <zh_cn>
+      指令加速度错误，取值范围（0.00001,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="16">
+    <zh_cn>
+      指令减速度错误，取值范围（0.00001,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="17">
+    <zh_cn>
+      指令目标速度错误，取值范围（0.00001,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="18">
+    <zh_cn>
+      指令起始速度错误，取值范围[0.0,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="19">
+    <zh_cn>
+     指令停止速度错误，取值范围[0.0,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="20">
+    <zh_cn>
+      指令运行方向设置错误，方向只能是1或-1
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="21">
+    <zh_cn>
+      位置类型错误，位置类型：0相对，1：绝对
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="22">
+    <zh_cn>
+      目标位置错误，有效范围为[-2147483647,2147483647]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="23">
+    <zh_cn>
+     模拟输入电压超出范围，其取值范围为[-10V,10V]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="24">
+    <zh_cn>
+      前瞻输出通道错误，其值只能是0或1
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="25">
+    <zh_cn>
+      前瞻最大角速度超限，取值范围(0.0,4000) unit/ms
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="26">
+    <zh_cn>
+      使能出错 ,正确应该是0不使能；1使能
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="27">
+    <zh_cn>
+      输入位超限，有效范围为[0-127]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="28">
+    <zh_cn>
+      位置锁存模式超限，锁存输入位有效范围为[0-127]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="29">
+    <zh_cn>
+     手轮模式错误;
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="30">
+    <zh_cn>
+    编码器范围超限,有效范围为[0,3]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="31">
+    <zh_cn>
+      通道错误,有效范围[0,2]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="32">
+    <zh_cn>
+      延时反转输出触发输入错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="33">
+    <zh_cn>
+      延时反转输出出发模式错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="34">
+    <zh_cn>
+     延时反转输出端口错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="35">
+    <zh_cn>
+      延时反转次数错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+    <errorcode code="36">
+    <zh_cn>
+      反向间隙补偿值错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+   <errorcode code="37">
+    <zh_cn>
+      反向间隙补偿速度错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+    <errorcode code="38">
+    <zh_cn>
+      反向间隙补偿方向错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+   <errorcode code="39">
+    <zh_cn>
+       PWM输出模式错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+    <errorcode code="40">
+    <zh_cn>
+     PWM频率出错，取值范围[0-2M]Hz
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+     <errorcode code="41">
+    <zh_cn>
+      PWM占空比错误，取值范围[0-1]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="42">
+    <zh_cn>
+      位置比较源错误，比较源：0指令位置,1编码器位置
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>  
+ <errorcode code="43">
+    <zh_cn>
+      有效电平错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="44">
+    <zh_cn>
+      位置比较输出端口号错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>  
+    <errorcode code="45">
+    <zh_cn>
+      输入端口字节编号错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+   <errorcode code="46">
+    <zh_cn>
+      输出端口字节编号错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+   <errorcode code="47">
+    <zh_cn>
+      输出位超限
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+   <errorcode code="48">
+    <zh_cn>
+      位置比较输出比较方向错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+   <errorcode code="49">
+    <zh_cn>
+      位置比较次数错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+   <errorcode code="50">
+    <zh_cn>
+      编码器输入模式错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+   <errorcode code="51">
+    <zh_cn>
+      报警输入端口错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="52">
+    <zh_cn>
+      限位输入端口错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>  
+  <errorcode code="53">
+    <zh_cn>
+      回零输入端口错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>   
+    <errorcode code="54">
+    <zh_cn>
+      手轮输入端口错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+    <errorcode code="55">
+    <zh_cn>
+      手轮倍率输入端口错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+    <errorcode code="56">
+    <zh_cn>
+      急停输入端口错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+    <errorcode code="57">
+    <zh_cn>
+      软限位值错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+    <errorcode code="58">
+    <zh_cn>
+      控制器IP地址超出范围[30,45]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+   <errorcode code="59">
+    <zh_cn>
+      速度类型出现错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+    <errorcode code="60">
+    <zh_cn>
+      文件为空或是路径错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+   <errorcode code="61">
+    <zh_cn>
+      输入IO计数器号错误，计数器号有效范围[0,7]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+    <errorcode code="62">
+    <zh_cn>
+      三点圆弧参数三点的位置输入错误，三点无法确定一个圆弧
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+   <errorcode code="63">
+    <zh_cn>
+      延时反转触发模式错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+    <errorcode code="64">
+    <zh_cn>
+      通用输出超前滞后端口位号错误，取值范围[0-256]
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+   <errorcode code="65">
+    <zh_cn>
+      连续轨迹中，在线改变轴速度倍率设置错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+   <errorcode code="66">
+    <zh_cn>
+      回零模式错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+    <errorcode code="67">
+    <zh_cn>
+      弧度值错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+   <errorcode code="68">
+    <zh_cn>
+      目标半径错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+     <errorcode code="69">
+    <zh_cn>
+      一维低速位置比较模式错误，不存在
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>    
+  <errorcode code="272">
+    <zh_cn>
+     指令ID错误
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="900">
+    <zh_cn>
+      没有初始化
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="901">
+    <zh_cn>
+      网络掉线
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="4096">
+    <zh_cn>
+      紧急缓冲满出错
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="8192">
+    <zh_cn>
+      0通道缓冲满出错
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="8193">
+    <zh_cn>
+      1通道缓冲满出错
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="8194">
+    <zh_cn>
+      普通缓冲满出错
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="8208">
+    <zh_cn>
+      缓冲区已经打开
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="12288">
+    <zh_cn>
+      0通道连续轨迹缓冲满出错
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="12289">
+    <zh_cn>
+      1通道连续轨迹缓冲满出错
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="16384">
+    <zh_cn>
+      0通道写入指令异常
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="16385">
+    <zh_cn>
+      1通道写入指令异常
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="20480">
+    <zh_cn>
+      0通道轴未运动完成
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="20481">
+    <zh_cn>
+      1通道轴未运动完成
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="24576">
+    <zh_cn>
+      0通道前瞻未完成写入JOG命令出错
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode> 
+  <errorcode code="24577">
+    <zh_cn>
+      1通道前瞻未完成写入JOG命令出错
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="28672">
+    <zh_cn>
+      PWM命令参数异常
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="32768">
+    <zh_cn>
+      此函数不支持前瞻功能
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="36865">
+    <zh_cn>
+      暂停报警
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="36866">
+    <zh_cn>
+    急停报警
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="36868">
+    <zh_cn>
+      减速停止报警
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="36872">
+    <zh_cn>
+      正硬限位报警
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="36880">
+    <zh_cn>
+      负硬限位报警
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="36896">
+    <zh_cn>
+      正软限位报警
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="36928">
+    <zh_cn>
+      负软限位报警
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="36992">
+    <zh_cn>
+      伺服ALM报警
+    </zh_cn>
+    <en_us>
+
+    </en_us>
+  </errorcode>
+  <errorcode code="60000">
+    <zh_cn>
+      轴被占用（此轴已处于前瞻运动）
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+  <errorcode code="65535">
+    <zh_cn>
+      控制卡通讯异常、掉线
+    </zh_cn>
+    <en_us>
+    </en_us>
+  </errorcode>
+</errorcodes>  

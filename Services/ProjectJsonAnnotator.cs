@@ -74,7 +74,8 @@ namespace NoCodeMotion.Services
                 "  CardNo 卡号: 同类型控制器从 0 递增，不重复\n" +
                 "  AxisCount 轴数: 该控制器带几个轴",
             ["Axes"] =
-                "【轴】AxisNo 轴号在同一 Controller 内从 0 递增、不重复。\n" +
+                "【轴】AxisNo 轴号在同一 Controller 内从 0 递增、不重复；与 IO 序号一样**从 0 开始**，" +
+                "且同一 Controller 内不得重复（名称「轴1」对应 AxisNo=0、「轴2」对应 1…）。\n" +
                 "  AxisType 轴类型: 脉冲 | EtherCAT | Modbus | 虚拟\n" +
                 "  Unit 单位: mm | deg | um | inch\n" +
                 "  Speed/Accel/Decel: 速度/加速度/减速度，单位 Unit/秒",

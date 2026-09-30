@@ -79,6 +79,12 @@ namespace NoCodeMotion.Services
             Write($"等待输入 → 名称={io.Name} 卡号={io.CardNo} 模块={io.ModuleNo} 序号={io.Sequence} 目标={value}");
             Simulate();
         }
+        /// <summary>读回输出点真实状态（无硬件：回放本地记录的写值）。</summary>
+        public double ReadOutput(IoItem io)
+        {
+            if (!_ioState.TryGetValue(io.Name, out int v)) v = (int)io.Value;
+            return v;
+        }
         public void WriteOutput(IoItem io, int value)
         {
             _ioState[io.Name] = value;

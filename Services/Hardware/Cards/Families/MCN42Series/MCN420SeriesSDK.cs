@@ -99,16 +99,8 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <returns></returns>
         public string GetEtherCATErrorInfo(int ErrNum)
         {
-            if (ErrNum == 0) { return ""; }
-            var msg = string.Empty;
-            //MCN420.mcc_get_error_description(ErrNum, des);
-            //msg = System.Text.Encoding.Default.GetString(des);
-            int index = errorcodeDic.Items.FindIndex(s => s.Code.Trim() == ErrNum.ToString().Trim());
-            if (index > -1)
-                msg = $"错误码：{ErrNum}，错误信息：{errorcodeDic.Items[index].ZhCn}";
-            else
-                msg = $"错误码：{ErrNum}，请查看手册！";
-            return msg;
+            // 见 GetErrorInfo：统一走 FormatErrorCode，XML 缺失也不抛。
+            return FormatErrorCode(ErrNum, "总线错误信息");
         }
 
         /// <summary>
@@ -118,27 +110,82 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <returns></returns>
         public string GetErrorInfo(int ErrNum)
         {
+            // ★ NoCodeMotion 补（2026-09-30）：卡只回一个数字（Jog 8194 / 设零点 20480），不查手册
+            //   根本看不出原因，现场只能对着数字猜。这里译成卡自己的中文错误信息。
+            //   原实现直接 errorcodeDic.Items.FindIndex —— Mcn420ErrorCode.xml 一旦没随程序部署，
+            //   Items 就是 null，本函数会抛 NullReferenceException，调用方连「查不到含义」都拿不到。
+            return FormatErrorCode(ErrNum, "错误信息");
+        }
+
+        /// <summary>
+        /// 把卡返回码格式化成「错误码：N，…」；XML 缺失 / 查不到时给明确兜底，绝不抛异常。
+        /// </summary>
+        private string FormatErrorCode(int ErrNum, string label)
+        {
             if (ErrNum == 0) { return ""; }
-            var msg = string.Empty;
-            //MCN420.mcc_get_error_description(ErrNum, des);
-            //msg = System.Text.Encoding.Default.GetString(des);
-            int index = errorcodeDic.Items.FindIndex(s => s.Code.Trim() == ErrNum.ToString().Trim());
-            if (index > -1)
-                msg = $"错误码：{ErrNum}，错误信息：{errorcodeDic.Items[index].ZhCn}";
-            else
-                msg = $"错误码：{ErrNum}，请查看手册！";
-            return msg;
+            var items = EnsureErrorCodeItems();
+            if (items == null || items.Count == 0)
+                return $"错误码：{ErrNum}（未随程序找到 Mcn420ErrorCode.xml，无法查表，请对照卡手册）";
+            for (int i = 0; i < items.Count; i++)
+            {
+                var it = items[i];
+                if (it == null || (it.Code ?? "").Trim() != ErrNum.ToString().Trim()) continue;
+                return $"错误码：{ErrNum}，{label}：{NormalizeCodeText(it.ZhCn)}";
+            }
+            return $"错误码：{ErrNum}，请查看手册！";
+        }
+
+        /// <summary>
+        /// 把错误码表里的中文描述折成单行。
+        /// <para>★ 卡的 <c>Mcn420ErrorCode.xml</c> 里每条 <c>&lt;zh_cn&gt;</c> 都带 XML 缩进与换行
+        /// （如 <c>"\n      普通缓冲满出错\n    "</c>），直接拼进提示会变成多行、前面还顶着一堆空格，
+        /// 在状态栏里很难读。这里把连续空白折成一个空格并去首尾。</para>
+        /// </summary>
+        private static string NormalizeCodeText(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", " ").Trim();
+            return s.Replace(" ,", ",");   // 表里有「使能出错 ,正确应该…」这种半角逗号前多一个空格
         }
 
         #region 读取ErrorCode XML
         string xmlPath = "Mcn420ErrorCode.xml";
         ErrorCodeList errorcodeDic = new ErrorCodeList();
+        private bool _errorCodeTried;
+
+        /// <summary>
+        /// 取错误码表条目；文件缺失 / 解析失败时返回 null（调用方给兜底文案）。
+        /// <para>★ 惰性 + 只试一次：构造函数里读盘会在「文件还没就位」时把表永久留空，
+        /// 之后再调用也补不回来（原实现就是构造时读一次）。</para>
+        /// </summary>
+        private List<ErrorCode> EnsureErrorCodeItems()
+        {
+            if (!_errorCodeTried)
+            {
+                _errorCodeTried = true;
+                ConvertErrorCodeXML();
+            }
+            return errorcodeDic != null ? errorcodeDic.Items : null;
+        }
+
         void ConvertErrorCodeXML()
         {
             try
             {
-                var cardConfigPath = AppDomain.CurrentDomain.BaseDirectory + xmlPath;
-                if (!File.Exists(cardConfigPath)) { return; }
+                // 依次在几个可能的部署位置找 —— 换一种打包方式也不会静默失效。
+                var dir = AppDomain.CurrentDomain.BaseDirectory;
+                string cardConfigPath = null;
+                var cands = new string[]
+                {
+                    Path.Combine(dir, xmlPath),
+                    Path.Combine(dir, "Native", xmlPath),
+                    Path.Combine(dir, "Cards", xmlPath),
+                };
+                for (int i = 0; i < cands.Length; i++)
+                {
+                    if (File.Exists(cands[i])) { cardConfigPath = cands[i]; break; }
+                }
+                if (cardConfigPath == null) { return; }
                 XmlSerializer serializer = new XmlSerializer(typeof(ErrorCodeList));
                 using (FileStream fs = new FileStream(cardConfigPath, FileMode.Open))
                 {
@@ -3994,18 +4041,20 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <returns>错误代码</returns>
         public int NmcSetCardAxisEnable(int CardNo, int axis)
         {
-            // ★ NoCodeMotion 修正（2026-09-30）：YK_set_sevon_config 的第 3 个参数是**伺服使能端口的电平**，
-            //   不是逻辑使能 —— 见 Native/MCN420.cs 的原生声明注释：
-            //     「sevon_en: 设置伺服使能端口电平，0低电平；1高电平；」
-            //   研控脉冲卡的伺服使能信号是**低电平有效**（同一份原生声明里 GetCardAxisSevonPin 的注释：
-            //     「伺服使能端口电平，0：低电平(on)，1：高电平(off)」），
-            //   所以「使能」要写 0（低电平），「不使能」要写 1（高电平）。
+            // ★ NoCodeMotion 更正（2026-09-30 二次修正，改回 1）：第 3 个参数是**逻辑使能**，
+            //   不是端口电平。两条独立证据：
+            //     · 参考实现（随附的可用产品）MCN420SeriesSDK.NmcSetCardAxisEnable 写 1、
+            //       NmcSetCardAxisDisable 写 0；其 CardAxisWriteSevonPin(on_off) 同样是
+            //       「0 → Disable、非 0 → Enable」。
+            //     · 卡自己的错误码表 Mcn420ErrorCode.xml 第 26 条原文：
+            //       「使能出错，正确应该是 0 不使能；1 使能」。
+            //   原生声明注释「sevon_en: 设置伺服使能端口电平，0低电平；1高电平」说的是该位对应的
+            //   OUT32~OUT35 的**物理电平**，不是 API 参数语义；照它写会把使能写反 —— 现场症状正是
+            //   「点了使能、伺服没锁轴，于是 Jog / 设零点被卡拒绝（8194 / 20480）」。
             //
-            //   原实现把两者写反了 → 现场症状：点「使能」反而给伺服下电，点「不使能」反而锁轴；
-            //   而「轴未锁轴」时控制卡会拒绝运动 / 置位指令（研控官方 FAQ 第 3 条：轴未锁轴，
-            //   界面显示有脉冲但轴不转），于是 Jog / 设零点跟着一起失败（返回 8194 / 20480 这类
-            //   看不出原因的错误码）。三件事其实是同一个根因。
-            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 0);
+            //   ★ 这条只适用于研控 MCN420。雷赛 / 模拟卡的 dmc_write_sevon_pin 是端口电平且
+            //     低有效（0 = 使能），两者相反，不要互相套用（见 WenQiZhiCardBridge 的模拟卡分支）。
+            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 1);
         }
 
         /// <summary>
@@ -4016,8 +4065,8 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <returns>错误代码</returns>
         public int NmcSetCardAxisDisable(int CardNo, int axis)
         {
-            // 见 NmcSetCardAxisEnable 的说明：1 = 高电平 = 不使能（active-low SON）。
-            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 1);
+            // 见 NmcSetCardAxisEnable 的说明：研控 MCN420 是 1 = 使能、0 = 不使能。
+            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 0);
         }
 
         /// <summary>

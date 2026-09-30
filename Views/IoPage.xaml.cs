@@ -21,8 +21,8 @@ namespace NoCodeMotion.Views
             // 仿真运行时 IO 状态变化 → 刷新"运行时"列高亮
             SimRuntime.Changed += OnSimChanged;
 
-            // 真实硬件在线时周期读取输入电平，让「电平状态」反映实际输入
-            _ioPoll.Tick += (_, _) => RefreshInputLevels();
+            // 周期读取输入 / 输出电平，让两张表的「电平状态」反映真实硬件
+            _ioPoll.Tick += (_, _) => RefreshLevels();
             _ioPoll.Start();
 
             Unloaded += (_, _) =>
@@ -39,6 +39,13 @@ namespace NoCodeMotion.Views
             OutputGrid?.Items.Refresh();
         }
 
+        /// <summary>周期刷新输入 / 输出两张表的电平状态。</summary>
+        private void RefreshLevels()
+        {
+            RefreshInputLevels();
+            RefreshOutputLevels();
+        }
+
         /// <summary>硬件就绪时周期读取输入点电平（未接卡 / 仿真不轮询，避免无谓开销）。</summary>
         private void RefreshInputLevels()
         {
@@ -51,6 +58,41 @@ namespace NoCodeMotion.Views
                 try { io.Value = (int)HardwareBridge.Current.ReadInput(io); }
                 catch { /* 单点读失败不影响其它 */ }
             }
+        }
+
+        /// <summary>
+        /// 周期读回输出点**真实**电平（卡上的实际输出，不是界面期望值）。
+        /// <para>仿真模式没有卡可读，改为回放 <see cref="SimRuntime"/> 里记录的输出状态，
+        /// 这样流程 / 3D 视图驱动过的输出也能在表里实时亮起来。</para>
+        /// </summary>
+        private void RefreshOutputLevels()
+        {
+            var outputs = ProjectStore.Data?.Outputs;
+            if (outputs == null) return;
+
+            bool sim = HardwareSetup.Mode == HardwareMode.Simulation || !HardwareSetup.IsCardReady;
+
+            foreach (var io in outputs)
+            {
+                if (io == null) continue;
+                // 用户正在这一行编辑（如改名称 / 套码）时不打断
+                if (IsRowEditing(OutputGrid, io)) continue;
+
+                try
+                {
+                    if (sim) io.Value = SimRuntime.GetOutput(io.Name);
+                    else io.Value = (int)HardwareBridge.Current.ReadOutput(io);
+                }
+                catch { /* 单点读失败不影响其它 */ }
+            }
+        }
+
+        /// <summary>该行是否正处于编辑态（编辑框有焦点）——编辑时不要用采样值覆盖输入框所在行。</summary>
+        private static bool IsRowEditing(DataGrid grid, object item)
+        {
+            if (grid == null || !grid.IsKeyboardFocusWithin) return false;
+            var cell = grid.CurrentCell;
+            return cell.IsValid && ReferenceEquals(cell.Item, item);
         }
     }
 }

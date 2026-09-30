@@ -334,24 +334,49 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <!-- 开关：单击切换该输出点电平，真正下发到控制卡（开=绿 / 关=灰） -->
-                        <DataGridTemplateColumn Header="开关" Width="72" IsReadOnly="True">
+                        <!-- 开 / 关 两列按钮：直接置位 / 复位该输出点（真正下发到控制卡）
+                             当前状态高亮：开=绿、关=灰，另一列弱化，方便一眼看出实际电平 -->
+                        <DataGridTemplateColumn Header="开" Width="52" IsReadOnly="True">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Command="{Binding DataContext.OutputPanel.ToggleOutputCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                            CommandParameter="{Binding}" FontSize="11" Height="22" MinWidth="52" Padding="8,2"
+                                    <Button Command="{Binding DataContext.OutputPanel.OutputHighCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}" Content="开"
+                                            FontSize="11" Height="22" MinWidth="40" Padding="6,2"
                                             HorizontalAlignment="Center" VerticalAlignment="Center" Cursor="Hand">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                <Setter Property="Background" Value="#E2E8F0"/>
-                                                <Setter Property="Foreground" Value="#334155"/>
                                                 <Setter Property="BorderThickness" Value="0"/>
-                                                <Setter Property="Content" Value="关"/>
+                                                <Setter Property="Background" Value="#E2E8F0"/>
+                                                <Setter Property="Foreground" Value="#94A3B8"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Value}" Value="1">
                                                         <Setter Property="Background" Value="#22C55E"/>
                                                         <Setter Property="Foreground" Value="White"/>
-                                                        <Setter Property="Content" Value="开"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="关" Width="52" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding DataContext.OutputPanel.OutputLowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}" Content="关"
+                                            FontSize="11" Height="22" MinWidth="40" Padding="6,2"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center" Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Background" Value="#E2E8F0"/>
+                                                <Setter Property="Foreground" Value="#94A3B8"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Value}" Value="0">
+                                                        <Setter Property="Background" Value="#475569"/>
+                                                        <Setter Property="Foreground" Value="White"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>

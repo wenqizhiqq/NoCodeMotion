@@ -118,6 +118,8 @@ namespace NoCodeMotion.Services.Hardware.Cards
         private bool _warnedExpansion;
         /// <summary>轴号越界（轴号 ≥ 卡族轴数）只提示一次，避免每个动作都刷屏。</summary>
         private bool _warnedAxisNoRange;
+        /// <summary>「同一控制器下两根轴用了同一个轴号」只提示一次（键 = 控制器名#轴号）。</summary>
+        private readonly HashSet<string> _warnedAxisDuplicate = new HashSet<string>(StringComparer.Ordinal);
 
         public WenQiZhiCardBridge(Action<string> log = null)
         {
@@ -363,7 +365,28 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
             lock (_gate)
             {
-                if (slot.Axes.TryGetValue(no, out var existing)) return (slot, existing);
+                if (slot.Axes.TryGetValue(no, out var existing))
+                {
+                    // ★ 这根「轴号」已经被另一根轴占用了。slot.Axes 以轴号为键，所以第二根轴会
+                    //   悄悄复用第一根的 IAxis 实例（AxisID / AxisWhichCardNo 是实例字段，
+                    //   且卡族的读位置 / 回零 / 读状态都不带轴号参数）—— 两根轴会指向同一个物理通道，
+                    //   卡内缓冲被互相抢占 → Jog 报 8194「普通缓冲满」。
+                    //   工程里「轴1」的轴号必须是 0、「轴2」是 1、依此类推（和 IO 序号一样从 0 开始）。
+                    if (!string.Equals(existing.AxisName, axis.Name, StringComparison.Ordinal))
+                    {
+                        string dupKey = $"{axis.Controller}#{no}";
+                        if (_warnedAxisDuplicate.Add(dupKey))
+                        {
+                            Log($"[卡族·警告] 控制器「{axis.Controller}」上，轴「{axis.Name}」与轴「{existing.AxisName}」"
+                                + $"的「轴号」都是 {no} —— 两根轴会共用同一个底层轴对象（实际驱动同一个物理轴通道），"
+                                + "卡内指令缓冲互相抢占，Jog / 回零通常报 8194「普通缓冲满」。"
+                                + "「轴号」与 IO 序号一样**从 0 开始且不可重复**：轴1→0、轴2→1、轴3→2…"
+                                + "请到「轴」页把「轴号」逐个改成 0、" + (no + 1) + "…，"
+                                + "或在「控制器」页重新点一次「连接控制器」按底层轴数自动重新生成轴。");
+                        }
+                    }
+                    return (slot, existing);
+                }
 
                 IAxis a;
                 try { a = slot.Runtime.NewAxis(); }
@@ -773,6 +796,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             try
             {
                 int res = a.SetCardAxisPulseEquival(cardNo, axisNo, (int)Math.Round(equiv));
+                _lastRatioRes[RatioKey(axis)] = res;   // 供 AxisFailHint 直接讲清楚（见该字段说明）
                 if (res != 0)
                     Log($"[卡族·提示] 轴「{axis.Name}」（卡{cardNo} 轴{axisNo}，卡族 {slot.Family?.Key}）"
                         + $"脉冲当量下发返回非 0（{res}），当前当量 = {equiv:0.###} pulse/unit。"
@@ -781,6 +805,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             }
             catch (Exception ex)
             {
+                _lastRatioRes[RatioKey(axis)] = RatioPushThrew;
                 // 参考实现里不少卡族的这个接口是未完成的（直接 throw）——只提示，不改变既有行为。
                 Log($"[卡族·提示] 轴「{axis.Name}」下发脉冲当量失败：{ex.GetType().Name}；"
                     + "该卡族的脉冲当量接口可能未实现，以 unit 为单位的运动 / 置位指令可能不可用。");
@@ -819,21 +844,131 @@ namespace NoCodeMotion.Services.Hardware.Cards
         }
 
         /// <summary>
-        /// 轴类指令被卡拒绝（返回非 0）时追加的「现场可执行」排查提示。
-        /// <para>卡只回一个数字（如 Jog 8194 / 设零点 20480），不查手册根本看不出原因，
-        /// 所以把现场真正会踩到的几件事直接写进报错里，别让操作员对着数字猜。</para>
+        /// 每根轴「脉冲当量下发到卡」的最近一次返回码（键 = 控制器名#轴号）。
+        /// <para>★ 为什么值得记：研控 MCN420 的轴指令全是 unit 版（<c>YK_vmove</c> /
+        /// <c>YK_pmove</c> / <c>YK_set_command_position</c> …），卡内靠「指令位置比率」
+        /// （<c>YK_set_command_ratio</c>，pulses/unit）把 unit 换算成脉冲。<b>比率没写进卡（为 0）时
+        /// 这些指令会被卡直接拒绝</b>，只回一个错误码（现场常见 8194 / 20480），完全看不出原因。
+        /// 下发结果记在这里，失败时由 <see cref="AxisFailHint"/> 直接讲清楚。</para>
+        /// <para>取值：0 = 下发成功；其它 = 卡返回码；<see cref="RatioPushThrew"/> = 该接口抛异常
+        /// （参考实现里不少卡族的当量接口是未完成的）。</para>
         /// </summary>
-        private static string AxisFailHint(AxisItem axis)
+        private static readonly ConcurrentDictionary<string, int> _lastRatioRes
+            = new ConcurrentDictionary<string, int>();
+
+        /// <summary>当量下发接口抛异常（而不是返回错误码）时的哨兵值。</summary>
+        private const int RatioPushThrew = int.MinValue;
+
+        private static string RatioKey(AxisItem axis) => $"{axis?.Controller}#{axis?.AxisNo}";
+
+        /// <summary>
+        /// 已按类型缓存的「卡族错误码 → 中文含义」反射句柄（卡族提供了 <c>GetErrorInfo(int)</c> 才有）。
+        /// </summary>
+        private static readonly ConcurrentDictionary<Type, System.Reflection.MethodInfo> _errInfoMethods
+            = new ConcurrentDictionary<Type, System.Reflection.MethodInfo>();
+
+        /// <summary>
+        /// 取卡族自带的「错误码 → 中文含义」文本。
+        /// <para>如研控 MCN42 的 <c>AxisRealization.GetErrorInfo(int)</c>，表来自随程序发布的
+        /// <c>Mcn420ErrorCode.xml</c>（与该卡族使用的 MCN420.dll 同版本）。卡族没提供 / 查不到时
+        /// 返回空串 —— 不猜、不编。</para>
+        /// </summary>
+        private static string CardCodeText(IAxis a, int code)
         {
-            double equiv = EquivOf(axis);
-            return "。请依次确认："
-                 + "① 该轴是否已「使能」——伺服未锁轴时卡会拒绝运动 / 置位指令"
-                 + "（研控 Sevon 低电平有效，点「使能」后伺服应锁轴）"
-                 + "；②「轴」页的「脉冲当量」是否为机械实际值（当前按 "
-                 + equiv.ToString("0.###") + " pulse/unit 下发；为 0 或填错都会让卡拒绝以 unit 为单位的指令）"
-                 + "；③ 该轴「轴号」与卡上轴号是否一致（卡轴号从 0 开始，8 轴卡是 0~7）"
-                 + "；④ 伺服是否报警、正负限位是否被压住（看该轴「报警 / 正极限 / 负极限」列）"
-                 + "；⑤「控制器」页的卡型号是否与实物一致。";
+            if (a == null || code == 0) return string.Empty;
+            var mi = _errInfoMethods.GetOrAdd(a.GetType(), t =>
+            {
+                var m = t.GetMethod("GetErrorInfo",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                    null, new[] { typeof(int) }, null);
+                return (m != null && m.ReturnType == typeof(string)) ? m : null;
+            });
+            if (mi == null) return string.Empty;
+            try { return mi.Invoke(a, new object[] { code }) as string ?? string.Empty; }
+            catch { return string.Empty; }
+        }
+
+        /// <summary>
+        /// 研控 MCN42 系列的「缓冲占用类」错误码：这些码的含义都是
+        /// 「卡内已有动作占着缓冲、新指令下不进去」，而非「未使能」或「当量为 0」。
+        /// <para>8192/8193 0/1 通道缓冲满，8194 普通缓冲满，12288/12289 0/1 通道连续轨迹缓冲满，
+        /// 20480/20481 0/1 通道轴未运动完成，24576/24577 0/1 通道前瞻未完成写入 JOG、
+        /// 60000 轴被占用。码字取自随程序发布的 Mcn420ErrorCode.xml。</para>
+        /// </summary>
+        private static bool IsBufferBusyCode(int code)
+        {
+            switch (code)
+            {
+                case 8192: case 8193: case 8194:
+                case 12288: case 12289:
+                case 20480: case 20481:
+                case 24576: case 24577:
+                case 60000:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// 轴类指令被卡拒绝（返回非 0）时追加的「现场可执行」排查提示。
+        /// <para>卡只回一个数字（Jog 8194 / 设零点 20480），不查手册根本看不出原因。
+        /// 所以**先译出卡自己的错误码含义**，再列真正会导致它被拒的几件事。</para>
+        /// <para>★ 不要再把 8194 / 20480 归因成「脉冲当量为 0」—— 卡手册里
+        /// 8194 = 普通缓冲满出错、20480 = 0 通道轴未运动完成，都与当量无关。</para>
+        /// </summary>
+        private static string AxisFailHint(AxisItem axis, IAxis a, int code)
+        {
+            var sb = new StringBuilder("。");
+            string meaning = CardCodeText(a, code);
+            if (!string.IsNullOrEmpty(meaning)) sb.Append("卡返回码含义：").Append(meaning).Append('。');
+
+            // ★ 卡自己的表已说明了这些码的含义，不要再把它们归因成「未使能」或「当量为 0」。
+            //   8194 = 普通缓冲满、20480 = 0 通道轴未运动完成、60000 = 轴被占用 —— 都是
+            //   「卡内指令缓冲还没空出来」，现场动作是先点「停止」清缓冲，不是去重查轴号。
+            bool bufferBusy = IsBufferBusyCode(code);
+
+            // ★ 先把「脉冲当量到底有没有写进卡」说清楚：卡内比率为 0 时，以 unit 为单位的
+            //   运动 / 置位指令会被卡直接拒绝，这是最容易被忽略的一环。
+            //   → 但它和缓冲满不是同一件事：只有卡不是缓冲满、且当量确实没写进去时才把它当主因报。
+            int rres;
+            bool hasRatio = _lastRatioRes.TryGetValue(RatioKey(axis), out rres);
+            if (!bufferBusy && hasRatio)
+            {
+                if (rres == RatioPushThrew)
+                    sb.Append("⚠ 该轴的「脉冲当量」下发时抛异常（该卡族的当量接口可能未实现），")
+                      .Append("卡内「指令位置比率」可能仍为 0 —— 比率为 0 时以 unit 为单位的指令会被卡直接拒绝。");
+                else if (rres != 0)
+                    sb.Append($"⚠ 该轴的「脉冲当量」下发返回 {rres}（未成功写入卡），")
+                      .Append("卡内「指令位置比率」可能仍为 0 —— 请到「轴」页确认「脉冲当量」，")
+                      .Append("必要时用厂商工具确认卡内「指令位置比率」已生效。");
+                else
+                    sb.Append($"该轴的「脉冲当量」已下发成功（{EquivOf(axis):0.###} pulse/unit）。");
+            }
+
+            if (bufferBusy)
+            {
+                // 缓冲满类：直接给动作，不再反问轴号 / 当量这些已被排除的项。
+                sb.Append("该码说明卡内已有一条动作占着缓冲、还没执行完，新指令进不去。请先到轴页点「停止」清空卡内缓冲，再重新 Jog。")
+                  .Append("若点「停止」后仍报同一码，说明上一条位置指令始终未到位（伺服未使能 / 报警 / 限位压住 都会造成这种情况）：")
+                  .Append("① 该轴是否真的已「使能」（点「使能」后伺服应锁轴、轴页「使能」列应变色）")
+                  .Append("；② 伺服是否报警、正负限位是否被压住（看该轴「报警 / 正极限 / 负极限」列）。")
+                  .Append("这两项都没问题才怀疑卡型号与实物不一致。");
+                return sb.ToString();
+            }
+
+            sb.Append("请依次确认：")
+              .Append("① 该轴是否**真的**已「使能」——点「使能」后伺服应锁轴、轴页「使能」列应显示已使能；")
+              .Append("未锁轴时卡会拒绝运动 / 置位指令，这是「点了使能但轴不动」最常见的原因")
+              .Append("；② 该轴「轴号」与卡上轴号是否一致 —— 注意**「轴号」和 IO 序号一样从 0 开始、且不可重复**：")
+              .Append("「轴1」的轴号应是 0、「轴2」是 1、「轴3」是 2…（8 轴卡是 0~7）")
+              .Append("；若两根轴填了同一个轴号，它们会共用同一个底层轴通道（卡内缓冲互相抢占，Jog 最容易报 8194）")
+              .Append("；③ 伺服是否报警、正负限位是否被压住、INP 到位信号是否有效（看该轴「报警 / 正极限 / 负极限」列）")
+              .Append("；④「轴」页的「脉冲当量」是否为机械实际值（当前按 ")
+              .Append(EquivOf(axis).ToString("0.###"))
+              .Append(" pulse/unit 下发）")
+              .Append("；⑤「控制器」页的卡型号是否与实物一致。");
+            return sb.ToString();
         }
 
         /// <summary>
@@ -951,7 +1086,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                     if (r1 != 0) return $"点动失败：下发速度曲线返回 {r1}（检查脉冲当量 / 加减速是否合理）";
 
                     int res = a.CardAxisPointMovement(BuildMotionParam(axis, cardNo, distance, 0, v));   // 0 = 相对
-                    if (res != 0) return $"点动下发失败（卡返回 {res}）{AxisFailHint(axis)}";
+                    if (res != 0) return $"点动下发失败（卡返回 {res}）{AxisFailHint(axis, a, res)}";
                 }
 
                 Log($"[卡族{(sim ? "·模拟卡" : "")}] 轴「{axis.Name}」点动 {distance} {axis.Unit}（速度 {v} {axis.Unit}/s）");
@@ -997,7 +1132,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
                 mpm.Dir = positive ? 1 : 0;                 // 0 = 负方向，1 = 正方向
                 int res = a.CardAxisSerialMovement(mpm);
-                if (res != 0) return $"Jog 下发失败（卡返回 {res}）{AxisFailHint(axis)}";
+                if (res != 0) return $"Jog 下发失败（卡返回 {res}）{AxisFailHint(axis, a, res)}";
 
                 Log($"[卡族{(sim ? "·模拟卡" : "")}] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动（速度 {v} {axis.Unit}/s），松开按钮停止");
                 return null;
@@ -1021,7 +1156,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 EnsureAxisRatio(slot, a, axis);   // unit→脉冲 换算依赖卡内当量
                 int res = a.SetCardAxisCurrentPosition(cardNo, axisNo, 0);
                 if (res != 0)
-                    return $"设零点失败（卡{cardNo} 轴{axisNo}，卡族 {slot?.Family?.Key} 返回 {res}）{AxisFailHint(axis)}";
+                    return $"设零点失败（卡{cardNo} 轴{axisNo}，卡族 {slot?.Family?.Key} 返回 {res}）{AxisFailHint(axis, a, res)}";
                 Log($"[卡族] 轴「{axis.Name}」当前位置已置零");
                 return null;
             }
@@ -1236,6 +1371,44 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 $"等待输入「{io.Name}」= {value} 超时（{Options.IoWaitTimeoutMs}ms）。"
                 + $"请检查传感器接线、电平设置（当前 {io.Level}）与卡号 / 寻址是否正确"
                 + $"（当前按 {DescribeIoAddress(io)} 读，读到的原始值 {io.Value}）。");
+        }
+
+        /// <summary>
+        /// 读回输出点**真实**状态（卡上的实际输出，已按电平设置还原为逻辑值）。
+        /// <para>用于 IO 页 250ms 定时刷新：外部（PLC / 手操盒 / 流程 / 别的界面）动过输出时能如实反映，
+        /// 而不是一直显示界面上的期望值。读失败 / 控制器未连接 → 返回当前 <c>io.Value</c>（不清零）。</para>
+        /// </summary>
+        public double ReadOutput(IoItem io)
+        {
+            var (slot, expansion) = IoOf(io);
+            if (slot == null || !slot.Ready) return io.Value;
+
+            int raw = 0;
+            try
+            {
+                if (expansion)
+                {
+                    ushort node = ExpansionNode(io);
+                    ushort bit = (ushort)Math.Max(io.Sequence, 0);
+                    ushort val = 0;
+                    Guard(() => slot.Runtime.ExtOut.EGetExpandIOOutBit(slot.CardNo, node, bit, ref val));
+                    raw = val;
+                }
+                else
+                {
+                    ushort bit = (ushort)MainBoardBit(io);
+                    Guard(() => raw = slot.Runtime.OutIo.GetCardPortNoOutState(slot.CardNo, bit));
+                }
+            }
+            catch
+            {
+                // 定时刷新用：单点读失败不能把整页刷崩，保持界面现值。
+                return io.Value;
+            }
+
+            int value = ApplyLevel(raw, io.Level);
+            io.Value = value;
+            return value;
         }
 
         public void WriteOutput(IoItem io, int value)

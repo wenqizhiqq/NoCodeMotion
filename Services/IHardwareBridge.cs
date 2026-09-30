@@ -61,6 +61,13 @@ namespace NoCodeMotion.Services
         /// <summary>阻塞等待输入点变为 value（0/1），超时由对接层按设备处理。</summary>
         void WaitInput(IoItem io, int value);
 
+        /// <summary>
+        /// 读回输出点**真实**电平（0/1，已按 <c>io.Level</c> 还原为逻辑值）。
+        /// <para>用于 IO 页定时刷新「输出状态」：读回的是卡上的实际输出，而不是界面上的期望值 ——
+        /// 这样外部（PLC / 手操盒 / 流程）改过输出、或下发失败时，界面能如实反映。</para>
+        /// </summary>
+        double ReadOutput(IoItem io);
+
         /// <summary>设置输出点电平为 value（0/1）。</summary>
         void WriteOutput(IoItem io, int value);
 

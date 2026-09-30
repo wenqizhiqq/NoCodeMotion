@@ -94,6 +94,7 @@
     <None Include="Native\MCC800S.dll" Link="MCC800S.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\MCCE135.dll" Link="MCCE135.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\MCN420.dll" Link="MCN420.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\Mcn420ErrorCode.xml" Link="Mcn420ErrorCode.xml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\MCX08.dll" Link="MCX08.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\PCI400.dll" Link="PCI400.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\PLT.dll" Link="PLT.dll" CopyToOutputDirectory="PreserveNewest" />
