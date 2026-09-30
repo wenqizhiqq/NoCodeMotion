@@ -26,6 +26,9 @@
 
 ## 控制卡 + 仿真
 - 桥接 `WenQiZhiCardBridge`；模式 CardFamilies/Leadshine/Simulation。硬件读数必须在后台线程。模拟卡：IsSimulation、设速只认 SetCardAxisTProfile、使能 active-low、无相对坐标、回零前 EnsureSimReady。BepuPhysics v2：SolveDescription(1,1)、SpringSettings(30f,1f)。
+- ★★ **寻址一律 0 基**：`AxisItem.AxisNo` = 卡轴号（→ `IAxis.AxisID`）；`IoItem.Sequence` = 卡上位号（`MainBoardBit = ModuleNo × BitsPerModule + Sequence`，雷赛 `BitNo` 同式）。自动生成轴 / IO（`AxisControllerViewModel.GenerateAxisPoints/GenerateIoPoints`）与手工新增（`IoViewModel.MakeNew`）都必须从 0 起 —— 曾按 1..N 生成导致「轴使能设置不了（错位/越界）+ IO 位号整体偏移一位」。
+- ★ 卡族层轴 / IO 动作**返回非 0 只记日志不抛**，界面若要报「成功」必须自己**读回真实状态**（见 `AxisRowViewModel.InvokeEnable`），否则现场看到「点了没反应也没报错」。
+- ★ 移植卡族的 `*SDK.cs` 里不少函数是「未添加」（直接 throw，如 MCN420SeriesSDK.DmcGetCardAxisIOState）。要读轴 IO 状态字时，先确认该函数实现了没有；没实现就用该卡原生 `YK_*` 单点读接口按 dmc_axis_io_status 位布局自己拼（MCN42Series 已这么做）。
 
 ## Lua 编辑器
 - xshd 内联在 `Views/LuaEditorView.xaml.cs` 的 `LuaXshdXml` 常量（外部文件被磁盘加密读不了）；xshd 注释不能含 `--`。

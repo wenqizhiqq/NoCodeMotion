@@ -328,16 +328,36 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
            2 EL- 1：表示负硬限位信号–EL 为 ON； 0：OFF
            3 EMG 1：表示急停信号 EMG 为 ON； 0：OFF
            4 ORG 1：表示原点信号 ORG 为 ON； 0：OFF
+           5 INP 1：表示到位信号 INP 为 ON； 0：OFF（仅 0~3 轴）
            6 SL+ 1：表示正软限位信号+SL 为 ON； 0：OFF
            7 SL- 1：表示负软件限位信号-SL 为 ON； 0：OFF
+           8 Sevon 1：表示使能信号 Sevon 为 ON； 0：OFF
            其他位 保
            */
+            // ★ NoCodeMotion 补：原实现调 SDK 的 DmcGetCardAxisIOState，而移植版 MCN420SeriesSDK 里
+            //   那个函数是「未添加」（直接 throw，且签名也拿不出状态值）→ 轴页的
+            //   「报警 / 正负限位 / 原点 / 急停 / 使能 / 状态字」整片读不到（显示「—」），
+            //   现场就表现为「点了使能看不到任何反馈」。这里改用 MCN420.dll 里**已经可用**的
+            //   YK_get_axis_* / YK_get_emg_status / YK_get_sevon_config 按上表拼出状态字。
+            //   只在读到明确的 1 时置位，读到错误码 / -1 一律按「无信号」处理，不猜。
+            int card = AxisWhichCardNo;
+            int axis = AxisID;
             uint status = 0;
-            var res = YK_MCN42SeriesSDK.Instance.DmcGetCardAxisIOState(AxisWhichCardNo, AxisID); // 修改了这里PCI9014SDK.Instance.GetAxisCardIOStatus(AxisParameter.AxisID, ref status);
-            if (res == 0)
-                return (int)status;
-            else
-                return res;
+
+            if (MCN420.YK_get_axis_alm_status((uint)card, (uint)axis) == 1) status |= 1u << 0;              // ALM 报警
+            if (MCN420.YK_get_axis_positive_limit_status((uint)card, (uint)axis) == 1) status |= 1u << 1;   // 正硬限位
+            if (MCN420.YK_get_axis_negative_limit_status((uint)card, (uint)axis) == 1) status |= 1u << 2;   // 负硬限位
+            if (MCN420.YK_get_emg_status((uint)card) == 1) status |= 1u << 3;                               // 急停
+            if (MCN420.YK_get_axis_home_status((uint)card, (uint)axis) == 1) status |= 1u << 4;             // 原点 ORG
+
+            // 到位信号只对 0~3 轴有效（手册：axis 0~3），4~7 轴读回的是错误码，不能当「到位」用。
+            if (axis >= 0 && axis <= 3 &&
+                MCN420.YK_get_axis_inp_status((uint)card, (uint)axis) == 1) status |= 1u << 5;              // 到位 INP
+
+            // 伺服使能端口电平：1 = 使能信号 Sevon 为 ON（与本类 CardAxisWriteSevonPin 的约定一致）
+            if (MCN420.YK_get_sevon_config((uint)card, (uint)axis) == 1) status |= 1u << 8;                // Sevon 使能
+
+            return (int)status;
         }
 
         /// <summary>

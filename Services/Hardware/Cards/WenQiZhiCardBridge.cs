@@ -116,6 +116,8 @@ namespace NoCodeMotion.Services.Hardware.Cards
         private bool _warnedNoController;
         private bool _warnedUnmatched;
         private bool _warnedExpansion;
+        /// <summary>轴号越界（轴号 ≥ 卡族轴数）只提示一次，避免每个动作都刷屏。</summary>
+        private bool _warnedAxisNoRange;
 
         public WenQiZhiCardBridge(Action<string> log = null)
         {
@@ -341,6 +343,20 @@ namespace NoCodeMotion.Services.Hardware.Cards
             if (slot == null || !slot.Ready) return (slot, null);
 
             int no = Math.Max(axis.AxisNo, 0);
+
+            // ★ 轴号越界先明确报出来：卡轴号是**从 0 开始**的 0~N-1，工程里若填成 1~N，
+            //   每根轴都会错位一根、最后一根直接寻址到卡上不存在的轴（使能 / 运动 / 读位置全失败，
+            //   而底层只是返回一个非 0 错误码）。这类「轴使能设置不了」九成是轴号错位引起的。
+            int maxAxis = slot.Family != null ? slot.Family.AxisCount : 0;
+            if (maxAxis > 0 && no >= maxAxis && !_warnedAxisNoRange)
+            {
+                _warnedAxisNoRange = true;
+                Log($"[卡族·警告] 轴「{axis.Name}」的「轴号」= {no}，但卡族 {slot.Family.Key} 只有 {maxAxis} 根轴"
+                    + $"（轴号应为 0~{maxAxis - 1}）。卡轴号从 0 开始，轴号填错会寻址到不存在的轴："
+                    + "使能 / 运动 / 读位置都会失败。请到「轴」页把该轴的「轴号」改成 0~"
+                    + (maxAxis - 1) + "（或在「控制器」页重新点一次「连接控制器」按底层轴数重新生成轴）。");
+            }
+
             lock (_gate)
             {
                 if (slot.Axes.TryGetValue(no, out var existing)) return (slot, existing);
@@ -1070,6 +1086,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 _warnedNoController = false;
                 _warnedUnmatched = false;
                 _warnedExpansion = false;
+                _warnedAxisNoRange = false;
             }
             // ★ 关卡是硬件操作：放到 _gate 之外，避免持锁卡住 UI 线程的状态查询。
             foreach (var s in old)

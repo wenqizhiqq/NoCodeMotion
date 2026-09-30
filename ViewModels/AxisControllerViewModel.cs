@@ -377,11 +377,14 @@ namespace NoCodeMotion.ViewModels
 
             int nIn = 0, nOut = 0;
 
-            // 主板 IO：模块=0，序号 1..N
-            for (int s = 1; s <= System.Math.Max(ctl.InIoCount, 0); s++)
-                data.Inputs.Add(MakeIo(tag, "输入", ++nIn, 0, s));
-            for (int s = 1; s <= System.Math.Max(ctl.OutIoCount, 0); s++)
-                data.Outputs.Add(MakeIo(tag, "输出", ++nOut, 0, s));
+            // 主板 IO：模块=0，序号 0..N-1
+            // ★ 「序号」就是卡上的 IO 位号，**必须从 0 开始**：底层取位号是
+            //   「模块 × 每模块位数 + 序号」（见 WenQiZhiCardBridge.MainBoardBit / LeadshineHardwareBridge.BitNo），
+            //   以前从 1 开始生成 → 每个点都错位一位（输入1 打到位号 1），最后一个点还会超到 位号 N（卡上不存在）。
+            for (int s = 0; s < System.Math.Max(ctl.InIoCount, 0); s++)
+                data.Inputs.Add(MakeIo(tag, "输入", nIn++, 0, s));
+            for (int s = 0; s < System.Math.Max(ctl.OutIoCount, 0); s++)
+                data.Outputs.Add(MakeIo(tag, "输出", nOut++, 0, s));
 
             // 扩展模块 IO：模块号从 1 起，按「数量」逐个模块实例展开（与卡族扩展IO寻址一致：模块=从站号、序号=位号）
             int moduleOrdinal = 0;
@@ -391,10 +394,11 @@ namespace NoCodeMotion.ViewModels
                 for (int u = 0; u < units; u++)
                 {
                     moduleOrdinal++;
-                    for (int s = 1; s <= System.Math.Max(m.InIo, 0); s++)
-                        data.Inputs.Add(MakeIo(tag, "输入", ++nIn, moduleOrdinal, s));
-                    for (int s = 1; s <= System.Math.Max(m.OutIo, 0); s++)
-                        data.Outputs.Add(MakeIo(tag, "输出", ++nOut, moduleOrdinal, s));
+                    // 扩展模块的位号同样从 0 开始（和从站自身的位号一致）
+                    for (int s = 0; s < System.Math.Max(m.InIo, 0); s++)
+                        data.Inputs.Add(MakeIo(tag, "输入", nIn++, moduleOrdinal, s));
+                    for (int s = 0; s < System.Math.Max(m.OutIo, 0); s++)
+                        data.Outputs.Add(MakeIo(tag, "输出", nOut++, moduleOrdinal, s));
                 }
             }
 
@@ -428,8 +432,14 @@ namespace NoCodeMotion.ViewModels
 
             int count = ctl.DetectedAxisCount > 0 ? ctl.DetectedAxisCount : System.Math.Max(ctl.AxisCount, 0);
             int n = 0;
+            // ★ 「轴号」= 卡上的轴号，**必须从 0 开始**（卡轴号一般是 0~N-1）：
+            //   以前从 1 开始生成 → 每根轴都错位一根（轴1 实际驱动的是卡上第 2 根轴），
+            //   最后一根还会越界（8 轴卡生成出「轴号 8」，卡上只有 0~7）—— 使能 / 运动 / 读位置全部失败。
             for (int s = 1; s <= count; s++)
-                data.Axes.Add(MakeAxis(tag, ++n, s));
+            {
+                data.Axes.Add(MakeAxis(tag, s, s - 1));   // 名称「轴1..轴N」/ 轴号 0..N-1
+                n++;
+            }
 
             Catalog.SetAxis(data.Axes.Select(x => x.Name));
             ProjectStore.ScheduleSave();

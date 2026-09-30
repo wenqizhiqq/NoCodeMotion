@@ -38,7 +38,9 @@ namespace NoCodeMotion.ViewModels
 
         protected override IoItem MakeNew(int index)
         {
-            int nextSeq = Items.Count == 0 ? 1 : Items.Max(i => i.Sequence) + 1;
+            // ★ 「序号」就是卡上的 IO 位号，从 0 开始（底层按「模块 × 每模块位数 + 序号」取位号）。
+            //   以前从 1 开始 → 手工新增的第一个点就映射到位号 1，和接线错开一位。
+            int nextSeq = Items.Count == 0 ? 0 : Items.Max(i => i.Sequence) + 1;
             return new IoItem
             {
                 Name = $"{Title}{nextSeq}",

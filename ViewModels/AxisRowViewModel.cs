@@ -31,8 +31,10 @@ namespace NoCodeMotion.ViewModels
             _item = item ?? throw new ArgumentNullException(nameof(item));
 
             // 「使能 / 不使能」是伺服上下电动作，不受「轴权限」门控（轴权限只管点动 / 回零 / 设零点），所以不设 CanExecute。
-            EnableCommand = new RelayCommand(_ => Invoke("使能", () => AxisMonitorService.Enable(_item)));
-            DisableCommand = new RelayCommand(_ => Invoke("不使能", () => AxisMonitorService.Disable(_item)));
+            // ★ 这两条必须**读回真实状态**再回报（见 InvokeEnable）：卡族层下发失败时只在日志里记一行，
+            //   界面若一律报「已下发」，现场就是「点了使能没反应、也没报错」，查不出是轴号错还是卡不支持。
+            EnableCommand = new RelayCommand(_ => InvokeEnable("使能", true));
+            DisableCommand = new RelayCommand(_ => InvokeEnable("不使能", false));
             StopCommand = new RelayCommand(_ => Invoke("停止", () => AxisMonitorService.Stop(_item)), _ => _item.AllowManual);
             HomeCommand = new RelayCommand(_ => Invoke("回零", () => AxisMonitorService.Home(_item)), _ => _item.AllowHome);
             SetZeroCommand = new RelayCommand(_ => SetZero(), _ => _item.AllowSetZero);
@@ -187,6 +189,59 @@ namespace NoCodeMotion.ViewModels
                 {
                     Report($"轴「{name}」{action} 失败：{ex.Message}", true);
                 }
+            });
+        }
+
+        /// <summary>
+        /// 使能 / 不使能：下发后**读回真实伺服使能状态**再回报。
+        /// <para>为什么要读回：卡族的「轴使能」接口返回非 0 时，桥里只记一行日志、不抛异常，
+        /// 界面若一律报「已下发」，现场看到的就是「点了使能但没任何变化，也没有报错」——
+        /// 分不清是轴号填错、伺服没上电 / 有报警，还是这张卡根本不支持这根轴的使能。
+        /// 现在把「读回仍是未使能」直接报到状态栏（红字），并给出三条最可能的处置方向。</para>
+        /// </summary>
+        private async void InvokeEnable(string action, bool enable)
+        {
+            if (NotConnected(action)) return;
+            string name = Name;
+            await Task.Run(() =>
+            {
+                string err = null;
+                try
+                {
+                    if (enable) AxisMonitorService.Enable(_item);
+                    else AxisMonitorService.Disable(_item);
+                }
+                catch (Exception ex) { err = ex.Message; }
+
+                // 读回真实使能状态；读不到（该项不支持读）时返回 null，不谎报。
+                bool? readBack = null;
+                try
+                {
+                    var snap = AxisMonitorService.Read(_item);
+                    if (snap.Connected) readBack = snap.Enabled;
+                }
+                catch { /* 读不回就只报「已下发」 */ }
+
+                if (err != null)
+                {
+                    Report($"轴「{name}」{action} 失败：{err}", true);
+                    return;
+                }
+
+                if (readBack == null)
+                {
+                    Report($"轴「{name}」{action} 已下发（读回状态不可用，请对照「轴状态」里的「使能」行确认）。", false);
+                    return;
+                }
+
+                bool same = readBack.Value == enable;
+                string tail = same
+                    ? $"（读回：{(readBack.Value ? "已使能" : "未使能")}）"
+                    : $"（★ 读回仍为「{(readBack.Value ? "已使能" : "未使能")}」，指令可能未生效。请依次确认："
+                      + "① 该轴的「轴号」与卡上轴号是否一致（卡轴号从 0 开始，8 轴卡是 0~7）"
+                      + "；② 伺服是否上电 / 有无报警（看「报警」列）"
+                      + "；③ 该卡族的使能接口是否支持这根轴（如研控 MCN420 的伺服使能只对 0~3 轴有效））";
+                Report($"轴「{name}」{action} 已下发{tail}", !same);
             });
         }
 

@@ -508,7 +508,9 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 NativeDlls = new[] { "MCN420.dll" },
                 BusTypes = new[] { CardBusType.Pulse },
                 Aliases = new[] { "MCN42", "MCC42", "MCN420", "42系列", "0x1A4", "0x1A5" },
-                Note = "MCN420.dll。固定规格：8 轴 / 16 入 / 16 出（底层实现离线返回 0、IO 默认填 24，需目录规格兜底）。",
+                Note = "MCN420.dll。固定规格：8 轴 / 16 入 / 16 出（底层实现离线返回 0、IO 默认填 24，需目录规格兜底）。"
+                     + "轴号 0~7、IO 位号 0~15，均从 0 开始。★ 伺服使能（Sevon，占用通用输出 OUT32~OUT35）"
+                     + "只对 0~3 轴有效，4~7 轴没有该功能，这几根轴请在驱动器侧处理使能信号。",
                 AxisCount = 8, InIoCount = 16, OutIoCount = 16,
                 Create = F(() => new WenQiZhi.Domain.MotionCard.Common.YKMCN42Series.CardRealization(),
                            () => new WenQiZhi.Domain.MotionCard.Common.YKMCN42Series.AxisRealization(),
