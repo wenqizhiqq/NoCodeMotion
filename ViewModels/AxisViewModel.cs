@@ -141,7 +141,8 @@ namespace NoCodeMotion.ViewModels
         private void OnDetectedCountsChanged(object? sender, EventArgs e)
             => OnPropertyChanged(nameof(DetectedAxisCount));
 
-        protected override AxisItem CreateNewItem() => new AxisItem { Name = $"轴{Counter + 1}" };
+        // ★ 手工新增的轴名称也从 0 起（轴0、轴1…），与「轴号从 0 开始」保持同一套约定。
+        protected override AxisItem CreateNewItem() => new AxisItem { Name = $"轴{Counter}" };
 
         /// <summary>配置页改值实时下发设备：速度变化下发到卡，使能/电平变化重新使能轴。</summary>
         protected override void PushItem(AxisItem item, string? propertyName)

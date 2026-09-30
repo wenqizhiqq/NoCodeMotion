@@ -165,7 +165,7 @@ namespace NoCodeMotion.ViewModels
             _jogAxis = i;
             _jogDir = dir;
             StartJogTimer();
-            var name = string.IsNullOrWhiteSpace(AxisStates[i].AxisName) ? $"轴{i + 1}" : AxisStates[i].AxisName;
+            var name = string.IsNullOrWhiteSpace(AxisStates[i].AxisName) ? $"轴{i}" : AxisStates[i].AxisName;
             JogHint = $"● JOG {name} 连续运动中（{(dir > 0 ? "正向 +" : "反向 −")}），松开鼠标停止";
         }
 

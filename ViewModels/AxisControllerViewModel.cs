@@ -377,9 +377,9 @@ namespace NoCodeMotion.ViewModels
 
             int nIn = 0, nOut = 0;
 
-            // 主板 IO：模块=0，序号 0..N-1
-            // ★ 「序号」就是卡上的 IO 位号，**必须从 0 开始**：底层取位号是
-            //   「模块 × 每模块位数 + 序号」（见 WenQiZhiCardBridge.MainBoardBit / LeadshineHardwareBridge.BitNo），
+            // 主板 IO：模块=0，位号 0..N-1；名称「输入0..输入(N-1)」——名称里的数就是位号，不再差 1。
+            // ★ 「位号」就是卡上的 IO 位号，**必须从 0 开始**：底层取位号是
+            //   「模块 × 每模块位数 + 位号」（见 WenQiZhiCardBridge.MainBoardBit / LeadshineHardwareBridge.BitNo），
             //   以前从 1 开始生成 → 每个点都错位一位（输入1 打到位号 1），最后一个点还会超到 位号 N（卡上不存在）。
             for (int s = 0; s < System.Math.Max(ctl.InIoCount, 0); s++)
                 data.Inputs.Add(MakeIo(tag, "输入", nIn++, 0, s));
@@ -432,12 +432,12 @@ namespace NoCodeMotion.ViewModels
 
             int count = ctl.DetectedAxisCount > 0 ? ctl.DetectedAxisCount : System.Math.Max(ctl.AxisCount, 0);
             int n = 0;
-            // ★ 「轴号」= 卡上的轴号，**必须从 0 开始**（卡轴号一般是 0~N-1）：
-            //   以前从 1 开始生成 → 每根轴都错位一根（轴1 实际驱动的是卡上第 2 根轴），
-            //   最后一根还会越界（8 轴卡生成出「轴号 8」，卡上只有 0~7）—— 使能 / 运动 / 读位置全部失败。
-            for (int s = 1; s <= count; s++)
+            // ★ 「轴号」= 卡上的轴号，**必须从 0 开始**（卡轴号一般是 0~N-1）；
+            //   并且**名称也用同一个号**（轴0、轴1、轴2…），名称里的数 = 轴号，不再差 1。
+            //   以前名称从 1 起、轴号从 1 起 → 每根轴都错位一根、最后一根越界（8 轴卡生成出「轴号 8」）。
+            for (int s = 0; s < count; s++)
             {
-                data.Axes.Add(MakeAxis(tag, s, s - 1));   // 名称「轴1..轴N」/ 轴号 0..N-1
+                data.Axes.Add(MakeAxis(tag, s, s));   // 名称「轴0..轴(N-1)」/ 轴号 0..N-1（同名同号）
                 n++;
             }
 

@@ -29,8 +29,8 @@
 `net10.0-windows` + `UseWPF=true`，控制台 Exe 也必须开 WPF；`NoWarn=NU1701;CA1416;CS8632`；
 **必须放在工程目录之外**）。`System.IO` 不在隐式 using 里，要显式 `using System.IO;`。
 **2026-09-30 `%TEMP%` 被清理过，原先 708 条断言的工程已丢失**，现为聚焦版（`S1~S14` 错误码表 /
-`T1~T4` `NormalizeSevon` / `U1~U14` `AxisFailHint` / `V1~V3` `IsBufferBusyCode`）→ **37 PASS / 0 FAIL**；
-源码文本守卫另放 `%TEMP%\ncm_patch\guard_sources.py`（**在仓库根目录跑**）→ 54 PASS。
+`T1~T4` `NormalizeSevon` / `U1~U14` `AxisFailHint` / `V1~V3` `IsBufferBusyCode` / `W1~W9` 名称 0 基）→ **46 PASS / 0 FAIL**；
+源码文本守卫另放 `%TEMP%\ncm_patch\guard_sources.py`（**在仓库根目录跑**）→ 60 PASS。
 
 **冒烟与 `--no-incremental` 构建绝对不能并行**：都写工程根下的 `obj\`，并行会互删中间产物，
 报成片**假错**（`CS0103 InitializeComponent` / `CS5001 没有 Main` / `CS2001 缺 *.g.cs`），
@@ -63,11 +63,15 @@
   **任何运行态 / 只读展示属性都必须在这条链上被过滤掉**，否则每秒几十次写盘。
 - `PointItem.ConditionRowCount = 6`，`EnsureConditionRows()` 规整为固定 6 行并裁尾部空行。
   **往条件集合塞数据只能按下标覆写，不能 Append。**
-- **「轴号 / IO 序号」一律从 0 开始，且同一 Controller 内不可重复**（和 IO 位号同一套约定）。
-  显示名是「轴1..轴N」「输入1..」，**但底层号是 0..N-1** —— 名字比号大 1 是刻意的，别去「对齐」。
-  自动生成见 `AxisControllerViewModel.GenerateAxisPoints`（`MakeAxis(tag, s, s - 1)`）与
-  `GenerateIoPoints`（主板 `MakeIo(..., 0, s)`）；**两处以前都从 1 生成，是已修的错位 bug**，
-  代码里有 ★ 注释，别再改回去。
+- **「轴号 / IO 序号」一律从 0 开始，且同一 Controller 内不可重复**（和 IO 位号同一套约定）；
+  **「名称」也用同一个号** —— 轴0、轴1、轴2…；输入0、输出0…（2026-09-30 用户明确要求名称也 0 基，
+  不再「名称轴1 ↔ 轴号0」差 1）。自动生成见 `AxisControllerViewModel.GenerateAxisPoints`
+  （**`for (s=0; s<count; s++) MakeAxis(tag, s, s)`**，名称 = 轴号）与 `GenerateIoPoints`
+  （主板 `MakeIo(..., 0, s)`）；新增项 `AxisViewModel.CreateNewItem` = `轴{Counter}`；
+  占位名见 `EngineerViewModel` / `PointViewModel`（`轴{i}`）。
+  **这两处生成器以前都从 1 生成，是已修的错位 bug**，代码里有 ★ 注释，别再改回去。
+  **刻意不动**：`XlsxProjectStore` 里点位表的**列名** `轴1位置/…/轴1名`（`for i=1..4`）是表格 schema
+  （固定 4 轴槽），改了读不了老工程。**老工程不迁移**，只影响以后新生成。
   **★ 重复轴号是静默灾难**：`WenQiZhiCardBridge.AxisOf` 里 `slot.Axes` 是
   `Dictionary<轴号, IAxis>`，而卡族的读位置 / 回零 / 读状态**都不带卡号轴号**（读实例字段
   `AxisID`）→ 两根轴填同一轴号时第二根**复用第一根的 `IAxis` 实例**，两轴指向同一物理通道、

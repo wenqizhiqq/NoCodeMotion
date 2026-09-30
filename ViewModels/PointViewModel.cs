@@ -383,7 +383,7 @@ namespace NoCodeMotion.ViewModels
                 if (dlg.ShowDialog() != true) return;
 
                 var inv = CultureInfo.InvariantCulture;
-                var axisNames = table.AxisNames.Select((nm, i) => string.IsNullOrWhiteSpace(nm) ? $"轴{i + 1}" : nm).ToList();
+                var axisNames = table.AxisNames.Select((nm, i) => string.IsNullOrWhiteSpace(nm) ? $"轴{i}" : nm).ToList();
                 var lines = new List<string>
                 {
                     "点位名称,时序标记," + string.Join(",", axisNames.Select(n => n + " 位置")) + "," +
@@ -504,7 +504,7 @@ namespace NoCodeMotion.ViewModels
             _jogAxis = i;
             _jogDir = dir;
             StartJogTimer();
-            var name = string.IsNullOrWhiteSpace(AxisStates[i].AxisName) ? $"轴{i + 1}" : AxisStates[i].AxisName;
+            var name = string.IsNullOrWhiteSpace(AxisStates[i].AxisName) ? $"轴{i}" : AxisStates[i].AxisName;
             JogHint = $"● JOG {name} 连续运动中（{(dir > 0 ? "正向 +" : "反向 −")}），松开鼠标停止";
         }
 
