@@ -949,11 +949,14 @@ namespace NoCodeMotion.Services.Hardware.Cards
             if (bufferBusy)
             {
                 // 缓冲满类：直接给动作，不再反问轴号 / 当量这些已被排除的项。
-                sb.Append("该码说明卡内已有一条动作占着缓冲、还没执行完，新指令进不去。请先到轴页点「停止」清空卡内缓冲，再重新 Jog。")
-                  .Append("若点「停止」后仍报同一码，说明上一条位置指令始终未到位（伺服未使能 / 报警 / 限位压住 都会造成这种情况）：")
-                  .Append("① 该轴是否真的已「使能」（点「使能」后伺服应锁轴、轴页「使能」列应变色）")
-                  .Append("；② 伺服是否报警、正负限位是否被压住（看该轴「报警 / 正极限 / 负极限」列）。")
-                  .Append("这两项都没问题才怀疑卡型号与实物不一致。");
+                sb.Append("该码说明卡内已有一条动作占着缓冲、还没执行完，新指令进不去。")
+                  .Append("★ 程序已经在每次 Jog 前自动停一次轴（立刻停）来清缓冲，仍报这个码说明「停不掉」，")
+                  .Append("也就是上一条运动始终没结束。请按顺序做：")
+                  .Append("① 到轴页点「停止」再点「Jog」，看能否走一次（能走一次 = 就是上一条运动压着缓冲）；")
+                  .Append("② 若仍报同一码，看上一条运动为什么结束不了：伺服未使能（「使能」列应变色）/ ")
+                  .Append("报警 / 正负限位压住（看「报警 / 正极限 / 负极限」列）—— 三者任一都会让卡认定轴还在运动中；")
+                  .Append("③ 再不行就断电重启控制卡（卡内缓冲只能由「运动到位」或「停止」释放，卡死时断电最干脆）。")
+                  .Append("（诊断信息见下方日志「指令缓冲占用」一行：非 0 就是被占着。）");
                 return sb.ToString();
             }
 
@@ -1099,6 +1102,10 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// 启动连续点动（Jog）。返回 null 表示成功，否则是失败原因。
         /// ★ **必须先下发速度曲线再发连续运动指令**：正常定位（<see cref="MoveAxisRel"/>）就是这么做的；
         /// 少了这一步，卡会「收下指令但按无效 profile 跑」—— 现场表现就是「点了 Jog 轴不动」。
+        /// ★ **发 Jog 前先停一次轴**：Jog 用的是**连续运动**（研控 <c>YK_vmove</c> / 雷赛 <c>dmc_vmove</c>），
+        /// 它不会自己结束。上一次 Jog 若没被真正停掉，卡内普通缓冲一直被它占着，
+        /// 下一条 <c>YK_vmove</c> 会被卡直接拒绝 —— 现场就是「再点 Jog 报 8194 普通缓冲满，
+        /// 而且点「停止」也救不回来」。这里在启动前主动停一次，让 Jog 可反复点、不越点越死。
         /// </summary>
         public string StartAxisJog(AxisItem axis, bool positive, double speed)
         {
@@ -1124,6 +1131,12 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 }
                 else
                 {
+                    // ★ 先停掉上一条连续运动，释放卡内缓冲（见方法注释：否则第二次 Jog 会报 8194）。
+                    //   用「立刻停」(stop_mode=1)：减速停有可能因为速度曲线异常而久停不下，
+                    //   Jog 是手动点动，立刻停更符合操作预期，也更能保证缓冲真的空出来。
+                    try { a.StopCardAxisMovement(cardNo, Math.Max(axis.AxisNo, 0), 1); } catch { /* 卡族没实现就跳过 */ }
+                    ClearBufferHint(slot, a, axis);   // 读一次缓冲占用，日志里留证据（不影响控制流）
+
                     EnsureAxisRatio(slot, a, axis);   // unit→脉冲 换算依赖卡内当量
                     int r1 = a.SetCardAxisMotionalVel(BuildMotionParam(axis, cardNo, 0, 1, v));
                     if (r1 != 0) return $"Jog 失败：下发速度曲线返回 {r1}（检查脉冲当量 / 加减速是否合理）";
@@ -1139,6 +1152,34 @@ namespace NoCodeMotion.Services.Hardware.Cards
             }
             catch (Exception ex) { return "Jog 异常：" + ex.Message; }
         }
+
+        /// <summary>
+        /// 读一次研控 MCN420 的「指令缓冲占用数」并写日志（仅诊断，绝不抛、绝不影响控制流）。
+        /// <para>8194「普通缓冲满」的现场争议点就是「缓冲到底有没有被占着」。卡自带
+        /// <c>YK_get_cmd_list_buf_num(card, channel)</c> 可读；读得到就把证据留在日志里，
+        /// 免得每次都靠猜。非研控卡族没有这个符号，反射取不到就静默跳过。</para>
+        /// </summary>
+        private void ClearBufferHint(CardSlot slot, IAxis a, AxisItem axis)
+        {
+            if (a == null || axis == null) return;
+            try
+            {
+                var mi = _bufNumMethods.GetOrAdd(a.GetType(), t =>
+                    t.GetMethod("GetCmdListBufNum",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                        null, new[] { typeof(int) }, null));
+                if (mi == null) return;
+
+                int cardNo = slot != null ? slot.CardNo : 0;
+                int axisNo = Math.Max(axis.AxisNo, 0);
+                object r = mi.Invoke(a, new object[] { cardNo });
+                Log($"[卡族·诊断] 轴「{axis.Name}」启动 Jog 前：卡{cardNo} 指令缓冲占用 = {r}（0 = 空；非 0 = 上一条运动仍占着，Jog 会被拒 8194）");
+            }
+            catch { /* 诊断失败就算了，绝不因此中断 Jog */ }
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, System.Reflection.MethodInfo> _bufNumMethods
+            = new System.Collections.Concurrent.ConcurrentDictionary<Type, System.Reflection.MethodInfo>();
 
         /// <summary>把当前指令位置置零（设零点）。返回 null 表示成功，否则是失败原因。</summary>
         public string SetAxisZero(AxisItem axis)
@@ -1647,7 +1688,9 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 OffSetPos = axis.HomeOffset,
                 EtherCATHomeOffset = axis.HomeOffset,
                 HomeDir = (axis.DirLevel ?? string.Empty).Contains("负") ? 0 : 1,
-                OrgLevel = (axis.EnableLevel ?? string.Empty).Contains("低") ? 0 : 1,
+                // ★ 修：这里原来读的是 axis.EnableLevel（复制粘贴错位），应为 axis.OriginLevel。
+                //   「回零原点电平」与「伺服使能电平」是两个独立字段，读错会让回零找错边沿。
+                OrgLevel = (axis.OriginLevel ?? string.Empty).Contains("低") ? 0 : 1,
                 EZlevel = 0,
                 ELEnable = true,
             };

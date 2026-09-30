@@ -1,4 +1,4 @@
-﻿﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ◆温⁠启‎志‎◆‎编⁠写​◇⁣微‌信⁠﹕‍1‎8‎7‌◆‏1​9‌3‍6‍◇‏1‌3‌9‏9‌　​※⁣保‌留‏所‏有⁣权‏利⁠请⁠勿‏删‎除‎◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ────────────────────────────────────────────────────────────────
@@ -4069,6 +4069,21 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         {
             // 见 NmcSetCardAxisEnable 的说明：研控 MCN420 的使能脚低电平有效，写 1 = 不使能。
             return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 1);
+        }
+
+        /// <summary>
+        /// 读「指令列表缓冲」当前还占着多少条指令（诊断用）。
+        /// <para>研控 MCN420 的运动指令（<c>YK_vmove</c> / <c>YK_pmove</c>）会进卡内指令缓冲。
+        /// 缓冲没空出来时，新指令直接返回 <b>8194「普通缓冲满」</b>。现场光看这一个码看不出
+        /// 「到底有没有被占着、占几条」，用这个接口把数字读出来，证据就落在日志里。</para>
+        /// <para>只对研控 MCN420 有效；桥接层通过反射调用（其它卡族没有这个符号，会静默跳过）。</para>
+        /// </summary>
+        /// <param name="CardNo">控制卡卡号</param>
+        /// <param name="channel">通道号（普通缓冲常用 0）</param>
+        /// <returns>缓冲中剩余的指令条数（&lt; 0 表示读失败）</returns>
+        public int GetCmdListBufNum(int CardNo, int channel = 0)
+        {
+            return MCN420.YK_get_cmd_list_buf_num((ushort)CardNo, (ushort)channel);
         }
 
         /// <summary>

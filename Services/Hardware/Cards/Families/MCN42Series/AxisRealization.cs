@@ -1,4 +1,4 @@
-﻿﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ◆温⁠启‎志‎◆‎编⁠写​◇⁣微‌信⁠﹕‍1‎8‎7‌◆‏1​9‌3‍6‍◇‏1‌3‌9‏9‌　​※⁣保‌留‏所‏有⁣权‏利⁠请⁠勿‏删‎除‎◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ────────────────────────────────────────────────────────────────
@@ -669,6 +669,20 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         public int ClearCardAxisAlarmState(int CardNo, int axis)
         {
             return YK_MCN42SeriesSDK.Instance.NmcClearCardAxisErrCode(CardNo, axis);
+        }
+
+
+        /// <summary>
+        /// 读「指令列表缓冲」当前占用的指令条数（诊断用，桥接层反射调用）。
+        /// <para>Jog 用的是连续运动（<c>YK_vmove</c>），它不会自己结束；上一条没停干净时卡内缓冲
+        /// 一直被占着，新 Jog 会被卡拒 <b>8194「普通缓冲满」</b>。把这个数读出来写日志，
+        /// 现场就能一眼看出「缓冲到底空没空」，不必再猜。</para>
+        /// <returns>缓冲中剩余的指令条数（&lt; 0 表示读失败）</returns>
+        /// </summary>
+        public int GetCmdListBufNum(int CardNo)
+        {
+            // 普通缓冲（channel 0）：8194 说的就是这个缓冲。
+            return YK_MCN42SeriesSDK.Instance.GetCmdListBufNum(CardNo, 0);
         }
 
 

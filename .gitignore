@@ -363,3 +363,6 @@ MigrationBackup/
 FodyWeavers.xsd
 /_out/runtimes
 /_out
+
+# 误用 `>nul` 重定向留下的 0 字节垃圾文件（Windows 保留设备名，删除工具会把 `nul` 当设备而拒删）
+/nul
