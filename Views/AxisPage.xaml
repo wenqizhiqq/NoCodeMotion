@@ -100,13 +100,15 @@
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="加速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Accel}"/>
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="加速时间"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Accel}"
+                                             ToolTip="加速时间（秒）：从起始速度加速到额定速度所需的时间，不是加速度值。常用 0.1~0.5 秒。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="减速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Decel}"/>
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="减速时间"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Decel}"
+                                             ToolTip="减速时间（秒）：从额定速度减速到停止所需的时间，不是减速度值。常用 0.1~0.5 秒。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">

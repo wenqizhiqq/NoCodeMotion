@@ -1147,7 +1147,26 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 int res = a.CardAxisSerialMovement(mpm);
                 if (res != 0) return $"Jog 下发失败（卡返回 {res}）{AxisFailHint(axis, a, res)}";
 
-                Log($"[卡族{(sim ? "·模拟卡" : "")}] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动（速度 {v} {axis.Unit}/s），松开按钮停止");
+                // ★ 把「用户填的数」与「真正下发到卡的值」都写出来，现场才能一眼看出单位换算对不对：
+                //   真实卡拿到的是 unit/s（卡内按 YK_set_command_ratio 自动换脉冲），模拟卡拿到的是 pps。
+                double equiv = EquivOf(axis);
+                string unitNote = sim
+                    ? $"（模拟卡：{v:0.###} {axis.Unit}/s × 当量 {equiv:0.###} = {v * equiv:0.###} pulse/s）"
+                    : $"（{v:0.###} {axis.Unit}/s，脉冲当量 {equiv:0.###} pulse/unit 已下发到卡，卡内自动折算脉冲）";
+                Log($"[卡族{(sim ? "·模拟卡" : "")}] 轴「{axis.Name}」Jog {(positive ? "正向" : "反向")} 已启动：{unitNote}，"
+                    + $"加减速时间 {axis.Accel:0.###}s，松开按钮停止");
+                // ★ 自诊断：Accel/Decel 现在是**加速时间(秒)**。若某轴还留着旧的「加速度值」大数
+                //   （如 50 / 200），会被读成 50 秒 / 200 秒的斜坡 —— 现场又变成「轴很慢」。
+                //   主动说出来，免得再走一遍「速度填多大都没用」的排查。
+                if (!sim && (axis.Accel >= 5 || axis.Decel >= 5))
+                {
+                    string rampWarn = $"轴「{axis.Name}」的加减速时间偏大（加速 {axis.Accel:0.###}s / 减速 {axis.Decel:0.###}s）："
+                        + "这两个字段现在是「从起始速度到额定速度所需的秒数」，不是加速度值。"
+                        + "若本想填加速度（如 50），现在会被当成 50 秒的斜坡，轴会显得很慢 —— "
+                        + "请到「轴」页把它改成秒数（常用 0.1~0.5s）。";
+                    Log("[卡族·提示] " + rampWarn);
+                    try { StatusBarService.ReportInfo(rampWarn); } catch { /* 状态栏不可用就算了 */ }
+                }
                 return null;
             }
             catch (Exception ex) { return "Jog 异常：" + ex.Message; }
@@ -1171,9 +1190,19 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 if (mi == null) return;
 
                 int cardNo = slot != null ? slot.CardNo : 0;
-                int axisNo = Math.Max(axis.AxisNo, 0);
                 object r = mi.Invoke(a, new object[] { cardNo });
+                int n = r is int iv ? iv : int.MinValue;
                 Log($"[卡族·诊断] 轴「{axis.Name}」启动 Jog 前：卡{cardNo} 指令缓冲占用 = {r}（0 = 空；非 0 = 上一条运动仍占着，Jog 会被拒 8194）");
+                // ★ 手动 Jog 走轴页（不经 Lua），此时 HardwareLog.Sink 是 null，Log() 只会落到
+                //   Debug.WriteLine —— 现场根本看不见（用户上一轮贴的报错里就没有这一行）。
+                //   再推一次状态栏：状态栏在轴页顶部，点完 Jog 立刻能看到读数。
+                try
+                {
+                    StatusBarService.ReportInfo(n == 0
+                        ? $"Jog 前缓冲读数：卡{cardNo} 轴「{axis.Name}」指令缓冲占用 = 0（空）"
+                        : $"Jog 前缓冲读数：卡{cardNo} 轴「{axis.Name}」指令缓冲占用 = {r}（非 0，被占着）");
+                }
+                catch { /* 状态栏不可用就算了 */ }
             }
             catch { /* 诊断失败就算了，绝不因此中断 Jog */ }
         }
@@ -1641,11 +1670,15 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <summary>按轴配置拼一个卡族用的运动参数模型。</summary>
         private static MotionParamModel BuildMotionParam(AxisItem axis, int cardNo, double dist, int posiMode, double speed)
         {
-            // AxisItem 的加减速填的是「加速度值」，卡族这边要的是「加速时间(s)」。
-            // 换算：t = v / a（a 为 0 时退化为 0.1s，避免除零让卡收到非法参数）。
+            // ★ 语义修正（2026-09-30）：AxisItem 的「加速度 / 减速度」按**加速时间(秒)**理解 ——
+            //   即「从起始速度加速到本轴额定速度所需的时间」。不再做 v/accel 的换算：
+            //   那样算出来的 400 秒斜坡会让轴一路爬行（v=20000、accel=50 -> tacc=400s），
+            //   现场表现就是「速度填多大都没用、轴很慢」。
+            //   卡族层拿到的是秒数，会按 (vmax-vmin)/tacc 换成 unit/ms² 下发（见 DmcSetCardAxisProfileUnit）。
+            //   Accel/Decel <= 0 时给一个保守的 0.2s，避免卡收到 0 除或无穷加速度。
             double v = speed > 0 ? speed : (axis.Speed > 0 ? axis.Speed : 1);
-            double tacc = axis.Accel > 0 ? v / axis.Accel : 0.1;
-            double tdec = axis.Decel > 0 ? v / axis.Decel : 0.1;
+            double tacc = axis.Accel > 0 ? axis.Accel : 0.2;
+            double tdec = axis.Decel > 0 ? axis.Decel : tacc;
 
             return new MotionParamModel
             {
@@ -1683,8 +1716,9 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 StartVel = low,
                 LowVel = low,
                 HighVel = high,
-                TaccTime = axis.Accel > 0 ? high / axis.Accel : 0.1,
-                TdecTime = axis.Decel > 0 ? high / axis.Decel : 0.1,
+                // ★ 与 BuildMotionParam 同口径：Accel/Decel 是**加速时间(秒)**，不再除以速度。
+                TaccTime = axis.Accel > 0 ? axis.Accel : 0.2,
+                TdecTime = axis.Decel > 0 ? axis.Decel : 0.2,
                 OffSetPos = axis.HomeOffset,
                 EtherCATHomeOffset = axis.HomeOffset,
                 HomeDir = (axis.DirLevel ?? string.Empty).Contains("负") ? 0 : 1,

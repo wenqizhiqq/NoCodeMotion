@@ -17,9 +17,9 @@ namespace NoCodeMotion.Models
 
         // 运动参数
         private double _pulsePerUnit;                // 脉冲当量（每单位脉冲数）
-        private double _speed = 100;                 // 运行速度
-        private double _accel = 50;                  // 加速度
-        private double _decel = 50;                  // 减速度
+        private double _speed = 10000;               // 运行速度（默认 10000；载入老工程时由 ProjectData.MigrateAxisDefaults 写回）
+        private double _accel = 0.2;                 // 加速时间（秒，从起始速度到额定速度所需时间；非加速度值）
+        private double _decel = 0.2;                 // 减速时间（秒，同上）
         private double _jerk;                        // 加加速度
 
         // 回零参数
@@ -70,8 +70,8 @@ namespace NoCodeMotion.Models
         private bool _allowSetZero = true;           // 允许设零点
 
         // 手动调试参数（「轴状态与控制」表用）
-        private double _jogStep = 1;                 // 点动距离（正负决定方向）
-        private double _manualSpeed = 20;            // 手动速度（点动 / Jog 前下发到卡）
+        private double _jogStep = 10000;             // 点动距离（正负决定方向）
+        private double _manualSpeed = 10000;         // 手动速度（点动 / Jog 前下发到卡）
 
         public string AxisType { get => _axisType; set => SetField(ref _axisType, value); }
         public int AxisNo { get => _axisNo; set => SetField(ref _axisNo, value); }

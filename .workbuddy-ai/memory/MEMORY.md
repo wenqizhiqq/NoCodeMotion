@@ -133,13 +133,42 @@
   `IsBufferBusyCode(code)`（10 码 `8192/8193/8194/12288/12289/20480/20481/24576/24577/60000`）
   走**动作支**，其余走 5 项清单；当量结论只在**非缓冲满**时当主因报（`if (!bufferBusy && hasRatio)`）。
   **教训：提示里的排查项若已被用户排除，重复列只会让人不再看提示。**
-- **★ 8194 已落地处置**（`StartAxisJog`）：非模拟卡分支在 `EnsureAxisRatio` 前
-  **先 `StopCardAxisMovement(cardNo, axis, 1)`（`1`=立刻停）**清卡内缓冲 —— `YK_vmove` 是连续运动、
-  不会自己结束，上一条没真停掉就把普通缓冲占死、下条被拒 8194。
-  新增 `ClearBufferHint`（反射轴实现 `GetCmdListBufNum(int)` → 日志「指令缓冲占用」一行，
-  **只诊断绝不抛**）+ `MCN420SeriesSDK.GetCmdListBufNum` / `AxisRealization.GetCmdListBufNum`（channel 0）。
-  8194 提示重写为「①点停再 Jog ②查上一条为何结束不了（未使能/报警/限位）③断电重启」。
+- **★ 8194 真因 = `Channel = 2`（非法通道），不是「缓冲被占」**（曾追错一轮）。
+  `Native/MCN420.cs` 里所有请求结构体的 `Channel` 原生注释都是 **`// 0 or 1`**，
+  `YK_vmove` 文档也写「通道0 or 1；点位运动下通道默认写 0 即可」。**SDK 里硬编码写了 `2`**
+  （4 处：Jog 预置 / 点位预置 / **`DmcSetCardAxisProfileUnit` 重建的 Jog 参数 —— Jog 实际走这条** /
+  IO 计数），卡无法解析通道 → 直接回 8194「普通缓冲满」。`MCN420.MaxInterpChannel = 2` 是
+  **插补通道数**常量、零引用，纯粹是「把范围 0..1 误当取值 2」的来源。已全部改 `Channel = 0`。
+  **★ 教训：错误码的中文名会骗人。** 查不出原因时，**先把该指令每个字段逐个对照原生 struct
+  注释核一遍值域**，再去猜机制。值域写错是「复制粘贴」类 bug → **grep 整个文件那个字面量**，
+  别只修眼前那一处。
+- **★ 8194 的辅助处置**（保留但非主因）：`StartAxisJog` 非模拟卡分支在 `EnsureAxisRatio` 前
+  **先 `StopCardAxisMovement(cardNo, axis, 1)`（`1`=立刻停）**清卡内缓冲；
+  `ClearBufferHint` 读一次 `GetCmdListBufNum` 占用并**同时** `Log()` + `StatusBarService.ReportInfo()`
+  （手动 Jog 不经 Lua，`HardwareLog.Sink` 为 null，只 Log 的话现场看不见）。
+  `MCN420SeriesSDK.GetCmdListBufNum` / `AxisRealization.GetCmdListBufNum`（channel 0）。
   顺带修 `BuildSimParam` 的 `OrgLevel` 误读 `EnableLevel` → 改 `OriginLevel`。
+- **轴默认值 = 10000**：`AxisItem._speed`(运行速度) / `_jogStep`(点动距离/寸动) / `_manualSpeed`
+  (手动速度) 三者默认均 10000。**老工程靠 `ProjectData.MigrateAxisDefaults()` 写回**，
+  在 `EnsurePointTables()` 末尾调用（`ProjectStore.Load` 与 `ProjectManager.LoadInto` 两条路径都必经）。
+  **只改「还等于旧默认值 100/1/20」的轴**，用户亲手调过的值保留（幂等、null 安全）。
+  **★ 存储层按反射持久化所有 public 读写属性** → 只改字段初始值对老工程无效，必须有迁移。
+- **★ 「轴移动很慢、速度填多大都没用」的真因 = 加减速字段语义错**（2026-09-30 第三轮）。
+  `BuildMotionParam` 把 `AxisItem.Accel/Decel` 当**加速度值**再算 `tacc = v / accel`：
+  `v=20000、accel=50 → tacc = 400 秒`的斜坡 → 轴全程在斜坡底部爬。
+  **注意：`DmcSetCardAxisProfileUnit` 里 `InterpoAcc=(v/1000)/(tacc*1000)` 与「accel/1e6」代数恒等**，
+  所以「公式错」是假象 —— **真正错的是「把秒当值、又把值当秒」的语义**，改公式没用、必须改语义。
+  **已在三层统一改成「Accel/Decel = 加速时间(秒)」**：① `BuildMotionParam`/`BuildHomeParam`
+  直传（`axis.Accel > 0 ? axis.Accel : 0.2`，不再 `/accel`）；② `AxisItem._accel/_decel` 默认 `0.2`；
+  ③ 迁移把旧默认 `50` → `0.2`（只动等于旧值的轴）；④ 雷赛 `LtdmcCard.ApplyAxisProfile/SetSpeed/Home`
+  同口径（`dmc_set_profile_unit` 的 tacc 本就是**秒**）。**接口权威**：`IAxis.cs` 文档写着
+  `MaxVel 单位 unit/s` / **`TaccVel 加速时间 单位 s`** —— 旧代码本来就该产出一个时间。
+  Jog 日志现写明 `unit/s + 脉冲当量 + 加减速秒数`；加减速 ≥5s 时状态栏主动告警（防旧大数残留）。
+  **轴页标签也改了**：`加速度/减速度` → `加速时间/减速时间` + ToolTip 写明「秒、常用 0.1~0.5」。
+- **单位换算不双重乘**：卡族指令是 **unit 版**，卡内靠 `YK_set_command_ratio`(`pulse/unit`，即脉冲当量)
+  自己换算 → **真实卡下发 unit/s 原值，桥接层绝不能乘当量**；**模拟卡没有这层**，
+  由 `BuildSimParam` 自乘当量变 `pps`（并给 1000pps 下限）。`EnsureAxisRatio`/`PushAxisRatios`
+  只负责把当量写进卡。当量 ≤0 时 `EquivOf` 兜底为 1。
 
 ## 八、验证 UI 的硬约束（本机）
 

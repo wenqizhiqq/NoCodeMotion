@@ -83,6 +83,49 @@ namespace NoCodeMotion.Models
             // 旧字段已迁移完毕，清空避免下次载入重复迁移
             Points.Clear();
             PointAxes.Clear();
+
+            MigrateAxisDefaults();
+        }
+
+        /// <summary>老工程里轴「运行速度 / 点动距离(寸动) / 手动速度」的默认值（100 / 1 / 20）。
+        /// 旧版 AxisItem 用这三个数当默认值，落到 xlsx 里后会被当成「用户设定过的值」载回来，
+        /// 于是新默认值 10000 对老工程不生效。</summary>
+        private const double LegacyAxisSpeed = 100;
+        private const double LegacyAxisJogStep = 1;
+        private const double LegacyAxisManualSpeed = 20;
+
+        /// <summary>新默认值：运行速度 / 点动距离 / 手动速度 一律 10000。</summary>
+        public const double DefaultAxisSpeed = 10000;
+        public const double DefaultAxisJogStep = 10000;
+        public const double DefaultAxisManualSpeed = 10000;
+
+        /// <summary>老工程里轴的「加速度 / 减速度」默认值 50。旧语义下它是「加速度值」，
+        /// 新语义下 Accel/Decel 是**加速时间(秒)**——50 会被读成 50 秒斜坡，轴依然爬行。</summary>
+        private const double LegacyAxisAccel = 50;
+
+        /// <summary>新默认值：加速 / 减速时间 0.2 秒（0→额定速度的斜坡时长）。</summary>
+        public const double DefaultAxisAccel = 0.2;
+
+        /// <summary>
+        /// 把轴的速度类参数迁移到新默认值（一次性、幂等）。
+        /// <para>速度三项 → 10000；加减速 → 0.2 秒（语义由「加速度值」改为「加速时间(秒)」）。</para>
+        /// <para>★ 只改「还等于旧默认值」的轴：用户亲手调过的值（如 3000、500）保持不动 ——
+        /// 迁移的目标是「没设过的地方给个能动的默认」，不是覆盖用户设置。</para>
+        /// <para>幂等性：迁移后值 ≠ 旧值，再跑一次自然不再命中。</para>
+        /// </summary>
+        public void MigrateAxisDefaults()
+        {
+            foreach (var a in Axes)
+            {
+                if (a == null) continue;
+                if (a.Speed == LegacyAxisSpeed) a.Speed = DefaultAxisSpeed;
+                if (a.JogStep == LegacyAxisJogStep) a.JogStep = DefaultAxisJogStep;
+                if (a.ManualSpeed == LegacyAxisManualSpeed) a.ManualSpeed = DefaultAxisManualSpeed;
+                // 加减速语义变更：旧的 50（被当加速度值）-> 新的 0.2 秒（加速时间）。
+                // 只动「还等于旧默认值」的轴；用户若已把加减速设成别的数，说明他有自己的意图，保留。
+                if (a.Accel == LegacyAxisAccel) a.Accel = DefaultAxisAccel;
+                if (a.Decel == LegacyAxisAccel) a.Decel = DefaultAxisAccel;
+            }
         }
 
         /// <summary>

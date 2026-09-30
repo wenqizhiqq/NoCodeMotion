@@ -1305,13 +1305,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                         {
                             ParamRemain = 0,
                             CmdNum = 0,
-                            Channel = 2,
+                            // ★ 同上：通道合法值 0 / 1，写 2 会被卡拒。
+                            Channel = 0,
                         });
                         AxisVMoveParaDic.TryAdd(Tuple.Create(i, j), new Jog_Req_Param()
                         {
                             ParamRemain = 0,
                             CmdNum = 0,
-                            Channel = 2,
+                            // ★ 通道合法值只有 0 / 1（原生 struct 注释「通道 0 or 1」，YK_vmove 文档「通道0 or 1；
+                            //   点位运动下通道默认写 0 即可」）。原来写 2，卡无法解析该通道，
+                            //   YK_vmove 直接回 8194「普通缓冲满」—— 这就是现场 Jog 报 8194 的真因。
+                            Channel = 0,
                         });
                         MCN420.YK_set_gear_ratio((uint)i, (uint)j, 0, 0, 0);
                     }
@@ -1718,7 +1722,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                 {
                     CmdNum = 0,
                     ParamRemain = 0,
-                    Channel = 2,
+                    // ★ 必须 0 / 1（见 OpenCard 预置处说明）。这里原来也是 2 —— Jog 走的就是这条
+                    //   重建路径，所以这一处才是现场 8194 的直接来源。
+                    Channel = 0,
                     axis = (uint)axis,
                     STFlag = 1,
                     ParaType = 1,
@@ -2139,7 +2145,8 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
             {
                 CmdNum = 0,
                 CmdName = 0,
-                Channel = 2,
+                // ★ 同上：SetInputCounter_Req.Channel 注释也是「通道 0 or 1」。
+                Channel = 0,
                 Mode = 0,
                 CounterNumber = 0,
                 Enable = 1,

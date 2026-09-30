@@ -285,8 +285,11 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             double pulsePerUnit, double speed, double accel, double decel, double jerk)
         {
             double maxVel = speed > 0 ? speed : 10;
-            double tacc = accel > 0 ? maxVel / accel : 0.1;   // 加速时间 = 速度 / 加速度
-            double tdec = decel > 0 ? maxVel / decel : tacc;
+            // ★ 语义修正（2026-09-30）：accel/decel 按**加速时间(秒)**理解，
+            //   dmc_set_profile_unit 的第 5/6 参本来就是要「时间(秒)」，原样传即可。
+            //   旧写法 maxVel/accel（如 20000/50=400s）会让轴一路爬行、速度填多大都没用。
+            double tacc = accel > 0 ? accel : 0.2;
+            double tdec = decel > 0 ? decel : tacc;
             string key = $"{card}:{axis}";
             string finger = $"{pulsePerUnit}|{maxVel}|{tacc}|{tdec}|{jerk}";
             if (_axisProfileCache.TryGetValue(key, out string old) && old == finger) return;
@@ -306,8 +309,9 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
         public void SetSpeed(ushort card, ushort axis, double speed, double accel, double decel)
         {
             double maxVel = speed > 0 ? speed : 1;
-            double tacc = accel > 0 ? maxVel / accel : 0.1;
-            double tdec = decel > 0 ? maxVel / decel : tacc;
+            // ★ 同上：accel/decel 是加速时间(秒)。
+            double tacc = accel > 0 ? accel : 0.2;
+            double tdec = decel > 0 ? decel : tacc;
             Call(() => LtdmcNative.dmc_set_profile_unit(card, axis, 0, maxVel, tacc, tdec, 0), "设置轴速度");
             _axisProfileCache[$"{card}:{axis}"] = $"speed-only|{maxVel}|{tacc}|{tdec}";
         }
@@ -422,8 +426,9 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
         {
             double high = homeSpeed > 0 ? homeSpeed : 10;
             double low = creepSpeed > 0 ? creepSpeed : Math.Max(high / 10, 0.1);
-            double tacc = accel > 0 ? high / accel : 0.1;
-            double tdec = decel > 0 ? high / decel : tacc;
+            // ★ accel/decel 是加速时间(秒)，回零同样原样传。
+            double tacc = accel > 0 ? accel : 0.2;
+            double tdec = decel > 0 ? decel : tacc;
 
             if (IsBusCardFor(card))
             {
