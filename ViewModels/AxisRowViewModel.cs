@@ -30,8 +30,9 @@ namespace NoCodeMotion.ViewModels
         {
             _item = item ?? throw new ArgumentNullException(nameof(item));
 
-            // 「使能」是唯一的使能动作（「上电使能」那项是工程配置，不是按钮权限），所以不设 CanExecute。
+            // 「使能 / 不使能」是伺服上下电动作，不受「轴权限」门控（轴权限只管点动 / 回零 / 设零点），所以不设 CanExecute。
             EnableCommand = new RelayCommand(_ => Invoke("使能", () => AxisMonitorService.Enable(_item)));
+            DisableCommand = new RelayCommand(_ => Invoke("不使能", () => AxisMonitorService.Disable(_item)));
             StopCommand = new RelayCommand(_ => Invoke("停止", () => AxisMonitorService.Stop(_item)), _ => _item.AllowManual);
             HomeCommand = new RelayCommand(_ => Invoke("回零", () => AxisMonitorService.Home(_item)), _ => _item.AllowHome);
             SetZeroCommand = new RelayCommand(_ => SetZero(), _ => _item.AllowSetZero);
@@ -158,6 +159,7 @@ namespace NoCodeMotion.ViewModels
         // ===================== 命令 =====================
 
         public ICommand EnableCommand { get; }
+        public ICommand DisableCommand { get; }
         public ICommand StopCommand { get; }
         public ICommand HomeCommand { get; }
         public ICommand SetZeroCommand { get; }

@@ -72,11 +72,6 @@
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="控制器"/>
                                     <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" ItemsSource="{x:Static svc:Catalog.ControllerNames}" SelectedItem="{Binding SelectedItem.Controller, UpdateSourceTrigger=PropertyChanged}" ToolTip="该轴所属的控制器（在「控制器」页面添加）"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="上电使能"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.Enabled}" ToolTip="工程配置项：勾选后，连接控制器 / 改动该轴时会自动下发「使能」。手动使能请用右侧「轴控制」里的「使能」按钮。"/>
-                                </DockPanel>
                             </StackPanel>
                         </Border>
 
@@ -439,7 +434,11 @@
                                     <UniformGrid Columns="2" Margin="0,0,0,6">
                                         <Button Content="使能" Style="{StaticResource TtPillBlueBtn}" Margin="0,0,3,0"
                                                 Command="{Binding Monitor.EnableCommand}" ToolTip="给该轴使能（上伺服）。未使能的轴收下指令也不会动。"/>
-                                        <Button Content="停止" Style="{StaticResource TtPillRedBtn}" Margin="3,0,0,0"
+                                        <Button Content="不使能" Style="{StaticResource TtPillGrayBtn}" Margin="3,0,0,0"
+                                                Command="{Binding Monitor.DisableCommand}" ToolTip="撤销该轴使能（下伺服）。总线轴走卡层「轴失能」；脉冲卡由驱动器侧断使能信号，可能不生效。"/>
+                                    </UniformGrid>
+                                    <UniformGrid Columns="1" Margin="0,0,0,6">
+                                        <Button Content="停止" Style="{StaticResource TtPillRedBtn}"
                                                 Command="{Binding Monitor.StopCommand}" ToolTip="减速停止该轴（Jog 也用它停）"/>
                                     </UniformGrid>
                                     <UniformGrid Columns="2" Margin="0,0,0,6">

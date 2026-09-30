@@ -175,6 +175,21 @@ namespace NoCodeMotion.Services.Hardware
         /// <summary>使能轴（真实下发）。</summary>
         public static void Enable(AxisItem axis) => HardwareBridge.Current?.EnableAxis(axis);
 
+        /// <summary>
+        /// 撤销轴使能（下伺服）。
+        /// 卡族模式走具体的「轴失能」；雷赛模式走 SetServoEnable(enable:false)；仿真只记录日志。
+        /// </summary>
+        public static void Disable(AxisItem axis)
+        {
+            if (axis == null) return;
+
+            if (HardwareSetup.Mode == HardwareMode.CardFamilies)
+                HardwareSetup.CardFamilies?.DisableAxis(axis);
+            else if (HardwareSetup.Mode == HardwareMode.Leadshine)
+                (HardwareBridge.Current as LeadshineHardwareBridge)?.DisableAxis(axis);
+            // 仿真：没有真实的伺服使能位，不使能只记日志（不编造状态）
+        }
+
         /// <summary>停止轴（减速停止）。</summary>
         public static void Stop(AxisItem axis) => HardwareBridge.Current?.StopAxis(axis);
 

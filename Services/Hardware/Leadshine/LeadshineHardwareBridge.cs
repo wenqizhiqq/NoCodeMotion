@@ -248,6 +248,19 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             }
         }
 
+        /// <summary>撤销轴使能（下伺服）。总线卡走卡层失能；脉冲卡由驱动器侧断使能信号。</summary>
+        public void DisableAxis(AxisItem axis)
+        {
+            if (!Ready(axis.Name, "不使能")) return;
+            var (card, no) = Addr(axis);
+            WarnIfAxisCardMismatch(axis, card);
+
+            bool lowActive = IsLowActive(axis.EnableLevel);
+            string path = null;
+            Guard(() => path = _card.SetServoEnable(card, no, enable: false, lowActive: lowActive));
+            Log($"[雷赛] 轴「{axis.Name}」已不使能（{path}）");
+        }
+
         public void MoveAxisRel(AxisItem axis, double distance)
         {
             if (!Ready(axis.Name, $"相对移动 {distance}")) return;

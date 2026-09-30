@@ -702,7 +702,12 @@ namespace NoCodeMotion.Services.Hardware.Cards
                             ?? cands.FirstOrDefault(x => x.BusTypes.Contains(CardBusType.EtherCAT))
                             ?? cands[0];
                     }
-                    return cands.FirstOrDefault(x => x.BusTypes.Contains(CardBusType.Pulse))
+                    // 只给了「品牌 + 脉冲」时，优先挑「纯脉冲」卡族（声明支持脉冲、但不含 EtherCAT 主站），
+                    // 否则会把脉冲卡匹配到总线主站实现上 —— 例如雷赛 DMC5400（PCI 脉冲）会落到
+                    // DMC_E3032_EtherCAT 家族，于是「设零点」走了总线用的 dmc_set_position_unit 而报错。
+                    return cands.FirstOrDefault(x => x.BusTypes.Contains(CardBusType.Pulse)
+                                                    && !x.BusTypes.Contains(CardBusType.EtherCAT))
+                        ?? cands.FirstOrDefault(x => x.BusTypes.Contains(CardBusType.Pulse))
                         ?? cands[0];
                 }
             }

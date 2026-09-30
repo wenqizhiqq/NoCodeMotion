@@ -429,6 +429,37 @@ namespace NoCodeMotion.Services.Hardware.Cards
             }
         }
 
+        /// <summary>
+        /// 撤销轴使能（下伺服）。返回空；不支持该接口的卡族只记一行日志，不抛异常。
+        /// ★ 脉冲卡没有「卡层失能」这种能力（使能信号接在驱动器侧），只有总线卡会真正失能。
+        /// </summary>
+        public void DisableAxis(AxisItem axis)
+        {
+            var (slot, a) = AxisOf(axis);
+            if (a == null) { WarnNoAxis(axis, "不使能"); return; }
+
+            if (IsSimulation(slot))
+            {
+                // 模拟卡 active-low SON：写 1 = 失能（与 EnableAxis 写 0 相反，见 VirtualCardSDK 注释）。
+                int sevon = 0;
+                Guard(() => sevon = a.CardAxisWriteSevonPin(1));
+                Report("轴不使能", sevon, $"[卡族·模拟卡] 轴「{axis.Name}」已不使能（伺服使能端口置 1）");
+                return;
+            }
+
+            int res;
+            try { res = a.SetCardAxisDisable(slot.CardNo, Math.Max(axis.AxisNo, 0)); }
+            catch (Exception ex)
+            {
+                // 很多脉冲卡族没实现这个接口（参考实现里是空实现 / 未实现）——只提示，不当作错误。
+                Log($"[卡族·提示] 轴「{axis.Name}」不使能：该卡族未提供「轴失能」接口（{ex.GetType().Name}）。脉冲卡请在驱动器侧断开使能信号。");
+                return;
+            }
+            Report("轴不使能", res, $"[卡族] 轴「{axis.Name}」已不使能（卡{slot.CardNo} 轴{axis.AxisNo}，卡族 {slot.Family.Key}）");
+            if (res != 0)
+                Log($"[卡族·提示] 不使能返回非 0（{res}）：总线轴才支持卡层失能，脉冲卡请在驱动器侧处理。");
+        }
+
         public void MoveAxisRel(AxisItem axis, double distance)
         {
             var (slot, a) = AxisOf(axis);
@@ -872,8 +903,13 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
             try
             {
-                int res = a.SetCardAxisCurrentPosition(slot != null ? slot.CardNo : 0, Math.Max(axis.AxisNo, 0), 0);
-                if (res != 0) return $"设零点失败（卡返回 {res}）";
+                int cardNo = slot != null ? slot.CardNo : 0;
+                int axisNo = Math.Max(axis.AxisNo, 0);
+                int res = a.SetCardAxisCurrentPosition(cardNo, axisNo, 0);
+                if (res != 0)
+                    return $"设零点失败（卡{cardNo} 轴{axisNo}，卡族 {slot?.Family?.Key} 返回 {res}）"
+                         + "。总线轴（EtherCAT / CAN）请先「使能」并确认伺服已就绪、脉冲当量已配置后再试；"
+                         + "脉冲卡若持续失败，请核对「控制器」页的卡型号是否与实物一致。";
                 Log($"[卡族] 轴「{axis.Name}」当前位置已置零");
                 return null;
             }
