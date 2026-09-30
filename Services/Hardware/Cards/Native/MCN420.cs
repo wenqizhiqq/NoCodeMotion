@@ -2234,6 +2234,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         axis：轴号：0~3；注意：伺服使能只对0-3轴有效，其他四个轴4-7 不具备此功能；0~3轴对应的是通用输OUT32-OUT35;
         sevon_en: 设置伺服使能端口电平，0低电平；1高电平；
         返回值：错误代码。
+
+        ★ NoCodeMotion 落地注记（2026-09-30 真机实测）：sevon_en 就是**端口电平**，不是「逻辑使能」。
+          研控脉冲卡的伺服使能脚**低电平有效** → 传 0 = 使能、传 1 = 不使能。
+          对应 upper 层 NmcSetCardAxisEnable 写 0 / NmcSetCardAxisDisable 写 1。
+          （错误码表第 26 条「0 不使能；1 使能」说的不是这一层，照它写会真的把使能写反。）
         */
         [DllImport("MCN420.dll", EntryPoint = "YK_set_sevon_config", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 YK_set_sevon_config(uint CardNo, uint axis, uint sevon_en);

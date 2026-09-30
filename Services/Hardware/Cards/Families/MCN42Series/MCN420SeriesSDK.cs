@@ -4041,20 +4041,22 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <returns>错误代码</returns>
         public int NmcSetCardAxisEnable(int CardNo, int axis)
         {
-            // ★ NoCodeMotion 更正（2026-09-30 二次修正，改回 1）：第 3 个参数是**逻辑使能**，
-            //   不是端口电平。两条独立证据：
-            //     · 参考实现（随附的可用产品）MCN420SeriesSDK.NmcSetCardAxisEnable 写 1、
-            //       NmcSetCardAxisDisable 写 0；其 CardAxisWriteSevonPin(on_off) 同样是
-            //       「0 → Disable、非 0 → Enable」。
-            //     · 卡自己的错误码表 Mcn420ErrorCode.xml 第 26 条原文：
-            //       「使能出错，正确应该是 0 不使能；1 使能」。
-            //   原生声明注释「sevon_en: 设置伺服使能端口电平，0低电平；1高电平」说的是该位对应的
-            //   OUT32~OUT35 的**物理电平**，不是 API 参数语义；照它写会把使能写反 —— 现场症状正是
+            // ★ NoCodeMotion 更正（2026-09-30 三次修正，写 0）：第 3 个参数 sevon_en 是**端口电平**，
+            //   而研控脉冲卡的伺服使能脚是**低电平有效** —— 写 0 = 使能、写 1 = 不使能。
+            //
+            //   这是真机实测结论（2026-09-30 现场「使能不使能反过来了」，且确认「两个都反了」），
+            //   它推翻了同日的「二次修正」：那次按两条**文档证据**改成写 1 ——
+            //     · 参考实现 MCN420SeriesSDK.NmcSetCardAxisEnable 写 1 / Disable 写 0；
+            //     · 卡片错误码表 Mcn420ErrorCode.xml 第 26 条「使能出错，正确应该是 0 不使能；1 使能」。
+            //   两条都只说明「存在一层 1 = 使能 的语义」，但那一层**不在这个 API 上**：
+            //   原生声明（Services/Hardware/Cards/Native/MCN420.cs）原文就是
+            //   「sevon_en: 设置伺服使能端口电平，0低电平；1高电平」——写的是 OUT32~OUT35 的**物理电平**。
+            //   低电平有效 ⇒ 写 0 才锁轴。照「1 = 使能」写会实际**断电**，现场症状就是
             //   「点了使能、伺服没锁轴，于是 Jog / 设零点被卡拒绝（8194 / 20480）」。
             //
-            //   ★ 这条只适用于研控 MCN420。雷赛 / 模拟卡的 dmc_write_sevon_pin 是端口电平且
-            //     低有效（0 = 使能），两者相反，不要互相套用（见 WenQiZhiCardBridge 的模拟卡分支）。
-            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 1);
+            //   ★ 方向与雷赛 / 模拟卡的 dmc_write_sevon_pin **一致**（都是端口电平、低有效）。
+            //     若以后换卡族，请以「原生 API 声明 + 真机实测」为准，不要只信参考实现或错误码表。
+            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 0);
         }
 
         /// <summary>
@@ -4065,8 +4067,8 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <returns>错误代码</returns>
         public int NmcSetCardAxisDisable(int CardNo, int axis)
         {
-            // 见 NmcSetCardAxisEnable 的说明：研控 MCN420 是 1 = 使能、0 = 不使能。
-            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 0);
+            // 见 NmcSetCardAxisEnable 的说明：研控 MCN420 的使能脚低电平有效，写 1 = 不使能。
+            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 1);
         }
 
         /// <summary>
