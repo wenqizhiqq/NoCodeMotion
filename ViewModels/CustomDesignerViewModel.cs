@@ -144,15 +144,72 @@ namespace NoCodeMotion.ViewModels
             {
                 _selectedPage = TabPageList[0];
                 RebuildTabPages();
+                _lastX = model.X; _lastY = model.Y; _lastW = model.Width; _lastH = model.Height;
             }
             model.PropertyChanged += (_, e) =>
             {
+                // 分页容器几何变化 → 里面的子控件跟着动 / 跟着缩放（类似 VS2022 设计器容器联动）
+                if (model.WidgetType == "分页" && Owner != null)
+                {
+                    switch (e.PropertyName)
+                    {
+                        case nameof(DesignerWidget.X):
+                            MoveTabChildren(Model.X - _lastX, 0); _lastX = Model.X; break;
+                        case nameof(DesignerWidget.Y):
+                            MoveTabChildren(0, Model.Y - _lastY); _lastY = Model.Y; break;
+                        case nameof(DesignerWidget.Width):
+                            ScaleTabChildren(Model.Width / _lastW, 1); _lastW = Model.Width; break;
+                        case nameof(DesignerWidget.Height):
+                            ScaleTabChildren(1, Model.Height / _lastH); _lastH = Model.Height; break;
+                    }
+                }
+
                 if (e.PropertyName != nameof(DesignerWidget.Param)) return;
                 OnPropertyChanged(nameof(TabPageList));
                 RebuildTabPages();
                 var pages = TabPageList;
                 if (!pages.Contains(_selectedPage)) SelectedPage = pages[0];
             };
+        }
+
+        // 分页容器的上次几何（用于算位移 / 缩放比例）
+        private double _lastX, _lastY, _lastW, _lastH;
+
+        /// <summary>分页被拖动：名下全部子控件（所有页）跟着平移同样的距离。</summary>
+        private void MoveTabChildren(double dx, double dy)
+        {
+            if (Owner == null || (dx == 0 && dy == 0)) return;
+            foreach (var vm in Owner.Widgets)
+            {
+                var m = vm.Model;
+                if (m.WidgetType == "分页" || m.TabName != Model.Name) continue;
+                if (dx != 0) m.X = System.Math.Max(0, System.Math.Round(m.X + dx));
+                if (dy != 0) m.Y = System.Math.Max(0, System.Math.Round(m.Y + dy));
+            }
+        }
+
+        /// <summary>分页被缩放：名下全部子控件按比例缩放位置和大小（锚点 = 分页左上角）。</summary>
+        private void ScaleTabChildren(double sx, double sy)
+        {
+            if (Owner == null) return;
+            if (sx <= 0 || !double.IsFinite(sx)) sx = 1;
+            if (sy <= 0 || !double.IsFinite(sy)) sy = 1;
+            if (sx == 1 && sy == 1) return;
+            foreach (var vm in Owner.Widgets)
+            {
+                var m = vm.Model;
+                if (m.WidgetType == "分页" || m.TabName != Model.Name) continue;
+                if (sx != 1)
+                {
+                    m.X = System.Math.Max(0, System.Math.Round(Model.X + (m.X - Model.X) * sx));
+                    m.Width = System.Math.Max(40, System.Math.Round(m.Width * sx));
+                }
+                if (sy != 1)
+                {
+                    m.Y = System.Math.Max(0, System.Math.Round(Model.Y + (m.Y - Model.Y) * sy));
+                    m.Height = System.Math.Max(24, System.Math.Round(m.Height * sy));
+                }
+            }
         }
 
         /// <summary>分页控件的页列表（属性面板「页面管理」用，可改名/删除）。</summary>
