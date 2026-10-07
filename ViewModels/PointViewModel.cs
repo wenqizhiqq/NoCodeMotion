@@ -51,6 +51,10 @@ namespace NoCodeMotion.ViewModels
         /// <summary>当前工位下的点位行集合，供右侧表格绑定；未选工位时为 null。</summary>
         public ObservableCollection<PointItem>? CurrentPoints => SelectedItem?.Points;
 
+        /// <summary>「图形生成点位」：在框内导入底图 / 点选 / 折线，按「框尺寸 + 起点」映射成机器坐标点位。
+        /// 生成结果经 <see cref="GraphPointGenViewModel.Generated"/> 事件追加到当前工位。</summary>
+        public GraphPointGenViewModel Graph { get; } = new();
+
         // ---------- 时序编译（对应专利「方向二」：同步组 / 时序标记 编译期冲突检测）----------
         /// <summary>最近一次「编译时序」的问题列表（空表示通过）。</summary>
         public ObservableCollection<TimingIssue> CompileIssues { get; } = new();
@@ -137,6 +141,7 @@ namespace NoCodeMotion.ViewModels
             CompileCommand = new RelayCommand(_ => Compile(), _ => SelectedItem != null);
             ImportDxfCommand = new RelayCommand(_ => ImportDxf(), _ => SelectedItem != null);
             GenerateArrayCommand = new RelayCommand(_ => GenerateArray(), _ => SelectedItem != null);
+            ImageGenPointsCommand = new RelayCommand(_ => ImageGenPoints(), _ => SelectedItem != null);
             ExportCsvCommand = new RelayCommand(_ => ExportCsv(), _ => SelectedItem != null);
 
             // 轨迹仿真命令
@@ -151,6 +156,9 @@ namespace NoCodeMotion.ViewModels
             // 工位增删 / 工位内点位名变化 → 重新汇总点位名称库
             Items.CollectionChanged += OnTablesCollectionChanged;
             foreach (var t in Items) t.PropertyChanged += OnTableChanged;
+
+            // 图形生成点位 → 追加到当前工位（轴1←X、轴2←Y）
+            Graph.Generated += AppendGraphPoints;
 
             AttachAutoSave();
             EnsureDefaultSelection();
@@ -257,6 +265,8 @@ namespace NoCodeMotion.ViewModels
         public ICommand CompileCommand { get; }
         public ICommand ImportDxfCommand { get; }
         public ICommand GenerateArrayCommand { get; }
+        /// <summary>图像生成点位：打开弹窗描点 / 画折线 → 机器坐标追加到当前工位。</summary>
+        public ICommand ImageGenPointsCommand { get; }
         public ICommand ExportCsvCommand { get; }
 
         private void AddPoint()
@@ -363,6 +373,52 @@ namespace NoCodeMotion.ViewModels
             catch (Exception ex)
             {
                 StatusBarService.ReportException($"生成阵列点位失败：{ex.Message}");
+            }
+        }
+
+        /// <summary>把「图形生成点位」产生的机器坐标序列（轴1←X、轴2←Y）追加到当前工位末尾。
+        /// 点位名 = 前缀 + 序号，重名自动加 _N 后缀；轴1/轴2 的速度统一设为画布上的目标速度。</summary>
+        private void AppendGraphPoints(List<Point> pts)
+        {
+            if (SelectedItem is not PointTable table) return;
+            if (pts == null || pts.Count == 0) return;
+
+            var used = new HashSet<string>(table.Points.Select(p => p.Name));
+            string prefix = string.IsNullOrWhiteSpace(Graph.Prefix) ? "G" : Graph.Prefix.Trim();
+            int start = table.Points.Count;
+
+            for (int i = 0; i < pts.Count; i++)
+            {
+                string name = prefix + (i + 1);
+                int n = 1;
+                while (used.Contains(name)) name = prefix + (i + 1) + "_" + (n++);
+                used.Add(name);
+
+                var p = new PointItem { Name = name };
+                p.Positions[0].Position = Math.Round(pts[i].X, 4);
+                p.Positions[1].Position = Math.Round(pts[i].Y, 4);
+                p.Positions[0].Speed = Graph.Speed;
+                p.Positions[1].Speed = Graph.Speed;
+                table.Points.Add(p);
+            }
+
+            if (table.Points.Count > start) SelectedPoint = table.Points[start];
+            StatusBarService.ReportInfo($"已按图形生成 {pts.Count} 个点位（轴1←X、轴2←Y）。");
+        }
+
+        /// <summary>图像生成点位：弹窗内可导入底图、在图上单击描点或画折线，
+        /// 按框尺寸 + 起点映射为机器坐标，确认后追加到当前工位（轴1←X、轴2←Y）。</summary>
+        private void ImageGenPoints()
+        {
+            if (SelectedItem is not PointTable) return;
+            try
+            {
+                var dlg = new GraphGenDialog { DataContext = Graph };
+                dlg.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                StatusBarService.ReportException($"图像生成点位失败：{ex.Message}");
             }
         }
 

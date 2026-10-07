@@ -262,6 +262,12 @@
                                     <TextBlock Text="生成阵列" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
+                            <Button Command="{Binding ImageGenPointsCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="打开「图像生成点位」：可导入一张底图，在图上单击描点或画折线，按框尺寸与起点映射成机器坐标（轴1←X、轴2←Y）后追加到当前工位。">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource CameraIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                    <TextBlock Text="图像生成点位" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <Button Command="{Binding ExportCsvCommand}" Style="{StaticResource TtPillGrayBtn}" ToolTip="将当前工位的全部点位导出为 CSV 文件（UTF-8 带 BOM，列头为轴名）。">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource SaveIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
@@ -646,9 +652,9 @@
                         </StackPanel>
                     </Border>
 
-            <!-- ===================== 右上角：轨迹仿真面板（始终显示） ===================== -->
-            <Border Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12"
-                    Width="252" Panel.ZIndex="20"
+            <!-- ===================== 右上角：轨迹仿真（始终显示） ===================== -->
+            <StackPanel Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12" Panel.ZIndex="20">
+            <Border Width="252" HorizontalAlignment="Right"
                     Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}"
                     BorderThickness="1" CornerRadius="12" Padding="12" Effect="{StaticResource SoftShadow}">
                 <StackPanel>
@@ -768,6 +774,7 @@
                     </TextBlock>
                 </StackPanel>
             </Border>
+            </StackPanel>
         </Grid>
     </Grid>
 </UserControl>

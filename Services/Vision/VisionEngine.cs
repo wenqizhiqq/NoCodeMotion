@@ -8,6 +8,7 @@ using Cv = OpenCvSharp;
 using GrayMatch;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using NoCodeMotion.Services.Camera;
 
 namespace NoCodeMotion.Services.Vision
 {
@@ -855,6 +856,28 @@ namespace NoCodeMotion.Services.Vision
         public static byte[]? CaptureFrame(int cameraIndex, out int width, out int height)
         {
             width = 0; height = 0;
+
+            // ① 优先走真实工业相机（海康 MVS）。相机页与流程视觉共用同一个已打开会话，
+            //    这里不会重复开设备；取不到再往下回退 OpenCV / 合成图。
+            try
+            {
+                if (MvsCameraService.IsRuntimeAvailable)
+                {
+                    var dev = ResolveMvsDevice(cameraIndex);
+                    if (dev != null)
+                    {
+                        if (MvsCameraService.TryGrabBgra(dev, SettingsOf(cameraIndex),
+                                                        out var real, out width, out height, out var mvsErr))
+                            return real;
+                        Debug.WriteLine($"[VisionEngine] 相机 {cameraIndex} 真实取像失败：{mvsErr}（回退 OpenCV / 合成图）");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[VisionEngine] 相机 {cameraIndex} MVS 取像异常：{ex.Message}（回退 OpenCV / 合成图）");
+            }
+
             try
             {
                 using var cap = new Cv.VideoCapture(cameraIndex);
@@ -872,7 +895,39 @@ namespace NoCodeMotion.Services.Vision
             {
                 Debug.WriteLine($"[VisionEngine] 相机 {cameraIndex} 采集失败：{ex.Message}（回退合成图）");
             }
-            return SyntheticCapture(out width, out height);
+            try
+            {
+                return SyntheticCapture(out width, out height);
+            }
+            catch (Exception ex)
+            {
+                // OpenCV 原生库缺失（OpenCvSharpExtern / VC++ 运行库）时，合成图也会失败；
+                // 再退一层纯托管绘制，保证 CaptureFrame 永不抛异常、流程不被打断。
+                Debug.WriteLine($"[VisionEngine] 相机 {cameraIndex} 合成图失败：{ex.Message}（回退纯托管占位帧）");
+                return ManagedPlaceholder(out width, out height);
+            }
+        }
+
+        /// <summary>把「相机索引」解析成一台真实的 MVS 设备（按枚举顺序与工程相机列表一一对应）。</summary>
+        private static MvsCameraDevice? ResolveMvsDevice(int cameraIndex)
+        {
+            var devices = MvsCameraService.Enumerate();
+            return devices.Count == 0 ? null : MvsCameraService.Match(devices, null, cameraIndex);
+        }
+
+        /// <summary>按工程里的相机项取出曝光 / 增益 / 触发模式（缺省 10ms / 1.0 / 连续）。</summary>
+        private static MvsCameraSettings SettingsOf(int cameraIndex)
+        {
+            var st = new MvsCameraSettings();
+            var cams = ProjectStore.Data?.Cameras;
+            if (cams != null && cameraIndex >= 0 && cameraIndex < cams.Count)
+            {
+                var it = cams[cameraIndex];
+                if (it.ExposureMs > 0) st.ExposureMs = it.ExposureMs;
+                if (it.Gain > 0) st.Gain = it.Gain;
+                if (!string.IsNullOrWhiteSpace(it.TriggerMode)) st.TriggerMode = it.TriggerMode;
+            }
+            return st;
         }
 
         private static byte[] SyntheticCapture(out int w, out int h)
@@ -882,6 +937,40 @@ namespace NoCodeMotion.Services.Vision
             Cv.Cv2.Rectangle(m, new Cv.Rect(120, 80, 80, 80), new Cv.Scalar(220, 180, 60), -1);
             Cv.Cv2.PutText(m, "SIM CAPTURE", new Cv.Point(60, 30), Cv.HersheyFonts.HersheySimplex, 0.7, new Cv.Scalar(230, 230, 230), 1);
             return MatToBgra(m);
+        }
+
+        /// <summary>
+        /// 最后兜底：纯托管生成的 BGRA 占位帧，**不依赖任何原生库**（OpenCV / 相机 SDK）。
+        /// 目的：即使 OpenCvSharpExtern / VC++ 运行库缺失，CaptureFrame 也绝不抛异常，
+        /// 流程「相机」步骤拿到一帧可显示的图继续往下走，而不是中断整条流程。
+        /// </summary>
+        private static byte[] ManagedPlaceholder(out int w, out int h)
+        {
+            w = 320; h = 240;
+            var buf = new byte[w * h * 4];
+            for (int y = 0; y < h; y++)
+            {
+                byte b = (byte)(52 + y * 40 / h);          // 深色底 + 轻微纵向渐变
+                for (int x = 0; x < w; x++)
+                {
+                    int i = (y * w + x) * 4;
+                    buf[i] = b;                            // B
+                    buf[i + 1] = (byte)(b + 4);            // G
+                    buf[i + 2] = (byte)(b + 8);            // R
+                    buf[i + 3] = 255;                      // A
+                }
+            }
+            // 中央空心方块：肉眼可辨「这是占位帧，不是真实图像」
+            for (int y = 80; y < 160; y++)
+            {
+                for (int x = 120; x < 200; x++)
+                {
+                    if (x > 123 && x < 196 && y > 83 && y < 156) continue;
+                    int i = (y * w + x) * 4;
+                    buf[i] = 60; buf[i + 1] = 180; buf[i + 2] = 220; buf[i + 3] = 255;
+                }
+            }
+            return buf;
         }
 
         private static Cv.Mat EnsureBgra(Cv.Mat m)

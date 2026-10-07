@@ -181,23 +181,38 @@
                             <Border Grid.Row="1" Margin="0,12,0,12" CornerRadius="10"
                                     Background="#1D1D1F" SnapsToDevicePixels="True">
                                 <Grid>
-                                    <!-- 中心十字 + 提示文字（SDK 接入后可整体替换为 Image 控件） -->
-                                    <Path Width="40" Height="40" Stretch="Uniform"
-                                          Stroke="#3F3F46" StrokeThickness="1.5"
-                                          Data="M2 2L18 18M18 2L2 18"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          RenderTransformOrigin="0.5,0.5">
-                                        <Path.RenderTransform>
-                                            <ScaleTransform ScaleX="2" ScaleY="2"/>
-                                        </Path.RenderTransform>
-                                    </Path>
-                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Text="相机预览" Foreground="#71717A" FontSize="14"
-                                                   HorizontalAlignment="Center"/>
-                                        <TextBlock Text="接入相机 SDK 后此处显示实时画面"
-                                                   Foreground="#52525B" FontSize="11" Margin="0,4,0,0"
-                                                   HorizontalAlignment="Center"/>
-                                    </StackPanel>
+                                    <!-- 真实取像预览（有帧时显示；Uniform 保持比例不拉伸） -->
+                                    <Image Source="{Binding Preview}" Stretch="Uniform" Margin="4"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    <!-- 无帧占位：仅在还没取到图时显示 -->
+                                    <Grid>
+                                        <Grid.Style>
+                                            <Style TargetType="Grid">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasPreview}" Value="False">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Grid.Style>
+                                        <Path Width="40" Height="40" Stretch="Uniform"
+                                              Stroke="#3F3F46" StrokeThickness="1.5"
+                                              Data="M2 2L18 18M18 2L2 18"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RenderTransformOrigin="0.5,0.5">
+                                            <Path.RenderTransform>
+                                                <ScaleTransform ScaleX="2" ScaleY="2"/>
+                                            </Path.RenderTransform>
+                                        </Path>
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="相机预览" Foreground="#71717A" FontSize="14"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Text="点「搜索设备」找到相机后，连接或拍照即显示画面"
+                                                       Foreground="#52525B" FontSize="11" Margin="0,4,0,0"
+                                                       HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
                                 </Grid>
                             </Border>
 
@@ -232,6 +247,16 @@
                                 </Border>
 
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Style="{StaticResource TtPillGrayBtn}" Margin="0,0,8,0"
+                                            Command="{Binding SearchDevicesCommand}"
+                                            ToolTip="按海康 MVS 枚举在线相机，并更新左侧列表（顺序与枚举一致）。">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="{StaticResource RefreshIcon}" Width="14" Height="14"
+                                                  Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                            <TextBlock Text="搜索设备" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
                                     <Button Style="{StaticResource TtPillBlueBtn}" Margin="0,0,8,0"
                                             Command="{Binding ApplyCommonParamsCommand}"
                                             IsEnabled="{Binding HasSelection}" ToolTip="一键应用常用拍摄参数：曝光 10ms / 增益 1.0 / 连续触发。">

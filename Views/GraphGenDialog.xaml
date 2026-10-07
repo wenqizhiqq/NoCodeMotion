@@ -1,0 +1,114 @@
+﻿<Window x:Class="NoCodeMotion.Views.GraphGenDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight" WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+    <!-- Apple 风格自定义对话框：图像生成点位（导入底图 / 图上单击描点 / 画折线 → 机器坐标点位）
+         DataContext = GraphPointGenViewModel -->
+    <Border CornerRadius="14" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Margin="16" Effect="{StaticResource SoftShadow}">
+        <StackPanel MinWidth="392" MaxWidth="392">
+            <!-- 标题区 -->
+            <Border Padding="22,18,22,14" BorderThickness="0,0,0,1" BorderBrush="{StaticResource LineBrush}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{StaticResource CameraIcon}" Width="20" Height="20" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="图像生成点位" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 画布：单击添加点位；折线模式下连续单击连成折线 -->
+            <Border Background="{StaticResource CanvasBrush}" BorderBrush="{StaticResource LineBrush}"
+                    BorderThickness="1" CornerRadius="8" Margin="22,16,22,0">
+                <Grid Width="340" Height="260" ClipToBounds="True">
+                    <Image Source="{Binding Background}" Stretch="Fill" IsHitTestVisible="False"/>
+                    <Path Data="{Binding Path}" Stroke="{StaticResource AccentBrush}" StrokeThickness="1.5"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                          Fill="Transparent" IsHitTestVisible="False"/>
+                    <ItemsControl ItemsSource="{Binding Points}" IsHitTestVisible="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><Canvas/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Ellipse Width="7" Height="7" Stroke="White" StrokeThickness="1"
+                                         Fill="{StaticResource AccentBrush}">
+                                    <Ellipse.RenderTransform>
+                                        <TranslateTransform X="-3.5" Y="-3.5"/>
+                                    </Ellipse.RenderTransform>
+                                </Ellipse>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <!-- 透明层：接收画布单击（放在最上层） -->
+                    <Border Background="Transparent" Cursor="Cross"
+                            MouseLeftButtonDown="GraphCanvas_MouseLeftButtonDown"/>
+                </Grid>
+            </Border>
+
+            <!-- 参数区 -->
+            <Grid Margin="22,12,22,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="框宽" Style="{StaticResource AppleLabel}" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                <TextBox   Grid.Row="0" Grid.Column="1" Text="{Binding FrameW, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleNumField}" Margin="0,0,10,4"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="框高" Style="{StaticResource AppleLabel}" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                <TextBox   Grid.Row="0" Grid.Column="3" Text="{Binding FrameH, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleNumField}" Margin="0,0,0,4"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="起点X" Style="{StaticResource AppleLabel}" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                <TextBox   Grid.Row="1" Grid.Column="1" Text="{Binding OriginX, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleNumField}" Margin="0,0,10,4"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="起点Y" Style="{StaticResource AppleLabel}" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                <TextBox   Grid.Row="1" Grid.Column="3" Text="{Binding OriginY, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleNumField}" Margin="0,0,0,4"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="速度" Style="{StaticResource AppleLabel}" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                <TextBox   Grid.Row="2" Grid.Column="1" Text="{Binding Speed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleNumField}" Margin="0,0,10,4"/>
+                <TextBlock Grid.Row="2" Grid.Column="2" Text="采样步长" Style="{StaticResource AppleLabel}" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                <TextBox   Grid.Row="2" Grid.Column="3" Text="{Binding Step, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleNumField}" Margin="0,0,0,4"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="前缀" Style="{StaticResource AppleLabel}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBox   Grid.Row="3" Grid.Column="1" Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}" Margin="0,0,10,0"/>
+                <TextBlock Grid.Row="3" Grid.Column="2" Text="折线模式" Style="{StaticResource AppleLabel}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <CheckBox  Grid.Row="3" Grid.Column="3" Style="{StaticResource AppleToggle}" IsChecked="{Binding PolylineMode}"
+                           HorizontalAlignment="Left" VerticalAlignment="Center"
+                           ToolTip="勾选：连续单击连成折线；取消：每次单击是独立点位"/>
+            </Grid>
+
+            <!-- 画布操作 -->
+            <StackPanel Orientation="Horizontal" Margin="22,12,22,0">
+                <Button Content="导入底图" Command="{Binding ImportImageCommand}" Style="{StaticResource TtPillGrayBtn}" MinWidth="0" Padding="12,0" ToolTip="选择一张图片作为描点底图（仅作参考，不参与坐标换算）"/>
+                <Button Content="新折线" Command="{Binding NewStrokeCommand}" Style="{StaticResource TtPillGrayBtn}" MinWidth="0" Padding="12,0" Margin="6,0,0,0" ToolTip="结束当前折线，下一次单击开始一条新折线"/>
+                <Button Content="撤销" Command="{Binding UndoCommand}" Style="{StaticResource TtPillGrayBtn}" MinWidth="0" Padding="12,0" Margin="6,0,0,0" ToolTip="删除最后一个点位"/>
+                <Button Content="清空" Command="{Binding ClearCommand}" Style="{StaticResource TtPillGrayBtn}" MinWidth="0" Padding="12,0" Margin="6,0,0,0" ToolTip="清空画布上所有点位"/>
+            </StackPanel>
+
+            <TextBlock Text="框 = 整块画布：左下角对应「起点X / 起点Y」，框宽 / 框高 = 画布整幅对应的机器行程。生成后轴1←X、轴2←Y。"
+                       FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="22,8,22,0"/>
+
+            <!-- 按钮区 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,14,16,16">
+                <Button x:Name="CancelButton" Content="取消" Style="{StaticResource TtGrayBtn}" Click="CancelButton_Click" IsCancel="True"/>
+                <Button x:Name="OkButton" Content="生成点位" Style="{StaticResource TtBaseBtn}" Margin="8,0,0,0"
+                        Click="OkButton_Click" IsDefault="True" IsEnabled="{Binding HasPoints}"
+                        ToolTip="把画布上的点位按框尺寸与起点映射为机器坐标，追加到当前工位"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

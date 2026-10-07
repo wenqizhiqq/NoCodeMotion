@@ -100,6 +100,39 @@
             <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="12,10"/>
         </Style>
+
+        <!-- IO 列表（输入 / 输出各自独立滚动）：虚拟化 + 双向滚动条，500 项也不卡。
+             说明：ItemsControl + 外层 ScrollViewer 不会虚拟化（面板拿到无限高），
+             必须用 ListBox（自带 ScrollViewer + CanContentScroll），才真正回收容器。 -->
+        <Style x:Key="IoVirtualListStyle" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+            <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="Focusable" Value="False"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <!-- 自适应 2 列布局：左列为「轴控制 + 气缸控制」，右列为「IO 控制 + 点位移动」。
@@ -203,80 +236,72 @@
                             <TextBlock Text="IO 控制" Style="{StaticResource SectionHeaderText}"/>
                         </StackPanel>
                     </StackPanel>
-                                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                            <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                            <!-- 输入 IO -->
-                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                <TextBlock Text="输入 IO（只读）" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                                <ItemsControl ItemsSource="{Binding Inputs}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource MiniCardStyle}" Width="210" Margin="0,0,8,8">
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0" VerticalAlignment="Center">
-                                                        <Ellipse Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,6,0">
-                                                            <Ellipse.Style>
-                                                                <Style TargetType="Ellipse">
-                                                                    <Setter Property="Fill" Value="{StaticResource TextMutedBrush}"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Value}" Value="1">
-                                                                            <Setter Property="Fill" Value="{StaticResource SuccessBrush}"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Ellipse.Style>
-                                                        </Ellipse>
-                                                        <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
-                                                            <TextBlock.Text><MultiBinding StringFormat="{}卡{0} 模{1} · 值{2}">
-                                                                <Binding Path="CardNo"/><Binding Path="ModuleNo"/><Binding Path="Value"/>
-                                                            </MultiBinding></TextBlock.Text>
-                                                        </TextBlock>
-                                                    </StackPanel>
+                        <!-- 输入 IO（只读）——独立滚动 + 虚拟化 -->
+                        <DockPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock DockPanel.Dock="Top" Text="输入 IO（只读）" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                            <ListBox ItemsSource="{Binding Inputs}" Style="{StaticResource IoVirtualListStyle}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource MiniCardStyle}" Width="210" Margin="0,0,8,8">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0" VerticalAlignment="Center">
+                                                    <Ellipse Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,6,0">
+                                                        <Ellipse.Style>
+                                                            <Style TargetType="Ellipse">
+                                                                <Setter Property="Fill" Value="{StaticResource TextMutedBrush}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Value}" Value="1">
+                                                                        <Setter Property="Fill" Value="{StaticResource SuccessBrush}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Ellipse.Style>
+                                                    </Ellipse>
+                                                    <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
+                                                        <TextBlock.Text><MultiBinding StringFormat="{}卡{0} 模{1} · 值{2}">
+                                                            <Binding Path="CardNo"/><Binding Path="ModuleNo"/><Binding Path="Value"/>
+                                                        </MultiBinding></TextBlock.Text>
+                                                    </TextBlock>
                                                 </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
 
-                            <!-- 输出 IO -->
-                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                                <TextBlock Text="输出 IO（可切换）" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                                <ItemsControl ItemsSource="{Binding Outputs}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource MiniCardStyle}" Width="210" Margin="0,0,8,8">
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                    <DockPanel LastChildFill="False" Margin="0,6,0,0">
-                                                        <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
-                                                            <TextBlock.Text><MultiBinding StringFormat="{}卡{0} 模{1} · 值{2}">
-                                                                <Binding Path="CardNo"/><Binding Path="ModuleNo"/><Binding Path="Value"/>
-                                                            </MultiBinding></TextBlock.Text>
-                                                        </TextBlock>
-                                                        <Button DockPanel.Dock="Right" Command="{Binding DataContext.ToggleOutputCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                                CommandParameter="{Binding}" Style="{StaticResource IoOutBtn}"/>
-                                                    </DockPanel>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Grid>
-                                    </ScrollViewer>
+                        <!-- 输出 IO（可切换）——独立滚动 + 虚拟化 -->
+                        <DockPanel Grid.Column="1" Margin="6,0,0,0">
+                            <TextBlock DockPanel.Dock="Top" Text="输出 IO（可切换）" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                            <ListBox ItemsSource="{Binding Outputs}" Style="{StaticResource IoVirtualListStyle}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource MiniCardStyle}" Width="210" Margin="0,0,8,8">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                <DockPanel LastChildFill="False" Margin="0,6,0,0">
+                                                    <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
+                                                        <TextBlock.Text><MultiBinding StringFormat="{}卡{0} 模{1} · 值{2}">
+                                                            <Binding Path="CardNo"/><Binding Path="ModuleNo"/><Binding Path="Value"/>
+                                                        </MultiBinding></TextBlock.Text>
+                                                    </TextBlock>
+                                                    <Button DockPanel.Dock="Right" Command="{Binding DataContext.ToggleOutputCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}" Style="{StaticResource IoOutBtn}"/>
+                                                </DockPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Grid>
                                     </DockPanel>
             </Border>
 
