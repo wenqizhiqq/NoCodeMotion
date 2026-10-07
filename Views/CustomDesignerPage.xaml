@@ -16,6 +16,8 @@
         <local:BoolToColWidthConverter x:Key="ColW"/>
         <!-- null → Collapsed（"inv" 反转）：按动作切换参数下拉/输入框 -->
         <local:NullToVisConverter x:Key="NullToVis"/>
+        <!-- 页名 == 当前页 → true（分页页头高亮） -->
+        <local:StrEqBoolConverter x:Key="StrEqBool"/>
 
         <!-- 设计/运行 切换的胶囊按钮 -->
         <Style x:Key="ModePill" TargetType="RadioButton">
@@ -110,7 +112,7 @@
             </StackPanel>
             <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" TextAlignment="Right" FontSize="12"
                        Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"
-                       Text="设计模式：从左侧拖控件进工作区，拖动摆放；选中后右下角小圆点拖大小，Delete 删除。运行模式：按钮 / 输入框生效，显示框实时读回。"/>
+                       Text="设计模式：从左侧拖控件进工作区，拖动摆放；选中后右下角小圆点拖大小，Delete 删除。分页控件用「参数」填页名（如 页1|页2|页3），点页头切页；子控件在属性面板选「所属分页/页面」挂进去。运行模式：按钮 / 输入框生效，显示框实时读回。"/>
         </DockPanel>
 
         <!-- ====== 左侧：工具箱（仅设计模式显示） ====== -->
@@ -168,12 +170,13 @@
                             </ItemsControl.ItemContainerStyle>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <!-- 控件根：整体拖动 / 大小由 Model 绑定 -->
+                                    <!-- 控件根：整体拖动 / 大小由 Model 绑定；挂在分页下的控件随切页显隐 -->
                                     <Grid Width="{Binding Model.Width}" Height="{Binding Model.Height}"
                                           MouseLeftButtonDown="Widget_MouseLeftButtonDown"
                                           MouseMove="Widget_MouseMove"
                                           MouseLeftButtonUp="Widget_MouseLeftButtonUp"
-                                          Background="Transparent">
+                                          Background="Transparent"
+                                          Visibility="{Binding IsTabActive, Converter={StaticResource BoolToVis}}">
                                         <Border x:Name="RootBorder" CornerRadius="8" Background="White"
                                                 BorderBrush="#CBD5E1" BorderThickness="1">
                                             <Border.Style>
@@ -214,6 +217,54 @@
                                                            Text="{Binding Model.Text}" FontSize="14" FontWeight="SemiBold"
                                                            VerticalAlignment="Center" Margin="10,0" TextTrimming="CharacterEllipsis"
                                                            Foreground="{StaticResource TextPrimaryBrush}"/>
+
+                                                <!-- 分页：页头切页 + 内容区（其它控件通过属性面板「所属分页/页面」挂进来） -->
+                                                <Grid Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=分页}">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="*"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Border CornerRadius="8" Background="#FAFBFF"
+                                                            BorderBrush="#CBD5E1" BorderThickness="1" Grid.RowSpan="2"/>
+                                                    <ItemsControl ItemsSource="{Binding TabPageList}" Margin="8,8,8,0"
+                                                                  HorizontalAlignment="Left" VerticalAlignment="Top">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <StackPanel Orientation="Horizontal"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Button Content="{Binding}" Cursor="Hand" FontSize="12"
+                                                                        Height="24" MinWidth="52" Padding="10,0" Margin="0,0,4,0"
+                                                                        Command="{Binding DataContext.SelectPageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                        CommandParameter="{Binding}">
+                                                                    <Button.Style>
+                                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                            <Setter Property="Background" Value="#EEF2F7"/>
+                                                                            <Setter Property="Foreground" Value="#334155"/>
+                                                                            <Setter Property="BorderThickness" Value="0"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Value="True">
+                                                                                    <DataTrigger.Binding>
+                                                                                        <MultiBinding Converter="{StaticResource StrEqBool}">
+                                                                                            <Binding/>
+                                                                                            <Binding Path="DataContext.SelectedPage" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                                                        </MultiBinding>
+                                                                                    </DataTrigger.Binding>
+                                                                                    <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Button.Style>
+                                                                </Button>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                    <Border Grid.Row="1" Margin="8" CornerRadius="6"
+                                                            Background="White" BorderBrush="#E2E8F0" BorderThickness="1"/>
+                                                </Grid>
 
                                                 <!-- 显示框：标题 + 实时值（250ms 读回） -->
                                                 <Border Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=显示框}"
@@ -301,6 +352,18 @@
                             <TextBlock Text="文本（按钮文字 / 标签）" Style="{StaticResource PropLabel}"/>
                             <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropBox}"/>
 
+                            <!-- 所属分页 / 页面（分页控件本身直接放主画布，不显示这两行） -->
+                            <StackPanel Visibility="{Binding DataContext.ShowTabPageProps, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="所属分页（空 = 主画布）" Style="{StaticResource PropLabel}"/>
+                                <ComboBox ItemsSource="{Binding DataContext.TabOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedItem="{Binding TabName}" Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"
+                                          ToolTip="选一个「分页」控件后，该控件随其页头切页显隐"/>
+                                <TextBlock Text="所属页面" Style="{StaticResource PropLabel}"/>
+                                <ComboBox ItemsSource="{Binding DataContext.TabPageOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedItem="{Binding PageName}" Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"
+                                          ToolTip="该控件在所选分页的哪一页显示（留空 = 每页都显示）"/>
+                            </StackPanel>
+
                             <TextBlock Text="动作" Style="{StaticResource PropLabel}"/>
                             <ComboBox ItemsSource="{Binding DataContext.ActionOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                       SelectedItem="{Binding Action}" Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"/>
@@ -310,16 +373,45 @@
                                       ItemsSource="{Binding DataContext.TargetOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                       Text="{Binding Target, UpdateSourceTrigger=PropertyChanged}"/>
 
-                            <TextBlock Text="参数" Style="{StaticResource PropLabel}"/>
-                            <!-- 有固定候选的动作 → 下拉；其它动作 → 自由输入 -->
-                            <ComboBox Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"
-                                      ItemsSource="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                      SelectedItem="{Binding Param, UpdateSourceTrigger=PropertyChanged}"
-                                      Visibility="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToVis}}"/>
-                            <TextBox Text="{Binding Param, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropBox}"
-                                     Visibility="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToVis}, ConverterParameter=inv}"/>
-                            <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
-                                       Text="写输出IO：开 / 关 / 切换；气缸：伸出 / 缩回 / 切换；轴移动(绝对)：目标位置；轴移动(相对)：距离（正负=方向）；写变量：写入数值；显示轴参数：速度 / 加速时间 / 减速时间 / 点动距离 / 手动速度。"/>
+                            <!-- 参数（分页的页名表由下方「页面管理」维护，不显示参数行） -->
+                            <StackPanel Visibility="{Binding DataContext.ShowParamInput, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="参数" Style="{StaticResource PropLabel}"/>
+                                <!-- 有固定候选的动作 → 下拉；其它动作 → 自由输入 -->
+                                <ComboBox Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"
+                                          ItemsSource="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                          SelectedItem="{Binding Param, UpdateSourceTrigger=PropertyChanged}"
+                                          Visibility="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToVis}}"/>
+                                <TextBox Text="{Binding Param, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropBox}"
+                                         Visibility="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToVis}, ConverterParameter=inv}"/>
+                                <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           Text="写输出IO：开 / 关 / 切换；气缸：伸出 / 缩回 / 切换；轴移动(绝对)：目标位置；轴移动(相对)：距离（正负=方向）；写变量：写入数值；显示轴参数：速度 / 加速时间 / 减速时间 / 点动距离 / 手动速度。"/>
+                            </StackPanel>
+
+                            <!-- 页面管理（仅分页控件）：重命名 / 删除 / 添加页标签 -->
+                            <StackPanel Visibility="{Binding DataContext.ShowPageEditor, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="页面管理（改名后失焦生效）" Style="{StaticResource PropLabel}"/>
+                                <ItemsControl ItemsSource="{Binding DataContext.SelectedWidget.TabPages, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="6"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropBox}" Margin="0"/>
+                                                <Button Grid.Column="2" Content="删" Style="{StaticResource TtGrayBtn}" Margin="0" Height="28" MinWidth="36" Padding="8,0" Cursor="Hand"
+                                                        Command="{Binding DataContext.SelectedWidget.DeletePageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}" ToolTip="删除该页（挂在该页上的控件改为每页都显示）"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Button Content="添加页面" Style="{StaticResource TtGrayBtn}" Margin="0,8,0,0" Cursor="Hand"
+                                        Command="{Binding DataContext.SelectedWidget.AddPageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           Text="把其它控件拖进本分页的内容区（页头以下），松手即挂到当前页；拖回主画布则解除归属。"/>
+                            </StackPanel>
 
                             <Button Content="删除此控件" Style="{StaticResource TtGrayBtn}" Margin="0,16,0,0" Cursor="Hand"
                                     Command="{Binding DataContext.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>

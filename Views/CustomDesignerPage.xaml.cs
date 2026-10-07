@@ -71,7 +71,10 @@ namespace NoCodeMotion.Views
             // 让控件以鼠标点为中心放置，位置取整避免拖出 0.5px 的模糊边界
             double x = System.Math.Max(0, System.Math.Round(p.X - 65));
             double y = System.Math.Max(0, System.Math.Round(p.Y - 18));
-            vm.AddWidget(type, x, y);
+            var added = vm.AddWidget(type, x, y);
+            // 落点在某分页的内容区里 → 直接挂到该分页的当前页
+            if (added.Model.WidgetType != "分页")
+                AssignTabAt(added.Model, p, vm, exclude: added.Model);
         }
 
         // ===== 控件拖动 / 缩放 =====
@@ -128,9 +131,45 @@ namespace NoCodeMotion.Views
 
         private void Widget_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+            var vm = VM;
+            if (vm != null && _dragMove && _drag != null && _drag.Model.WidgetType != "分页")
+            {
+                // 拖动结束：落点在某分页内容区 → 挂到该分页当前页；否则回主画布
+                AssignTabAt(_drag.Model, e.GetPosition(DesignerCanvas), vm, exclude: _drag.Model);
+            }
             if (sender is FrameworkElement fe) fe.ReleaseMouseCapture();
             _drag = null;
             _dragMove = _dragSize = false;
+        }
+
+        /// <summary>
+        /// 把控件的分页归属按落点重新指派：落点在某分页内容区（页头以下）→ TabName=该分页、PageName=其当前页；
+        /// 落点不在任何分页里 → 归属清空（主画布）。分页控件本身不参与。
+        /// </summary>
+        private static void AssignTabAt(Models.DesignerWidget model, Point p, CustomDesignerViewModel vm, Models.DesignerWidget exclude)
+        {
+            Models.DesignerWidget? hit = null;
+            // 从上层往下找（集合后面的画在上层）
+            for (int i = vm.Widgets.Count - 1; i >= 0; i--)
+            {
+                var w = vm.Widgets[i].Model;
+                if (w.WidgetType != "分页" || ReferenceEquals(w, exclude)) continue;
+                // 内容区：页头约 38px 高，命中判定排除页头
+                if (p.X >= w.X && p.X <= w.X + w.Width && p.Y >= w.Y + 38 && p.Y <= w.Y + w.Height) { hit = w; break; }
+            }
+
+            if (hit != null)
+            {
+                var tabVm = vm.Widgets.FirstOrDefault(w => ReferenceEquals(w.Model, hit));
+                model.TabName = hit.Name ?? "";
+                model.PageName = tabVm?.SelectedPage ?? "";
+            }
+            else
+            {
+                model.TabName = "";
+                model.PageName = "";
+            }
+            vm.UpdateTabVisibility();
         }
 
         // ===== 运行时：按钮 / 输入框 =====
@@ -196,6 +235,17 @@ namespace NoCodeMotion.Views
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>两段字符串相等 → true（用于分页页头高亮当前页：页名 == 控件 SelectedPage）。</summary>
+    public class StrEqBoolConverter : System.Windows.Data.IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => values.Length >= 2
+                && string.Equals(values[0] as string, values[1] as string, StringComparison.Ordinal);
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
             => throw new NotSupportedException();
     }
 }

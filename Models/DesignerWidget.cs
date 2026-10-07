@@ -20,6 +20,8 @@ namespace NoCodeMotion.Models
         private string _action = "无";          // 动作（按钮/输入框）或显示内容（显示框）
         private string _target = string.Empty;  // 目标名：IO 名 / 气缸名 / 变量名 / 轴名
         private string _param = string.Empty;   // 参数：开/关/切换、伸出/缩回、目标位置、变量值…
+        private string _tabName = string.Empty; // 所属分页控件名（空 = 直接放主画布）
+        private string _pageName = string.Empty; // 所属页面名（TabName 对应分页里的某一页）
 
         /// <summary>控件类型：按钮 / 输入框 / 显示框。</summary>
         public string WidgetType
@@ -89,6 +91,20 @@ namespace NoCodeMotion.Models
         {
             get => _param;
             set => SetField(ref _param, value);
+        }
+
+        /// <summary>所属分页控件名（分页控件的 Name）；空 = 直接放在主画布上，不受切页显隐控制。</summary>
+        public string TabName
+        {
+            get => _tabName;
+            set => SetField(ref _tabName, value);
+        }
+
+        /// <summary>所属页面名（TabName 分页控件 Param 里的某个页名，如「页1」）。</summary>
+        public string PageName
+        {
+            get => _pageName;
+            set => SetField(ref _pageName, value);
         }
     }
 }

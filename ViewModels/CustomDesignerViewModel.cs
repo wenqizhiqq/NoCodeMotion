@@ -37,7 +37,157 @@ namespace NoCodeMotion.ViewModels
             set => SetField(ref _liveText, value);
         }
 
-        public DesignerWidgetVM(DesignerWidget model) => Model = model;
+        private string _selectedPage = string.Empty;
+        /// <summary>分页控件当前显示的页名（视图状态，不落盘；默认第一页）。</summary>
+        public string SelectedPage
+        {
+            get => _selectedPage;
+            set
+            {
+                if (!SetField(ref _selectedPage, value)) return;
+                Owner?.UpdateTabVisibility();
+            }
+        }
+
+        private bool _isTabActive = true;
+        /// <summary>该控件当前是否可见：主画布控件恒 true；挂在分页下的控件只在对应页被选中时 true。</summary>
+        public bool IsTabActive
+        {
+            get => _isTabActive;
+            set => SetField(ref _isTabActive, value);
+        }
+
+        /// <summary>分页控件的页名列表（来自 Param，用「|」分隔；空则默认 页1|页2）。</summary>
+        public List<string> TabPageList
+        {
+            get
+            {
+                var pages = (Model.Param ?? "")
+                    .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(p => p.Length > 0).Distinct().ToList();
+                if (pages.Count == 0) pages.AddRange(new[] { "页1", "页2" });
+                return pages;
+            }
+        }
+
+        private ICommand? _selectPageCommand;
+        /// <summary>点分页页头切页（页头按钮 CommandParameter = 页名）。</summary>
+        public ICommand SelectPageCommand => _selectPageCommand ??=
+            new RelayCommand(o => { if (o is string p && TabPageList.Contains(p)) SelectedPage = p; });
+
+        // ===== 分页的页面管理（属性面板：添加 / 删除 / 重命名页标签） =====
+
+        private ICommand? _addPageCommand;
+        /// <summary>添加一页（页名自动取 页N，不与现有页重名）。</summary>
+        public ICommand AddPageCommand => _addPageCommand ??= new RelayCommand(_ =>
+        {
+            if (Model.WidgetType != "分页") return;
+            var pages = TabPageList;
+            int n = pages.Count + 1;
+            while (pages.Contains($"页{n}")) n++;
+            pages.Add($"页{n}");
+            Model.Param = string.Join("|", pages);
+            SelectedPage = TabPageList[^1];
+        });
+
+        private ICommand? _deletePageCommand;
+        /// <summary>删除一页（CommandParameter = PageTabVM）；挂在被删页上的子控件改为每页都显示。</summary>
+        public ICommand DeletePageCommand => _deletePageCommand ??= new RelayCommand(o =>
+        {
+            if (o is PageTabVM p) DeletePage(p.Name);
+        });
+
+        /// <summary>重命名一页：改 Param，并同步更新挂在旧页名上的子控件。</summary>
+        public void RenamePage(string oldName, string newName)
+        {
+            var pages = TabPageList;
+            int idx = pages.IndexOf(oldName);
+            if (idx < 0) return;
+            pages[idx] = newName;
+            Model.Param = string.Join("|", pages);
+            if (SelectedPage == oldName) SelectedPage = newName;
+            if (Owner != null)
+            {
+                foreach (var vm in Owner.Widgets)
+                    if (vm.Model.TabName == Model.Name && vm.Model.PageName == oldName)
+                        vm.Model.PageName = newName;
+                Owner.UpdateTabVisibility();
+            }
+        }
+
+        /// <summary>删除一页：改 Param（至少保留一页），并清掉挂在该页上的子控件的页面归属。</summary>
+        public void DeletePage(string name)
+        {
+            var pages = TabPageList;
+            if (!pages.Remove(name)) return;
+            if (pages.Count == 0) pages.Add("页1");
+            Model.Param = string.Join("|", pages);
+            if (SelectedPage == name || !TabPageList.Contains(SelectedPage))
+                SelectedPage = TabPageList[0];
+            if (Owner != null)
+            {
+                foreach (var vm in Owner.Widgets)
+                    if (vm.Model.TabName == Model.Name && vm.Model.PageName == name)
+                        vm.Model.PageName = "";
+                Owner.UpdateTabVisibility();
+            }
+        }
+
+        /// <summary>所属页面 VM（用于切页联动显隐）；ReloadFromStore / AddWidget 时回填。</summary>
+        public CustomDesignerViewModel? Owner { get; set; }
+
+        public DesignerWidgetVM(DesignerWidget model)
+        {
+            Model = model;
+            // 分页控件默认停在第一页；Param（页名表）改动 → 刷新页列表并收敛当前页
+            if (model.WidgetType == "分页")
+            {
+                _selectedPage = TabPageList[0];
+                RebuildTabPages();
+            }
+            model.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName != nameof(DesignerWidget.Param)) return;
+                OnPropertyChanged(nameof(TabPageList));
+                RebuildTabPages();
+                var pages = TabPageList;
+                if (!pages.Contains(_selectedPage)) SelectedPage = pages[0];
+            };
+        }
+
+        /// <summary>分页控件的页列表（属性面板「页面管理」用，可改名/删除）。</summary>
+        public ObservableCollection<PageTabVM> TabPages { get; } = new();
+
+        private void RebuildTabPages()
+        {
+            TabPages.Clear();
+            foreach (var p in TabPageList)
+                TabPages.Add(new PageTabVM(this, p));
+        }
+    }
+
+    /// <summary>分页控件属性面板里的一行页名（TextBox 改名 → 同步 Param 与子控件归属）。</summary>
+    public class PageTabVM : ViewModelBase
+    {
+        private readonly DesignerWidgetVM _w;
+        private string _name;
+
+        public PageTabVM(DesignerWidgetVM w, string name) { _w = w; _name = name; }
+
+        public string Name
+        {
+            get => _name;
+            set
+            {
+                var n = (value ?? "").Trim();
+                var old = _name;
+                if (n.Length == 0 || n == old) { OnPropertyChanged(nameof(Name)); return; }
+                if (_w.TabPageList.Contains(n)) { OnPropertyChanged(nameof(Name)); return; }  // 与其它页重名 → 忽略
+                _name = n;
+                _w.RenamePage(old, n);
+                OnPropertyChanged(nameof(Name));
+            }
+        }
     }
 
     /// <summary>
@@ -51,7 +201,7 @@ namespace NoCodeMotion.ViewModels
         public ObservableCollection<DesignerWidgetVM> Widgets { get; } = new();
 
         /// <summary>左侧工具箱可拖出的控件类型。</summary>
-        public ObservableCollection<string> ToolboxTypes { get; } = new() { "按钮", "输入框", "显示框", "标签" };
+        public ObservableCollection<string> ToolboxTypes { get; } = new() { "按钮", "输入框", "显示框", "标签", "分页" };
 
         /// <summary>按钮可用的动作。</summary>
         public static readonly string[] ButtonActions =
@@ -84,19 +234,46 @@ namespace NoCodeMotion.ViewModels
                 OnPropertyChanged(nameof(ActionOptions));
                 OnPropertyChanged(nameof(TargetOptions));
                 OnPropertyChanged(nameof(ParamOptions));
+                OnPropertyChanged(nameof(ShowTabPageProps));
+                OnPropertyChanged(nameof(ShowPageEditor));
+                OnPropertyChanged(nameof(ShowParamInput));
+                OnPropertyChanged(nameof(TabOptions));
+                OnPropertyChanged(nameof(TabPageOptions));
             }
         }
 
-        /// <summary>选中控件的「动作」变化 → 联动刷新参数候选 / 目标候选，不合候选的旧参数收敛成默认值。</summary>
+        /// <summary>选中控件的属性变化 → 联动刷新参数候选 / 目标候选 / 分页显隐，不合候选的旧参数收敛成默认值。</summary>
         private void OnSelectedModelChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName != nameof(DesignerWidget.Action)) return;
             var m = SelectedWidget?.Model;
-            var opts = ParamOptions;
-            if (m != null && opts != null && !opts.Contains(m.Param))
-                m.Param = opts[0];
-            OnPropertyChanged(nameof(ParamOptions));
-            OnPropertyChanged(nameof(TargetOptions));
+            if (e.PropertyName == nameof(DesignerWidget.Action))
+            {
+                var opts = ParamOptions;
+                if (m != null && opts != null && !opts.Contains(m.Param))
+                    m.Param = opts[0];
+                OnPropertyChanged(nameof(ParamOptions));
+                OnPropertyChanged(nameof(TargetOptions));
+            }
+            else if (e.PropertyName is nameof(DesignerWidget.TabName) or nameof(DesignerWidget.Name)
+                     or nameof(DesignerWidget.Param))
+            {
+                OnPropertyChanged(nameof(TabPageOptions));
+                UpdateTabVisibility();
+            }
+        }
+
+        /// <summary>重算所有控件的分页显隐：挂在分页下的控件只在其对应页被选中时可见（分页控件本身与主画布控件恒可见）。</summary>
+        public void UpdateTabVisibility()
+        {
+            foreach (var vm in Widgets)
+            {
+                var m = vm.Model;
+                if (m.WidgetType == "分页") { vm.IsTabActive = true; continue; }
+                if (string.IsNullOrEmpty(m.TabName)) { vm.IsTabActive = true; continue; }
+                var tab = Widgets.FirstOrDefault(w => w.Model.WidgetType == "分页" && w.Model.Name == m.TabName);
+                // 分页控件不存在（已删/改名）→ 回落为可见，避免控件凭空消失
+                vm.IsTabActive = tab == null || string.IsNullOrEmpty(m.PageName) || tab.SelectedPage == m.PageName;
+            }
         }
 
         private bool _isDesign = true;
@@ -118,7 +295,7 @@ namespace NoCodeMotion.ViewModels
                 var t = SelectedWidget?.Model.WidgetType;
                 if (t == "输入框") return InputActions;
                 if (t == "显示框") return DisplayActions;
-                if (t == "标签") return new[] { "无" };   // 标签纯显示，无动作
+                if (t == "标签" || t == "分页") return new[] { "无" };   // 标签纯显示、分页是容器，均无动作
                 return ButtonActions;
             }
         }
@@ -158,19 +335,54 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>
         /// 属性面板「参数」的固定候选（按动作）；<c>null</c> = 该动作参数自由输入（显示输入框）。
-        /// 写输出IO → 开/关/切换；气缸 → 伸出/缩回/切换；显示轴参数 → 速度/加速时间/…。
+        /// 写输出IO → 开/关/切换；气缸 → 伸出/缩回/切换；显示轴参数 → 速度/加速时间/…；分页 → 页名用「|」分隔。
         /// </summary>
         public IReadOnlyList<string>? ParamOptions
         {
             get
             {
-                return SelectedWidget?.Model.Action switch
-                {
-                    "写输出IO" => new[] { "开", "关", "切换" },
-                    "气缸" => new[] { "伸出", "缩回", "切换" },
-                    "显示轴参数" => AxisParamNames,
-                    _ => null,
-                };
+                return SelectedWidget?.Model.WidgetType == "分页"
+                    ? null
+                    : SelectedWidget?.Model.Action switch
+                    {
+                        "写输出IO" => new[] { "开", "关", "切换" },
+                        "气缸" => new[] { "伸出", "缩回", "切换" },
+                        "显示轴参数" => AxisParamNames,
+                        _ => null,
+                    };
+            }
+        }
+
+        /// <summary>非分页控件才有「所属分页/页面」属性（分页本身直接放主画布）。</summary>
+        public bool ShowTabPageProps => SelectedWidget?.Model.WidgetType != "分页";
+
+        /// <summary>选中分页控件 → 显示「页面管理」（添加/删除/重命名页标签）。</summary>
+        public bool ShowPageEditor => SelectedWidget?.Model.WidgetType == "分页";
+
+        /// <summary>非分页控件才显示「参数」行（分页的页名表由页面管理维护）。</summary>
+        public bool ShowParamInput => SelectedWidget?.Model.WidgetType != "分页";
+
+        /// <summary>「所属分页」候选：空串（主画布）+ 画布上全部分页控件名。</summary>
+        public IReadOnlyList<string> TabOptions
+        {
+            get
+            {
+                var names = Widgets.Where(w => w.Model.WidgetType == "分页")
+                    .Select(w => w.Model.Name).Where(n => !string.IsNullOrEmpty(n)).ToList();
+                names.Insert(0, "");
+                return names;
+            }
+        }
+
+        /// <summary>「所属页面」候选：所属分页控件的页名列表。</summary>
+        public IReadOnlyList<string> TabPageOptions
+        {
+            get
+            {
+                var m = SelectedWidget?.Model;
+                if (m == null || string.IsNullOrEmpty(m.TabName)) return Array.Empty<string>();
+                var tab = Widgets.FirstOrDefault(w => w.Model.WidgetType == "分页" && w.Model.Name == m.TabName);
+                return tab?.TabPageList.ToArray() ?? Array.Empty<string>();
             }
         }
 
@@ -188,12 +400,13 @@ namespace NoCodeMotion.ViewModels
             ImportCommand = new RelayCommand(_ => ImportWidgets());
         }
 
-        /// <summary>从工程数据重建包装列表（页面构造 / 清空后重载时调用）。</summary>
+        /// <summary>从工程数据重建包装列表（页面构造 / 清空 / 导入后重载时调用）。</summary>
         private void ReloadFromStore()
         {
             Widgets.Clear();
             foreach (var m in ProjectStore.Data.DesignerWidgets)
-                if (m != null) Widgets.Add(new DesignerWidgetVM(m));
+                if (m != null) Widgets.Add(new DesignerWidgetVM(m) { Owner = this });
+            UpdateTabVisibility();
         }
 
         // ===== 增删 =====
@@ -219,13 +432,26 @@ namespace NoCodeMotion.ViewModels
                     m.Action = "显示变量"; m.Width = 180; m.Height = 40; break;
                 case "标签":
                     m.Action = "无"; m.Text = $"标签{n}"; m.Width = 120; m.Height = 30; break;
+                case "分页":
+                    m.Action = "无"; m.Param = "页1|页2"; m.Width = 420; m.Height = 320; break;
                 default:
                     m.Action = "写输出IO"; m.Width = 130; m.Height = 40; break;
             }
             data.DesignerWidgets.Add(m);
-            var vm = new DesignerWidgetVM(m);
-            Widgets.Add(vm);
+            var vm = new DesignerWidgetVM(m) { Owner = this };
+            if (type == "分页")
+            {
+                // 分页是容器：插到最底层（先加入先画在下层），避免盖住已拖入的控件
+                var idx = data.DesignerWidgets.IndexOf(m);
+                data.DesignerWidgets.Move(idx, 0);
+                Widgets.Insert(0, vm);
+            }
+            else
+            {
+                Widgets.Add(vm);
+            }
             SelectedWidget = vm;
+            UpdateTabVisibility();
             return vm;
         }
 
