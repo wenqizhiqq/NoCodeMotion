@@ -52,12 +52,51 @@ namespace NoCodeMotion
             // 启动初始化（载入工程 + 预初始化所有页面）在窗口显示后进行 —— 全程在加载遮罩的
             // 进度条 + 当前步骤文字下完成，用户不会看到一段「白屏无提示」的等待。
             Loaded += OnWindowLoaded;
+            Closing += MainWindow_Closing;
         }
 
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
             Loaded -= OnWindowLoaded;
             StartUpAsync();
+        }
+
+        private bool _shuttingDown;
+
+        // ★ 关闭软件：先拦下关闭，弹进度条一步步释放资源（停止流程 + 关闭控制器 + 保存工程），
+        // 完成后再真正退出；避免直接关窗口导致运动卡 / 流程残留、工程未保存。
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (_shuttingDown) return;            // 第二次进入（Shutdown 触发）→ 放行
+            e.Cancel = true;                       // 先拦下，走进度条释放流程
+            _shuttingDown = true;
+
+            var dlg = new ClosingProgressWindow { Owner = this };
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    dlg.Report(8, "停止运行中的流程…");
+                    AppShutdown.StopAndRelease();   // 停止流程 + 断开并关闭所有运动控制器
+                    System.Threading.Thread.Sleep(200);  // 让停止信号传播到硬件等待
+                    dlg.Report(60, "保存工程配置…");
+                    ProjectStore.Save();
+                    dlg.Report(85, "释放界面资源…");
+                    System.Threading.Thread.Sleep(120);
+                    dlg.Report(100, "完成，正在退出…");
+                    System.Threading.Thread.Sleep(150);
+                }
+                catch (System.Exception ex)
+                {
+                    dlg.Report(100, "退出时发生错误：" + ex.Message);
+                }
+                finally
+                {
+                    dlg.Dispatcher.Invoke(() => dlg.Close());
+                }
+            });
+            dlg.ShowDialog();
+            System.Windows.Application.Current.Shutdown();
         }
 
         private void Nav_Click(object sender, RoutedEventArgs e)

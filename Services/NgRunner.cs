@@ -502,8 +502,19 @@ public sealed class NgRunner
 
             case NgKind.Delay: {
                 int ms = GetIntProp(node, "时间ms", 500);
-                // Delay 阻塞即可（Task.Run 包裹，不卡 UI 线程）
-                Thread.Sleep(ms);
+                // ★ 分段可中断：每 ≤50ms 查一次暂停/停止。暂停时在这里等着（不计入延时），
+                // 停止（_cts 取消或 _state=Stopped）→ 直接结束本次延时，外层 while 会随之退出图。
+                int remain = Math.Max(0, ms);
+                while (remain > 0)
+                {
+                    // ExecuteNodeSync 拿不到 RunAsync 的 ct：Stop() 先置 _state=Stopped 再 Cancel _cts，
+                    // 两个都查等价且更稳（将来新增 Cancel 调用点也不会漏）。
+                    if (_state == NgRunState.Stopped || (_cts?.IsCancellationRequested ?? false)) return;
+                    if (_state == NgRunState.Paused) { Thread.Sleep(30); continue; }
+                    int slice = Math.Min(50, remain);
+                    Thread.Sleep(slice);
+                    remain -= slice;
+                }
                 break;
             }
 

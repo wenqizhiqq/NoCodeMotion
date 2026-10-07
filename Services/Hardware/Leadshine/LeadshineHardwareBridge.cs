@@ -98,6 +98,30 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
         private bool _warnedNoCard;
         private bool _warnedBusIo;
 
+        /// <summary>
+        /// ★ 等待闸：由流程运行器绑定到当前运行的 FlowRunControl。所有阻塞等待（回零到位 /
+        /// 轴到位 / 等待输入 / 气缸到位）在轮询时都会调它——暂停时阻塞等「继续」，停止/急停时抛异常跳出。
+        /// 为 null（手动 Jog / 手动点位）时不做任何干预。
+        /// </summary>
+        public Action WaitGuard { get; set; }
+
+        /// <summary>可中断等待：切成 ≤50ms 小片，每片先查一次等待闸（暂停不消耗超时时长）。</summary>
+        private void WaitInterruptible(int ms)
+        {
+            int remain = Math.Max(0, ms);
+            while (remain > 0)
+            {
+                // ★ 必须读静态闸：HookWaitGuard 只绑定 HardwareBridge.WaitGuard（进程级共享），
+                //   实例属性 WaitGuard 无人赋值，读它等于闸不存在 → 雷赛等待永远不响应暂停/停止。
+                HardwareBridge.WaitGuard?.Invoke();
+                int slice = Math.Min(50, remain);
+                Thread.Sleep(slice);
+                remain -= slice;
+            }
+        }
+
+        /// <summary>只查「停止 / 急停」，不阻塞暂停（用于脉宽这类不可打断的硬件时序）。</summary>
+        private void WaitGuardDetectStopOnly() => HardwareBridge.WaitGuard?.Invoke();
         public LeadshineHardwareBridge(Action<string> log = null)
         {
             _log = log;
@@ -188,7 +212,7 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                     Log($"[雷赛] 轴「{axis.Name}」回零完成，坐标已置为 {axis.HomeOffset}");
                     return;
                 }
-                Thread.Sleep(Options.PollIntervalMs);
+                WaitInterruptible(Options.PollIntervalMs);
             }
             throw new ScriptRuntimeException(
                 $"轴「{axis.Name}」回零超时（{Options.AxisWaitTimeoutMs}ms）。请检查原点 / 限位感应是否接好、回零模式与速度是否合理。"
@@ -220,7 +244,7 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                     Log($"[雷赛] 轴「{axis.Name}」已到位，当前位置 {pos:F3} {axis.Unit}");
                     return;
                 }
-                Thread.Sleep(Options.PollIntervalMs);
+                WaitInterruptible(Options.PollIntervalMs);
             }
             throw new ScriptRuntimeException(
                 $"等待轴「{axis.Name}」到位超时（{Options.AxisWaitTimeoutMs}ms）。"
@@ -243,7 +267,8 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             if (LtdmcCard.IsBusCard)
             {
                 // CiA402 状态机 2→3→4 不是瞬间完成的，立刻读往往还停在 2，等一下再报。
-                Thread.Sleep(200);
+                // （走等待闸：流程停止时不必白等。）
+                WaitInterruptible(200);
                 ReportBusAxisState(axis.Name, card, no, "使能后");
             }
         }
@@ -469,7 +494,7 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                     Log($"[雷赛] 输入「{io.Name}」已变为 {value}（耗时 {sw.ElapsedMilliseconds}ms）");
                     return;
                 }
-                Thread.Sleep(Options.PollIntervalMs);
+                WaitInterruptible(Options.PollIntervalMs);
             }
             string where = UseBusIo(io)
                 ? $"从站节点 {io.ModuleNo} 的位 {io.Sequence}"
@@ -575,11 +600,16 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                 return;
             }
 
-            if (cyl.DelayMs > 0) Thread.Sleep(cyl.DelayMs);
+            // 气缸动作前延时：走等待闸（暂停等继续、停止跳出）
+            if (cyl.DelayMs > 0) WaitInterruptible(cyl.DelayMs);
 
             if (cyl.PulseOutput && cyl.PulseWidthMs > 0)
             {
+                // ★ 脉宽是硬件时序：中途不能被暂停挂起（否则输出常通），只查一次停止；
+                //   停止时先把输出复位成 0 再抛出。
                 WriteOutput(outIo, state);
+                try { WaitGuardDetectStopOnly(); }
+                catch { WriteOutput(outIo, state != 0 ? 0 : 1); throw; }
                 Thread.Sleep(cyl.PulseWidthMs);
                 WriteOutput(outIo, state != 0 ? 0 : 1);
                 Log($"[雷赛] 气缸「{cyl.Name}」脉冲输出 {cyl.PulseWidthMs}ms（{(state == 1 ? "伸出" : "缩回")}）");
@@ -609,7 +639,7 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                 int wait = expectExtend == 1
                     ? (cyl.ExtendMs > 0 ? cyl.ExtendMs : 300)
                     : (cyl.RetractMs > 0 ? cyl.RetractMs : 300);
-                Thread.Sleep(wait);
+                WaitInterruptible(wait);
                 Log($"[雷赛] 气缸「{cyl.Name}」无到位感应（{sensorName}），按动作时间等待 {wait}ms");
                 return;
             }
@@ -622,7 +652,7 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                     Log($"[雷赛] 气缸「{cyl.Name}」{(expectExtend == 1 ? "伸出" : "缩回")}到位（感应 {sensorName}，耗时 {sw.ElapsedMilliseconds}ms）");
                     return;
                 }
-                Thread.Sleep(Options.PollIntervalMs);
+                WaitInterruptible(Options.PollIntervalMs);
             }
             // 超时：按气缸「超时报警方式」处理（报警并停止 = 默认，抛异常终止流程 / 运行）
             string timeoutMsg = $"气缸「{cyl.Name}」等待到位超时（{timeout}ms）。请检查气压、电磁阀输出「{cyl.OutPoint}」、到位感应「{sensorName}」接线与电平。";

@@ -14,6 +14,7 @@ using NoCodeMotion.Services;
 using NoCodeMotion.Services.Vision;
 using NoCodeMotion.Views;
 using MoonSharp.Interpreter.Debugging;
+using MoonSharp.Interpreter;
 
 namespace NoCodeMotion.ViewModels
 {
@@ -35,6 +36,17 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>「相机」步骤真实取帧后回调（byte[]=BGRA, w, h），供 3D 仿真抓拍预览订阅。</summary>
         public Action<byte[], int, int>? OnCameraCapture;
+
+        /// <summary>
+        /// ★ 硬件阻塞等待（轴到位 / 气缸到位 / 等待输入 / 回零到位）里被「暂停」时的回调。
+        /// 由 FlowRunnerService 绑定成「把本条流程状态置 Paused」，让操作员按暂停后
+        /// 界面立刻显示「已暂停」，而不是只看到轴在走、状态还是「运行中」。
+        /// 为 null 时等待闸只阻塞、不改状态（仍然正确，只是界面反映晚一点）。
+        /// </summary>
+        public Action? OnWaitPaused;
+
+        /// <summary>★ 硬件阻塞等待从「暂停」恢复时的回调（把状态改回 运行中 / 循环）。</summary>
+        public Action? OnWaitResumed;
 
         /// <summary>
         /// 每步执行后的可视化停顿（毫秒）：让流程页的橙色当前行肉眼可见地逐行移动。
@@ -196,6 +208,14 @@ namespace NoCodeMotion.ViewModels
         {
             var flows = ProjectStore.Data?.Flows?.Where(filter ?? (_ => true)).ToList() ?? new List<FlowItem>();
             if (flows.Count == 0) { onComplete?.Invoke(); return; }
+
+            // ★ 把「等待闸」挂到本次运行的暂停/停止状态上：
+            //   硬件阻塞等待（轴到位 / 气缸到位 / 等待输入 / 回零到位）都在线程池/流程线程里，
+            //   拿不到这里的 ctrl。挂在 HardwareBridge（静态）上后，卡族桥接层的轮询循环
+            //   就能按 ≤50ms 的切片查「暂停 → 等继续」「停止 → 抛出跳过等待」。
+            //   ★ 必须在挂钩成功后再起流程线程（否则前几毫秒的等待查不到闸）。
+            HookWaitGuard(ctrl);
+
             var done = new CountdownEvent(flows.Count);
             for (int i = 0; i < flows.Count; i++)
             {
@@ -206,6 +226,17 @@ namespace NoCodeMotion.ViewModels
                 {
                     try { RunOneFlow(flow, idx, ctrl, log, onStep, onFlowDone, ct, loop); }
                     catch (OperationCanceledException) { /* 正常中止 */ }
+                    catch (ScriptRuntimeException srex)
+                    {
+                        // 硬件等待现在统一抛 OperationCanceledException（见上分支）；本分支保留为兜底，
+                        // 处理任何仍以 ScriptRuntimeException 上抛的等待中断（例如 Lua 延时被中断），
+                        // 统一记成「停止」而非「异常」（否则日志一片红字，操作员看不出停止已生效）。
+                        bool halted = ctrl.StopRequested || ctrl.EStopRequested;
+                        SetStatus(flow, halted ? FlowStatus.Stopped : FlowStatus.Exception);
+                        log?.Invoke(halted
+                            ? $"流程「{flow?.Name}」已{(ctrl.EStopRequested ? "急停" : "停止")}（等待被中断）。"
+                            : $"流程「{flow?.Name}」等待被中断：{srex.Message}", halted ? LogLevel.Warn : LogLevel.Error);
+                    }
                     catch (Exception ex) { log?.Invoke($"流程「{flow?.Name}」运行异常：{ex.Message}", LogLevel.Error); }
                     finally
                     {
@@ -221,17 +252,52 @@ namespace NoCodeMotion.ViewModels
             var watch = new Thread(() =>
             {
                 try { done.Wait(); } catch { }
+                UnhookWaitGuard(ctrl);
                 onComplete?.Invoke();
             })
             { IsBackground = true, Name = "FlowWatchdog" };
             watch.Start();
         }
 
+        /// <summary>
+        /// ★ 把「等待闸」挂到本次运行的控制对象上（硬件阻塞等待靠它响应操作员暂停/停止）。
+        /// <para>同时挂两个可选回调，让「等待中被暂停」也反映到流程状态芯片上
+        /// （否则操作员按暂停后，界面还显示「运行中」，看起来像暂停没生效）。</para>
+        /// <para>注意：这里是**进程级共享**的闸（HardwareBridge.WaitGuard 是静态的）。
+        /// 同批次并发运行的所有流程共用同一个 FlowRunControl，所以互不冲突；
+        /// 但若后续要支持「多条流程各自独立暂停」，需要改成按线程 [ThreadStatic] 绑定。</para>
+        /// </summary>
+        private static void HookWaitGuard(FlowRunControl ctrl)
+        {
+            if (ctrl == null) return;
+            try
+            {
+                // 回调里用 _guardFlow.Value：每条流程线程在 RunOneFlow 入口写入自己的 FlowItem，
+                // 于是「等待中被暂停」能把状态准确写到**正在等的那条流程**上，而不是最后启动的那条。
+                ctrl.OnWaitPaused = () => { var f = _guardFlow.Value; if (f != null) FlowRunStore.SetStatus(f, FlowStatus.Paused); };
+                ctrl.OnWaitResumed = () => { var f = _guardFlow.Value; if (f != null) FlowRunStore.SetStatus(f, FlowStatus.Running); };
+                HardwareBridge.BindWaitGuard(ctrl);
+            }
+            catch { /* 挂不上闸不影响运行，只是等待不再响应暂停/停止 */ }
+        }
+
+        /// <summary>解绑等待闸（流程全部结束后调用，避免手动 Jog 误响应上一次运行的暂停标志）。</summary>
+        private static void UnhookWaitGuard(FlowRunControl ctrl)
+        {
+            try { HardwareBridge.BindWaitGuard(null); } catch { }
+            try { ctrl.OnWaitPaused = null; ctrl.OnWaitResumed = null; } catch { }
+        }
+
+        /// <summary>正在等待的流程（等闸回调里用来把状态置 Paused）——按流程线程独立。</summary>
+        private static readonly ThreadLocal<FlowItem> _guardFlow = new();
+
         private static void RunOneFlow(FlowItem flow, int index, FlowRunControl ctrl,
             Action<string, LogLevel> log, Action<int, string, string> onStep, Action<int, string> onFlowDone,
             CancellationToken ct, bool loop)
         {
             if (flow == null) return;
+            // ★ 在**本流程线程**上登记流程身份：硬件等待被暂停时，等闸回调据此把状态写到正确的流程上。
+            _guardFlow.Value = flow;
             var name = flow.Name ?? "(未命名流程)";
             if (flow.Kind == FlowKind.Lua)
             {
@@ -381,6 +447,7 @@ namespace NoCodeMotion.ViewModels
                 {
                     var session = new LuaDebugSession();
                     session.FlowName = name;   // 点位防撞报警里标出是哪条流程
+                    session.RunControl = ctrl; // ★ 透传暂停/停止源：Lua 的 Delay/WaitStep 才被打断
                     // 断点：注入编辑器里为该脚本设置的断点行（命中即暂停，watcher 里等「继续」）
                     var luaBps = LuaEditorView.GetBreakpoints(flow);
                     if (luaBps.Count > 0) session.SetBreakpoints(luaBps);
@@ -438,7 +505,15 @@ namespace NoCodeMotion.ViewModels
                     watcher.Start();
                     ended.Wait();
                 }
-                catch (Exception ex) { log?.Invoke($"流程「{name}」Lua 运行异常：{ex.Message}", LogLevel.Error); }
+                catch (Exception ex)
+                {
+                    // ★ 停止/急停触发的等待中断（Lua 侧以 ScriptRuntimeException 上抛）是**预期**的「跳出等待」，
+                    // 记成停止而不是异常——否则日志一片红字，操作员看不出「我按的停止确实起作用了」。
+                    if (ctrl.StopRequested || ctrl.EStopRequested)
+                        log?.Invoke($"流程「{name}」已{(ctrl.EStopRequested ? "急停" : "停止")}（等待被中断）。", LogLevel.Warn);
+                    else
+                        log?.Invoke($"流程「{name}」Lua 运行异常：{ex.Message}", LogLevel.Error);
+                }
                 finally { LuaRunMonitor.ReportEnded(flow); }
                 if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。", LogLevel.Warn); break; }
                 if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。", LogLevel.Warn); break; }
@@ -1202,6 +1277,9 @@ namespace NoCodeMotion.ViewModels
             }
             catch (Exception ex)
             {
+                // ★ 暂停/停止抛出的 OperationCanceledException（以及点位防撞的 FlowAbortException）
+                // 必须原样上抛：否则「停止」会被这里吞掉、流程继续跑下一步（操作员以为停了其实没停）。
+                if (ex is OperationCanceledException || ex is FlowAbortException) throw;
                 _log?.Invoke($"步骤执行异常（{func} {name}）：{ex.Message}", LogLevel.Error);
             }
         }

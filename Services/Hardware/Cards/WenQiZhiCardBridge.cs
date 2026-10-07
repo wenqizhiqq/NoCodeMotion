@@ -119,7 +119,50 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <summary>轴号越界（轴号 ≥ 卡族轴数）只提示一次，避免每个动作都刷屏。</summary>
         private bool _warnedAxisNoRange;
         /// <summary>「同一控制器下两根轴用了同一个轴号」只提示一次（键 = 控制器名#轴号）。</summary>
-        private readonly HashSet<string> _warnedAxisDuplicate = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _warnedAxisDuplicate = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// ★ 等待闸：由流程运行器（FlowRunnerService / FlowLoopManager）绑定到当前运行的
+        /// FlowRunControl。所有阻塞等待（轴到位 / 回零到位 / 等待输入 / 气缸到位）在轮询时都会调它——
+        /// 暂停时它内部 while 等「继续」，停止/急停时它抛异常直接跳出等待。
+        /// 为 null（手动 Jog / 手动点位等）时不做任何干预。
+        /// </summary>
+        public Action WaitGuard { get; set; }
+
+        /// <summary>
+        /// 可中断等待：把等待切成 ≤50ms 的小片，每片先查一次等待闸。
+        /// <para>暂停 → 闸内阻塞直到「继续」（等待的总时长不消耗在暂停上：
+        /// 暂停期间不推进 Stopwatch 吗？—— 这里用「累加已睡眠时间」的方式，
+        /// 暂停耗时不计入超时，避免现场暂停几分钟后一恢复就报「等待超时」）。</para>
+        /// <para>停止 / 急停 → 闸内抛 ScriptRuntimeException，直接跳出等待。</para>
+        /// </summary>
+        private void WaitInterruptible(int ms)
+        {
+            int remain = Math.Max(0, ms);
+            while (remain > 0)
+            {
+                // ★ 读的是**进程级**静态闸 HardwareBridge.WaitGuard（由流程运行器绑定到当前运行的
+                // FlowRunControl）—— 不是本实例的 WaitGuard。这样 HookWaitGuard 只绑一处就对所有桥同时生效。
+                HardwareBridge.WaitGuard?.Invoke();
+                int slice = Math.Min(50, remain);
+                Thread.Sleep(slice);
+                remain -= slice;
+            }
+        }
+
+        /// <summary>
+        /// 只查「停止 / 急停」，**不阻塞暂停** —— 用于硬件时序不允许被打断的地方。
+        /// 目前的唯一用处：气缸「脉冲输出」的脉宽（写 1 之后必须原样写回 0）。
+        /// 若在脉宽中间挂进暂停等「继续」，输出会一直保持有效电平 → 气缸常通，是危险状态。
+        /// 故脉宽中间只判断「有没有停止」：停止 → 立刻写回 0 并抛出；没停止 → 照常走完脉宽。
+        /// </summary>
+        private void WaitGuardDetectStopOnly()
+        {
+            // 只查「停止 / 急停」（不阻塞暂停）。停止时这里抛出的 OperationCanceledException
+            // 由调用点（CylinderMove 的脉宽 try/catch）先复位输出电平再上抛，避免电磁阀常通。
+            HardwareBridge.WaitGuard?.Invoke();
+        }
+
 
         public WenQiZhiCardBridge(Action<string> log = null)
         {
@@ -468,7 +511,8 @@ namespace NoCodeMotion.Services.Hardware.Cards
             if (CardFamilyCatalog.IsBusType(slot.Config?.BusType))
             {
                 // 总线伺服的 CiA402 状态机 2→3→4 不是瞬间完成的，立刻读往往还停在 2，等一下再报。
-                Thread.Sleep(200);
+                // （这 200ms 也走等待闸：流程「停止」时不必白等。）
+                WaitInterruptible(200);
                 ReportBusAxisState(axis.Name, slot, a);
             }
         }
@@ -547,7 +591,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                     Log($"[卡族] 轴「{axis.Name}」已到位，当前位置 {pos:F3} {axis.Unit}");
                     return;
                 }
-                Thread.Sleep(Options.PollIntervalMs);
+                WaitInterruptible(Options.PollIntervalMs);
             }
             throw new ScriptRuntimeException(
                 $"等待轴「{axis.Name}」到位超时（{Options.AxisWaitTimeoutMs}ms）。"
@@ -597,7 +641,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                     Log($"[卡族] 轴「{axis.Name}」回零完成，坐标已置为 {axis.HomeOffset}");
                     return;
                 }
-                Thread.Sleep(Options.PollIntervalMs);
+                WaitInterruptible(Options.PollIntervalMs);
             }
             throw new ScriptRuntimeException(
                 $"轴「{axis.Name}」回零超时（{Options.AxisWaitTimeoutMs}ms）。请检查原点 / 限位感应是否接好、回零模式与速度是否合理。"
@@ -1435,7 +1479,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                     Log($"[卡族] 输入「{io.Name}」已变为 {value}（耗时 {sw.ElapsedMilliseconds}ms）");
                     return;
                 }
-                Thread.Sleep(Options.PollIntervalMs);
+                WaitInterruptible(Options.PollIntervalMs);
             }
             throw new ScriptRuntimeException(
                 $"等待输入「{io.Name}」= {value} 超时（{Options.IoWaitTimeoutMs}ms）。"
@@ -1543,12 +1587,17 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 return;
             }
 
-            if (cyl.DelayMs > 0) Thread.Sleep(cyl.DelayMs);
+            // 气缸动作前延时：走等待闸，暂停时在这里等「继续」，停止时直接跳出
+            if (cyl.DelayMs > 0) WaitInterruptible(cyl.DelayMs);
 
             if (cyl.PulseOutput && cyl.PulseWidthMs > 0)
             {
+                // ★ 脉宽是硬件时序：写 1 之后必须原样写回 0，中途不能被暂停打断，
+                //   否则输出会一直保持 1（气缸常通）。故这里只查一次「停止」，不做暂停阻塞。
                 WriteOutput(outIo, state);
-                Thread.Sleep(cyl.PulseWidthMs);
+                try { WaitGuardDetectStopOnly(); }
+                catch { WriteOutput(outIo, state != 0 ? 0 : 1); throw; }
+                Thread.Sleep(cyl.PulseWidthMs);   // 脉宽本身是硬件时序，必须走完
                 WriteOutput(outIo, state != 0 ? 0 : 1);
                 Log($"[卡族] 气缸「{cyl.Name}」脉冲输出 {cyl.PulseWidthMs}ms（{(state == 1 ? "伸出" : "缩回")}）");
                 return;
@@ -1576,7 +1625,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 int wait = expectExtend == 1
                     ? (cyl.ExtendMs > 0 ? cyl.ExtendMs : 300)
                     : (cyl.RetractMs > 0 ? cyl.RetractMs : 300);
-                Thread.Sleep(wait);
+                WaitInterruptible(wait);
                 Log($"[卡族] 气缸「{cyl.Name}」无到位感应（{sensorName}），按动作时间等待 {wait}ms");
                 return;
             }
@@ -1589,7 +1638,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                     Log($"[卡族] 气缸「{cyl.Name}」{(expectExtend == 1 ? "伸出" : "缩回")}到位（感应 {sensorName}，耗时 {sw.ElapsedMilliseconds}ms）");
                     return;
                 }
-                Thread.Sleep(Options.PollIntervalMs);
+                WaitInterruptible(Options.PollIntervalMs);
             }
             // 超时：按气缸「超时报警方式」处理（报警并停止 = 默认，抛异常终止流程 / 运行）
             string timeoutMsg = $"气缸「{cyl.Name}」等待到位超时（{timeout}ms）。请检查气压、电磁阀输出「{cyl.OutPoint}」、到位感应「{sensorName}」接线与电平。";

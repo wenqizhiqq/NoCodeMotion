@@ -24,6 +24,19 @@ namespace NoCodeMotion.Services
         /// <summary>输出对接日志，会显示在 Lua 编辑器的输出面板，方便排查对接问题。</summary>
         void Log(string message);
 
+        /// <summary>
+        /// ★ 等待闸（操作员「暂停 / 停止」感知）。
+        /// <para>本接口里所有**阻塞式**方法（WaitAxisDone / WaitCylinder / WaitInput 以及回零的到位等待）
+        /// 内部轮询时**必须**按 ≤50ms 的切片调用它：</para>
+        /// <list type="bullet">
+        ///   <item>操作员按「暂停」→ 这里会阻塞住（内部 while 等「继续」），恢复后本次等待照旧继续；</item>
+        ///   <item>操作员按「停止 / 急停」→ 这里抛出 <c>ScriptRuntimeException</c>，直接跳出等待（不再傻等超时）。</item>
+        /// </list>
+        /// <para>为 null（没有流程在跑，例如手动 Jog / 手动点位）时一律不干预，等待按原逻辑走。</para>
+        /// <para>实现方：不要吞掉它的异常，也不要用一次性的 try/catch 包住整个轮询循环。</para>
+        /// </summary>
+        Action WaitGuard { get; set; }
+
         // ===================== 轴 Axis =====================
 
         /// <summary>按对象配置的“目标位置”驱动轴运动到目标位。</summary>

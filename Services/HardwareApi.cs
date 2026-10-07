@@ -35,17 +35,27 @@ namespace NoCodeMotion.Services
         /// <summary>关联流程名（Lua 流程运行时由会话注入；防撞报警里标出来源流程）。</summary>
         private readonly string _flowName;
 
+        /// <summary>
+        /// ★ 本次运行的暂停/停止状态源（Lua 流程运行时由会话注入；手动运行脚本时为 null）。
+        /// <para>用途：Lua 里的 <c>Delay(ms)</c> / <c>WaitStep(ms)</c> 是脚本线程上的阻塞延时，
+        /// MoonSharp 的暂停钩子只在「每行指令」处生效，Delay 中间**不会**回调 —— 表现为
+        /// 「按了暂停，脚本还卡在 Delay 里继续等满」，「按了停止也不立刻返回」。见 <see cref="Delay"/>。</para>
+        /// </summary>
+        private readonly object _ctrl;
+
         /// <summary>已提示过的内容（同一处配置问题只提示一次，避免脚本循环里刷屏）。</summary>
         private readonly System.Collections.Generic.HashSet<string> _warned = new();
 
         /// <param name="log">普通日志回调（输出面板）。</param>
         /// <param name="warn">「提示」回调（输出面板橙色行）；不传则并入 log。</param>
-        public HardwareApi(IHardwareBridge bridge, Action<string> log, Action<string> warn = null, string flowName = "")
+        /// <param name="ctrl">运行控制（FlowRunControl）；传 null = 手动运行脚本，不响应暂停/停止。</param>
+        public HardwareApi(IHardwareBridge bridge, Action<string> log, Action<string> warn = null, string flowName = "", object ctrl = null)
         {
             _bridge = bridge;
             _log = log;
             _warn = warn;
             _flowName = flowName;
+            _ctrl = ctrl;
         }
 
         // ===================== 名称解析 =====================
@@ -488,11 +498,40 @@ namespace NoCodeMotion.Services
         /// <summary>当前是否处于急停锁定（供脚本里 <c>if EStop() then return end</c> 使用）。</summary>
         public bool IsEStop() => StatusBarService.EStopped;
 
-        /// <summary>脚本内延时（毫秒）。在后台线程休眠，便于让出运行节奏。</summary>
+        /// <summary>
+        /// 脚本内延时（毫秒）。在后台线程休眠，便于让出运行节奏。
+        /// <para>★ 分段可中断：每 ≤50ms 查一次运行控制（<c>_ctrl</c>）。
+        /// 「暂停」→ 在这里挂着等「继续」（暂停时间不计入本次延时）；「停止 / 急停」→ 抛出
+        /// <c>ScriptTerminatedException</c> 风格的 <c>ScriptRuntimeException</c>，脚本立即结束等待。</para>
+        /// <para>为什么要这么做：MoonSharp 的暂停钩子只在「每条指令」处回调，Delay 内部是一个整体 ——
+        /// 不分段的话，按暂停/停止都得等这段延时走完才生效（现场体感就是「按了没反应」）。</para>
+        /// </summary>
         public void Delay(double ms)
         {
-            int msInt = (int)Math.Max(0, Math.Min(60000, ms));
-            Thread.Sleep(msInt);
+            int remain = (int)Math.Max(0, Math.Min(60000, ms));
+            var ctrl = _ctrl;
+            if (ctrl == null) { Thread.Sleep(remain); return; }   // 手动运行脚本：保持原行为
+            var t = ctrl.GetType();
+            var fStop = t.GetField("StopRequested");
+            var fEStop = t.GetField("EStopRequested");
+            var fPause = t.GetField("PauseRequested");
+            var fResume = t.GetField("ResumeEvent");
+            while (remain > 0)
+            {
+                if (fEStop != null && fEStop.GetValue(ctrl) is bool es && es) throw new ScriptRuntimeException("已急停：延时被中断。");
+                if (fStop != null && fStop.GetValue(ctrl) is bool st && st) throw new ScriptRuntimeException("已停止：延时被中断。");
+                if (fPause != null && fPause.GetValue(ctrl) is bool pz && pz)
+                {
+                    // 暂停：阻塞等「继续」（不计入 remain），恢复后重查停止
+                    var ev = fResume?.GetValue(ctrl) as System.Threading.WaitHandle;
+                    if (ev != null) { try { ev.WaitOne(); } catch { } }
+                    if (fEStop != null && fEStop.GetValue(ctrl) is bool es2 && es2) throw new ScriptRuntimeException("已急停：延时被中断。");
+                    if (fStop != null && fStop.GetValue(ctrl) is bool st2 && st2) throw new ScriptRuntimeException("已停止：延时被中断。");
+                }
+                int slice = Math.Min(50, remain);
+                Thread.Sleep(slice);
+                remain -= slice;
+            }
         }
 
         /// <summary>大写 <c>Print</c> 别名（与模板里 <c>Print(...)</c> 对应；标准 <c>print</c> 已由 Options.DebugPrint 接管）。</summary>

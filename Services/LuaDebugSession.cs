@@ -212,6 +212,13 @@ namespace NoCodeMotion.Services
         /// <summary>关联流程名（FlowRunnerService 启动时设置；点位防撞报警里标出来自哪条流程）。</summary>
         public string FlowName { get; set; } = string.Empty;
 
+        /// <summary>
+        /// ★ 本次运行的暂停/停止状态源（FlowRunnerService 绑定时设置；手动在脚本页「运行」为 null）。
+        /// 透传给 <c>HardwareApi</c>：让 Lua 里的 <c>Delay</c>/<c>WaitStep</c> 也能被操作员暂停/停止打断。
+        /// 用 object 而非 FlowRunControl：避免 Services 反向依赖 ViewModels。
+        /// </summary>
+        public object RunControl { get; set; }
+
         private void Execute(string code, bool breakAtEntry)
         {
             var sw = Stopwatch.StartNew();
@@ -235,10 +242,12 @@ namespace NoCodeMotion.Services
                 // 预留硬件接口：把轴/IO/气缸/通讯/点位 的运动控制函数注册成 Lua 全局函数。
                 // 名称解析与 Lua 绑定在 HardwareApi 里完成，真正的设备对接在 IHardwareBridge。
                 // 第 3 个参数是「提示」回调：名称没配好 / 硬件未就绪只提示，不再抛异常（调试器里不会弹未处理异常窗）。
+                // ★ 把本次运行的暂停/停止状态源透传给 HardwareApi（Delay/WaitStep 才能被打断）
+                object rc = RunControl;
                 HardwareApi.Register(_script, new HardwareApi(
                     HardwareBridge.Current,
                     s => EnqueueLog(s, LogKind.Output),
-                    s => EnqueueLog(s, LogKind.Warn), FlowName));
+                    s => EnqueueLog(s, LogKind.Warn), FlowName, rc));
 
                 _baselineGlobals = new HashSet<string>(
                     _script.Globals.Pairs.Select(p => p.Key.CastToString() ?? string.Empty));

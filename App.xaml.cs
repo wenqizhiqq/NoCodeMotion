@@ -37,6 +37,17 @@ namespace NoCodeMotion
             //   放到主窗口 Loaded 之后，就能在「加载遮罩（进度条 + 当前初始化内容）」下完成整个启动初始化。
         }
 
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            // ★ 单实例保护：防止多开。已运行时弹窗选择「关闭其它并打开」或「取消打开」。
+            if (!SingleInstance.EnsureSingleInstance())
+            {
+                Shutdown();
+                return;
+            }
+            base.OnStartup(e);
+        }
+
         protected override void OnExit(ExitEventArgs e)
         {
             // 退出时强制保存一次，防止防抖定时器未触发

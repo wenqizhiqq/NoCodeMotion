@@ -42,9 +42,17 @@ namespace NoCodeMotion.Services
         }
         public void StopAxis(AxisItem axis) =>
             Write($"轴停止 → 名称={axis.Name} 轴号={axis.AxisNo}");
+        /// <summary>
+        /// ★ 等待闸（接口成员）。桩实现也遵守它：暂停时阻塞、停止时抛异常。
+        /// 说明：桩本身几乎不耗时，但保留这个闸可以让「无硬件」环境下的流程回归测试
+        /// 也能验证「暂停/停止能打断等待」这条链路真的接通了。
+        /// </summary>
+        public Action WaitGuard { get; set; }
+
         public void WaitAxisDone(AxisItem axis)
         {
             Write($"等待轴到位 → 名称={axis.Name} 轴号={axis.AxisNo} 误差={axis.InPosError}");
+            HardwareBridge.WaitGuard?.Invoke();
             Simulate();
         }
         public void EnableAxis(AxisItem axis) =>
@@ -77,6 +85,7 @@ namespace NoCodeMotion.Services
         public void WaitInput(IoItem io, int value)
         {
             Write($"等待输入 → 名称={io.Name} 卡号={io.CardNo} 模块={io.ModuleNo} 序号={io.Sequence} 目标={value}");
+            HardwareBridge.WaitGuard?.Invoke();
             Simulate();
         }
         /// <summary>读回输出点真实状态（无硬件：回放本地记录的写值）。</summary>
@@ -102,6 +111,7 @@ namespace NoCodeMotion.Services
         public void WaitCylinder(CylinderItem cyl)
         {
             Write($"等待气缸到位 → 名称={cyl.Name} 设备={cyl.DeviceId} 伸感应={cyl.SensorExtend} 缩感应={cyl.SensorRetract} 超时={cyl.TimeoutMs}ms");
+            HardwareBridge.WaitGuard?.Invoke();
             Simulate();
         }
         public void CylinderReset(CylinderItem cyl) =>
