@@ -94,7 +94,7 @@
                 <RadioButton GroupName="mode" Content="设计模式" Style="{StaticResource ModePill}"
                              IsChecked="{Binding IsDesign, Mode=TwoWay}"/>
                 <RadioButton GroupName="mode" Content="运行模式" Style="{StaticResource ModePill}"
-                             IsChecked="{Binding IsRunMode, Mode=TwoWay}"/>
+                             IsChecked="{Binding IsRunMode, Mode=OneWay}"/>
                 <Button Content="删除所选" Style="{StaticResource TtGrayBtn}" Margin="12,0,0,0"
                         Command="{Binding DeleteSelectedCommand}" Cursor="Hand"
                         Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}"/>
