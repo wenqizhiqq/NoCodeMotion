@@ -203,6 +203,12 @@
                                                              KeyDown="InputBox_KeyDown" LostFocus="InputBox_LostFocus"/>
                                                 </Grid>
 
+                                                <!-- 标签：纯显示用户输入的文字（属性面板「文本」编辑） -->
+                                                <TextBlock Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=标签}"
+                                                           Text="{Binding Model.Text}" FontSize="14" FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" Margin="10,0" TextTrimming="CharacterEllipsis"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+
                                                 <!-- 显示框：标题 + 实时值（250ms 读回） -->
                                                 <Border Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=显示框}"
                                                         Background="#EFF6FF" CornerRadius="7" Padding="8,2">

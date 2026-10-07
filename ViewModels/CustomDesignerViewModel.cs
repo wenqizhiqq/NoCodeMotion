@@ -48,7 +48,7 @@ namespace NoCodeMotion.ViewModels
         public ObservableCollection<DesignerWidgetVM> Widgets { get; } = new();
 
         /// <summary>左侧工具箱可拖出的控件类型。</summary>
-        public ObservableCollection<string> ToolboxTypes { get; } = new() { "按钮", "输入框", "显示框" };
+        public ObservableCollection<string> ToolboxTypes { get; } = new() { "按钮", "输入框", "显示框", "标签" };
 
         /// <summary>按钮可用的动作。</summary>
         public static readonly string[] ButtonActions =
@@ -115,6 +115,7 @@ namespace NoCodeMotion.ViewModels
                 var t = SelectedWidget?.Model.WidgetType;
                 if (t == "输入框") return InputActions;
                 if (t == "显示框") return DisplayActions;
+                if (t == "标签") return new[] { "无" };   // 标签纯显示，无动作
                 return ButtonActions;
             }
         }
@@ -209,6 +210,8 @@ namespace NoCodeMotion.ViewModels
                     m.Action = "写变量"; m.Width = 150; m.Height = 34; break;
                 case "显示框":
                     m.Action = "显示变量"; m.Width = 180; m.Height = 40; break;
+                case "标签":
+                    m.Action = "无"; m.Text = $"标签{n}"; m.Width = 120; m.Height = 30; break;
                 default:
                     m.Action = "写输出IO"; m.Width = 130; m.Height = 40; break;
             }
