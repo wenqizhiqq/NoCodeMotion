@@ -18,6 +18,11 @@
 - `App.xaml` 只合 `Resources/AppStyles.xaml`；弹窗只能用 AppStyles 全局键（页面级 Resources 键顶层取不到）。色彩：红=破坏/橙=反向/蓝=正向/绿=保存/灰=次要。
 - **后台线程绝不能改 ObservableCollection**：`Catalog.Set` 已加 Dispatcher 检查；任何名称库刷新/集合重建同样处理。
 
+## 自定义页面（CustomDesignerPage，2026-10-07 第一版）
+- 「工程师」右侧导航 Tag="Custom"；三栏：工具箱 / Canvas 画布 / 属性面板。控件模型 `DesignerWidget`（WidgetType 按钮/输入框/显示框 + X/Y/W/H/Text/Action/Target/Param）→ `ProjectData.DesignerWidgets` 根集合自动落 xlsx「自定义」表（SheetNameOverrides 已配）。
+- **设计/运行双模式**：设计模式控件 `IsHitTestVisible=false` → 点击穿透到 Grid 拖动；运行模式 Button 可点（ButtonBase 吞 MouseLeftButtonDown，两者天然不冲突）。拖动=Grid 捕获鼠标改 Model.X/Y（`Canvas.Left/Top` 绑定自动跟）；缩放=右下角 Ellipse 手柄；Delete 删除要跳过 `Keyboard.FocusedElement is TextBox`。
+- 动作经 `HardwareBridge.Current` 真实下发（写输出IO/气缸/轴移动绝对相对/轴回原/轴停止/写变量），显示框 250ms 读回（IO 走 ReadOutput/ReadInput；气缸优先读 SensorExtend/Retract 真实输入，没有则 SimRuntime；变量 GetVariableResolved；轴位置 ReadAxisPosition）。细节见 2026-10-07.md。
+
 ## 节点图（NgRunner / NodeGraphPage）
 - 数据驱动：ItemsControl+DataTemplate，禁 Children.Add；端口 Tag="OUT"/"IN"（名取 `Label`）；连线命中 Tag="CONN"；拓扑变更后必须 `SyncRunnerTopology()`。
 - 条件分支：端口 条件1..8+否则，`NgPortStateViewModel` 定时刷「符合/不符合」。

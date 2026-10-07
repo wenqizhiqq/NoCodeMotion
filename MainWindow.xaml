@@ -91,6 +91,12 @@
                         <TextBlock Text="工程师" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
+                <Button Tag="Custom" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="自定义页面：可视化设计器（拖控件摆布局，配置 IO / 气缸 / 变量 / 轴动作）">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource CustomIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconCustomBrush}"/>
+                        <TextBlock Text="自定义" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
                 <Button Tag="Operator" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource OperatorIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconOperatorBrush}"/>

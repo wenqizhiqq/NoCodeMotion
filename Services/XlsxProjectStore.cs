@@ -72,6 +72,7 @@ namespace NoCodeMotion.Services
             ["Outputs"] = "输出",
             ["Variables"] = "变量",
             ["Cameras"] = "相机",
+            ["DesignerWidgets"] = "自定义",
             ["Io"] = "IO",
         };
 
@@ -89,7 +90,7 @@ namespace NoCodeMotion.Services
         public static readonly string[] MenuSheetNames =
         {
             "项目管理", "控制器", "轴", "IO", "气缸", "点位表", "通讯",
-            "料盘", "相机", "变量", "流程", "工程师", "操作员",
+            "料盘", "相机", "变量", "流程", "工程师", "自定义", "操作员",
         };
 
         /// <summary>导出/导入时跳过的属性：Io 为 Inputs+Outputs 的计算合并属性，避免重复存储；Points/PointAxes 是旧版单工位字段，EnsurePointTables 后已清空，不再落盘。</summary>

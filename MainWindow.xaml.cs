@@ -27,6 +27,7 @@ namespace NoCodeMotion
             ["Flow"] = () => new FlowPage(),
             ["Camera"] = () => new CameraPage(), 
             ["Engineer"] = () => new EngineerPage(),
+            ["Custom"] = () => new CustomDesignerPage(),
             ["Operator"] = () => new OperatorPage(),
             ["Manual"] = () => new OperatorManualPage(),
         };
@@ -190,6 +191,7 @@ namespace NoCodeMotion
             "Flow" => "流程",
             "Camera" => "相机",
             "Engineer" => "工程师",
+            "Custom" => "自定义",
             "Operator" => "操作员",
             "Manual" => "说明书",
             _ => key

@@ -1,0 +1,320 @@
+﻿<UserControl x:Class="NoCodeMotion.Views.CustomDesignerPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:NoCodeMotion.Views"
+             mc:Ignorable="d"
+             d:DesignHeight="640" d:DesignWidth="1200"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <!-- 值 == 参数 → Visible（切换三种控件的显示内容） -->
+        <local:StringEqualsToVisibilityConverter x:Key="EqVis"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <!-- true（设计模式）→ 像素列宽；false（运行模式）→ 0 -->
+        <local:BoolToColWidthConverter x:Key="ColW"/>
+        <!-- null → Collapsed（"inv" 反转）：按动作切换参数下拉/输入框 -->
+        <local:NullToVisConverter x:Key="NullToVis"/>
+
+        <!-- 设计/运行 切换的胶囊按钮 -->
+        <Style x:Key="ModePill" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="bd" Background="Transparent" BorderBrush="{StaticResource LineBrush}"
+                                BorderThickness="1" CornerRadius="14" Padding="14,4">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 属性面板的小输入框 -->
+        <Style x:Key="PropBox" TargetType="TextBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+        </Style>
+
+        <Style x:Key="PropLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Margin" Value="0,10,0,0"/>
+        </Style>
+
+        <!-- 工具箱里的可拖拽项 -->
+        <Style x:Key="ToolboxItem" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EFF6FF"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid x:Name="PageRoot" Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="{Binding DataContext.IsDesign, ElementName=PageRoot, Converter={StaticResource ColW}, ConverterParameter=170}"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="{Binding DataContext.IsDesign, ElementName=PageRoot, Converter={StaticResource ColW}, ConverterParameter=260}"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ====== 顶部：模式切换 + 操作 + 提示 ====== -->
+        <DockPanel Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                <RadioButton GroupName="mode" Content="设计模式" Style="{StaticResource ModePill}"
+                             IsChecked="{Binding IsDesign, Mode=TwoWay}"/>
+                <RadioButton GroupName="mode" Content="运行模式" Style="{StaticResource ModePill}"
+                             IsChecked="{Binding IsRunMode, Mode=TwoWay}"/>
+                <Button Content="删除所选" Style="{StaticResource TtGrayBtn}" Margin="12,0,0,0"
+                        Command="{Binding DeleteSelectedCommand}" Cursor="Hand"
+                        Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}"/>
+                <Button Content="清空画布" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0"
+                        Command="{Binding ClearAllCommand}" Cursor="Hand"
+                        Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}"/>
+            </StackPanel>
+            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" TextAlignment="Right" FontSize="12"
+                       Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"
+                       Text="设计模式：从左侧拖控件进工作区，拖动摆放；选中后右下角小圆点拖大小，Delete 删除。运行模式：按钮 / 输入框生效，显示框实时读回。"/>
+        </DockPanel>
+
+        <!-- ====== 左侧：工具箱（仅设计模式显示） ====== -->
+        <DockPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
+                   Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}">
+            <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
+                <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform"
+                      Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock Text="工具箱" Style="{StaticResource SectionHeaderText}"/>
+            </StackPanel>
+            <Border Style="{StaticResource CardBorderStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding ToolboxTypes}" Margin="8">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource ToolboxItem}" Tag="{Binding}"
+                                        MouseMove="ToolboxItem_MouseMove" ToolTip="按住拖到中间工作区">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="{StaticResource AccentSoftBrush}"
+                                                 VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding}" FontSize="13"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </DockPanel>
+
+        <!-- ====== 中间：工作区画布 ====== -->
+        <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,0,8,0">
+            <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
+                <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform"
+                      Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock Text="工作区" Style="{StaticResource SectionHeaderText}"/>
+            </StackPanel>
+            <Border Style="{StaticResource CardBorderStyle}">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <Canvas x:Name="DesignerCanvas" MinWidth="900" MinHeight="560" Background="Transparent"
+                            AllowDrop="True" Drop="Canvas_Drop">
+                        <ItemsControl x:Name="DesignerHost" ItemsSource="{Binding Widgets}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas IsItemsHost="True"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding Model.X}"/>
+                                    <Setter Property="Canvas.Top" Value="{Binding Model.Y}"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <!-- 控件根：整体拖动 / 大小由 Model 绑定 -->
+                                    <Grid Width="{Binding Model.Width}" Height="{Binding Model.Height}"
+                                          MouseLeftButtonDown="Widget_MouseLeftButtonDown"
+                                          MouseMove="Widget_MouseMove"
+                                          MouseLeftButtonUp="Widget_MouseLeftButtonUp"
+                                          Background="Transparent">
+                                        <Border x:Name="RootBorder" CornerRadius="8" Background="White"
+                                                BorderBrush="#CBD5E1" BorderThickness="1">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                                            <Setter Property="BorderThickness" Value="2"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+
+                                            <Grid>
+                                                <!-- 按钮 -->
+                                                <Button Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=按钮}"
+                                                        Content="{Binding Model.Text}" FontSize="14" Cursor="Hand"
+                                                        IsHitTestVisible="{Binding DataContext.IsRunMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        Click="WidgetButton_Click"/>
+
+                                                <!-- 输入框：标签 + 输入（回车 / 失焦提交到变量） -->
+                                                <Grid Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=输入框}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Model.Text}" FontSize="12" Margin="8,0,4,0"
+                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    <TextBox Grid.Column="1" Margin="0,4,8,4" VerticalContentAlignment="Center"
+                                                             FontSize="13" Background="#F8FAFC" BorderBrush="{StaticResource LineBrush}"
+                                                             IsHitTestVisible="{Binding DataContext.IsRunMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                             KeyDown="InputBox_KeyDown" LostFocus="InputBox_LostFocus"/>
+                                                </Grid>
+
+                                                <!-- 显示框：标题 + 实时值（250ms 读回） -->
+                                                <Border Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=显示框}"
+                                                        Background="#EFF6FF" CornerRadius="7" Padding="8,2">
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Model.Text}" FontSize="10" TextTrimming="CharacterEllipsis"
+                                                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                        <TextBlock Text="{Binding LiveText}" FontSize="14" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource AccentBrush}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- 右下角大小手柄（选中时出现） -->
+                                        <Ellipse Width="10" Height="10" Fill="{StaticResource AccentBrush}" Stroke="White"
+                                                 StrokeThickness="1" Margin="0,0,-5,-5" Cursor="SizeNWSE"
+                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                 Visibility="{Binding IsSelected, Converter={StaticResource BoolToVis}}"
+                                                 MouseLeftButtonDown="Grip_MouseLeftButtonDown"
+                                                 MouseMove="Widget_MouseMove"
+                                                 MouseLeftButtonUp="Widget_MouseLeftButtonUp"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Canvas>
+                </ScrollViewer>
+            </Border>
+        </DockPanel>
+
+        <!-- ====== 右侧：属性面板（仅设计模式显示） ====== -->
+        <DockPanel Grid.Row="1" Grid.Column="2"
+                   Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}">
+            <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
+                <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform"
+                      Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock Text="属性" Style="{StaticResource SectionHeaderText}"/>
+            </StackPanel>
+            <Border Style="{StaticResource CardBorderStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="12" DataContext="{Binding SelectedWidget.Model}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.ColumnSpan="2">
+                            <TextBlock Text="名称" Style="{StaticResource PropLabel}" Margin="0,0,0,0"/>
+                            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropBox}"/>
+
+                            <TextBlock Text="类型" Style="{StaticResource PropLabel}"/>
+                            <TextBlock Text="{Binding WidgetType}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+
+                            <!-- 位置与大小 -->
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="X" Style="{StaticResource PropLabel}" Margin="0"/>
+                                    <TextBox Text="{Binding X}" Style="{StaticResource PropBox}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Y" Style="{StaticResource PropLabel}" Margin="0"/>
+                                    <TextBox Text="{Binding Y}" Style="{StaticResource PropBox}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="宽" Style="{StaticResource PropLabel}" Margin="0"/>
+                                    <TextBox Text="{Binding Width}" Style="{StaticResource PropBox}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="6">
+                                    <TextBlock Text="高" Style="{StaticResource PropLabel}" Margin="0"/>
+                                    <TextBox Text="{Binding Height}" Style="{StaticResource PropBox}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="文本（按钮文字 / 标签）" Style="{StaticResource PropLabel}"/>
+                            <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropBox}"/>
+
+                            <TextBlock Text="动作" Style="{StaticResource PropLabel}"/>
+                            <ComboBox ItemsSource="{Binding DataContext.ActionOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                      SelectedItem="{Binding Action}" Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"/>
+
+                            <TextBlock Text="目标（IO / 气缸 / 变量 / 轴名）" Style="{StaticResource PropLabel}"/>
+                            <ComboBox IsEditable="True" Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"
+                                      ItemsSource="{Binding DataContext.TargetOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                      Text="{Binding Target, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Text="参数" Style="{StaticResource PropLabel}"/>
+                            <!-- 有固定候选的动作 → 下拉；其它动作 → 自由输入 -->
+                            <ComboBox Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"
+                                      ItemsSource="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                      SelectedItem="{Binding Param, UpdateSourceTrigger=PropertyChanged}"
+                                      Visibility="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToVis}}"/>
+                            <TextBox Text="{Binding Param, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropBox}"
+                                     Visibility="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToVis}, ConverterParameter=inv}"/>
+                            <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       Text="写输出IO：开 / 关 / 切换；气缸：伸出 / 缩回 / 切换；轴移动(绝对)：目标位置；轴移动(相对)：距离（正负=方向）；写变量：写入数值；显示轴参数：速度 / 加速时间 / 减速时间 / 点动距离 / 手动速度。"/>
+
+                            <Button Content="删除此控件" Style="{StaticResource TtGrayBtn}" Margin="0,16,0,0" Cursor="Hand"
+                                    Command="{Binding DataContext.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </Border>
+        </DockPanel>
+    </Grid>
+</UserControl>
