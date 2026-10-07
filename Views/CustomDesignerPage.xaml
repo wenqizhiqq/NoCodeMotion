@@ -101,6 +101,12 @@
                 <Button Content="清空画布" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0"
                         Command="{Binding ClearAllCommand}" Cursor="Hand"
                         Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}"/>
+                <Button Content="导入" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0"
+                        Command="{Binding ImportCommand}" Cursor="Hand" ToolTip="从 JSON 文件导入控件布局（替换当前画布）"
+                        Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}"/>
+                <Button Content="导出" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0"
+                        Command="{Binding ExportCommand}" Cursor="Hand" ToolTip="把当前画布全部控件导出为 JSON 文件"
+                        Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
             <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" TextAlignment="Right" FontSize="12"
                        Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"

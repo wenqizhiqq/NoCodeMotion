@@ -6,8 +6,11 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Windows.Input;
+using Microsoft.Win32;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 
@@ -173,12 +176,16 @@ namespace NoCodeMotion.ViewModels
 
         public ICommand DeleteSelectedCommand { get; }
         public ICommand ClearAllCommand { get; }
+        public ICommand ExportCommand { get; }
+        public ICommand ImportCommand { get; }
 
         public CustomDesignerViewModel()
         {
             ReloadFromStore();
             DeleteSelectedCommand = new RelayCommand(_ => DeleteSelected());
             ClearAllCommand = new RelayCommand(_ => ClearAll());
+            ExportCommand = new RelayCommand(_ => ExportWidgets());
+            ImportCommand = new RelayCommand(_ => ImportWidgets());
         }
 
         /// <summary>从工程数据重建包装列表（页面构造 / 清空后重载时调用）。</summary>
@@ -238,6 +245,66 @@ namespace NoCodeMotion.ViewModels
             ProjectStore.Data.DesignerWidgets.Clear();
             Widgets.Clear();
             SelectedWidget = null;
+        }
+
+        // ===== 导入 / 导出（控件布局存 JSON 文件，便于跨工程复用） =====
+
+        private static readonly JsonSerializerOptions _jsonOpt = new() { WriteIndented = true };
+
+        /// <summary>导出当前画布全部控件为 JSON 文件（SaveFileDialog 选择保存位置）。</summary>
+        private void ExportWidgets()
+        {
+            try
+            {
+                var items = ProjectStore.Data.DesignerWidgets.Where(w => w != null).ToList();
+                if (items.Count == 0) { Warn("画布上没有控件，先拖几个再导出。"); return; }
+
+                var dlg = new SaveFileDialog
+                {
+                    Title = "导出自定义页面",
+                    Filter = "自定义页面 (*.json)|*.json|所有文件 (*.*)|*.*",
+                    FileName = "自定义页面.json",
+                    OverwritePrompt = true,
+                    AddExtension = true
+                };
+                if (dlg.ShowDialog() != true) return;
+
+                File.WriteAllText(dlg.FileName, JsonSerializer.Serialize(items, _jsonOpt));
+                StatusBarService.ReportInfo($"[自定义] 已导出 {items.Count} 个控件到 {Path.GetFileName(dlg.FileName)}。");
+            }
+            catch (Exception ex)
+            {
+                StatusBarService.ReportException($"[自定义] 导出失败：{ex.Message}");
+            }
+        }
+
+        /// <summary>从 JSON 文件导入控件布局（替换当前画布全部控件）。</summary>
+        private void ImportWidgets()
+        {
+            try
+            {
+                var dlg = new OpenFileDialog
+                {
+                    Title = "导入自定义页面",
+                    Filter = "自定义页面 (*.json)|*.json|所有文件 (*.*)|*.*"
+                };
+                if (dlg.ShowDialog() != true) return;
+
+                var imported = JsonSerializer.Deserialize<List<DesignerWidget>>(File.ReadAllText(dlg.FileName));
+                if (imported == null || imported.Count == 0) { Warn($"[自定义] 文件「{Path.GetFileName(dlg.FileName)}」里没有控件。"); return; }
+
+                var store = ProjectStore.Data.DesignerWidgets;
+                store.Clear();
+                foreach (var w in imported)
+                    if (w != null) store.Add(w);
+
+                ReloadFromStore();
+                StatusBarService.ReportInfo($"[自定义] 已从 {Path.GetFileName(dlg.FileName)} 导入 {store.Count} 个控件（原画布内容已被替换）。");
+            }
+            catch (Exception ex)
+            {
+                StatusBarService.ReportException($"[自定义] 导入失败：{ex.Message}（请确认选择的是「导出」生成的 JSON 文件）");
+            }
         }
 
         // ===== 运行时：按钮 / 输入框动作（真实下发硬件） =====
