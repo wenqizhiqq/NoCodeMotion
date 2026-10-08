@@ -79,6 +79,8 @@ namespace NoCodeMotion.Services
             Description = "从零开始，所有页面均为空。",
             Summary = "无任何预设数据",
             Highlights = new[] { "0 个控制器", "0 个轴", "0 个 IO", "0 个气缸", "0 个流程" },
+            // 空白工程的定位就是「所有页面均为空」，不追加「工位-对象」示例名称。
+            ExpandSampleNames = false,
             Factory = () => new ProjectData(),
         };
 
@@ -2764,6 +2766,76 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 for (int i = 0; i < conds.Count && i < point.Conditions.Count; i++)
                     point.Conditions[i] = conds[i];
             }
+        }
+
+        // ====================================================================
+        // 示例工程的「工位-对象」名称扩展（让名称下拉框的级联二级菜单一眼可见）
+        // --------------------------------------------------------------------
+        // 命名约定：把名称写成「工位-对象」，例如 上料-轴1 / 上料-入1 / 上料-缸1 / 上料-计数。
+        // 第一个「-」（半角或全角）之前的文字就是下拉框的分组前缀；某类名称超过 20 个、
+        // 且至少一个能截出前缀时，Catalog 会把该类的默认视图切成
+        // 「一级分类行 → 右侧飞出二级菜单」的级联形态（见 Views/NameGroupHeaderBehavior.cs）。
+        //
+        // 模板本身按语义只配了少量对象（「单轴点动」就真的只有 1 根轴），照着模板硬扩到 20+
+        // 会让模板名不副实。所以这里做成**统一的附加层**：在模板自带的对象之后追加
+        // 3 个工位 × 8 个 = 24 个同族名称。示例流程与节点图引用的仍是模板自带的第一个
+        // 轴 / 输入 / 输出 / 气缸，不受影响——这里纯粹是「名称库变多」。
+        //
+        // ★ 轴必须挂在控制器上，所以追加一张「雷赛」扩展轴卡（卡型号 DMC-E3000，24 轴）。
+        //   厂商必须写「雷赛」：WenQiZhiCardBridge.CanServeProject() 只对「非雷赛」控制器
+        //   切到卡族层，写成「模拟卡」会把所有模板的默认硬件通道从雷赛封装改成卡族层。
+        //   卡型号 DMC-E3000 命中雷赛 EtherCAT 主站族（Vendor=雷赛）→ 同样被跳过，行为不变。
+        //   扩展卡的卡号用 9，避开模板自带卡（0 / 1 / 2），不会顶掉真实轴。
+        // ====================================================================
+        private static readonly string[] DemoStations = { "上料", "搬运", "下料" };
+        private const int DemoPerStation = 8;              // 每工位 8 个 → 3×8 = 24，超过分组阈值 20
+        private const string DemoExtCard = "扩展轴卡";
+        private static readonly string[] DemoVarSuffixes =
+            { "计数", "总数", "节拍", "良品", "不良", "状态", "模式", "报警" };
+
+        /// <summary>
+        /// 给示例工程追加「工位-对象」命名的轴 / 输入IO / 输出IO / 气缸 / 变量（各 24 个），
+        /// 让新建工程后名称下拉框立刻呈现级联二级菜单。
+        /// 只做追加，不动模板自带的对象与流程；空白工程不调用（保持 0 个对象）。
+        /// </summary>
+        public static void ExpandNameLists(ProjectData d)
+        {
+            if (d == null) return;
+
+            // ---------- 轴：先补一张能挂 24 根轴的扩展卡 ----------
+            if (!d.Controllers.Any(c => c != null && c.Name == DemoExtCard))
+                d.Controllers.Add(Ctl(DemoExtCard, "雷赛", "DMC-E3000",
+                                      9, DemoStations.Length * DemoPerStation, "总线", "网口"));
+
+            // 轴号在扩展卡内 0..23 唯一（同一张卡里轴号重复会共用物理通道）。
+            // 加减速按新语义填 0.2（加速时间，秒），不是旧的「加速度值 50」。
+            int axisNo = 0;
+            foreach (var st in DemoStations)
+                for (int i = 1; i <= DemoPerStation; i++)
+                    d.Axes.Add(Ax($"{st}-轴{i}", DemoExtCard, "总线", axisNo++, "mm", 100, 0.2, 0.2));
+
+            // ---------- 输入 / 输出 IO：每工位占一个扩展模块号（10 / 11 / 12），位号 0..7 ----------
+            for (int s = 0; s < DemoStations.Length; s++)
+            {
+                var st = DemoStations[s];
+                for (int i = 1; i <= DemoPerStation; i++)
+                {
+                    d.Inputs.Add(In($"{st}-入{i}", "动点", "", 0, 10 + s, i - 1));
+                    d.Outputs.Add(Out($"{st}-出{i}", "动点", "", 0, 10 + s, i - 1));
+                }
+            }
+
+            // ---------- 气缸：电磁阀接本工位的输出点，两个传感器用同族的点名称 ----------
+            foreach (var st in DemoStations)
+                for (int i = 1; i <= DemoPerStation; i++)
+                    d.Cylinders.Add(Cyl($"{st}-缸{i}", $"{st}-出{i}", $"{st}-伸{i}", $"{st}-缩{i}"));
+
+            // ---------- 变量：每工位 8 个常用工艺量 ----------
+            var vars = new List<(string name, string value)>();
+            foreach (var st in DemoStations)
+                foreach (var sfx in DemoVarSuffixes)
+                    vars.Add(($"{st}-{sfx}", "0"));
+            AddVars(d, vars.ToArray());
         }
 
         // 点位构造助手

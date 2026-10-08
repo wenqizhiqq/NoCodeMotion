@@ -163,6 +163,11 @@
             </DockPanel>
         </Border>
 
+        <!-- 「-」命名约定提示（与新建工程弹窗一致） -->
+        <local:PageHintBar Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0"
+                           OperationText="命名建议写成「工位-对象」，例如 上料-入1 / 上料-出1 / 下料-入3。"
+                           PrecautionText="名称里第一个「-」之前的文字会成为下拉框的分组前缀：同类名称超过 20 个时，下拉框自动折叠成「一级分类 → 右侧二级菜单」的级联。改名后请确认没有流程 / 点位仍在引用旧名。"/>
+
         <!-- ============== 输入 IO 面板 ============== -->
         <DockPanel Grid.Column="0" Grid.Row="1" Margin="0,0,4,0">
             <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">

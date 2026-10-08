@@ -212,5 +212,9 @@
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
+        <!-- 「-」命名约定提示（与新建工程弹窗一致） -->
+        <local:PageHintBar Grid.Row="3" Margin="0,8,0,0"
+                           OperationText="命名建议写成「工位-对象」，例如 上料-计数 / 搬运-节拍 / 下料-良品。"
+                           PrecautionText="名称里第一个「-」之前的文字会成为下拉框的分组前缀：同类名称超过 20 个时，下拉框自动折叠成「一级分类 → 右侧二级菜单」的级联。变量名参与算术表达式时不要把「-」当成减号写。"/>
     </Grid>
 </UserControl>

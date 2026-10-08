@@ -150,15 +150,25 @@
                 </StackPanel>
             </Border>
 
-            <!-- 名称输入行 -->
-            <DockPanel Grid.Row="1" LastChildFill="True" Margin="22,16,22,12">
-                <TextBlock Text="名称" VerticalAlignment="Center" Margin="0,0,10,0"
-                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" DockPanel.Dock="Left"/>
-                <TextBox x:Name="NameBox" VerticalContentAlignment="Center" FontSize="14" Padding="8,7"
-                         BorderThickness="1" BorderBrush="{StaticResource LineBrush}"
-                         Background="{StaticResource SurfaceBrush}"
-                         Foreground="{StaticResource TextPrimaryBrush}"/>
-            </DockPanel>
+            <!-- 名称输入行 + 「-」命名约定提示 -->
+            <StackPanel Grid.Row="1" Margin="22,16,22,12">
+                <DockPanel LastChildFill="True">
+                    <TextBlock Text="名称" VerticalAlignment="Center" Margin="0,0,10,0"
+                               Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" DockPanel.Dock="Left"/>
+                    <TextBox x:Name="NameBox" VerticalContentAlignment="Center" FontSize="14" Padding="8,7"
+                             BorderThickness="1" BorderBrush="{StaticResource LineBrush}"
+                             Background="{StaticResource SurfaceBrush}"
+                             Foreground="{StaticResource TextPrimaryBrush}"/>
+                </DockPanel>
+                <!-- 命名约定：示例工程里所有对象都用「工位-对象」；第一个 '-' 之前是下拉框的分组前缀。
+                     与 轴 / IO / 气缸 / 变量 四页底部的 PageHintBar 说的是同一件事。 -->
+                <Border Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1"
+                        CornerRadius="6" Padding="10,7" Margin="0,8,0,0">
+                    <TextBlock TextWrapping="Wrap" FontSize="11.5" LineHeight="17"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Text="命名约定：示例工程里的轴 / 输入IO / 输出IO / 气缸 / 变量都写成「工位-对象」，例如 上料-轴1、上料-入1、上料-缸1、上料-计数。名称里第一个「-」之前的文字就是下拉框的分组前缀——同类名称超过 20 个时，下拉框会自动折叠成「一级分类 → 右侧二级菜单」的级联下拉，建议沿用同样的写法。"/>
+                </Border>
+            </StackPanel>
 
             <!-- 双栏主体：左侧模板列表 + 右侧预览 -->
             <Grid Grid.Row="2" Margin="16,0,16,0">

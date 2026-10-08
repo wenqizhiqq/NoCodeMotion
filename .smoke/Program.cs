@@ -62,6 +62,38 @@ namespace NcmSmoke
             }
         }
 
+        /// <summary>可视化树 + 逻辑树的直接子级（离屏、没进窗口时可视化树可能还没展开）。</summary>
+        private static List<DependencyObject> Children(DependencyObject d)
+        {
+            var list = new List<DependencyObject>();
+            try
+            {
+                int n = VisualTreeHelper.GetChildrenCount(d);
+                for (int i = 0; i < n; i++) list.Add(VisualTreeHelper.GetChild(d, i));
+            }
+            catch { }
+            try
+            {
+                foreach (var o in LogicalTreeHelper.GetChildren(d))
+                    if (o is DependencyObject x && !list.Contains(x)) list.Add(x);
+            }
+            catch { }
+            return list;
+        }
+
+        /// <summary>可视化树 + 逻辑树的全部后代（按引用去重）。</summary>
+        private static IEnumerable<DependencyObject> AllDescendants(DependencyObject root)
+        {
+            var seen = new HashSet<DependencyObject> { root };
+            var stack = new Stack<DependencyObject>();
+            stack.Push(root);
+            while (stack.Count > 0)
+            {
+                foreach (var c in Children(stack.Pop()))
+                    if (seen.Add(c)) { yield return c; stack.Push(c); }
+            }
+        }
+
         [STAThread]
         private static int Main()
         {
@@ -939,6 +971,189 @@ namespace NcmSmoke
             catch (Exception ex)
             {
                 Check(false, "名称分组验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ================= L. 新建工程模板：示例名称「工位-对象」扩展 =================
+            // 需求：新建工程弹窗里的示例模板要「轴 / IO / 气缸 / 变量尽量多」且都用「-」命名，
+            // 好让名称下拉框的级联二级菜单一建工程就能看到。
+            // 这里真跑一遍 ProjectTemplate.Build()，再喂给 Catalog.SyncAllFromData，
+            // 然后读各名称库**默认视图**的 GroupDescriptions —— 与真实下拉框看到的是同一份视图。
+            Section("L. 新建工程模板：示例名称「工位-对象」扩展（建完即可见级联下拉）");
+            try
+            {
+                var tplAll = ProjectTemplateCatalog.All;
+                Check(tplAll.Count >= 20, "模板目录共 " + tplAll.Count + " 个模板");
+
+                var emptyTpl = tplAll.FirstOrDefault(t => t.Id == "empty");
+                Check(emptyTpl != null, "存在「空白工程」模板");
+                if (emptyTpl != null)
+                {
+                    var de = emptyTpl.Build();
+                    Check(de.Axes.Count == 0 && de.Inputs.Count == 0 && de.Outputs.Count == 0
+                          && de.Cylinders.Count == 0 && de.Variables.Count == 0
+                          && de.Controllers.Count == 0,
+                          "空白工程仍是 0 控制器 / 0 轴 / 0 IO / 0 气缸 / 0 变量（不追加示例名称）");
+                }
+
+                // 挑一个「语义上对象很少」的模板来验证扩展确实起了作用
+                var one = tplAll.First(t => t.Id == "single-axis");
+                var d1 = one.Build();
+                int varCount = d1.Variables.SelectMany(v => v.Names()).Count();
+                Console.WriteLine("  单轴点动模板 Build() 后：控制器 " + d1.Controllers.Count
+                                  + " / 轴 " + d1.Axes.Count
+                                  + " / 入 " + d1.Inputs.Count + " / 出 " + d1.Outputs.Count
+                                  + " / 气缸 " + d1.Cylinders.Count + " / 变量 " + varCount);
+                Check(d1.Axes.Count > Catalog.GroupThreshold, "轴数量超过分组阈值 20：" + d1.Axes.Count);
+                Check(d1.Inputs.Count > Catalog.GroupThreshold, "输入 IO 数量超过分组阈值 20：" + d1.Inputs.Count);
+                Check(d1.Outputs.Count > Catalog.GroupThreshold, "输出 IO 数量超过分组阈值 20：" + d1.Outputs.Count);
+                Check(d1.Cylinders.Count > Catalog.GroupThreshold, "气缸数量超过分组阈值 20：" + d1.Cylinders.Count);
+                Check(varCount > Catalog.GroupThreshold, "变量数量超过分组阈值 20：" + varCount);
+
+                // 新增的对象必须都是「工位-对象」写法，且能截出前缀（否则分组退化成「其他」一桶）
+                var demoAxes = d1.Axes.Skip(1).Select(a => a.Name).ToList();   // 第 1 根是模板自带的 X
+                Check(demoAxes.Count > 20 && demoAxes.All(n => n.Contains('-')),
+                      "扩展出来的轴名都带「-」：" + string.Join("、", demoAxes.Take(3)) + " …");
+                var pref = demoAxes.Select(n => NamePrefixGroupDescription.PrefixOf(n))
+                                   .Where(p => p != null).Distinct().ToList();
+                Check(pref.Count >= 3, "轴名能截出多个分组前缀：" + string.Join("、", pref));
+
+                // 扩展轴卡必须是「雷赛」：非雷赛控制器会让 CanServeProject() 切到卡族层，
+                // 把所有模板的默认硬件通道整体改掉（不报错，只是行为变了）。
+                var ext = d1.Controllers.FirstOrDefault(c => c.Name == "扩展轴卡");
+                Check(ext != null && ext.Vendor == "雷赛", "扩展轴卡存在且厂商是「雷赛」");
+                if (ext != null)
+                {
+                    var fam = NoCodeMotion.Services.Hardware.Cards.CardFamilyCatalog
+                                  .Resolve(ext.Vendor, ext.CardType, ext.BusType);
+                    Check(fam == null || fam.Vendor == "雷赛",
+                          "扩展轴卡解析到的卡族仍是雷赛（CanServeProject 会跳过 → 默认通道不变）");
+                    var nos = d1.Axes.Where(a => a.Controller == ext.Name).Select(a => a.AxisNo).ToList();
+                    Check(nos.Count == nos.Distinct().Count(),
+                          "扩展卡内轴号唯一（" + nos.Count + " 根，不共用物理通道）");
+                }
+
+                // 喂给名称库，验证「默认视图」真的挂上了分组（与真实下拉框同一份视图）
+                Catalog.SyncAllFromData(d1);
+                foreach (var pair in new (string label, System.Collections.ObjectModel.ObservableCollection<string> coll)[]
+                         {
+                             ("轴", Catalog.AxisNames), ("输入IO", Catalog.InIoNames),
+                             ("输出IO", Catalog.OutIoNames), ("气缸", Catalog.CylinderNames),
+                             ("变量", Catalog.VariableNames),
+                         })
+                {
+                    var v = System.Windows.Data.CollectionViewSource.GetDefaultView(pair.coll);
+                    Check(pair.coll.Count > Catalog.GroupThreshold && v.GroupDescriptions.Count > 0,
+                          pair.label + " 名称库（" + pair.coll.Count + " 个）默认视图已分组 → 下拉框呈级联二级菜单");
+                }
+                Check(Catalog.AllNames.Count > Catalog.GroupThreshold
+                      && System.Windows.Data.CollectionViewSource.GetDefaultView(Catalog.AllNames).GroupDescriptions.Count > 0,
+                      "并集名称库（" + Catalog.AllNames.Count + " 个）也已分组");
+
+                // ---- 四个名称录入页真的把提示栏放进了可视化树（不是只写在 XAML 源码里） ----
+                string outDir = RepoSmokeOut() ?? Path.Combine(AppContext.BaseDirectory, "out");
+                Directory.CreateDirectory(outDir);
+                string Shot2(System.Windows.FrameworkElement fe, string file)
+                {
+                    int w = Math.Max(1, (int)Math.Ceiling(fe.ActualWidth));
+                    int hh = Math.Max(1, (int)Math.Ceiling(fe.ActualHeight));
+                    var rtb = new RenderTargetBitmap(w, hh, 96, 96, PixelFormats.Pbgra32);
+                    rtb.Render(fe);
+                    var enc = new PngBitmapEncoder();
+                    enc.Frames.Add(BitmapFrame.Create(rtb));
+                    string pp = Path.Combine(outDir, file);
+                    using (var fs = File.Create(pp)) enc.Save(fs);
+                    return pp;
+                }
+
+                // ★ 先把扩展后的数据灌进 ProjectStore，四个页面的列表才非空。
+                //   EditorPage 在 Items.Count==0 且宿主页设了 EmptyHint 时会把右侧详情整块 Collapsed，
+                //   提示栏自然量不到版面 —— 那是离屏空态的假象，不是布局问题。
+                //   （各页 VM 的 Items 就是 ProjectStore.Data 里的那个集合实例，CopyFrom 原地改内容即可。）
+                ProjectStore.Data.CopyFrom(d1);
+
+                foreach (var pair in new (string label, System.Windows.FrameworkElement page)[]
+                         {
+                             ("轴", new NoCodeMotion.Views.AxisPage()),
+                             ("IO", new NoCodeMotion.Views.IoPage()),
+                             ("气缸", new NoCodeMotion.Views.CylinderPage()),
+                             ("变量", new NoCodeMotion.Views.VariablePage()),
+                         })
+                {
+                    var page = pair.page;
+                    page.Measure(new Size(1200, 800));
+                    page.Arrange(new Rect(0, 0, 1200, 800));
+                    page.UpdateLayout();
+                    var bar = AllDescendants(page).OfType<NoCodeMotion.Views.PageHintBar>().FirstOrDefault();
+                    Check(bar != null
+                          && !string.IsNullOrWhiteSpace(bar.OperationText)
+                          && !string.IsNullOrWhiteSpace(bar.PrecautionText),
+                          pair.label + " 页的可视化树里找得到命名提示栏（操作 / 注意两行都有文字）");
+                    if (bar != null)
+                    {
+                        // 提示栏里两行文字的 Text 是 {Binding …} 绑到 PageHintBar 的依赖属性上的，
+                        // 绑没绑上、有没有真的渲染出来，只有把渲染后的 TextBlock 文字读回来才知道。
+                        var shown = AllDescendants(bar).OfType<System.Windows.Controls.TextBlock>()
+                                        .Select(x => x.Text ?? string.Empty)
+                                        .Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+                        Check(shown.Any(x => x.Contains("工位-对象")) && shown.Any(x => x.Contains("分组前缀")),
+                              pair.label + " 页提示栏渲染出的文字里有「工位-对象 / 分组前缀」");
+                    }
+                    if (bar != null)
+                    {
+                        // 光「在树里」还不够，得真的占到了版面才算「用户看得见」。
+                        Console.WriteLine("      " + pair.label + " 页提示栏在页面里实测："
+                                          + Math.Round(bar.ActualWidth) + " x " + Math.Round(bar.ActualHeight));
+                        Check(bar.ActualWidth > 200 && bar.ActualHeight > 20,
+                              pair.label + " 页提示栏在页面里真的占了版面（"
+                              + Math.Round(bar.ActualWidth) + " x " + Math.Round(bar.ActualHeight) + "）");
+                    }
+                    if (pair.label == "轴")
+                    {
+                        // ★ 渲染**还挂在父级里**的子元素会画出空白（元素在父级里的偏移把它推出
+                        //   位图范围）→ 渲染整页（整页是脱离窗口的独立控件）才拿得到真实画面。
+                        string pb = Shot2(page, "page_hint_axis.png");
+                        var fb = new FileInfo(pb);
+                        Check(fb.Exists && fb.Length > 5000,
+                              "已离屏渲染「轴页（含底部命名提示栏）」PNG（" + fb.Length + " 字节）：" + pb);
+                    }
+                }
+
+                // ---- 新建工程弹窗：命名约定提示真的在弹窗内容里 ----
+                try
+                {
+                    var npd = new NoCodeMotion.Views.NewProjectDialog("示例工程");
+                    // 把内容从窗口上摘下来再渲染：挂在窗口里的元素渲染出来会是空白（见上）。
+                    var rootFe = npd.Content as System.Windows.FrameworkElement;
+                    npd.Content = null;
+                    if (rootFe is null)
+                    {
+                        Check(false, "新建工程弹窗的 Content 不是 FrameworkElement，无法验证提示");
+                    }
+                    else
+                    {
+                        rootFe.Measure(new Size(760, 560));
+                        rootFe.Arrange(new Rect(0, 0, 760, 560));
+                        rootFe.UpdateLayout();
+                        var hint = AllDescendants(rootFe).OfType<System.Windows.Controls.TextBlock>()
+                                         .FirstOrDefault(tb => tb.Text is not null
+                                                               && tb.Text.Contains("工位-对象"));
+                        Check(hint != null && hint.Text.Contains("分组前缀"),
+                              "新建工程弹窗里渲染出「工位-对象」命名约定提示");
+                        string pb = Shot2(rootFe, "new_project_naming_hint.png");
+                        var fb = new FileInfo(pb);
+                        Check(fb.Exists && fb.Length > 2000,
+                              "已离屏渲染「新建工程弹窗」PNG（" + fb.Length + " 字节）：" + pb);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "新建工程弹窗构造 / 渲染抛异常：" + ex.GetType().Name + " / "
+                                 + (ex.InnerException?.Message ?? ex.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Check(false, "模板示例名称扩展验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
             }
 
             Console.WriteLine("\n====================  "

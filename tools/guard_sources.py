@@ -939,6 +939,62 @@ if _beh is not None:
     check("G21.9 外层下拉一关就把二级菜单收掉（Popup 不会自己跟着消失）",
           "gi.Unloaded" in _beh)
 
+# ---------------------------------------------------------------------
+# G22 示例工程「工位-对象」命名扩展 + 命名约定提示
+# ---------------------------------------------------------------------
+# 需求：新建工程弹窗里的示例模板要「轴 / IO / 气缸 / 变量尽量多」，且都用「-」命名，
+#       好让名称下拉框的级联二级菜单一建工程就能看到；同时要把这套命名约定提示给用户。
+# ★ 这里守的是几处**静默失效**：常量一改就退化成不分组；厂商一写成「模拟卡」，
+#   WenQiZhiCardBridge.CanServeProject() 会把所有模板的默认硬件通道从雷赛封装改成卡族层
+#   （不报错，只是行为整体变了）；轴号不唯一会让同一张卡上两根轴共用物理通道。
+_cat = read(r"Services\ProjectTemplateCatalog.cs")
+_tpl = read(r"Models\ProjectTemplate.cs")
+
+if _cat is not None:
+    _c = _cat.replace("\r\n", "\n")
+    _i = _c.find("public static void ExpandNameLists(ProjectData d)")
+    _exp = _c[_i:_c.index("// 点位构造助手", _i)] if _i >= 0 else ""
+    check("G22.1 示例工程有 ExpandNameLists（工位-对象 名称扩展）",
+          _i >= 0 and _exp != "")
+    check("G22.2 五类对象都用「工位-对象」命名（轴/入/出/缸/变量）",
+          '$"{st}-轴{i}"' in _exp and '$"{st}-入{i}"' in _exp and '$"{st}-出{i}"' in _exp
+          and '$"{st}-缸{i}"' in _exp and '$"{st}-{sfx}"' in _exp)
+    check("G22.3 每类都超过分组阈值 20（3 工位 × 8 = 24）",
+          'DemoPerStation = 8' in _c
+          and '"上料", "搬运", "下料"' in _c)
+    check("G22.4 扩展轴卡的厂商必须是「雷赛」（写成模拟卡会把默认硬件通道改成卡族层）",
+          '"雷赛", "DMC-E3000"' in _exp and "模拟卡" not in _exp)
+    check("G22.5 扩展卡内轴号唯一（axisNo 递增，重复轴号会共用物理通道）",
+          "axisNo++" in _exp)
+    check("G22.6 空白工程不追加示例名称（它的定位就是所有页面均为空）",
+          "ExpandSampleNames = false" in _c)
+
+if _tpl is not None:
+    _p = _tpl.replace("\r\n", "\n")
+    check("G22.7 ProjectTemplate 有 ExpandSampleNames 开关且 Build() 用它守住扩展",
+          "public bool ExpandSampleNames { get; init; } = true;" in _p
+          and "if (ExpandSampleNames) Services.ProjectTemplateCatalog.ExpandNameLists(data);" in _p)
+
+# ---- 命名约定提示：新建工程弹窗 + 轴/IO/气缸/变量 四页 ----
+_np = read(r"Views\NewProjectDialog.xaml")
+if _np is not None:
+    check("G22.8 新建工程弹窗提示了「工位-对象」命名约定与分组前缀规则",
+          "工位-对象" in _np and "第一个「-」之前的文字就是下拉框的分组前缀" in _np)
+
+for _rel, _tag in [(r"Views\AxisPage.xaml", "轴"),
+                   (r"Views\IoPage.xaml", "IO"),
+                   (r"Views\CylinderPage.xaml", "气缸"),
+                   (r"Views\VariablePage.xaml", "变量")]:
+    _pg = read(_rel)
+    if _pg is None:
+        check(f"G22.9 [{_tag}] 页面存在并挂了命名约定提示栏", False, "文件缺失")
+        continue
+    _x = _pg.replace("\r\n", "\n")
+    check(f"G22.9 [{_tag}] 页挂了 PageHintBar 命名约定提示（操作 + 注意两行都在）",
+          "<local:PageHintBar" in _x
+          and "OperationText=" in _x and "PrecautionText=" in _x
+          and "工位-对象" in _x and "分组前缀" in _x)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

@@ -26,7 +26,13 @@ namespace NoCodeMotion.Views
             InitializeComponent();
             DataContext = ProjectTemplateCatalog.All;
             NameBox.Text = defaultName;
-            Owner = Application.Current?.MainWindow;
+            // ★ 别直接写 Owner = Application.Current?.MainWindow：
+            //   ① 本窗口若是应用里第一个 Window，MainWindow 的 getter 会返回它**自己**
+            //      → 抛「不能把 Owner 设为自己」；
+            //   ② Owner 必须是一个**已经显示过**的窗口，否则抛「无法将 Owner 属性设置为
+            //      之前未显示的 Window」——离屏构造 / 冒烟环境正是这种情况。
+            var owner = Application.Current?.MainWindow;
+            if (owner is not null && !ReferenceEquals(owner, this) && owner.IsVisible) Owner = owner;
             Loaded += OnLoaded;
         }
 

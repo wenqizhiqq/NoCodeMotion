@@ -36,20 +36,32 @@ namespace NoCodeMotion.Models
         /// <summary>工厂：每次返回全新 ProjectData 实例。默认返回空工程。</summary>
         public Func<ProjectData> Factory { get; init; } = () => new ProjectData();
 
+        /// <summary>
+        /// 是否在工厂产出之上追加「工位-对象」示例名称
+        /// （Services/ProjectTemplateCatalog.ExpandNameLists：轴 / 输入IO / 输出IO / 气缸 / 变量 各 +24）。
+        /// <para>目的是让新建出来的工程在名称下拉框里直接呈现「一级分类 → 右侧二级菜单」的级联形态。</para>
+        /// <para>默认 true；只有「空白工程」设为 false —— 它的定位就是「所有页面均为空」。</para>
+        /// </summary>
+        public bool ExpandSampleNames { get; init; } = true;
+
         /// <summary>构建一份模板工程（永远返回新实例，调用方可放心修改）。</summary>
         /// <remarks>
         /// 在工厂产出的内容之上，额外挂两样示范内容：
         ///   1. 一份示范用的移动条件（Services/ProjectTemplateCatalog.SeedSampleConditions），
         ///      让「新建工程」出来的示例点位自带一套条件列表可供参考；
-        ///   2. 一条「示例(节点图)」节点图流程（Services/ProjectTemplateCatalog.EnsureNodeGraphFlow），
-        ///      让每个模板新建出来都能在流程页里看到节点图这类流程长什么样。
-        /// 空白模板既没有点位表也没有轴 / IO / 相机，两道后处理都自然空转，保持「0 个流程」。
+        ///   2. 一条「示例(节点图)」节点图流程（Services.ProjectTemplateCatalog.EnsureNodeGraphFlow），
+        ///      让每个模板新建出来都能在流程页里看到节点图这类流程长什么样；
+        ///   3. 一批「工位-对象」示例名称（Services/ProjectTemplateCatalog.ExpandNameLists），
+        ///      把轴 / IO / 气缸 / 变量 各扩到 24 个，让名称下拉框的级联二级菜单立刻可见
+        ///      （由 <see cref="ExpandSampleNames"/> 控制开关）。
+        /// 空白模板既没有点位表也没有轴 / IO / 相机，三道后处理都自然空转，保持「0 个流程」。
         /// </remarks>
         public ProjectData Build()
         {
             var data = Factory();
             Services.ProjectTemplateCatalog.SeedSampleConditions(data);
             Services.ProjectTemplateCatalog.EnsureNodeGraphFlow(data);
+            if (ExpandSampleNames) Services.ProjectTemplateCatalog.ExpandNameLists(data);
             return data;
         }
     }
