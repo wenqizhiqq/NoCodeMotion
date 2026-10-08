@@ -703,6 +703,88 @@
         </Setter>
     </Style>
 
+    <!-- 下拉框「二级菜单」的一级分类行内容：分类名 + 该类下的名称数量。
+         分组数据由 Catalog 按名称里连字符前缀挂到名称库的默认视图上（数量超过阈值才分），
+         这里只负责「长什么样」；没有分组时不会渲染任何东西。
+         底板 / 高亮由 NameGroupCascadeContainerStyle 的一级行负责，所以这里不再自带背景。
+         通过 Behaviors.NameGroupHeader 附加属性引用（GroupStyle 是只读集合、不是依赖属性，
+         没法在 Style 的 Setter 里直接写，所以由附加属性在运行时 Add 进来）。 -->
+    <DataTemplate x:Key="NameGroupHeaderTemplate">
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
+                       Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding ItemCount, StringFormat={}({0})}" FontSize="11"
+                       Foreground="{StaticResource TextMutedBrush}" Margin="5,0,0,0" VerticalAlignment="Center"/>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- ★ 分组下拉的「级联二级菜单」：一级只列分类行，悬停 / 点击 → **右侧飞出**该分类下的名称
+         （就是右键菜单那种级联子菜单）。挂在 GroupItem 上（GroupStyle.ContainerStyle），
+         只有真的分组时才生效 —— 没有分组就不会生成 GroupItem，所以对普通下拉零副作用。
+         模板里两个部件名由 Behaviors.NameGroupFlyout 在运行时查找：row / flyout。
+         ★ flyout 里的 <ItemsPresenter/> 渲染的正是「该分组内的条目」：把组内条目挪进 Popup
+           是默认 GroupItem 模板的既定用法；条目仍是 ComboBoxItem，点击照常选中。 -->
+    <Style x:Key="NameGroupCascadeContainerStyle" TargetType="GroupItem">
+        <Setter Property="b:NameGroupFlyout.Enable" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GroupItem">
+                    <Grid>
+                        <ToggleButton x:Name="row"
+                                      Focusable="False" ClickMode="Press" Cursor="Hand"
+                                      HorizontalContentAlignment="Stretch"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      IsChecked="{Binding IsOpen, ElementName=flyout, Mode=TwoWay}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Grid Background="Transparent" Margin="1,1">
+                                        <Border x:Name="bd" Background="Transparent" CornerRadius="6"/>
+                                        <Grid Margin="8,5,6,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ContentPresenter Grid.Column="0" VerticalAlignment="Center"/>
+                                            <!-- 右侧箭头：提示「二级菜单在右边」 -->
+                                            <Path Grid.Column="1" Data="M0,0 L4,4 L0,8"
+                                                  Stroke="{StaticResource TextMutedBrush}" StrokeThickness="1.4"
+                                                  VerticalAlignment="Center" Margin="10,0,2,0"
+                                                  IsHitTestVisible="False"/>
+                                        </Grid>
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBrush}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+
+                        <Popup x:Name="flyout" Focusable="False"
+                               Placement="Right"
+                               PlacementTarget="{Binding ElementName=row}"
+                               AllowsTransparency="True" PopupAnimation="Fade"
+                               StaysOpen="True">
+                            <Border Background="White" BorderBrush="#F0F0F3" BorderThickness="1"
+                                    CornerRadius="10" Margin="6,0,0,0"
+                                    MinWidth="120" MaxHeight="320"
+                                    Effect="{StaticResource SoftShadow}">
+                                <ScrollViewer Margin="3" VerticalScrollBarVisibility="Auto">
+                                    <ItemsPresenter/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="CellComboStyle" TargetType="ComboBox">
         <!-- IsReadOnly=True：与 IsEditable=True 组合使用——保留选中文字显示与下拉选择能力，
              但禁止用户手动键入/修改（避免名称/属性被改成 Catalog 之外的值）。
@@ -720,6 +802,8 @@
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
+        <!-- 二级菜单分组头：名称库超过阈值被分组时，下拉里渲染分类名。没有分组时无任何影响。 -->
+        <Setter Property="b:NameGroupHeader.Enable" Value="True"/>
         <Setter Property="ItemContainerStyle">
             <Setter.Value>
                 <Style TargetType="ComboBoxItem">
@@ -813,9 +897,12 @@
                                     BorderBrush="#F0F0F3" BorderThickness="1"
                                     CornerRadius="10" Margin="0,4,0,0"
                                     Effect="{StaticResource SoftShadow}">
-                                <ScrollViewer Margin="3">
-                                    <StackPanel IsItemsHost="True"
-                                                KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                <ScrollViewer Margin="3" VerticalScrollBarVisibility="Auto">
+                                    <!-- ★ 必须是 ItemsPresenter，不能写裸 <StackPanel IsItemsHost="True"/>：
+                                         裸面板宿主只实体化最外层 GroupItem（= 一级分类行），组内条目一个都不生成 ——
+                                         下拉里就只剩几行分类标题，真实名称一个都点不到（build / 守卫都抓不到）。
+                                         ItemsPresenter 才会按 ItemsPanel 正常生成一级分类行。 -->
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
                                 </ScrollViewer>
                             </Border>
                         </Popup>

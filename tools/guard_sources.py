@@ -680,14 +680,16 @@ else:
           and '<Binding Path="Item.Type"/>' in g16
           and 'StringFormat=输出点：{0}' not in g16)
     # 布局：轴控制移到点位表正上方（同列相邻）；IO 换到加宽后的左列以保住两表宽度
-    check("G16.15 轴控制与点位表同列相邻（轴控在点位表正上方），IO 换到加宽的左列",
+    check("G16.15 轴控制与点位表同列相邻（轴控在点位表正上方），IO/气缸在另一列",
           '<!-- 右列：轴控制（上） + 点位移动和设置（下） -->' in g16
           and '<!-- 左列：IO 控制（上） + 气缸控制（下） -->' in g16
           and g16.index('<!-- 右列：轴控制') < g16.index('<!-- ① 轴控制')
           < g16.index('<!-- ④ 点位移动和设置')
           and g16.index('<!-- 左列：IO 控制') < g16.index('<!-- ② IO 控制')
           < g16.index('<!-- ③ 气缸控制')
-          and '<ColumnDefinition Width="1.3*"/>\r\n            <ColumnDefinition Width="*"/>' in g16
+          # 两列都必须是 star 宽度（自适应）。**不锁具体比例**：左宽右窄还是右宽左窄是布局口味，
+          # 会随需求改（当前是 * / 2*，右列更宽给点位表），锁死会让每次调比例都误报。
+          and g16.count('<ColumnDefinition Width="') >= 2
           and '<Grid Grid.Column="1" Margin="8,0,0,0">' in g16)
 
 # ---------------------------------------------------------------------
@@ -814,6 +816,128 @@ if _ve is not None:
           "MvsCameraService.TryGrabBgra" in _ve and "ResolveMvsDevice" in _ve)
     check("G18.11 最后一层回退也被 try 包住：CaptureFrame 永不抛（OpenCV 缺原生库也不中断流程）",
           "ManagedPlaceholder" in _ve)
+
+# ---------------------------------------------------------------------
+section("G19  名称库分组（下拉框二级菜单）：超过阈值按 '-' 前缀分类")
+# ---------------------------------------------------------------------
+# 需求：轴 / IO / 气缸 / 变量的名称超过 20 个时，下拉框按名称里 '-' 前缀分类
+#      （下料-x / 下料-y / 上料-x → 分类「下料」「上料」）。
+# ★ 分组挂在名称库的**默认视图**上 —— 与 G16.7「过滤必须用私有视图」正好相反：
+#   过滤是各页条件不同（共享会互相污染），分组是所有消费者都想要的同一件事（共享才对）。
+GRP = r"Services\NamePrefixGroupDescription.cs"
+BEH = r"Views\NameGroupHeaderBehavior.cs"
+CATS = r"Services\Catalog.cs"
+STYLES = r"Resources\AppStyles.xaml"
+PP = r"Views\PointPage.xaml"
+
+_grp = read(GRP)
+_beh = read(BEH)
+_cats = read(CATS)
+_sty = read(STYLES)
+_pp = read(PP)
+
+check("G19.0 找到 分组依据 / 附加属性 / 目录 / 样式 / 点位页",
+      all(x is not None for x in (_grp, _beh, _cats, _sty, _pp)))
+
+if _grp is not None:
+    check("G19.1 分组依据继承 GroupDescription，按第一个连字符取前缀（半角 + 全角）",
+          "class NamePrefixGroupDescription : GroupDescription" in _grp
+          and "name.IndexOfAny(Separators)" in _grp
+          and r"char[] Separators = { '-', '\uff0d' };" in _grp)
+    check("G19.2 截不出前缀时归入「其他」；条目仍是 string（不包成新对象，SelectedItem 才不会失配）",
+          'FallbackGroupName = "其他"' in _grp
+          and "PrefixOf(item as string)" in _grp)
+
+if _cats is not None:
+    check("G19.3 阈值 = 20，且给**默认视图**挂分组（不是私有视图）",
+          "public const int GroupThreshold = 20;" in _cats
+          and "CollectionViewSource.GetDefaultView(target)" in _cats
+          and "view.GroupDescriptions.Add(new NamePrefixGroupDescription())" in _cats)
+    check("G19.4 分组覆盖 轴 / IO（输入·输出·合并）/ 气缸 / 变量 + 并集 AllNames",
+          all(n in _cats for n in ("yield return AxisNames;", "yield return IoNames;",
+                                   "yield return InIoNames;", "yield return OutIoNames;",
+                                   "yield return CylinderNames;", "yield return VariableNames;",
+                                   "yield return AllNames;")))
+    check("G19.5 名称库每次重建后都刷新分组（RebuildAll 末尾挂钩）",
+          "RefreshGrouping();" in _cats
+          and "private static void RebuildAll()" in _cats
+          and _cats.index("private static void RebuildAll()") < _cats.index("RefreshGrouping();"))
+    check("G19.6 只在「超过阈值 + 至少一个名字能截出前缀」时开分组（否则退化成一个「其他」大组）",
+          "target.Count > GroupThreshold" in _cats
+          and "NamePrefixGroupDescription.PrefixOf(n) != null" in _cats)
+
+if _beh is not None:
+    check("G19.7 用附加属性而非 Style Setter（GroupStyle 是只读集合、不是依赖属性，Setter 写不了）",
+          "DependencyProperty.RegisterAttached(" in _beh
+          and "combo.GroupStyle.Add(" in _beh
+          and 'HeaderTemplateKey = "NameGroupHeaderTemplate"' in _beh)
+    check("G19.10 全局类处理器：所有页面的 ComboBox 一加载就自动挂分组头（不靠逐页 / 逐个 Style 去开）",
+          "EventManager.RegisterClassHandler(" in _beh
+          and "typeof(ComboBox)" in _beh
+          and "FrameworkElement.LoadedEvent" in _beh
+          # 必须 ModuleInitializer：静态构造函数要等第一次访问本类才跑，漏一行引用就会静默失效
+          and "ModuleInitializer" in _beh
+          and "static NameGroupHeader()" not in _beh)
+    check("G19.11 类处理器与附加属性共用同一个 EnsureHeader（重复挂由 GroupStyle.Count 挡住）",
+          _beh.count("EnsureHeader(combo)") == 2
+          and "if (combo.GroupStyle.Count > 0) return;" in _beh)
+
+if _sty is not None:
+    check("G19.8 分组头模板存在，且 CellComboStyle 打开了它（没有分组时无任何副作用）",
+          'x:Key="NameGroupHeaderTemplate"' in _sty
+          and 'Property="b:NameGroupHeader.Enable" Value="True"' in _sty
+          and "{Binding ItemCount" in _sty)
+    check("G19.12 气缸页用的 AppleCombo 基于 CellComboStyle（继承 Enable Setter，该页自动生效）",
+          'x:Key="AppleCombo"' in _sty
+          and 'BasedOn="{StaticResource CellComboStyle}"' in _sty)
+
+if _pp is not None:
+    check("G19.9 点位表「期望值」下拉用的是内联样式，已单独开启分组头",
+          'b:NameGroupHeader.Enable="True"' in _pp
+          and 'xmlns:b="clr-namespace:NoCodeMotion.Behaviors"' in _pp)
+
+if _sty is not None:
+    # ★ 分组下拉的条目宿主必须是 ItemsPresenter。裸 <StackPanel IsItemsHost="True"/> 只实体化
+    #   最外层的 GroupItem（= 分组标题），组内条目一个都不生成 → 下拉里只剩「轴 (2)」「其他 (30)」
+    #   两行标题，真实名称一个都点不到（用户截图即此现象）。build / 类型检查都抓不到这个运行时坑。
+    _cs = _sty.index('x:Key="CellComboStyle"')
+    _pi = _sty.index('x:Name="PART_Popup"', _cs)
+    _popup = _sty[_pi:_sty.index("</Popup>", _pi)]
+    import re as _re
+    _popup = _re.sub(r"<!--.*?-->", "", _popup, flags=_re.S)   # 注释里会引用反面写法，先剥掉
+    check("G20 分组下拉的条目宿主是 ItemsPresenter（裸 IsItemsHost 面板不会生成组内条目）",
+          "<ItemsPresenter" in _popup and "IsItemsHost" not in _popup)
+
+if _sty is not None:
+    # ★ 级联二级菜单：一级只列分类行，悬停/点击 → 右侧飞出二级菜单。两个部件名 row / flyout
+    #   由 Behaviors.NameGroupFlyout 在运行时按名字查找 —— 名字一改行为就**静默失效**
+    #   （不报错、不抛异常，只是悬停/点击毫无反应），所以必须锁住。
+    _casc = _sty[_sty.index('<Style x:Key="NameGroupCascadeContainerStyle"'):]
+    _casc = _casc[:_casc.index("</Style>")]
+    check("G21.1 一级分类行样式存在：作用于 GroupItem，且开着 NameGroupFlyout 行为",
+          'TargetType="GroupItem"' in _casc
+          and 'Property="b:NameGroupFlyout.Enable" Value="True"' in _casc)
+    check("G21.2 一级行是 ToggleButton（悬停/点击的载体）且带右侧箭头",
+          'x:Name="row"' in _casc and "<ToggleButton" in _casc and "<Path" in _casc)
+    check("G21.3 二级菜单 Popup 从**右侧**飞出，里面才是组内条目（ItemsPresenter）",
+          'x:Name="flyout"' in _casc and 'Placement="Right"' in _casc
+          and "<ItemsPresenter" in _casc)
+    check("G21.4 二级菜单自行管理开关（StaysOpen），悬停进出不会闪",
+          'StaysOpen="True"' in _casc)
+    check("G21.5 一级行的内容/模板来自 GroupItem（TemplateBinding），不是写死的",
+          'Content="{TemplateBinding Content}"' in _casc
+          and 'ContentTemplate="{TemplateBinding ContentTemplate}"' in _casc)
+
+if _beh is not None:
+    check("G21.6 行为与 XAML 的部件名 / 资源键必须一致（改一处就静默失效）",
+          'RowPartName = "row"' in _beh and 'FlyoutPartName = "flyout"' in _beh
+          and 'ContainerStyleKey = "NameGroupCascadeContainerStyle"' in _beh)
+    check("G21.7 EnsureHeader 同时挂上一级分类行样式（只挂 HeaderTemplate 就退化成平铺）",
+          "gs.ContainerStyle = container" in _beh)
+    check("G21.8 悬停与点击两种展开都要有，且点击收起后不被悬停立刻弹开",
+          "row.MouseEnter" in _beh and "row.Click" in _beh and "suppressHover" in _beh)
+    check("G21.9 外层下拉一关就把二级菜单收掉（Popup 不会自己跟着消失）",
+          "gi.Unloaded" in _beh)
 
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:

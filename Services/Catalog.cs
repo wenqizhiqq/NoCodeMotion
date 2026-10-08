@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows.Data;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services.Hardware;
 using NoCodeMotion.Services.Hardware.Cards;
@@ -44,6 +45,66 @@ namespace NoCodeMotion.Services
         public static void SetController(IEnumerable<string> names) => Set(ControllerNames, names);
         public static void SetVendor(IEnumerable<string> names) => Set(VendorNames, names);
         public static void SetBusType(IEnumerable<string> names) => Set(BusTypeNames, names);
+
+        // ===================== 名称分组（下拉框二级菜单） =====================
+
+        /// <summary>名称数量超过这个值时，下拉框按名称前缀分组（二级菜单）。</summary>
+        public const int GroupThreshold = 20;
+
+        /// <summary>
+        /// 参与分组的名称库：轴 / IO（含按方向的输入、输出）/ 气缸 / 变量，
+        /// 外加 <see cref="AllNames"/>（这几类的并集；流程页「名称」列在函数归不了类时用它兜底）。
+        /// </summary>
+        private static IEnumerable<ObservableCollection<string>> GroupableCatalogs()
+        {
+            yield return AxisNames;
+            yield return IoNames;
+            yield return InIoNames;
+            yield return OutIoNames;
+            yield return CylinderNames;
+            yield return VariableNames;
+            yield return AllNames;
+        }
+
+        /// <summary>
+        /// 按数量决定是否给名称库分组：数量超过 <see cref="GroupThreshold"/>，
+        /// 且至少有一个名称能截出前缀时，给它的**默认视图**挂上 <see cref="NamePrefixGroupDescription"/>。
+        /// </summary>
+        /// <remarks>
+        /// ★ 改的是**默认视图**而不是集合本身。Catalog.*Names 是静态实例，所有下拉都绑同一个实例，
+        ///   WPF 会把裸集合解析到默认视图 —— 于是改这一处，流程页「名称」列、气缸页感应点、
+        ///   工程师页轴卡、节点图属性…全部一起生效，无需逐个改 XAML。
+        ///   这与「过滤」恰好相反：过滤必须用私有 CollectionViewSource（各页过滤条件不同，见守卫 G16.7），
+        ///   而分组是所有消费者都想要的同一件事，共享默认视图才是对的。
+        ///   分组只改变视图的呈现（分组头 + 顺序），集合本身、以及按集合遍历的校验代码都不受影响。
+        /// </remarks>
+        private static void RefreshGrouping()
+        {
+            foreach (var c in GroupableCatalogs()) ApplyGrouping(c);
+        }
+
+        private static void ApplyGrouping(ObservableCollection<string> target)
+        {
+            // 视图要建在 UI 线程上，否则之后 XAML 绑定访问它会抛跨线程异常。
+            // 没有 Application（冒烟 / 控制台）时不存在 UI 绑定，哪个线程都无所谓。
+            var app = System.Windows.Application.Current;
+            if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess()) return;
+
+            bool want = target.Count > GroupThreshold
+                        && target.Any(n => NamePrefixGroupDescription.PrefixOf(n) != null);
+
+            var view = CollectionViewSource.GetDefaultView(target);
+            if (view == null) return;
+
+            bool has = view.GroupDescriptions.Count > 0;
+            if (want == has) return;     // 状态没变就不动视图，避免下拉闪空 / 丢当前显示
+
+            using (view.DeferRefresh())
+            {
+                view.GroupDescriptions.Clear();
+                if (want) view.GroupDescriptions.Add(new NamePrefixGroupDescription());
+            }
+        }
 
         /// <summary>从主流运动控制卡厂商登记表刷新「品牌 / 总线类型」下拉（脉冲 + 总线全覆盖）。</summary>
         public static void RefreshControllerStandards()
@@ -111,6 +172,7 @@ namespace NoCodeMotion.Services
             foreach (var n in VariableNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in PointNames) if (!AllNames.Contains(n)) AllNames.Add(n);
             foreach (var n in ControllerNames) if (!AllNames.Contains(n)) AllNames.Add(n);
+            RefreshGrouping();
         }
 
         /// <summary>从已载入的工程中重建名称库（用于启动后填充下拉选项）。</summary>
