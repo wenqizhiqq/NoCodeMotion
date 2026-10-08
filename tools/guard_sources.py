@@ -995,6 +995,27 @@ for _rel, _tag in [(r"Views\AxisPage.xaml", "轴"),
           and "OperationText=" in _x and "PrecautionText=" in _x
           and "工位-对象" in _x and "分组前缀" in _x)
 
+# ---- 仿真变量步骤：变量名里的「-」必须按名精确取值，不能拼进表达式 ----
+_sf = read(r"Services\SimFlowPlayer.cs")
+if _sf is not None:
+    _s = _sf.replace("\r\n", "\n")
+    check("G22.10 仿真变量步骤不再把变量名拼进表达式（({name}) 模式已删除，否则 - 命名会被分词成减号误算）",
+          "({name})" not in _s)
+    check("G22.11 仿真变量步骤按变量名精确取值（GetVariableResolved(a.VarName)，名称含 - 也安全）",
+          "GetVariableResolved(a.VarName)" in _s and "VarOp = isSet ? null : vop" in _s)
+    check("G22.12 取反保持「1 - cur」语义（不是算术 -cur；布尔 0↔1 精确）",
+          "1 - cur" in _s)
+
+# ---- 模板轴加速/减速时间必须是 0.2 秒（旧「加速度值」语义的 50/100/... 会让新建工程轴爬行）----
+if _cat is not None:
+    import re as _re
+    _ax = _re.findall(r'Ax\([^()]*,\s*\d+(?:\.\d+)?,\s*(\d+),\s*(\d+)\)\);', _c)
+    _bad = [(a, b) for a, b in _ax if '.' not in a and '.' not in b]
+    check("G22.13 所有模板轴 Ax(...) 的加速/减速时间都是 0.2 秒（无遗留旧「加速度值」整数）",
+          len(_bad) == 0, f"遗留旧值: {_bad[:5]}")
+    check("G22.14 至少有轴使用了 0.2 秒斜坡默认值",
+          _c.count("0.2, 0.2));") >= 1)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

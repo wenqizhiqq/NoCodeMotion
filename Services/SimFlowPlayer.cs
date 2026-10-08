@@ -30,6 +30,8 @@ namespace NoCodeMotion.Services
         public double VarValue;
         /// <summary>若设置，则在 Apply 时按当前变量值实时求值为 VarValue（支持 {变量名}/算术表达式）。</summary>
         public string? VarExpr;
+        /// <summary>运算类变量步骤的运算类型（加/减/乘/除/取模/取反）；空表示「修改为 / 直接设置」。</summary>
+        public string? VarOp;
         public int DurationMs;
         public string Label = "";
     }
@@ -162,12 +164,36 @@ namespace NoCodeMotion.Services
             if (!string.IsNullOrEmpty(a.IoName)) SimRuntime.SetOutput(a.IoName, a.IoValue);
             if (!string.IsNullOrEmpty(a.CylName)) SimRuntime.SetCylinder(a.CylName, a.CylState);
             if (!string.IsNullOrEmpty(a.CamName)) SimRuntime.FlashCamera(a.CamName);
-            if (!string.IsNullOrEmpty(a.VarExpr))
+            if (!string.IsNullOrEmpty(a.VarName))
             {
-                var ok = ExpressionEvaluator.Evaluate(a.VarExpr, n => SimRuntime.GetVariableResolved(n), out var ev);
-                SimRuntime.SetVariable(a.VarName ?? "", ok ? ev : 0);
+                if (!string.IsNullOrEmpty(a.VarOp))
+                {
+                    // 运算类：按变量名精确取当前值（变量名里的「-」不再被表达式分词成减号），再施加运算
+                    double cur = SimRuntime.GetVariableResolved(a.VarName);
+                    double operand = !string.IsNullOrEmpty(a.VarExpr)
+                        ? (ExpressionEvaluator.Evaluate(a.VarExpr, n => SimRuntime.GetVariableResolved(n), out var ov) ? ov : 0)
+                        : 0;
+                    double r = a.VarOp switch
+                    {
+                        "加" => cur + operand,
+                        "减" => cur - operand,
+                        "乘" or "×" or "*" => cur * operand,
+                        "除" or "÷" or "/" => operand == 0 ? 0 : cur / operand,
+                        "取模" or "%" => operand == 0 ? 0 : cur % operand,
+                        "取反" => 1 - cur,
+                        _ => cur,
+                    };
+                    SimRuntime.SetVariable(a.VarName, r);
+                }
+                else
+                {
+                    // 修改为 / 直接设置：表达式（通常是个数）按名求值；无表达式则用 VarValue
+                    double v = !string.IsNullOrEmpty(a.VarExpr)
+                        ? (ExpressionEvaluator.Evaluate(a.VarExpr, n => SimRuntime.GetVariableResolved(n), out var ev) ? ev : a.VarValue)
+                        : a.VarValue;
+                    SimRuntime.SetVariable(a.VarName, v);
+                }
             }
-            else if (!string.IsNullOrEmpty(a.VarName)) SimRuntime.SetVariable(a.VarName, a.VarValue);
         }
 
         // ===================== 编译：表格流程 =====================
@@ -230,22 +256,17 @@ namespace NoCodeMotion.Services
                         // 对当前变量值实时求值（表达式求值器支持引用变量名）；修改为/其它 → 直接设置值。
                         // 取反近似为 1-(当前值)（布尔 0↔1 精确，其它值视为逻辑取反的近似）。
                         string vop = (s.Operation ?? string.Empty).Trim();
-                        string expr = vop switch
-                        {
-                            "加" => $"({name})+({setv})",
-                            "减" => $"({name})-({setv})",
-                            "乘" or "×" or "*" => $"({name})*({setv})",
-                            "除" or "÷" or "/" => $"({name})/({setv})",
-                            "取模" or "%" => $"({name})%({setv})",
-                            "取反" => $"1-({name})",
-                            _ => setv,
-                        };
+                        bool isSet = string.IsNullOrEmpty(vop) || vop == "修改为" || vop == "修改";
+                        // 不再把变量名拼进表达式（变量名里的「-」会被表达式分词成减号导致误算）；
+                        // 改为记录 运算类型 与 操作数表达式，Apply 时按变量名精确取值后再运算。
                         list.Add(new SimAction
                         {
                             VarName = name,
-                            VarExpr = expr,
+                            VarOp = isSet ? null : vop,
+                            VarExpr = setv,
+                            VarValue = 0,
                             DurationMs = 250,
-                            Label = string.IsNullOrEmpty(vop) || vop == "修改为" || vop == "修改"
+                            Label = isSet
                                 ? $"变量 {name} = {setv}"
                                 : $"变量 {name} {vop} {setv}"
                         });

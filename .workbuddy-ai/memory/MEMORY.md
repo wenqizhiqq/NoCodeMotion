@@ -58,8 +58,9 @@
 ## 七、硬件层 / 相机（详见 `HARDWARE.md`）
 - 雷赛 `LtdmcNative.cs` 是唯一 P/Invoke；卡族入口 `CardFamilyCatalog.cs` + `WenQiZhiCardBridge.cs`。★ 轴必须一轴一个 `IAxis`；`GetCardAxisCurrentState()` 0=停止/1=运行中（反直觉）；模拟卡 `IsVitualCard=true` 跳过真实开卡。
 - ★ 研控 MCN420：`Accel/Decel` 是**加速时间(秒)**（旧默认 50 会爬行）；`Channel` 只能 0/1（SDK 曾硬编码 2 → 回 8194）；使能低电平有效、`NormalizeSevon(int)` 反转**别改回恒等**。
+- ★ **模板轴加减速默认 `0.2` 秒**（`DefaultAxisAccel`）：`Accel/Decel` 新语义是**加速时间(秒)**，旧模板 `Ax(...)` 传的整数（50/100/150/250/200/90/180/360/40/20/15/300）会被读成几十~几百秒斜坡 → 轴爬行。所有模板 `Ax(...)` 已统一传 `0.2`（N-samples 收尾）；`MigrateAxisDefaults()` 只在**载入**时把恰好 `==50` 的迁成 0.2 且**不动用户值**，新工程不经过它。
 - ★ 海康 MVS：本机只有托管封装、无 Runtime → 必须优雅降级；相机会话按设备 Key 复用（一台 GigE 一个独占句柄）。`CaptureFrame` 最后一层回退必须在 try 内，保证**永不抛**。
 
 ## 八、变量与表达式
 - `ExpressionEvaluator.Tokenize` 用 `char.IsLetter` → **中文也算标识符**，`-` 是减运算符：变量名里的 `-` 一旦进表达式就被当减号（`下料-计数` → `下料 - 计数` = 0）。流程步骤按**名称精确匹配**取变量（`GetVariableValue`/`SetVariableValue`），`{变量名}` 走 `FlowRunnerService.Sub()` 正则 `\{([^}]+)\}` 字面替换 → 声明与引用都安全。
-- ★ 风险只在**把变量名拼进算术表达式**时：`SimFlowPlayer.Compile` 的「变量」步骤把名字拼成 `(名)+(值)` 再交给求值器 → `-` 命名的变量在**仿真**里算错（真机 `FlowRunnerService.ExecVar` 走 `GetVarNum(name)` 精确匹配，无此问题）。示例模板只用 `修改为`/纯数字，未踩到；将来修 `SimFlowPlayer` 应改成按名取当前值直接算，别再拼字符串。
+- ★ **已修（N-samples 收尾）**：`SimFlowPlayer` 的「变量」步骤**不再**把变量名拼进表达式。改为存 `VarOp`（加/减/乘/除/取模/取反）+ `VarExpr`（操作数），Apply 时 `GetVariableResolved(VarName)` **按名精确取值**后再运算 → `-` 命名的变量在仿真里也算对（取反保持 `1-cur` 语义）。真机 `FlowRunnerService.ExecVar` 本来就走 `GetVarNum(name)` 精确匹配，无此问题。

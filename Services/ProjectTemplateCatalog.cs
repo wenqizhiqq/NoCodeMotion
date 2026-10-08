@@ -108,7 +108,7 @@ namespace NoCodeMotion.Services
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "DMC5400", 0, 4, "脉冲", "PCI"));
-                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 100, 50, 50));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 100, 0.2, 0.2));
                 d.Inputs.Add(In("启动", "启动按钮", "控制卡1", 0, 0, 0));
                 d.Inputs.Add(In("停止", "停止按钮", "控制卡1", 0, 0, 1));
                 d.Inputs.Add(In("复位", "复位按钮", "控制卡1", 0, 0, 2));
@@ -166,8 +166,8 @@ namespace NoCodeMotion.Services
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "固高", "GHN_FB", 0, 4, "脉冲", "PCI"));
-                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 200, 100, 100));
-                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 200, 100, 100));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 200, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 200, 0.2, 0.2));
                 d.Inputs.Add(In("启动", "启动按钮", "控制卡1", 0, 0, 0));
                 d.Inputs.Add(In("停止", "停止按钮", "控制卡1", 0, 0, 1));
                 d.Inputs.Add(In("复位", "复位按钮", "控制卡1", 0, 0, 2));
@@ -232,9 +232,9 @@ namespace NoCodeMotion.Services
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "DMC5800", 0, 6, "脉冲", "PCI"));
-                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 300, 150, 150));
-                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 300, 150, 150));
-                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 100, 80, 80));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 300, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 300, 0.2, 0.2));
+                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 100, 0.2, 0.2));
                 string[] inFns = { "启动按钮", "停止按钮", "复位按钮", "安全门", "动点", "动点", "原点", "动点" };
                 string[] inNames = { "启动", "停止", "复位", "急停", "暂停", "手自动", "原点到位", "Z上限" };
                 for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], inFns[i], "控制卡1", 0, 0, i));
@@ -303,10 +303,10 @@ namespace NoCodeMotion.Services
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "EtherCAT主站", 0, 8, "EtherCAT", "网口"));
-                d.Axes.Add(Ax("X", "控制卡1", "EtherCAT", 0, "mm", 500, 250, 250));
-                d.Axes.Add(Ax("Y", "控制卡1", "EtherCAT", 1, "mm", 500, 250, 250));
-                d.Axes.Add(Ax("Z", "控制卡1", "EtherCAT", 2, "mm", 200, 100, 100));
-                d.Axes.Add(Ax("R", "控制卡1", "EtherCAT", 3, "°", 360, 180, 180));
+                d.Axes.Add(Ax("X", "控制卡1", "EtherCAT", 0, "mm", 500, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "EtherCAT", 1, "mm", 500, 0.2, 0.2));
+                d.Axes.Add(Ax("Z", "控制卡1", "EtherCAT", 2, "mm", 200, 0.2, 0.2));
+                d.Axes.Add(Ax("R", "控制卡1", "EtherCAT", 3, "°", 360, 0.2, 0.2));
                 string[] inNames = { "启动", "停止", "复位", "急停", "暂停", "手自动", "原点到位", "RZ信号" };
                 for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], "动点", "控制卡1", 0, 0, i));
                 string[] outNames = { "运行", "就绪", "报警", "完成", "暂停", "真空", "R锁紧", "点胶阀" };
@@ -398,10 +398,10 @@ namespace NoCodeMotion.Services
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "EtherCAT主站", 0, 8, "EtherCAT", "网口"));
-                d.Axes.Add(Ax("J1", "控制卡1", "EtherCAT", 0, "°", 360, 200, 200));
-                d.Axes.Add(Ax("J2", "控制卡1", "EtherCAT", 1, "°", 360, 200, 200));
-                d.Axes.Add(Ax("Z", "控制卡1", "EtherCAT", 2, "mm", 200, 100, 100));
-                d.Axes.Add(Ax("R", "控制卡1", "EtherCAT", 3, "°", 720, 360, 360));
+                d.Axes.Add(Ax("J1", "控制卡1", "EtherCAT", 0, "°", 360, 0.2, 0.2));
+                d.Axes.Add(Ax("J2", "控制卡1", "EtherCAT", 1, "°", 360, 0.2, 0.2));
+                d.Axes.Add(Ax("Z", "控制卡1", "EtherCAT", 2, "mm", 200, 0.2, 0.2));
+                d.Axes.Add(Ax("R", "控制卡1", "EtherCAT", 3, "°", 720, 0.2, 0.2));
                 string[] inNames = { "启动", "停止", "复位", "急停", "暂停", "手自动", "示教", "RZ" };
                 for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], "动点", "控制卡1", 0, 0, i));
                 string[] outNames = { "运行", "就绪", "报警", "完成", "暂停", "真空", "夹爪", "R锁紧" };
@@ -503,12 +503,12 @@ namespace NoCodeMotion.Services
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "EtherCAT主站", 0, 8, "EtherCAT", "网口"));
                 d.Controllers.Add(Ctl("控制卡2", "雷赛", "EtherCAT扩展", 1, 8, "EtherCAT", "网口"));
-                d.Axes.Add(Ax("J1", "控制卡1", "EtherCAT", 0, "°", 180, 90, 90));
-                d.Axes.Add(Ax("J2", "控制卡1", "EtherCAT", 1, "°", 180, 90, 90));
-                d.Axes.Add(Ax("J3", "控制卡1", "EtherCAT", 2, "°", 180, 90, 90));
-                d.Axes.Add(Ax("J4", "控制卡2", "EtherCAT", 0, "°", 360, 180, 180));
-                d.Axes.Add(Ax("J5", "控制卡2", "EtherCAT", 1, "°", 360, 180, 180));
-                d.Axes.Add(Ax("J6", "控制卡2", "EtherCAT", 2, "°", 720, 360, 360));
+                d.Axes.Add(Ax("J1", "控制卡1", "EtherCAT", 0, "°", 180, 0.2, 0.2));
+                d.Axes.Add(Ax("J2", "控制卡1", "EtherCAT", 1, "°", 180, 0.2, 0.2));
+                d.Axes.Add(Ax("J3", "控制卡1", "EtherCAT", 2, "°", 180, 0.2, 0.2));
+                d.Axes.Add(Ax("J4", "控制卡2", "EtherCAT", 0, "°", 360, 0.2, 0.2));
+                d.Axes.Add(Ax("J5", "控制卡2", "EtherCAT", 1, "°", 360, 0.2, 0.2));
+                d.Axes.Add(Ax("J6", "控制卡2", "EtherCAT", 2, "°", 720, 0.2, 0.2));
                 string[] inNames = { "启动", "停止", "复位", "急停", "暂停", "手自动", "示教", "原点",
                                      "J1限位", "J2限位", "J3限位", "J4限位", "J5限位", "J6限位", "安全门", "允许启动" };
                 string[] inFns = { "启动按钮", "停止按钮", "复位按钮", "安全门", "动点", "动点", "动点", "原点",
@@ -697,8 +697,8 @@ namespace NoCodeMotion.Services
                 d.Cylinders.Add(Cyl("打螺丝", "Y2", "X4", "X5"));
                 d.Cylinders.Add(Cyl("顶升", "Y3", "X6", "X7"));
                 // 提供 X/Y 两轴，使内置「脚本流程」Lua 示例（演示 Axis.MoveAbs 轴联动）可直接跑通
-                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 200, 100, 100));
-                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 200, 100, 100));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 200, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 200, 0.2, 0.2));
                 d.Comms.Add(Comm("Modbus主站", "ModbusRTU", "COM1", 9600));
                 d.Comms.Add(Comm("压力传感器", "ModbusTCP", "192.168.1.30", 502));
                 AddVars(d, ("计数", "0"), ("总数", "0"));
@@ -905,9 +905,9 @@ namespace NoCodeMotion.Services
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "DMC5400", 0, 4, "脉冲", "PCI"));
-                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 300, 150, 150));
-                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 300, 150, 150));
-                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 100, 80, 80));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 300, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 300, 0.2, 0.2));
+                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 100, 0.2, 0.2));
                 d.Inputs.Add(In("启动", "启动按钮", "控制卡1", 0, 0, 0));
                 d.Inputs.Add(In("停止", "停止按钮", "控制卡1", 0, 0, 1));
                 d.Inputs.Add(In("复位", "复位按钮", "控制卡1", 0, 0, 2));
@@ -998,10 +998,10 @@ namespace NoCodeMotion.Services
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "DMC5800", 0, 6, "脉冲", "PCI"));
-                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 400, 200, 200));
-                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 400, 200, 200));
-                d.Axes.Add(Ax("Z1", "控制卡1", "脉冲", 2, "mm", 100, 80, 80));
-                d.Axes.Add(Ax("Z2", "控制卡1", "脉冲", 3, "mm", 100, 80, 80));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 400, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 400, 0.2, 0.2));
+                d.Axes.Add(Ax("Z1", "控制卡1", "脉冲", 2, "mm", 100, 0.2, 0.2));
+                d.Axes.Add(Ax("Z2", "控制卡1", "脉冲", 3, "mm", 100, 0.2, 0.2));
                 string[] inNames = { "启动", "停止", "复位", "急停", "手自动", "暂停", "来料", "检测完成",
                                      "包装完成", "出料允许", "封口完成", "安全门" };
                 for (int i = 0; i < 12; i++) d.Inputs.Add(In(inNames[i], "动点", "控制卡1", 0, 0, i));
@@ -1129,10 +1129,10 @@ namespace NoCodeMotion.Services
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "DMC5800", 0, 6, "脉冲", "PCI"));
-                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 500, 250, 250));
-                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 300, 150, 150));
-                d.Axes.Add(Ax("Z1", "控制卡1", "脉冲", 2, "mm", 100, 80, 80));
-                d.Axes.Add(Ax("Z2", "控制卡1", "脉冲", 3, "mm", 100, 80, 80));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 500, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 300, 0.2, 0.2));
+                d.Axes.Add(Ax("Z1", "控制卡1", "脉冲", 2, "mm", 100, 0.2, 0.2));
+                d.Axes.Add(Ax("Z2", "控制卡1", "脉冲", 3, "mm", 100, 0.2, 0.2));
                 string[] inNames = { "启动", "停止", "复位", "急停", "手自动", "暂停",
                                      "来料", "装配1完成", "装配2完成", "装配3完成",
                                      "打螺丝完成", "检测完成", "出料允许", "安全门", "夹紧确认", "顶升确认" };
@@ -1270,10 +1270,10 @@ namespace NoCodeMotion.Services
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "EtherCAT主站", 0, 8, "EtherCAT", "网口"));
-                d.Axes.Add(Ax("X", "控制卡1", "EtherCAT", 0, "mm", 400, 200, 200));
-                d.Axes.Add(Ax("Y", "控制卡1", "EtherCAT", 1, "mm", 400, 200, 200));
-                d.Axes.Add(Ax("Z", "控制卡1", "EtherCAT", 2, "mm", 150, 100, 100));
-                d.Axes.Add(Ax("R", "控制卡1", "EtherCAT", 3, "°", 360, 180, 180));
+                d.Axes.Add(Ax("X", "控制卡1", "EtherCAT", 0, "mm", 400, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "EtherCAT", 1, "mm", 400, 0.2, 0.2));
+                d.Axes.Add(Ax("Z", "控制卡1", "EtherCAT", 2, "mm", 150, 0.2, 0.2));
+                d.Axes.Add(Ax("R", "控制卡1", "EtherCAT", 3, "°", 360, 0.2, 0.2));
                 string[] inNames = { "启动", "停止", "复位", "急停", "手自动", "暂停", "示教", "拍照允许" };
                 for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], "动点", "控制卡1", 0, 0, i));
                 string[] outNames = { "运行", "就绪", "报警", "完成", "暂停", "夹爪", "真空", "光源" };
@@ -1387,10 +1387,10 @@ namespace NoCodeMotion.Services
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "DMC5800", 0, 6, "脉冲", "PCI"));
-                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 400, 200, 200));
-                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 400, 200, 200));
-                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 150, 100, 100));
-                d.Axes.Add(Ax("R", "控制卡1", "脉冲", 3, "°", 360, 180, 180));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 400, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 400, 0.2, 0.2));
+                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 150, 0.2, 0.2));
+                d.Axes.Add(Ax("R", "控制卡1", "脉冲", 3, "°", 360, 0.2, 0.2));
                 string[] inNames = { "产品A", "产品B", "产品C", "急停", "复位", "停止", "手自动", "暂停" };
                 for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], "动点", "控制卡1", 0, 0, i));
                 string[] outNames = { "产品A运行", "产品B运行", "产品C运行", "就绪", "报警", "完成", "绿灯", "红灯" };
@@ -1504,12 +1504,12 @@ namespace NoCodeMotion.Services
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "EtherCAT主站", 0, 8, "EtherCAT", "网口"));
                 d.Controllers.Add(Ctl("控制卡2", "雷赛", "EtherCAT扩展", 1, 8, "EtherCAT", "网口"));
-                d.Axes.Add(Ax("J1", "控制卡1", "EtherCAT", 0, "°", 180, 90, 90));
-                d.Axes.Add(Ax("J2", "控制卡1", "EtherCAT", 1, "°", 180, 90, 90));
-                d.Axes.Add(Ax("J3", "控制卡1", "EtherCAT", 2, "°", 180, 90, 90));
-                d.Axes.Add(Ax("X", "控制卡2", "EtherCAT", 0, "mm", 400, 200, 200));
-                d.Axes.Add(Ax("Y", "控制卡2", "EtherCAT", 1, "mm", 400, 200, 200));
-                d.Axes.Add(Ax("Z", "控制卡2", "EtherCAT", 2, "mm", 200, 100, 100));
+                d.Axes.Add(Ax("J1", "控制卡1", "EtherCAT", 0, "°", 180, 0.2, 0.2));
+                d.Axes.Add(Ax("J2", "控制卡1", "EtherCAT", 1, "°", 180, 0.2, 0.2));
+                d.Axes.Add(Ax("J3", "控制卡1", "EtherCAT", 2, "°", 180, 0.2, 0.2));
+                d.Axes.Add(Ax("X", "控制卡2", "EtherCAT", 0, "mm", 400, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡2", "EtherCAT", 1, "mm", 400, 0.2, 0.2));
+                d.Axes.Add(Ax("Z", "控制卡2", "EtherCAT", 2, "mm", 200, 0.2, 0.2));
                 string[] inNames = { "启动", "停止", "复位", "急停", "手自动", "暂停", "示教", "安全门",
                                      "来料", "装配1完成", "装配2完成", "打螺丝完成", "检测完成", "出料", "拍照允许", "允许启动" };
                 for (int i = 0; i < 16; i++) d.Inputs.Add(In(inNames[i], "动点", i < 8 ? "控制卡1" : "控制卡2", i < 8 ? 0 : 1, 0, i % 8));
@@ -1783,10 +1783,10 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "EtherCAT主站", 0, 4, "EtherCAT", "网口"));
-                d.Axes.Add(Ax("X", "控制卡1", "EtherCAT", 0, "mm", 400, 200, 200));
-                d.Axes.Add(Ax("Y", "控制卡1", "EtherCAT", 1, "mm", 400, 200, 200));
-                d.Axes.Add(Ax("Z", "控制卡1", "EtherCAT", 2, "mm", 150, 100, 100));
-                d.Axes.Add(Ax("R", "控制卡1", "EtherCAT", 3, "°", 360, 180, 180));
+                d.Axes.Add(Ax("X", "控制卡1", "EtherCAT", 0, "mm", 400, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "EtherCAT", 1, "mm", 400, 0.2, 0.2));
+                d.Axes.Add(Ax("Z", "控制卡1", "EtherCAT", 2, "mm", 150, 0.2, 0.2));
+                d.Axes.Add(Ax("R", "控制卡1", "EtherCAT", 3, "°", 360, 0.2, 0.2));
                 string[] inNames = { "启动", "停止", "复位", "急停", "手自动", "暂停", "示教", "拍照允许" };
                 for (int i = 0; i < 8; i++) d.Inputs.Add(In(inNames[i], "动点", "控制卡1", 0, 0, i));
                 string[] outNames = { "运行", "就绪", "报警", "完成", "夹爪", "真空", "光源", "下料" };
@@ -1967,10 +1967,10 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "DMC5400", 0, 4, "脉冲", "PCI"));
-                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 100, 200, 200));
-                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 100, 200, 200));
-                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 80, 200, 200));
-                d.Axes.Add(Ax("R", "控制卡1", "脉冲", 3, "°", 60, 200, 200));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 100, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 100, 0.2, 0.2));
+                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 80, 0.2, 0.2));
+                d.Axes.Add(Ax("R", "控制卡1", "脉冲", 3, "°", 60, 0.2, 0.2));
                 d.Inputs.Add(In("启动", "启动")); d.Inputs.Add(In("停止", "停止"));
                 d.Inputs.Add(In("复位", "复位")); d.Inputs.Add(In("急停", "急停"));
                 d.Inputs.Add(In("来料", "来料检测")); d.Inputs.Add(In("良品", "良品检测"));
@@ -2079,9 +2079,9 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             {
                 var d = new ProjectData();
                 d.Controllers.Add(Ctl("控制卡1", "雷赛", "DMC5400", 0, 4, "脉冲", "PCI"));
-                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 100, 200, 200));
-                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 100, 200, 200));
-                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 60, 200, 200));
+                d.Axes.Add(Ax("X", "控制卡1", "脉冲", 0, "mm", 100, 0.2, 0.2));
+                d.Axes.Add(Ax("Y", "控制卡1", "脉冲", 1, "mm", 100, 0.2, 0.2));
+                d.Axes.Add(Ax("Z", "控制卡1", "脉冲", 2, "mm", 60, 0.2, 0.2));
                 d.Inputs.Add(In("启动", "启动")); d.Inputs.Add(In("停止", "停止"));
                 d.Inputs.Add(In("复位", "复位")); d.Inputs.Add(In("急停", "急停"));
                 d.Outputs.Add(Out("运行", "运行")); d.Outputs.Add(Out("就绪", "就绪"));
@@ -2159,12 +2159,12 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             d.Controllers.Add(Ctl("视觉控制卡", "雷赛", "EtherCAT主站", 2, 4, "EtherCAT", "网口"));
 
             // 搬运料盘手臂 3 轴
-            d.Axes.Add(Ax("搬运X", "运动控制卡", "脉冲", 0, "mm", 600, 300, 300));
-            d.Axes.Add(Ax("搬运Y", "运动控制卡", "脉冲", 1, "mm", 400, 200, 200));
-            d.Axes.Add(Ax("搬运Z", "运动控制卡", "脉冲", 2, "mm", 200, 150, 150));
+            d.Axes.Add(Ax("搬运X", "运动控制卡", "脉冲", 0, "mm", 600, 0.2, 0.2));
+            d.Axes.Add(Ax("搬运Y", "运动控制卡", "脉冲", 1, "mm", 400, 0.2, 0.2));
+            d.Axes.Add(Ax("搬运Z", "运动控制卡", "脉冲", 2, "mm", 200, 0.2, 0.2));
             // 2 个 Z 轴压力测
-            d.Axes.Add(Ax("Z压力测1", "运动控制卡", "脉冲", 3, "mm", 100, 80, 80));
-            d.Axes.Add(Ax("Z压力测2", "运动控制卡", "脉冲", 4, "mm", 100, 80, 80));
+            d.Axes.Add(Ax("Z压力测1", "运动控制卡", "脉冲", 3, "mm", 100, 0.2, 0.2));
+            d.Axes.Add(Ax("Z压力测2", "运动控制卡", "脉冲", 4, "mm", 100, 0.2, 0.2));
 
             // 盘 / 料盘（共 10 个）
             d.Trays.Add(Tray("自动盘1", 25, 25, 0, 0, 4, 4));
@@ -2233,11 +2233,11 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 d.Controllers.Add(Ctl("视觉控制卡", "雷赛", "EtherCAT主站", 2, 2, "EtherCAT", "网口"));
 
                 // 固晶机轴：对位平台 X/Y/θ + 固晶头Z + 顶针Z
-                d.Axes.Add(Ax("载台X", "运动控制卡", "脉冲", 0, "mm", 200, 100, 100));
-                d.Axes.Add(Ax("载台Y", "运动控制卡", "脉冲", 1, "mm", 200, 100, 100));
-                d.Axes.Add(Ax("载台θ", "运动控制卡", "脉冲", 2, "°", 360, 180, 180));
-                d.Axes.Add(Ax("固晶头Z", "运动控制卡", "脉冲", 3, "mm", 50, 40, 40));
-                d.Axes.Add(Ax("顶针Z", "运动控制卡", "脉冲", 4, "mm", 20, 20, 20));
+                d.Axes.Add(Ax("载台X", "运动控制卡", "脉冲", 0, "mm", 200, 0.2, 0.2));
+                d.Axes.Add(Ax("载台Y", "运动控制卡", "脉冲", 1, "mm", 200, 0.2, 0.2));
+                d.Axes.Add(Ax("载台θ", "运动控制卡", "脉冲", 2, "°", 360, 0.2, 0.2));
+                d.Axes.Add(Ax("固晶头Z", "运动控制卡", "脉冲", 3, "mm", 50, 0.2, 0.2));
+                d.Axes.Add(Ax("顶针Z", "运动控制卡", "脉冲", 4, "mm", 20, 0.2, 0.2));
 
                 // 吸嘴 / 气缸
                 d.Cylinders.Add(Cyl("固晶吸嘴", "Y0", "真空检测", "真空检测", "真空吸嘴"));
@@ -2332,10 +2332,10 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 d.Controllers.Add(Ctl("视觉控制卡", "雷赛", "EtherCAT主站", 2, 2, "EtherCAT", "网口"));
 
                 // 探针台轴：载台 X/Y/θ + 探针Z
-                d.Axes.Add(Ax("载台X", "运动控制卡", "EtherCAT", 0, "mm", 300, 100, 100));
-                d.Axes.Add(Ax("载台Y", "运动控制卡", "EtherCAT", 1, "mm", 300, 100, 100));
-                d.Axes.Add(Ax("载台θ", "运动控制卡", "EtherCAT", 2, "°", 360, 180, 180));
-                d.Axes.Add(Ax("探针Z", "运动控制卡", "EtherCAT", 3, "mm", 20, 15, 15));
+                d.Axes.Add(Ax("载台X", "运动控制卡", "EtherCAT", 0, "mm", 300, 0.2, 0.2));
+                d.Axes.Add(Ax("载台Y", "运动控制卡", "EtherCAT", 1, "mm", 300, 0.2, 0.2));
+                d.Axes.Add(Ax("载台θ", "运动控制卡", "EtherCAT", 2, "°", 360, 0.2, 0.2));
+                d.Axes.Add(Ax("探针Z", "运动控制卡", "EtherCAT", 3, "mm", 20, 0.2, 0.2));
 
                 // 吸盘 / 探针卡夹紧
                 d.Cylinders.Add(Cyl("真空吸盘", "Y0", "真空检测", "真空检测", "真空吸嘴"));
