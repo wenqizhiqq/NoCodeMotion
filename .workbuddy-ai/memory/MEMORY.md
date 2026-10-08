@@ -2,16 +2,16 @@
 > 陷阱索引。完整推导见 `.workbuddy-ai/memory/` 逐日日志（2026-09-19 起）。
 
 ## 一、构建 / 验证
-- dotnet 用 PowerShell；先设 `[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)`，否则中文乱码。
-- ★ **清理要复核**：PS `Remove-Item -Recurse -Force .\obj,.\bin` 会**静默不删** → 构建 up-to-date 跳过 CoreCompile，只报 6 条 RAR 告警，误判「全量成功」。用 bash `rm -rf obj bin` + `ls` 确认目录消失再构建。全量日志 ≈0.4 MB、结尾 `614 个警告 / 0 个错误`（基线 0 错 / 614 警，全既有 CA1416 + 可空性）。**空或极短日志 = 没编译**。
+- dotnet 用 PowerShell；先设 `[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)`，否则中文乱码。★ `dotnet … > log` 重定向出来的是 **GBK(cp936)** 不是 UTF-8 → 拿中文 pattern 去 `grep` 会**静默 0 匹配**（用 `iconv -f gbk` 或 Python `decode('gbk')`）。
+- ★ **清理要复核**：`Remove-Item -Recurse -Force .\obj,.\bin` 会**静默不删**；bash `rm -rf obj bin` 会被沙箱**批量删除守卫**拦下（`SAFE_DELETE_BULK_CONFIRM_REQUIRED`，`&&` 短路致 `ls` 没跑）。两者都 → 构建 up-to-date 跳过 CoreCompile、只报 6 条架构告警，误判「全量成功」。**删完必须 `ls` 复核目录真的没了**。全量日志 ≈0.4 MB、结尾 `614 个警告 / 0 个错误`。**空或极短日志 = 没编译**。
 - `NuGet … null ('path1')`/NETSDK1060 → shell `APPDATA`/`ProgramFiles` 空：`env "APPDATA=…" "ProgramFiles=C:\Program Files" … dotnet build`。
 - ★ 源码文本守卫**必须在仓库目录跑**：`%TEMP%` 进程读 `D:\` 被沙箱替换（静默乱码，`Contains` 在肉眼可见串返 false）。
-- ★ `%TEMP%` 会被系统临时清理整删（已两次）→ 自建工具全放仓库：守卫 `tools\guard_sources.py`（G1–G18，**168 PASS**）、看 BOM 源码 `tools\_dump.py`（内置 Read 会误判 binary）、冒烟 `.smoke\`。
+- ★ `%TEMP%` 会被系统临时清理整删（已两次）→ 自建工具全放仓库：守卫 `tools\guard_sources.py`（G1–G18，**173 PASS**）、看 BOM 源码 `tools\_dump.py`（内置 Read 会误判 binary）、冒烟 `.smoke\`。
 - 冒烟：`dotnet build .smoke/ncm_smoke.csproj -p:UseAppHost=false` → `dotnet exec .smoke/bin/Debug/net10.0-windows/ncm_smoke.dll`（段 A–J）。`.smoke/bin|obj` 已被 .gitignore 覆盖。
 - ★ 主工程 `<Reference>`+`HintPath` 的 dll **不进引用方 deps.json**，`dotnet exec` 严格按 deps.json → 冒烟要**照抄同样的 `<Reference>`**，否则 `FileNotFoundException`（产品自身不受影响）。
 - ★ `%TEMP%` 里的 exe 跑不起来（`exit 127`、`taskkill` 拒绝访问留残进程锁 `*.exe`）→ 一律 `dotnet exec <dll>` + `-p:UseAppHost=false`。
 - 补丁脚本范式：`load()` 断言纯 CRLF、`sub1` 断言 `count==1`、全部锚点过后 `flush()` 一次写盘；`insert_after` 看锚点末尾字符（可见字符先换行再插）。
-- 冒烟与 `--no-incremental` 不可并行（互删 `obj\` → CS0103 InitializeComponent / CS5001 无 Main / CS2001 缺 *.g.cs，不自愈）→ `rm -rf obj bin` 全量。`-t:Rebuild` 跳过 CoreCompile 报假「0 警告」。
+- 冒烟与 `--no-incremental` 不可并行（互删 `obj\` → CS0103 / CS5001 / CS2001，不自愈）→ `rm -rf obj bin` 全量（删除成败见上「清理要复核」）。`-t:Rebuild` 跳过 CoreCompile 报假「0 警告」。
 - 并发编辑器报假 CS1061 → 先看 mtime。临时目录带点前缀（`.smoke/`）不编译，不带点（`scratch/`）会被 `**/*.cs` 收走。
 
 ## 二、代码约定
@@ -20,14 +20,14 @@
 - 多编辑同一文件先内存累积、最后写盘；Python 多行字面量先归一化行尾。`core.autocrlf=true` → `git show HEAD:file` 行尾≠工作区，看工作区。
 - ★ XAML `{StaticResource KEY}` 必须在 `App.xaml` 递归可达链里：`App.xaml` **只合并 `Resources\AppStyles.xaml`**，`Themes\AppleControls.xaml` 从未合并 → 写了它的键就在 `InitializeComponent()` 抛 `XamlParseException`。**grep 到 `x:Key` ≠ 运行时找得到，且 build 抓不到**。守卫 G17 已锁。
 - `AppleToggle`（全局可用）46×26 **无文字开关**，模板不渲染 Content → 要标签须另配 TextBlock。**grep 到的样式先看它的 ControlTemplate 会不会渲染你要设的属性。**
-- ★ **`TtBaseBtn` 的 `Padding` 硬编码在 ControlTemplate 里**（`Padding="14,0"`）→ 覆盖 `Padding` 无效，只能改 `MinWidth`/`Height`/`FontSize`。`TtPillBase` 系（`TtPillBlue/Gray/Orange/Green/Red`，圆角 15）的 `Padding` 是 Setter + `TemplateBinding` → **可覆盖**。次要操作（取消 / 清除）用 `TtPillGrayBtn` 浅灰，别用饱和主色的 `TtBaseBtn`。
+- ★ **`TtBaseBtn` 的 `Padding` 硬编码在 ControlTemplate 里**（`Padding="14,0"`）→ 覆盖 `Padding` 无效，只能改 `MinWidth`/`Height`/`FontSize`。`TtPillBase` 系（`TtPill*`，圆角 15）的 `Padding` 是 Setter + `TemplateBinding` → **可覆盖**。次要操作（取消/清除）用浅灰 `TtPillGrayBtn`，别用饱和主色 `TtBaseBtn`。
 
 ## 三、架构要点
 - `Catalog`（`Services/Catalog.cs`）是下拉框名称缓存，只在 `Load`/`LoadInto` 经 `SyncAllFromData` 重建，**不是数据源**；`Catalog.*Names` 是受限值域 → 写候选外的值渲染空白。
 - 自动保存链 `Model.PropertyChanged → ListVM.OnItemPropertyChanged → ScheduleSave()`；**运行态/只读展示属性必须过滤**，否则每秒写盘。
 - 点位「名称」用 0 基轴号（名里的数=轴号）；`XlsxProjectStore` 点位表列名固定 `轴1位置…轴1名`（4 轴槽），改了读不了老工程。
 - ★ 重复轴号是静默灾难：`AxisOf` 的 `slot.Axes` 是 `Dictionary<轴号,IAxis>`，卡族读写不带卡号轴号 → 两轴同号共用物理通道。已有一次性告警 `_warnedAxisDuplicate`。
-- ★ **过滤共享集合必须用私有 `CollectionViewSource`**：`GetDefaultView(coll)` 的 Filter **全局共享**；`IoPage` 与 `EngineerPage` 绑**同一** `ProjectStore.Data.Inputs/Outputs` → 工程师页只能用 `new CollectionViewSource { Source = … }`（守卫 G16.7 断言 `"GetDefaultView" not in`）。
+- ★ **过滤共享集合必须用私有 `CollectionViewSource`**：`GetDefaultView(coll)` 的 Filter **全局共享**；`IoPage` 与 `EngineerPage` 绑**同一** `ProjectStore.Data.Inputs/Outputs` → 工程师页只能用 `new CollectionViewSource { Source = … }`（守卫 G16.7）。
 
 ## 四、流程 / UI 页
 - `TableToolbar`「共 N 项」来自 `MatchInfo`；行数权威是 `TargetGrid.ItemsSource`。
@@ -36,9 +36,10 @@
 - `ExportSteps` 必须导出 `FlowStep.DurationMs`（键 `耗时`）：加字段时 `Export*` 与 `Fill*` 同改。
 - Lua API 唯一权威是 `Services/HardwareApi.cs` 的 `Register()`；`Camera`/`Vision` 不注册。视觉流程契约是 `视觉步骤` 数组。
 - FlowPage.xaml Row-0（复制JSON/粘贴生成/回退）四流程共用、在 `EditorPage.Detail` 里，**不能起 `x:Name`（MC3093）**。
-- 「图像生成点位」= 工具栏按钮 + `Views/GraphGenDialog.xaml(.cs)`（`DataContext`=`GraphPointGenViewModel`，`CanvasW=340`/`CanvasH=260`）。`PointViewModel.ImageGenPointsCommand` 打开；`Graph.Generated → AppendGraphPoints()` 追加到当前工位（轴1←X、轴2←Y）。映射 `mx=OriginX+cx/CanvasW*FrameW`、`my=OriginY+(CanvasH-cy)/CanvasH*FrameH`。画布**最上层透明 `Border` 收单击**，底下 Path/ItemsControl 全 `IsHitTestVisible=False`。
-- ★ **新建 Apple 弹窗别照抄 `Owner = Application.Current?.MainWindow;`**：本窗口若是应用里第一个 `Window`，getter 返回它自己 → `ArgumentException「不能把 Owner 设为自己」`。必须 `if (owner is not null && !ReferenceEquals(owner, this)) Owner = owner;`（`ArrayGenDialog` 仍是裸写法，真机主窗口先建所以未暴露）。
-- 工程师页三列表（输入 IO / 输出 IO / 气缸）：各一个 `ListBox` + **`VirtualCardListStyle`**（`IsVirtualizing`+`Recycling`+`ScrollUnit=Pixel`+双滚动条 Auto+`CanContentScroll=True`）+ 顶部搜索行（`TtSearchBox` + `TtMatchInfo` 命中数 + 浅灰 `SearchClearBtn`「取消」按钮，分别绑 `InputSearch`/`OutputSearch`/`CylinderSearch` 与 `Clear*SearchCommand`），`ItemsSource` 绑 `InputsView`/`OutputsView`/`CylindersView`；行是**单行紧凑** `MiniCardStyle`+`Padding="10,5"`、**无固定 Width**（旧写法 IO 210 / 气缸 224）。**`ItemsControl`+外部 `ScrollViewer` 不虚拟化**，要虚拟化必须用 `ListBox`。
+- 「图像生成点位」= 工具栏按钮 + `Views/GraphGenDialog.xaml(.cs)`（`DataContext`=`GraphPointGenViewModel`，340×260）。`PointViewModel.ImageGenPointsCommand` 打开；`Graph.Generated → AppendGraphPoints()` 追加到当前工位（轴1←X、轴2←Y）。映射 `mx=OriginX+cx/CanvasW*FrameW`、`my=OriginY+(CanvasH-cy)/CanvasH*FrameH`。画布**最上层透明 `Border` 收单击**，底下 Path/ItemsControl 全 `IsHitTestVisible=False`。
+- ★ **新建 Apple 弹窗别照抄 `Owner = Application.Current?.MainWindow;`**：本窗口若是应用里第一个 `Window`，getter 返回它自己 → `ArgumentException「不能把 Owner 设为自己」`。必须 `if (owner is not null && !ReferenceEquals(owner, this)) Owner = owner;`（`ArrayGenDialog` 仍是裸写法，未暴露）。
+- 工程师页三列表（输入 IO / 输出 IO / 气缸）：各一个 `ListBox` + **`VirtualCardListStyle`**（虚拟化+回收+像素滚动+双滚动条 Auto）+ 顶部搜索行（`TtSearchBox` + `TtMatchInfo` 命中数 + 浅灰 `SearchClearBtn`「取消」，绑 `InputSearch`/`OutputSearch`/`CylinderSearch` 与 `Clear*SearchCommand`），`ItemsSource` 绑 `InputsView`/`OutputsView`/`CylindersView`；行**单行紧凑** `MiniCardStyle`+`Padding="10,5"`、**无固定 Width**（旧 IO 210 / 气缸 224）。**`ItemsControl`+外部 `ScrollViewer` 不虚拟化**，必须用 `ListBox`。
+- 工程师页布局：外层 `Grid` 两列宽 `1.3*` / `*`（**左宽右窄**）——左列「IO 控制 + 气缸控制」（两 IO 表要放得下），右列「**轴控制 + 点位移动和设置**」（轴控紧贴点位表上方）。列宽一改，三列表实际行宽随之变（气缸行 224 → 619 px）。
 
 ## 五、暂停/停止守卫（Request B）
 - 进程级静态 `HardwareBridge.WaitGuard`（`Action`）由所有阻塞等待（Delay、MoveAxis、Lua wait、气缸脉冲）每 ≤50ms 轮询。Pause → `ResumeEvent.Wait()`；Stop/E-Stop → **抛 `OperationCanceledException`**（不是 `ScriptRuntimeException`，否则被 `ExecuteLeaf` 的 `catch(Exception)` 吞掉、流程继续跑）。

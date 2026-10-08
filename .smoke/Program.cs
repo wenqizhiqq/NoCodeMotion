@@ -41,6 +41,16 @@ namespace NcmSmoke
             return null;
         }
 
+        /// <summary>从任意可视化子元素向上找最近的卡片 Border（Style == CardBorderStyle）。</summary>
+        private static System.Windows.Controls.Border? CardOf(DependencyObject? d)
+        {
+            var style = Application.Current?.TryFindResource("CardBorderStyle") as Style;
+            for (var cur = d; cur != null; cur = VisualTreeHelper.GetParent(cur))
+                if (cur is System.Windows.Controls.Border b && style != null && ReferenceEquals(b.Style, style))
+                    return b;
+            return null;
+        }
+
         private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
         {
             int n = VisualTreeHelper.GetChildrenCount(root);
@@ -414,7 +424,7 @@ namespace NcmSmoke
             // ================= J. 工程师页 IO 行「真实几何」+ 离屏渲染留证 =================
             // 需求是「行高缩小、宽度加大」——这是视觉指标，所以不看 XAML 文本，
             // 直接离屏 Measure/Arrange 后读控件 ActualWidth/ActualHeight。
-            Section("J. 工程师页 IO / 气缸 行真实几何（离屏布局）：行高缩小 / 行宽拉伸 / 三个搜索框 + 取消按钮");
+            Section("J. 工程师页真实几何（离屏布局）：行高缩小 / 行宽拉伸 / 搜索+取消 / 轴控制在点位表正上方");
             try
             {
                 var ep = new NoCodeMotion.Views.EngineerPage();
@@ -501,6 +511,49 @@ namespace NcmSmoke
                 int clears = Descendants(ep).OfType<System.Windows.Controls.Button>()
                                 .Count(b => (b.Content as string) == "取消");
                 Check(clears == 3, "三个搜索框右侧各有一个「取消」按钮（实际 " + clears + " 个）");
+
+                // ---- 四张卡片的位置关系：轴控制必须在点位表正上方（同列相邻） ----
+                var outList = lists.FirstOrDefault(l => ReferenceEquals(l.ItemsSource, evm2.OutputsView));
+                Check(outList != null, "输出表的 ItemsSource 就是 OutputsView");
+                var ptGrid = Descendants(ep).OfType<System.Windows.Controls.DataGrid>().FirstOrDefault();
+                var axisItems = Descendants(ep).OfType<System.Windows.Controls.ItemsControl>()
+                                    .FirstOrDefault(ic => ReferenceEquals(ic.ItemsSource, evm2.AxisStates));
+
+                var ioCard = CardOf(inList);
+                var cylCard = CardOf(cylList);
+                var axisCard = CardOf(axisItems);
+                var ptCard = CardOf(ptGrid);
+
+                Check(ioCard != null && cylCard != null && axisCard != null && ptCard != null,
+                      "四张卡片都能定位到（IO / 气缸 / 轴控制 / 点位表）");
+
+                if (ioCard != null && cylCard != null && axisCard != null && ptCard != null)
+                {
+                    Point P(System.Windows.FrameworkElement el)
+                        => el.TransformToAncestor(ep).Transform(new Point(0, 0));
+
+                    var pIo = P(ioCard); var pCyl = P(cylCard); var pAxis = P(axisCard); var pPt = P(ptCard);
+                    Console.WriteLine("  INFO  IO 卡   x=" + pIo.X.ToString("0") + " y=" + pIo.Y.ToString("0")
+                                      + " w=" + ioCard.ActualWidth.ToString("0"));
+                    Console.WriteLine("  INFO  气缸卡 x=" + pCyl.X.ToString("0") + " y=" + pCyl.Y.ToString("0")
+                                      + " w=" + cylCard.ActualWidth.ToString("0"));
+                    Console.WriteLine("  INFO  轴控卡 x=" + pAxis.X.ToString("0") + " y=" + pAxis.Y.ToString("0")
+                                      + " w=" + axisCard.ActualWidth.ToString("0"));
+                    Console.WriteLine("  INFO  点位卡 x=" + pPt.X.ToString("0") + " y=" + pPt.Y.ToString("0")
+                                      + " w=" + ptCard.ActualWidth.ToString("0"));
+
+                    Check(Math.Abs(pAxis.X - pPt.X) < 1.0 && pAxis.Y < pPt.Y,
+                          "轴控制与点位表同列且在其正上方（Δx=" + Math.Abs(pAxis.X - pPt.X).ToString("0.0")
+                          + "px，轴控 y=" + pAxis.Y.ToString("0") + " < 点位 y=" + pPt.Y.ToString("0") + "）");
+                    Check(pIo.X < pAxis.X && pCyl.X < pAxis.X,
+                          "IO 控制与气缸控制在左列（x=" + pIo.X.ToString("0") + " / " + pCyl.X.ToString("0")
+                          + " < 轴控 x=" + pAxis.X.ToString("0") + "）");
+                    Check(ioCard.ActualWidth > axisCard.ActualWidth,
+                          "左列比右列宽，IO 两表宽度不被压缩（IO " + ioCard.ActualWidth.ToString("0")
+                          + " > 轴控 " + axisCard.ActualWidth.ToString("0") + "）");
+                    Check(Math.Abs(pIo.Y - pAxis.Y) < 1.0 && pCyl.Y > pIo.Y,
+                          "左右两列首行对齐，气缸卡在 IO 卡下方");
+                }
 
                 // 离屏渲染留证（RenderTargetBitmap 真渲染可视化树，不依赖窗口/桌面）
                 var rtb = new RenderTargetBitmap(1240, 780, 96, 96, PixelFormats.Pbgra32);

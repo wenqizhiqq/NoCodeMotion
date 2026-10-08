@@ -679,6 +679,16 @@ else:
           'Text="{Binding Item.Name}"' in g16
           and '<Binding Path="Item.Type"/>' in g16
           and 'StringFormat=输出点：{0}' not in g16)
+    # 布局：轴控制移到点位表正上方（同列相邻）；IO 换到加宽后的左列以保住两表宽度
+    check("G16.15 轴控制与点位表同列相邻（轴控在点位表正上方），IO 换到加宽的左列",
+          '<!-- 右列：轴控制（上） + 点位移动和设置（下） -->' in g16
+          and '<!-- 左列：IO 控制（上） + 气缸控制（下） -->' in g16
+          and g16.index('<!-- 右列：轴控制') < g16.index('<!-- ① 轴控制')
+          < g16.index('<!-- ④ 点位移动和设置')
+          and g16.index('<!-- 左列：IO 控制') < g16.index('<!-- ② IO 控制')
+          < g16.index('<!-- ③ 气缸控制')
+          and '<ColumnDefinition Width="1.3*"/>\r\n            <ColumnDefinition Width="*"/>' in g16
+          and '<Grid Grid.Column="1" Margin="8,0,0,0">' in g16)
 
 # ---------------------------------------------------------------------
 section("G17  资源可达性：XAML 引用的 StaticResource 键必须真能解析到（防 AppleCheckBox 类崩溃）")
