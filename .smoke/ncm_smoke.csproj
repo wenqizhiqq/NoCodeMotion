@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>NU1701;CA1416</NoWarn>
+    <AssemblyName>ncm_smoke</AssemblyName>
+    <RootNamespace>NcmSmoke</RootNamespace>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <!-- 主工程（..\NoCodeMotion.csproj） -->
+  <ItemGroup>
+    <ProjectReference Include="..\NoCodeMotion.csproj" />
+  </ItemGroup>
+
+  <!-- 主工程用 <Reference>+HintPath 引的 MVS 封装不会进本工程的 deps.json，
+       而 dotnet exec 严格按 deps.json 解析 → 这里照抄一份，冒烟才跑得起来。
+       （产品自身 deps.json 有记录、DLL 也在输出目录，不受影响。） -->
+  <ItemGroup>
+    <Reference Include="MvCameraControl.Net">
+      <HintPath>..\Native\MvCameraControl.Net.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

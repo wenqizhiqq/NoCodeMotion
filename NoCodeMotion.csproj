@@ -29,6 +29,14 @@
     <None Remove="_out\**" />
     <Page Remove="_out\**" />
     <Content Remove="_out\**" />
+    <!-- .smoke 是仓库内的冒烟验证工程（dotnet build .smoke/ncm_smoke.csproj），
+         它有自己的 csproj 与 obj/bin。点前缀目录本不会被 **/*.cs 收走，
+         这里显式剔除，保证主工程绝不会把冒烟代码编进产品。 -->
+    <Compile Remove=".smoke\**" />
+    <EmbeddedResource Remove=".smoke\**" />
+    <None Remove=".smoke\**" />
+    <Page Remove=".smoke\**" />
+    <Content Remove=".smoke\**" />
   </ItemGroup>
 
   <!-- 复用 GrayMatch 的旋转不变 NCC 匹配核心（纯算法/C#：RotatedTemplateMatcher + MatchResult + DefectResult，无 WPF/WinForms 依赖）。

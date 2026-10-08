@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
 using NoCodeMotion.Models;
@@ -56,6 +57,80 @@ namespace NoCodeMotion.ViewModels
         public ObservableCollection<IoItem> Outputs { get; }
         public ICommand ToggleOutputCommand { get; }
 
+        // 搜索过滤用**独立**视图：IO 页（IoViewModel）绑的是同一批 ProjectStore.Data.Inputs/Outputs，
+        // 若在默认视图上加 Filter，会把 IO 页的表格一起过滤掉。
+        private readonly CollectionViewSource _inputsCvs = new();
+        private readonly CollectionViewSource _outputsCvs = new();
+        private readonly CollectionViewSource _cylindersCvs = new();
+
+        /// <summary>输入 IO 的过滤视图（供列表绑定；关键字为空时等于全量）。</summary>
+        public ICollectionView InputsView => _inputsCvs.View;
+        /// <summary>输出 IO 的过滤视图（供列表绑定）。</summary>
+        public ICollectionView OutputsView => _outputsCvs.View;
+        /// <summary>气缸列表的过滤视图（供列表绑定；关键字为空时等于全量）。</summary>
+        public ICollectionView CylindersView => _cylindersCvs.View;
+
+        private string _inputSearch = string.Empty;
+        /// <summary>输入 IO 搜索关键字：匹配 名称 / 功能 / 卡类 / 套码 / 控制器 / 卡号 / 模块。</summary>
+        public string InputSearch
+        {
+            get => _inputSearch;
+            set
+            {
+                if (SetField(ref _inputSearch, value))
+                {
+                    InputsView.Refresh();
+                    OnPropertyChanged(nameof(InputMatchInfo));
+                }
+            }
+        }
+
+        private string _outputSearch = string.Empty;
+        /// <summary>输出 IO 搜索关键字：匹配 名称 / 功能 / 卡类 / 套码 / 控制器 / 卡号 / 模块。</summary>
+        public string OutputSearch
+        {
+            get => _outputSearch;
+            set
+            {
+                if (SetField(ref _outputSearch, value))
+                {
+                    OutputsView.Refresh();
+                    OnPropertyChanged(nameof(OutputMatchInfo));
+                }
+            }
+        }
+
+        /// <summary>输入 IO 命中情况（命中数 / 总数），显示在搜索框右侧。</summary>
+        public string InputMatchInfo => $"{InputsView.Cast<object>().Count()} / {Inputs.Count}";
+        /// <summary>输出 IO 命中情况（命中数 / 总数）。</summary>
+        public string OutputMatchInfo => $"{OutputsView.Cast<object>().Count()} / {Outputs.Count}";
+
+        private string _cylinderSearch = string.Empty;
+        /// <summary>气缸搜索关键字：匹配 名称 / 设备编号 / 类型 / 动作 / 输出点 / 伸出感应 / 缩回感应 / 备注。</summary>
+        public string CylinderSearch
+        {
+            get => _cylinderSearch;
+            set
+            {
+                if (SetField(ref _cylinderSearch, value))
+                {
+                    CylindersView.Refresh();
+                    OnPropertyChanged(nameof(CylinderMatchInfo));
+                }
+            }
+        }
+
+        /// <summary>气缸命中情况（命中数 / 总数），显示在搜索框右侧。</summary>
+        public string CylinderMatchInfo => $"{CylindersView.Cast<object>().Count()} / {Cylinders.Count}";
+
+        // ===== 搜索框右侧「取消」按钮：一键清空关键字、恢复全量 =====
+        /// <summary>清空输入 IO 搜索关键字。</summary>
+        public ICommand ClearInputSearchCommand { get; }
+        /// <summary>清空输出 IO 搜索关键字。</summary>
+        public ICommand ClearOutputSearchCommand { get; }
+        /// <summary>清空气缸搜索关键字。</summary>
+        public ICommand ClearCylinderSearchCommand { get; }
+
         // ===== ③ 气缸控制 =====
         /// <summary>气缸运行态集合（每个气缸一个，记录伸出/缩回）。</summary>
         public ObservableCollection<CylinderRuntime> Cylinders { get; }
@@ -99,12 +174,29 @@ namespace NoCodeMotion.ViewModels
             Outputs = ProjectStore.Data.Outputs;
             ToggleOutputCommand = new RelayCommand(ToggleOutput);
 
+            // 搜索过滤：独立视图 + 过滤谓词；集合增删时同步刷新命中数
+            _inputsCvs.Source = Inputs;
+            _inputsCvs.Filter += (_, e) => e.Accepted = MatchIo(e.Item as IoItem, InputSearch);
+            _outputsCvs.Source = Outputs;
+            _outputsCvs.Filter += (_, e) => e.Accepted = MatchIo(e.Item as IoItem, OutputSearch);
+            Inputs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(InputMatchInfo));
+            Outputs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(OutputMatchInfo));
+
+            ClearInputSearchCommand = new RelayCommand(_ => InputSearch = string.Empty);
+            ClearOutputSearchCommand = new RelayCommand(_ => OutputSearch = string.Empty);
+            ClearCylinderSearchCommand = new RelayCommand(_ => CylinderSearch = string.Empty);
+
             // ③ 气缸控制：为每个气缸建一个运行态（初始全部缩回）
             Cylinders = new ObservableCollection<CylinderRuntime>();
             foreach (var c in ProjectStore.Data.Cylinders)
                 Cylinders.Add(new CylinderRuntime(c, c.Action == "缩回"));
             ProjectStore.Data.Cylinders.CollectionChanged += OnCylindersChanged;
             ToggleCylinderCommand = new RelayCommand(ToggleCylinder);
+
+            // 气缸搜索：与 IO 一样用独立视图（三个列表互不干扰），集合增删时同步命中数
+            _cylindersCvs.Source = Cylinders;
+            _cylindersCvs.Filter += (_, e) => e.Accepted = MatchCylinder(e.Item as CylinderRuntime, CylinderSearch);
+            Cylinders.CollectionChanged += (_, _) => OnPropertyChanged(nameof(CylinderMatchInfo));
 
             // ④ 点位移动和设置（列头由 PointAxisStates 单独承载，从 SelectedTable.AxisNames 加载）
             Tables = ProjectStore.Data.PointTables;
@@ -201,6 +293,27 @@ namespace NoCodeMotion.ViewModels
             }
             _jogAxis = -1;
             _jogDir = 0;
+        }
+
+        /// <summary>IO 搜索匹配：把名称 / 功能 / 卡类 / 套码 / 控制器 / 卡号 / 模块 拼成一条串做子串匹配（忽略大小写）。</summary>
+        private static bool MatchIo(IoItem? item, string? keyword)
+        {
+            if (item is null) return false;
+            if (string.IsNullOrWhiteSpace(keyword)) return true;
+            string k = keyword.Trim();
+            string hay = $"{item.Name} {item.Function} {item.CardType} {item.SuitCode} {item.Controller} 卡{item.CardNo} 模{item.ModuleNo}";
+            return hay.Contains(k, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>气缸搜索匹配：名称 / 设备编号 / 类型 / 动作 / 输出点 / 伸出感应 / 缩回感应 / 备注（忽略大小写）。</summary>
+        private static bool MatchCylinder(CylinderRuntime? rt, string? keyword)
+        {
+            if (rt is null) return false;
+            if (string.IsNullOrWhiteSpace(keyword)) return true;
+            string k = keyword.Trim();
+            var it = rt.Item;
+            string hay = $"{it.Name} {it.DeviceId} {it.Type} {it.Action} {it.OutPoint} {it.SensorExtend} {it.SensorRetract} {it.Remark}";
+            return hay.Contains(k, StringComparison.OrdinalIgnoreCase);
         }
 
         // ===== ② IO 输出切换 =====

@@ -92,6 +92,17 @@
             </Style.Triggers>
         </Style>
 
+        <!-- 搜索行右侧的「取消」按钮：一键清空关键字、恢复全量显示。
+             用浅灰 pill（次要操作），避免和「打开/关闭/伸出/缩回」等主操作抢视觉焦点。 -->
+        <Style x:Key="SearchClearBtn" TargetType="Button" BasedOn="{StaticResource TtPillGrayBtn}">
+            <Setter Property="Content" Value="取消"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinWidth" Value="46"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+        </Style>
+
         <!-- 紧凑 IO / 气缸卡片 -->
         <Style x:Key="MiniCardStyle" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
@@ -101,10 +112,10 @@
             <Setter Property="Padding" Value="12,10"/>
         </Style>
 
-        <!-- IO 列表（输入 / 输出各自独立滚动）：虚拟化 + 双向滚动条，500 项也不卡。
+        <!-- 紧凑卡片列表（IO 输入 / 输出 / 气缸共用）：虚拟化 + 双向滚动条，500 项也不卡。
              说明：ItemsControl + 外层 ScrollViewer 不会虚拟化（面板拿到无限高），
              必须用 ListBox（自带 ScrollViewer + CanContentScroll），才真正回收容器。 -->
-        <Style x:Key="IoVirtualListStyle" TargetType="ListBox">
+        <Style x:Key="VirtualCardListStyle" TargetType="ListBox">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
@@ -197,25 +208,50 @@
                             <TextBlock Text="气缸控制" Style="{StaticResource SectionHeaderText}"/>
                         </StackPanel>
                     </StackPanel>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                            <ItemsControl ItemsSource="{Binding Cylinders}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Style="{StaticResource MiniCardStyle}" Width="224" Margin="0,0,8,8">
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Item.Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                            <TextBlock Text="{Binding Item.OutPoint, StringFormat=输出点：{0}}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
-                                            <Button Command="{Binding DataContext.ToggleCylinderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    CommandParameter="{Binding}" Style="{StaticResource CylBtn}" Margin="0,8,0,0"/>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                    <!-- 搜索：按 名称 / 设备编号 / 类型 / 输出点 / 感应点 / 备注 过滤；右侧「取消」一键清空 -->
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Style="{StaticResource TtSearchBox}" Width="Auto" Height="28" Margin="0"
+                                 Tag="搜索 名称 / 类型 / 输出点"
+                                 Text="{Binding CylinderSearch, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Grid.Column="1" Style="{StaticResource TtMatchInfo}" Margin="8,0,0,0"
+                                   Text="{Binding CylinderMatchInfo}"/>
+                        <Button Grid.Column="2" Style="{StaticResource SearchClearBtn}"
+                                Command="{Binding ClearCylinderSearchCommand}" ToolTip="取消搜索（清空关键字）"/>
+                    </Grid>
+                    <!-- 单行紧凑行：名称 | 类型 · 输出点 | 伸出/缩回；宽度随列宽拉伸（不再固定 224） -->
+                    <ListBox ItemsSource="{Binding CylindersView}" Style="{StaticResource VirtualCardListStyle}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource MiniCardStyle}" Margin="0,0,6,5" Padding="10,5">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Item.Name}" FontWeight="SemiBold" FontSize="12.5"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                   Margin="10,0,0,0" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                   TextTrimming="CharacterEllipsis">
+                                            <TextBlock.Text><MultiBinding StringFormat="{}类型 {0} · 输出点 {1}">
+                                                <Binding Path="Item.Type"/><Binding Path="Item.OutPoint"/>
+                                            </MultiBinding></TextBlock.Text>
+                                        </TextBlock>
+                                        <Button Grid.Column="2" Style="{StaticResource CylBtn}"
+                                                Command="{Binding DataContext.ToggleCylinderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"
+                                                Height="26" MinWidth="56" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                                     </DockPanel>
             </Border>
         </Grid>
@@ -242,16 +278,35 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- 输入 IO（只读）——独立滚动 + 虚拟化 -->
+                        <!-- 输入 IO（只读）——独立滚动 + 虚拟化 + 搜索过滤 -->
                         <DockPanel Grid.Column="0" Margin="0,0,6,0">
                             <TextBlock DockPanel.Dock="Top" Text="输入 IO（只读）" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                            <ListBox ItemsSource="{Binding Inputs}" Style="{StaticResource IoVirtualListStyle}">
+                            <!-- 搜索：按 名称 / 功能 / 卡类 / 套码 / 控制器 / 卡号 / 模块 过滤；右侧「取消」一键清空 -->
+                            <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Style="{StaticResource TtSearchBox}" Width="Auto" Height="28" Margin="0"
+                                         Tag="搜索 名称 / 功能 / 卡号"
+                                         Text="{Binding InputSearch, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Grid.Column="1" Style="{StaticResource TtMatchInfo}" Margin="8,0,0,0"
+                                           Text="{Binding InputMatchInfo}"/>
+                                <Button Grid.Column="2" Style="{StaticResource SearchClearBtn}"
+                                        Command="{Binding ClearInputSearchCommand}" ToolTip="取消搜索（清空关键字）"/>
+                            </Grid>
+                            <ListBox ItemsSource="{Binding InputsView}" Style="{StaticResource VirtualCardListStyle}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Style="{StaticResource MiniCardStyle}" Width="210" Margin="0,0,8,8">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0" VerticalAlignment="Center">
+                                        <!-- 单行紧凑行：左侧 状态点 + 名称，右侧 卡/模/值；宽度随列宽拉伸 -->
+                                        <Border Style="{StaticResource MiniCardStyle}" Margin="0,0,6,5" Padding="10,5">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <Ellipse Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,6,0">
                                                         <Ellipse.Style>
                                                             <Style TargetType="Ellipse">
@@ -264,38 +319,66 @@
                                                             </Style>
                                                         </Ellipse.Style>
                                                     </Ellipse>
-                                                    <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
-                                                        <TextBlock.Text><MultiBinding StringFormat="{}卡{0} 模{1} · 值{2}">
-                                                            <Binding Path="CardNo"/><Binding Path="ModuleNo"/><Binding Path="Value"/>
-                                                        </MultiBinding></TextBlock.Text>
-                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12.5"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                                 </StackPanel>
-                                            </StackPanel>
+                                                <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                           Margin="10,0,0,0" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Text><MultiBinding StringFormat="{}卡{0} 模{1} · 值{2}">
+                                                        <Binding Path="CardNo"/><Binding Path="ModuleNo"/><Binding Path="Value"/>
+                                                    </MultiBinding></TextBlock.Text>
+                                                </TextBlock>
+                                            </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </DockPanel>
 
-                        <!-- 输出 IO（可切换）——独立滚动 + 虚拟化 -->
+                        <!-- 输出 IO（可切换）——独立滚动 + 虚拟化 + 搜索过滤 -->
                         <DockPanel Grid.Column="1" Margin="6,0,0,0">
                             <TextBlock DockPanel.Dock="Top" Text="输出 IO（可切换）" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                            <ListBox ItemsSource="{Binding Outputs}" Style="{StaticResource IoVirtualListStyle}">
+                            <!-- 搜索：按 名称 / 功能 / 卡类 / 套码 / 控制器 / 卡号 / 模块 过滤；右侧「取消」一键清空 -->
+                            <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Style="{StaticResource TtSearchBox}" Width="Auto" Height="28" Margin="0"
+                                         Tag="搜索 名称 / 功能 / 卡号"
+                                         Text="{Binding OutputSearch, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Grid.Column="1" Style="{StaticResource TtMatchInfo}" Margin="8,0,0,0"
+                                           Text="{Binding OutputMatchInfo}"/>
+                                <Button Grid.Column="2" Style="{StaticResource SearchClearBtn}"
+                                        Command="{Binding ClearOutputSearchCommand}" ToolTip="取消搜索（清空关键字）"/>
+                            </Grid>
+                            <ListBox ItemsSource="{Binding OutputsView}" Style="{StaticResource VirtualCardListStyle}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Style="{StaticResource MiniCardStyle}" Width="210" Margin="0,0,8,8">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                <DockPanel LastChildFill="False" Margin="0,6,0,0">
-                                                    <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
-                                                        <TextBlock.Text><MultiBinding StringFormat="{}卡{0} 模{1} · 值{2}">
-                                                            <Binding Path="CardNo"/><Binding Path="ModuleNo"/><Binding Path="Value"/>
-                                                        </MultiBinding></TextBlock.Text>
-                                                    </TextBlock>
-                                                    <Button DockPanel.Dock="Right" Command="{Binding DataContext.ToggleOutputCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                            CommandParameter="{Binding}" Style="{StaticResource IoOutBtn}"/>
-                                                </DockPanel>
-                                            </StackPanel>
+                                        <!-- 单行紧凑行：左侧 名称，中间 卡/模/值，右侧 开关按钮；宽度随列宽拉伸 -->
+                                        <Border Style="{StaticResource MiniCardStyle}" Margin="0,0,6,5" Padding="10,5">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" FontSize="12.5"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                           Margin="10,0,0,0" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Text><MultiBinding StringFormat="{}卡{0} 模{1} · 值{2}">
+                                                        <Binding Path="CardNo"/><Binding Path="ModuleNo"/><Binding Path="Value"/>
+                                                    </MultiBinding></TextBlock.Text>
+                                                </TextBlock>
+                                                <Button Grid.Column="2" Style="{StaticResource IoOutBtn}"
+                                                        Command="{Binding DataContext.ToggleOutputCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Height="26" MinWidth="56" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                            </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>

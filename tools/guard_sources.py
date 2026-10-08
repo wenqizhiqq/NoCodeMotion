@@ -615,15 +615,16 @@ else:
           "!ReferenceEquals(owner, this)" in g15_dlgcs)
 
 # ---------------------------------------------------------------------
-section("G16  工程师页 IO 列表：输入/输出各自独立滚动条 + 虚拟化（500 项流畅）")
+section("G16  工程师页 输入/输出/气缸 三列表：虚拟化 + 搜索过滤 + 取消按钮 + 单行紧凑行")
 # ---------------------------------------------------------------------
 g16 = read(r"Views\EngineerPage.xaml")
-if g16 is None:
-    check("G16.0 找到 EngineerPage.xaml", False)
+g16_vm = read(r"ViewModels\EngineerViewModel.cs")
+if g16 is None or g16_vm is None:
+    check("G16.0 找到 EngineerPage.xaml / EngineerViewModel.cs", False)
 else:
-    check("G16.0 找到 EngineerPage.xaml", True)
-    check("G16.1 有 IoVirtualListStyle（ListBox 样式）",
-          '<Style x:Key="IoVirtualListStyle" TargetType="ListBox">' in g16)
+    check("G16.0 找到 EngineerPage.xaml / EngineerViewModel.cs", True)
+    check("G16.1 有 VirtualCardListStyle（ListBox 样式，IO 与气缸三列表共用）",
+          '<Style x:Key="VirtualCardListStyle" TargetType="ListBox">' in g16)
     check("G16.2 开启虚拟化 + 容器回收 + 像素滚动",
           '<Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>' in g16
           and '<Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>' in g16
@@ -632,12 +633,52 @@ else:
           '<Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>' in g16
           and '<Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>' in g16
           and '<Setter Property="ScrollViewer.CanContentScroll" Value="True"/>' in g16)
-    check("G16.4 输入/输出各自一个虚拟化 ListBox（独立滚动）",
-          '<ListBox ItemsSource="{Binding Inputs}" Style="{StaticResource IoVirtualListStyle}">' in g16
-          and '<ListBox ItemsSource="{Binding Outputs}" Style="{StaticResource IoVirtualListStyle}">' in g16)
-    check("G16.5 IO 不再用非虚拟化的 ItemsControl（WrapPanel）",
+    check("G16.4 输入 / 输出 / 气缸 各一个虚拟化 ListBox，绑的是**过滤视图**",
+          '<ListBox ItemsSource="{Binding InputsView}" Style="{StaticResource VirtualCardListStyle}">' in g16
+          and '<ListBox ItemsSource="{Binding OutputsView}" Style="{StaticResource VirtualCardListStyle}">' in g16
+          and '<ListBox ItemsSource="{Binding CylindersView}" Style="{StaticResource VirtualCardListStyle}">' in g16)
+    check("G16.5 IO / 气缸 都不再用非虚拟化的 ItemsControl（WrapPanel）",
           '<ItemsControl ItemsSource="{Binding Inputs}">' not in g16
-          and '<ItemsControl ItemsSource="{Binding Outputs}">' not in g16)
+          and '<ItemsControl ItemsSource="{Binding Outputs}">' not in g16
+          and '<ItemsControl ItemsSource="{Binding Cylinders}">' not in g16)
+    check("G16.6 三个列表各有搜索框（绑 InputSearch / OutputSearch / CylinderSearch，实时过滤）",
+          '{Binding InputSearch, UpdateSourceTrigger=PropertyChanged}' in g16
+          and '{Binding OutputSearch, UpdateSourceTrigger=PropertyChanged}' in g16
+          and '{Binding CylinderSearch, UpdateSourceTrigger=PropertyChanged}' in g16
+          and "InputMatchInfo" in g16 and "OutputMatchInfo" in g16 and "CylinderMatchInfo" in g16)
+    check("G16.7 过滤用**独立** CollectionViewSource（不能用默认视图，否则 IO 页被一起过滤）",
+          "_inputsCvs.Source = Inputs;" in g16_vm
+          and "_outputsCvs.Source = Outputs;" in g16_vm
+          and "_cylindersCvs.Source = Cylinders;" in g16_vm
+          and "CollectionViewSource" in g16_vm
+          and "GetDefaultView" not in g16_vm)
+    check("G16.8 搜索关键字为空时全量放行 + 匹配名称/功能/卡类/套码/控制器/卡号/模块",
+          "if (string.IsNullOrWhiteSpace(keyword)) return true;" in g16_vm
+          and "StringComparison.OrdinalIgnoreCase" in g16_vm)
+    check("G16.9 卡片不再固定宽度（IO 210 / 气缸 224 都已移除，改为随列宽拉伸）",
+          'Width="210"' not in g16 and 'Width="224"' not in g16)
+    check("G16.10 行高压缩为单行（三处卡片内边距 10,5；IO 输出按钮与气缸按钮均 26 高）",
+          g16.count('Padding="10,5"') >= 3
+          and g16.count('Height="26" MinWidth="56"') >= 2)
+    check("G16.11 三个搜索框右侧都有「取消」按钮（浅灰 pill，次要操作），各自绑 Clear*SearchCommand",
+          '<Style x:Key="SearchClearBtn" TargetType="Button" BasedOn="{StaticResource TtPillGrayBtn}">' in g16
+          and g16.count('Style="{StaticResource SearchClearBtn}"') == 3
+          and 'Command="{Binding ClearInputSearchCommand}"' in g16
+          and 'Command="{Binding ClearOutputSearchCommand}"' in g16
+          and 'Command="{Binding ClearCylinderSearchCommand}"' in g16)
+    check("G16.12 VM 里三个取消命令都已注册且清空对应关键字",
+          "ClearInputSearchCommand = new RelayCommand(_ => InputSearch = string.Empty);" in g16_vm
+          and "ClearOutputSearchCommand = new RelayCommand(_ => OutputSearch = string.Empty);" in g16_vm
+          and "ClearCylinderSearchCommand = new RelayCommand(_ => CylinderSearch = string.Empty);" in g16_vm)
+    check("G16.13 气缸搜索谓词 MatchCylinder：空关键字放行 + 覆盖名称/编号/类型/输出点/感应点",
+          "private static bool MatchCylinder(CylinderRuntime? rt, string? keyword)" in g16_vm
+          and "it.DeviceId" in g16_vm and "it.OutPoint" in g16_vm
+          and "it.SensorExtend" in g16_vm and "it.SensorRetract" in g16_vm
+          and g16_vm.count("if (string.IsNullOrWhiteSpace(keyword)) return true;") >= 2)
+    check("G16.14 气缸行改为单行紧凑（名称 | 类型·输出点 | 按钮），不再用旧的三行卡片",
+          'Text="{Binding Item.Name}"' in g16
+          and '<Binding Path="Item.Type"/>' in g16
+          and 'StringFormat=输出点：{0}' not in g16)
 
 # ---------------------------------------------------------------------
 section("G17  资源可达性：XAML 引用的 StaticResource 键必须真能解析到（防 AppleCheckBox 类崩溃）")
