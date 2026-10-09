@@ -21,7 +21,7 @@ namespace NoCodeMotion.Models
         private string _savePath = "";
 
         // 图像采集
-        private string _sourceType = "文件";   // 相机 / 文件夹 / 文件
+        private string _sourceType = "相机";   // 相机 / 文件夹 / 文件（默认相机；相机读不到才回退测试图）
         private double _exposureMs = 10.0;
         private int _width = 1920;
         private int _height = 1080;

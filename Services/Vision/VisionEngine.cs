@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Cv = OpenCvSharp;
 using GrayMatch;
@@ -135,7 +137,7 @@ namespace NoCodeMotion.Services.Vision
                                     cur?.Dispose();
                                     cur = next;
                                     display?.Dispose();
-                                    display = cur.Clone();   // 采集后建立与 cur 同步的注释画布
+                                    display = cur?.Clone();  // 采集后建立与 cur 同步的注释画布（采集失败 → cur 为 null，后续步骤报「请先执行图像采集」）
                                     featurePts.Clear();
                                     break;
                                 }
@@ -154,6 +156,7 @@ namespace NoCodeMotion.Services.Vision
                                 cur = RunDefect(s, cur, featurePts, report, progress, display);
                                 break;
                             case "测量":
+                                if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
                                 cur = RunMeasure(s, cur, featurePts, report, progress, display);
                                 break;
                             case "字符识别":
@@ -208,104 +211,175 @@ namespace NoCodeMotion.Services.Vision
         }
 
         // ============ 图像采集 ============
-        private static Cv.Mat RunAcquire(VisualFlowStep s, ref bool usedSynthetic,
+        private static Cv.Mat? RunAcquire(VisualFlowStep s, ref bool usedSynthetic,
             ref int tplX, ref int tplY, ref int tplW, ref int tplH,
             VisionReport report, IProgress<string>? progress)
         {
-            string src = (s.SourceType ?? "文件").Trim();
+            string src = (s.SourceType ?? "相机").Trim();
+
             if (src == "相机")
             {
-                if (int.TryParse((s.CameraId ?? "0").Trim(), out int camIdx))
+                int camIdx = ResolveCameraIndex(s.CameraId);
+                string camLabel = (s.CameraId ?? "").Trim();
+                if (camLabel.Length == 0) camLabel = camIdx.ToString(CultureInfo.InvariantCulture);
+                string note = "相机不可用";
+                try
                 {
-                    try
+                    // ★ 真实相机优先：海康 MVS 工业相机 → OpenCV VideoCapture（USB 摄像头 / 视频源）。
+                    //   旧实现只 new Cv.VideoCapture(索引)，工业相机永远打不开 → 必然落到测试图。
+                    var real = TryGrabRealCamera(camIdx, out int rw, out int rh, out var err);
+                    if (real != null)
                     {
-                        using var cap = new Cv.VideoCapture(camIdx);
-                        // 注意：OpenCvSharp4 的 VideoCapture.IsOpened 是静态方法，不能经实例调用。
-                        // 这里直接尝试 Read，失败或空帧由 catch / 后续回退处理。
-                        var frame = new Cv.Mat();
-                        if (cap.Read(frame) && !frame.Empty())
-                        {
-                            usedSynthetic = false;
-                            report.Results.Add(new VisionStepResult
-                            {
-                                StepName = s.Name,
-                                Type = "图像采集",
-                                Ok = true,
-                                Summary = $"相机 {camIdx} 采集 {frame.Width}x{frame.Height}"
-                            });
-                            progress?.Report($"图像采集：相机 {camIdx}");
-                            return EnsureBgra(frame);
-                        }
-                        frame.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
+                        usedSynthetic = false;
                         report.Results.Add(new VisionStepResult
                         {
-                            StepName = s.Name, Type = "图像采集", Ok = false,
-                            Summary = $"相机 {camIdx} 采集失败：{ex.Message}（回退测试图）"
+                            StepName = s.Name, Type = "图像采集", Ok = true,
+                            Summary = $"相机「{camLabel}」采集 {rw}x{rh}"
                         });
+                        progress?.Report($"图像采集：相机「{camLabel}」");
+                        return BgraToMat(real, rw, rh);
                     }
+                    note = $"相机「{camLabel}」不可用：{err}";
                 }
-                else
+                catch (Exception ex)
                 {
-                    report.Results.Add(new VisionStepResult
-                    {
-                        StepName = s.Name, Type = "图像采集", Ok = false,
-                        Summary = $"相机编号无效：{s.CameraId}（回退测试图）"
-                    });
+                    note = $"相机「{camLabel}」采集异常：{ex.Message}";
                 }
-                return SyntheticFallback(s, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress, "相机不可用");
+                // 只有「来源=相机」读不到时才回退测试图；来源=文件/文件夹 路径无效一律报错（不静默出图）
+                return SyntheticFallback(s, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress, note);
             }
 
             if (src == "文件夹")
             {
                 string folder = (s.FolderPath ?? "").Trim();
-                if (Directory.Exists(folder))
+                if (folder.Length == 0)
                 {
-                    foreach (var ext in new[] { "*.jpg", "*.jpeg", "*.png", "*.bmp", "*.tif", "*.tiff" })
-                    {
-                        var files = Directory.GetFiles(folder, ext, SearchOption.TopDirectoryOnly);
-                        if (files.Length > 0)
-                        {
-                            var m = ImReadBgra(files[0]);
-                            if (m != null)
-                            {
-                                usedSynthetic = false;
-                                report.Results.Add(new VisionStepResult
-                                {
-                                    StepName = s.Name, Type = "图像采集", Ok = true,
-                                    Summary = $"文件夹首图 {Path.GetFileName(files[0])} {m.Width}x{m.Height}"
-                                });
-                                progress?.Report("图像采集：文件夹首图");
-                                return m;
-                            }
-                        }
-                    }
+                    AddFail(report, s, "来源=文件夹 但未设置文件夹路径（不再回退测试图）");
+                    return null;
                 }
-                return SyntheticFallback(s, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress, "文件夹无可用图像");
-            }
-
-            // 文件（默认）
-            string path = (s.SavePath ?? "").Trim();
-            if (File.Exists(path))
-            {
-                var m = ImReadBgra(path);
-                if (m != null)
+                if (!Directory.Exists(folder))
                 {
+                    AddFail(report, s, $"文件夹不存在：{folder}（不再回退测试图）");
+                    return null;
+                }
+                foreach (var ext in new[] { "*.jpg", "*.jpeg", "*.png", "*.bmp", "*.tif", "*.tiff" })
+                {
+                    var files = Directory.GetFiles(folder, ext, SearchOption.TopDirectoryOnly);
+                    if (files.Length == 0) continue;
+                    var m = ImReadBgra(files[0]);
+                    if (m == null) continue;
                     usedSynthetic = false;
                     report.Results.Add(new VisionStepResult
                     {
-                        StepName = s.Name,
-                        Type = "图像采集",
-                        Ok = true,
-                        Summary = $"已采集图像 {m.Width}x{m.Height}"
+                        StepName = s.Name, Type = "图像采集", Ok = true,
+                        Summary = $"文件夹首图 {Path.GetFileName(files[0])} {m.Width}x{m.Height}"
                     });
-                    progress?.Report($"图像采集：{m.Width}x{m.Height}");
+                    progress?.Report("图像采集：文件夹首图");
                     return m;
                 }
+                AddFail(report, s, $"文件夹内没有可读图像：{folder}（不再回退测试图）");
+                return null;
             }
-            return SyntheticFallback(s, ref usedSynthetic, ref tplX, ref tplY, ref tplW, ref tplH, report, progress, "未提供有效图像路径");
+
+            // 文件（来源=文件）
+            string path = (s.SavePath ?? "").Trim();
+            if (path.Length == 0)
+            {
+                AddFail(report, s, "来源=文件 但未设置文件路径（不再回退测试图）");
+                return null;
+            }
+            if (!File.Exists(path))
+            {
+                AddFail(report, s, $"图像文件不存在：{path}（不再回退测试图）");
+                return null;
+            }
+            var img = ImReadBgra(path);
+            if (img == null)
+            {
+                AddFail(report, s, $"无法读取图像（格式不支持或文件损坏）：{path}");
+                return null;
+            }
+            usedSynthetic = false;
+            report.Results.Add(new VisionStepResult
+            {
+                StepName = s.Name, Type = "图像采集", Ok = true,
+                Summary = $"已采集图像 {img.Width}x{img.Height}"
+            });
+            progress?.Report($"图像采集：{img.Width}x{img.Height}");
+            return img;
+        }
+
+        /// <summary>
+        /// 用真实相机抓一帧 BGRA。顺序：① 海康 MVS 工业相机（与相机页共用已打开会话）
+        /// ② OpenCV VideoCapture（USB 摄像头 / 视频源索引）。
+        /// 取不到返回 null，由调用方决定是否回退测试图；失败原因写入 <paramref name="error"/>。
+        /// </summary>
+        private static byte[]? TryGrabRealCamera(int cameraIndex, out int width, out int height, out string error)
+        {
+            width = 0; height = 0; error = "";
+            try
+            {
+                if (MvsCameraService.IsRuntimeAvailable)
+                {
+                    var dev = ResolveMvsDevice(cameraIndex);
+                    if (dev != null)
+                    {
+                        if (MvsCameraService.TryGrabBgra(dev, SettingsOf(cameraIndex),
+                                                        out var real, out width, out height, out var mvsErr))
+                            return real;
+                        error = $"MVS 取像失败：{mvsErr}";
+                    }
+                    else error = "未枚举到 MVS 设备";
+                }
+                else error = "MVS 运行库不可用";
+            }
+            catch (Exception ex) { error = "MVS 取像异常：" + ex.Message; }
+
+            try
+            {
+                using var cap = new Cv.VideoCapture(cameraIndex);
+                var frame = new Cv.Mat();
+                if (cap.Read(frame) && !frame.Empty())
+                {
+                    width = frame.Width; height = frame.Height;
+                    var bgra = MatToBgra(frame);
+                    frame.Dispose();
+                    return bgra;
+                }
+                frame.Dispose();
+                if (error.Length == 0) error = "OpenCV 未取到帧";
+            }
+            catch (Exception ex)
+            {
+                if (error.Length == 0) error = "OpenCV 取像异常：" + ex.Message;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 把「相机」字段解析成工程相机列表的下标。支持三种写法：
+        /// ① 工程相机名（如「下视相机」，忽略大小写精确匹配）——模板里存的就是相机名；
+        /// ② 纯数字索引（"0"/"1"…，0 基）；
+        /// ③ 名字里带数字（如「相机2」，按 1 基解释 → 下标 1）。
+        /// 解析不出来返回 0（第一台），与节点图 ResolveCameraIndex 的口径一致。
+        /// </summary>
+        public static int ResolveCameraIndex(string? cameraId)
+        {
+            string n = (cameraId ?? "").Trim();
+            if (n.Length == 0) return 0;
+            var cams = ProjectStore.Data?.Cameras;
+            if (cams != null)
+            {
+                for (int i = 0; i < cams.Count; i++)
+                    if (string.Equals((cams[i].Name ?? "").Trim(), n, StringComparison.OrdinalIgnoreCase))
+                        return i;
+            }
+            if (int.TryParse(n, NumberStyles.Any, CultureInfo.InvariantCulture, out int idx) && idx >= 0)
+                return idx;
+            var digits = new string(n.Where(char.IsDigit).ToArray());
+            if (int.TryParse(digits, NumberStyles.Any, CultureInfo.InvariantCulture, out int k) && k > 0)
+                return k - 1;
+            return 0;
         }
 
         // 无可用来源时生成测试图（含明矩形目标，供模板匹配/测量演示），并回写 usedSynthetic / 目标矩形
@@ -995,43 +1069,17 @@ namespace NoCodeMotion.Services.Vision
         {
             width = 0; height = 0;
 
-            // ① 优先走真实工业相机（海康 MVS）。相机页与流程视觉共用同一个已打开会话，
-            //    这里不会重复开设备；取不到再往下回退 OpenCV / 合成图。
+            // ① 真实相机优先（海康 MVS 工业相机 → OpenCV VideoCapture）。
+            //    相机页与流程视觉共用同一个已打开会话，这里不会重复开设备。
             try
             {
-                if (MvsCameraService.IsRuntimeAvailable)
-                {
-                    var dev = ResolveMvsDevice(cameraIndex);
-                    if (dev != null)
-                    {
-                        if (MvsCameraService.TryGrabBgra(dev, SettingsOf(cameraIndex),
-                                                        out var real, out width, out height, out var mvsErr))
-                            return real;
-                        Debug.WriteLine($"[VisionEngine] 相机 {cameraIndex} 真实取像失败：{mvsErr}（回退 OpenCV / 合成图）");
-                    }
-                }
+                var real = TryGrabRealCamera(cameraIndex, out width, out height, out var err);
+                if (real != null) return real;
+                Debug.WriteLine($"[VisionEngine] 相机 {cameraIndex} 真实取像失败：{err}（回退合成图）");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[VisionEngine] 相机 {cameraIndex} MVS 取像异常：{ex.Message}（回退 OpenCV / 合成图）");
-            }
-
-            try
-            {
-                using var cap = new Cv.VideoCapture(cameraIndex);
-                var frame = new Cv.Mat();
-                if (cap.Read(frame) && !frame.Empty())
-                {
-                    width = frame.Width; height = frame.Height;
-                    var bgra = MatToBgra(frame);
-                    frame.Dispose();
-                    return bgra;
-                }
-                frame.Dispose();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[VisionEngine] 相机 {cameraIndex} 采集失败：{ex.Message}（回退合成图）");
+                Debug.WriteLine($"[VisionEngine] 相机 {cameraIndex} 真实取像异常：{ex.Message}（回退合成图）");
             }
             try
             {

@@ -1072,7 +1072,7 @@ namespace NoCodeMotion.Services
             else if (kind == FlowKind.Lua)
                 sb.AppendLine("9. 脚本流程的 Lua 源码至少 10 行，含 Log.Info / Variable.Get / Variable.Set / if / return，并且必须能直接运行：只能用上面【Lua 可用的 API】里的函数，不要写 Camera.Grab / Vision.Match / File.Read 这类沙箱里不存在的调用。");
             else if (kind == FlowKind.Vision)
-                sb.AppendLine("9. 视觉流程不要写 \"脚本\"（沙箱里没有 Camera / Vision 的 Lua API），改用 \"视觉步骤\" 数组：至少 3 个步骤，覆盖 图像采集 + 模板匹配（或缺陷检测）。");
+                sb.AppendLine("9. 视觉流程不要写 \"脚本\"（沙箱里没有 Camera / Vision 的 Lua API），改用 \"视觉步骤\" 数组：至少 3 个步骤，覆盖 图像采集 + 模板匹配（或缺陷检测）。图像采集用 \"来源\"+\"相机\"（相机填工程相机名或编号）；若 \"来源\":\"文件\" 必须同时给 \"文件路径\"，否则该步直接失败。");
             else
                 sb.AppendLine("9. 节点图必须从 \"开始\" 节点出发、以 \"结束\" 节点收尾，节点之间用 Connections 串起来，Id 用唯一字符串。");
             sb.AppendLine("10. 顶层直接给一个流程对象（含 名称/类型/角色 + 内容），或者用 {\"流程\":[ ... ]} 包一层，两种都认。");
@@ -1206,7 +1206,7 @@ namespace NoCodeMotion.Services
 
             sb.AppendLine();
             sb.AppendLine("■ 沙箱里【没有】的 API（写了就报错，绝对不要用）");
-            sb.AppendLine("- 没有 Camera / Vision：视觉流程不要用 Lua 写，改用「视觉步骤」数组（类型取 图像采集 / 模板匹配 / 图像预处理 / 缺陷检测 / 测量 / 字符识别 / 通讯）");
+            sb.AppendLine("- 没有 Camera / Vision：视觉流程不要用 Lua 写，改用「视觉步骤」数组（类型取 图像采集 / 模板匹配 / 图像预处理 / 缺陷检测 / 测量 / 字符识别 / 通讯）；图像采集的「来源」取 相机/文件/文件夹，相机填工程相机名或编号，文件/文件夹必须给有效路径");
             sb.AppendLine("- 没有 File / File.Read / File.Write 之类的文件读写函数");
             sb.AppendLine("- 没有调用其它流程 / 子流程的函数（要复用请把逻辑抄进同一段 Lua）");
             sb.AppendLine("- Log 只有 Info / Output / Warn / Error / Debug 五个成员，其它（Log.Success / Log.Table …）不存在");

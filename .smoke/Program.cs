@@ -5,7 +5,8 @@
 // ★ 输出目录随目标框架走（主工程已升到 net10.0-windows10.0.19041.0，别再跑老的 net10.0-windows 副本）。
 // ★ 要让 OpenCvSharp 原生库可加载（其依赖 opencv_world480.dll 在 dotnet exec 下不在搜索路径），
 //   把输出目录加进 PATH 再跑：PATH="<输出目录>:$PATH" dotnet exec <dll>；
-//   否则段 H 诊断项与段 M 的 OCR 端到端会跳过（不影响其余断言）。
+//   否则段 H 诊断项、段 M 的 OCR 端到端、段 N 的「相机回退」会跳过（不影响其余断言）。
+// 段 N：图像采集来源 —— 默认「相机」/ 相机名解析 / 文件或文件夹路径无效时明确报错（不静默出测试图）。
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -266,6 +267,18 @@ namespace NcmSmoke
                 catch (Exception ex)
                 {
                     Check(false, "CameraPage 构造抛异常：" + ex.GetType().Name + " / "
+                                 + (ex.InnerException?.Message ?? ex.Message));
+                }
+
+                try
+                {
+                    // 视觉流程页：新加的「相机」可编辑下拉 + CameraNames 绑定都在这里走一遍 XAML 解析
+                    var vfp = new NoCodeMotion.Views.VisualFlowPage();
+                    Check(vfp != null, "VisualFlowPage 构造成功（图像采集参数卡的 XAML 解析通过）");
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "VisualFlowPage 构造抛异常：" + ex.GetType().Name + " / "
                                  + (ex.InnerException?.Message ?? ex.Message));
                 }
 
@@ -1230,6 +1243,106 @@ namespace NcmSmoke
             catch (Exception ex)
             {
                 Check(false, "字符识别验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ===================== 段 N：图像采集「来源」 =====================
+            Section("N  流程视觉：图像采集来源（默认相机 / 相机名解析 / 路径无效明确报错）");
+            try
+            {
+                // 1) 默认来源=相机（旧默认「文件」：模板没配路径 → 每次都静默出测试图）
+                var def = new VisualFlowStep { StepType = "图像采集" };
+                Check(def.SourceType == "相机", "图像采集默认来源=相机（不再默认「文件」）");
+
+                // 2) 相机名 → 下标解析（模板里存的是相机名，如「下视相机」；旧实现只 int.TryParse）
+                var cams = ProjectStore.Data.Cameras;
+                var backup = cams.ToList();
+                cams.Clear();
+                cams.Add(new CameraItem { Name = "上视相机" });
+                cams.Add(new CameraItem { Name = "下视相机" });
+                Check(VisionEngine.ResolveCameraIndex("下视相机") == 1, "相机名「下视相机」解析为下标 1");
+                Check(VisionEngine.ResolveCameraIndex("上视相机") == 0, "相机名「上视相机」解析为下标 0");
+                Check(VisionEngine.ResolveCameraIndex("0") == 0, "纯数字「0」按 0 基索引解析");
+                Check(VisionEngine.ResolveCameraIndex("相机2") == 1, "「相机2」按 1 基解析为下标 1");
+                Check(VisionEngine.ResolveCameraIndex("") == 0 && VisionEngine.ResolveCameraIndex("查无此机") == 0,
+                      "空 / 未知相机名回退下标 0");
+                cams.Clear(); foreach (var c in backup) cams.Add(c);
+
+                // 3) 来源=文件 但没给路径 → 明确失败，不再静默回退测试图
+                var noPath = VisionEngine.Run(new[]
+                {
+                    new VisualFlowStep { Name = "采集", StepType = "图像采集", SourceType = "文件", SavePath = "", Enabled = true }
+                });
+                var rNoPath = noPath.Results.LastOrDefault(x => x.Type == "图像采集");
+                Check(rNoPath is { Ok: false } && !noPath.HasImage,
+                      "来源=文件 未给路径 → 步骤失败且不出图（" + (rNoPath?.Summary ?? "无结果") + "）");
+
+                // 4) 来源=文件 路径不存在 → 明确失败
+                var badPath = VisionEngine.Run(new[]
+                {
+                    new VisualFlowStep { Name = "采集", StepType = "图像采集", SourceType = "文件",
+                                         SavePath = @"Z:\查无此目录\nope.png", Enabled = true }
+                });
+                var rBad = badPath.Results.LastOrDefault(x => x.Type == "图像采集");
+                Check(rBad is { Ok: false } && !badPath.HasImage,
+                      "来源=文件 路径不存在 → 步骤失败（" + (rBad?.Summary ?? "无结果") + "）");
+
+                // 5) 来源=文件夹 没给路径 → 明确失败
+                var noFolder = VisionEngine.Run(new[]
+                {
+                    new VisualFlowStep { Name = "采集", StepType = "图像采集", SourceType = "文件夹", FolderPath = "", Enabled = true }
+                });
+                var rNoFolder = noFolder.Results.LastOrDefault(x => x.Type == "图像采集");
+                Check(rNoFolder is { Ok: false } && !noFolder.HasImage, "来源=文件夹 未给路径 → 步骤失败");
+
+                // 6) 采集失败后下游步骤必须给明确提示（旧实现 cur==null 会 NRE / 报难懂的异常）
+                var chain = VisionEngine.Run(new[]
+                {
+                    new VisualFlowStep { Name = "采集", StepType = "图像采集", SourceType = "文件", SavePath = "", Enabled = true },
+                    new VisualFlowStep { Name = "匹配", StepType = "模板匹配", Enabled = true }
+                });
+                var rMatch = chain.Results.LastOrDefault(x => x.Type == "模板匹配");
+                Check(rMatch is { Ok: false } && rMatch.Summary.Contains("请先执行图像采集"),
+                      "采集失败后下游步骤给出明确提示（" + (rMatch?.Summary ?? "无结果") + "）");
+
+                // 7) 详情 VM：来源=相机 时显示相机行，且相机下拉列出工程相机名
+                var cams2 = ProjectStore.Data.Cameras;
+                var backup2 = cams2.ToList();
+                cams2.Clear();
+                cams2.Add(new CameraItem { Name = "上视相机" });
+                cams2.Add(new CameraItem { Name = "下视相机" });
+                var vm = new NoCodeMotion.Views.VisualFlowDetailViewModel();
+                vm.SelectedStep = new VisualFlowStep { StepType = "图像采集", SourceType = "相机" };
+                Check(vm.IsCameraSource && !vm.IsFileSource, "VM：来源=相机 时 IsCameraSource=true");
+                Check(vm.CameraNames.Contains("上视相机") && vm.CameraNames.Contains("下视相机"),
+                      "VM：CameraNames 列出工程相机名（" + string.Join("/", vm.CameraNames) + "）");
+                vm.SelectedStep.SourceType = "文件";
+                Check(vm.IsFileSource && !vm.IsCameraSource, "VM：切到来源=文件 后标志跟着切（下拉显隐正确）");
+                cams2.Clear(); foreach (var c in backup2) cams2.Add(c);
+
+                // 8) 来源=相机 且读不到相机 → 回退测试图（这条要 OpenCV 造图）
+                bool cvOk;
+                try { using var probe = new OpenCvSharp.Mat(4, 4, OpenCvSharp.MatType.CV_8UC3); cvOk = probe.Width == 4; }
+                catch { cvOk = false; }
+                if (!cvOk)
+                {
+                    Console.WriteLine("  SKIP  OpenCvSharp 原生库不可用，跳过「来源=相机 回退测试图」端到端");
+                }
+                else
+                {
+                    // 索引 99 保证本机不存在 → 走回退分支
+                    var camRep = VisionEngine.Run(new[]
+                    {
+                        new VisualFlowStep { Name = "采集", StepType = "图像采集", SourceType = "相机",
+                                             CameraId = "99", Width = 320, Height = 240, Enabled = true }
+                    });
+                    var rCam = camRep.Results.LastOrDefault(x => x.Type == "图像采集");
+                    Check(rCam != null && camRep.HasImage && rCam.Summary.Contains("测试图"),
+                          "来源=相机 读不到相机时回退测试图（" + (rCam?.Summary ?? "无结果") + "）");
+                }
+            }
+            catch (Exception ex)
+            {
+                Check(false, "图像采集来源验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
             }
 
             Console.WriteLine("\n====================  "

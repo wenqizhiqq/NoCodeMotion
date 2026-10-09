@@ -1073,6 +1073,68 @@ if _ai is not None:
     check("G23.9 AI 交换：字符识别类型归一 + 导出",
           'return "字符识别";' in _a and 'case "字符识别":' in _a)
 
+# G24 图像采集「来源」：默认相机 + 真实相机取像 + 路径无效明确报错
+_vfs = read(r"Models\VisualFlowStep.cs")
+if _vfs is not None:
+    _v = _vfs.replace("\r\n", "\n")
+    check("G24.1 图像采集默认来源=相机（不再默认「文件」）",
+          'private string _sourceType = "相机";' in _v)
+
+_ve = read(r"Services\Vision\VisionEngine.cs")
+if _ve is not None:
+    _e = _ve.replace("\r\n", "\n")
+    check("G24.2 引擎按相机名/编号解析相机下标（ResolveCameraIndex）",
+          "public static int ResolveCameraIndex(string? cameraId)" in _e
+          and "ProjectStore.Data?.Cameras" in _e
+          and "n.Where(char.IsDigit)" in _e)
+    check("G24.3 采集走真实相机：MVS 优先 + OpenCV 兜底，CaptureFrame 复用同一 helper",
+          "private static byte[]? TryGrabRealCamera(" in _e
+          and "MvsCameraService.TryGrabBgra" in _e
+          and _e.count("TryGrabRealCamera(") >= 3)
+    check("G24.4 来源=文件/文件夹 路径无效 → 明确失败（不再静默回退测试图）",
+          "来源=文件 但未设置文件路径（不再回退测试图）" in _e
+          and "图像文件不存在：" in _e
+          and "文件夹内没有可读图像：" in _e
+          and "未提供有效图像路径" not in _e)
+    check("G24.5 采集失败后 cur 可为 null（Clone 容错 + 下游判空）",
+          "display = cur?.Clone();" in _e
+          and _e.count('AddFail(report, s, "请先执行图像采集")') >= 5)
+
+_tpl = read(r"Services\ProjectTemplateCatalog.cs")
+if _tpl is not None:
+    _t = _tpl.replace("\r\n", "\n")
+    check("G24.6 模板视觉采集步 来源=相机 + 相机名（不再把文件夹写进 SavePath）",
+          'Name = "图像采集", StepType = "图像采集", SourceType = "相机", CameraId = "上视相机"' in _t
+          and 'SourceType = "相机",\n                    CameraId = "下视相机",' in _t
+          and 'SavePath = "Images/inspection/"' not in _t)
+
+_x = read(r"Views\VisualFlowPage.xaml")
+if _x is not None:
+    check("G24.7 视觉流程页「相机」为可编辑下拉（绑 CameraNames，也可手填编号）",
+          'ItemsSource="{Binding CameraNames}"' in _x
+          and 'Text="{Binding SelectedStep.CameraId, UpdateSourceTrigger=PropertyChanged}"' in _x
+          and 'IsEditable="True" IsReadOnly="False"' in _x)
+
+_vm2 = read(r"Views\VisualFlowDetailViewModel.cs")
+if _vm2 is not None:
+    _m2 = _vm2.replace("\r\n", "\n")
+    check("G24.8 详情 VM 暴露工程相机名列表（CameraNames）",
+          "public IReadOnlyList<string> CameraNames" in _m2
+          and "nameof(CameraNames)" in _m2)
+
+_ng = read(r"Services\Vision\NgVisionExecutor.cs")
+if _ng is not None:
+    _g = _ng.replace("\r\n", "\n")
+    check("G24.9 节点图采集节点：当帧为空时明确报错（不拿 0×0 帧继续跑算子）",
+          "if (r is { Ok: false } && !rep.HasImage)" in _g)
+
+_ai2 = read(r"Services\AiProjectExchange.cs")
+if _ai2 is not None:
+    _a2 = _ai2.replace("\r\n", "\n")
+    check("G24.10 AI prompt 说明：来源=文件 必须给文件路径",
+          "必须同时给" in _a2
+          and "图像采集的「来源」取 相机/文件/文件夹" in _a2)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

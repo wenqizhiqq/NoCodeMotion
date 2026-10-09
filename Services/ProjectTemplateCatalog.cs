@@ -1333,7 +1333,7 @@ namespace NoCodeMotion.Services
                     WaitStep(200),
                     SetIO("完成", "1")));
                 var vis = new FlowItem { Name = "视觉引导", Kind = FlowKind.Vision, Role = FlowRole.Main };
-                vis.VisualSteps.Add(new VisualFlowStep { Name = "图像采集", StepType = "图像采集", CameraId = "0", ExposureMs = 10, Width = 1920, Height = 1080 });
+                vis.VisualSteps.Add(new VisualFlowStep { Name = "图像采集", StepType = "图像采集", SourceType = "相机", CameraId = "上视相机", ExposureMs = 10, Width = 1920, Height = 1080 });
                 vis.VisualSteps.Add(new VisualFlowStep { Name = "模板匹配", StepType = "模板匹配", TemplatePath = "", ScoreThreshold = 0.85, AngleRange = 360, MatchMode = "灰度匹配" });
                 vis.VisualSteps.Add(new VisualFlowStep { Name = "缺陷检测", StepType = "缺陷检测", Algorithm = "NCC", MinArea = 100, MaxArea = 100000, Threshold = 128, DetectMode = "阈值面积" });
                 vis.VisualSteps.Add(new VisualFlowStep { Name = "输出位姿", StepType = "通讯", Protocol = "Modbus", Target = "控制卡1", Content = "X,Y,R" });
@@ -1670,11 +1670,11 @@ namespace NoCodeMotion.Services
                 {
                     Name = "图像采集",
                     StepType = "图像采集",
+                    SourceType = "相机",
                     CameraId = "下视相机",
                     ExposureMs = 8,
                     Width = 2448,
-                    Height = 2048,
-                    SavePath = "Images/inspection/"
+                    Height = 2048
                 });
                 vis.VisualSteps.Add(new VisualFlowStep
                 {

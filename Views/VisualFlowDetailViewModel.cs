@@ -81,6 +81,22 @@ namespace NoCodeMotion.Views
         public bool IsFolderSource => SelectedStep?.SourceType == "文件夹";
         public bool IsFileSource => SelectedStep?.SourceType == "文件";
 
+        /// <summary>
+        /// 工程相机列表的名称（供「图像采集 → 相机」下拉选择；没配相机时为空列表，仍可手填编号）。
+        /// </summary>
+        public IReadOnlyList<string> CameraNames
+        {
+            get
+            {
+                var list = new List<string>();
+                var cams = ProjectStore.Data?.Cameras;
+                if (cams != null)
+                    foreach (var c in cams)
+                        if (!string.IsNullOrWhiteSpace(c.Name) && !list.Contains(c.Name.Trim())) list.Add(c.Name.Trim());
+                return list;
+            }
+        }
+
         // ---- 运行结果相关 ----
         public static readonly DependencyProperty ResultImageProperty =
             DependencyProperty.Register(nameof(ResultImage), typeof(ImageSource), typeof(VisualFlowDetailViewModel));
@@ -577,6 +593,7 @@ namespace NoCodeMotion.Views
             OnPropertyChanged(nameof(IsCameraSource));
             OnPropertyChanged(nameof(IsFolderSource));
             OnPropertyChanged(nameof(IsFileSource));
+            OnPropertyChanged(nameof(CameraNames));
         }
 
         private void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

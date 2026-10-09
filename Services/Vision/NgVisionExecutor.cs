@@ -145,6 +145,10 @@ public sealed class NgVisionExecutor
         var r = LastResult(rep, "图像采集");
         if (err != null)
             return new VisionExecOutcome($"图像采集失败：{err}", err);
+        // 来源=文件/文件夹 路径无效时引擎不再回退测试图 → 当帧为空，这里要明确报错，
+        // 否则会拿一张 0×0 的帧继续喂算子，报出更难懂的错。
+        if (r is { Ok: false } && !rep.HasImage)
+            return new VisionExecOutcome($"图像采集失败：{r.Summary}", r.Summary);
 
         // 当帧落盘（文件名按节点 Id，循环里覆盖同一文件不堆垃圾）
         string file = Path.Combine(_sessionDir, $"frame_{Safe(node.Id)}.png");
