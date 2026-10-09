@@ -17,6 +17,7 @@
             <sys:String>模板匹配</sys:String>
             <sys:String>缺陷检测</sys:String>
             <sys:String>测量</sys:String>
+            <sys:String>字符识别</sys:String>
             <sys:String>对位</sys:String>
             <sys:String>标定</sys:String>
             <sys:String>通讯</sys:String>
@@ -39,6 +40,23 @@
         <x:Array x:Key="DetectModes" Type="sys:String">
             <sys:String>阈值面积</sys:String>
             <sys:String>边缘轮廓</sys:String>
+        </x:Array>
+
+        <!-- 字符识别语言（对应 Windows.Media.Ocr 语言包） -->
+        <x:Array x:Key="OcrLanguages" Type="sys:String">
+            <sys:String>自动</sys:String>
+            <sys:String>中文</sys:String>
+            <sys:String>英文</sys:String>
+            <sys:String>日文</sys:String>
+            <sys:String>韩文</sys:String>
+            <sys:String>繁体中文</sys:String>
+        </x:Array>
+
+        <!-- 字符识别匹配方式 -->
+        <x:Array x:Key="OcrMatchModes" Type="sys:String">
+            <sys:String>包含</sys:String>
+            <sys:String>等于</sys:String>
+            <sys:String>正则</sys:String>
         </x:Array>
 
         <!-- 图像预处理操作名（ComboBox 数据源） -->
@@ -636,6 +654,53 @@
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="单位"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.Unit, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 字符识别 -->
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                            Visibility="{Binding IsOcr, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="字符识别参数"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"
+                                       Text="用系统自带 OCR 离线识别文字。在右侧结果图上拖拽鼠标框选要识别的区域（不框选则识别整张图）；识别结果与「期望文本」比对，一致则本步 OK。中文需目标机已安装中文 OCR 语言包。"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="语言"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          ItemsSource="{StaticResource OcrLanguages}"
+                                          SelectedItem="{Binding SelectedStep.OcrLanguage, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="匹配方式"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          ItemsSource="{StaticResource OcrMatchModes}"
+                                          SelectedItem="{Binding SelectedStep.OcrMatchMode, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="期望文本"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                         Text="{Binding SelectedStep.OcrExpectedText, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="忽略大小写"/>
+                                    <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center"
+                                          IsChecked="{Binding SelectedStep.OcrIgnoreCase, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="识别区域"/>
+                                    <Button DockPanel.Dock="Right" Content="清除" Padding="8,2" Margin="8,0,0,0"
+                                            Style="{StaticResource TtPillRedBtn}"
+                                            ToolTip="清除已框选的识别区域（回到整图识别）"
+                                            Command="{Binding ClearOcrRoiCommand}"/>
+                                    <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
+                                               Text="{Binding SelectedStep.OcrRoiText}"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>

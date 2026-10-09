@@ -256,6 +256,17 @@ namespace NoCodeMotion.Views
                 return;
             }
 
+            // 字符识别步骤：同样的拖拽框选，写到 OCR 的识别区域（不触发模板裁剪/保存）
+            if ((step.StepType ?? "").Trim() == "字符识别")
+            {
+                step.OcrRoiX = (int)System.Math.Round(x1);
+                step.OcrRoiY = (int)System.Math.Round(y1);
+                step.OcrRoiW = w;
+                step.OcrRoiH = h;
+                vm.RunStatus = $"已框选识别区域：({step.OcrRoiX},{step.OcrRoiY}) {w}×{h}　点「运行一次」执行";
+                return;
+            }
+
             step.TemplateRoiX = (int)System.Math.Round(x1);
             step.TemplateRoiY = (int)System.Math.Round(y1);
             step.TemplateRoiW = w;

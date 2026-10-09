@@ -1,7 +1,11 @@
 // 仓库内冒烟工程（.smoke\）：主工程已 <Compile Remove=".smoke\**"/>，不会互相干扰。
 // 跑法（仓库根目录）：
 //   dotnet build .smoke/ncm_smoke.csproj -p:UseAppHost=false
-//   dotnet exec .smoke/bin/Debug/net10.0-windows/ncm_smoke.dll
+//   dotnet exec .smoke/bin/Debug/net10.0-windows10.0.19041.0/ncm_smoke.dll
+// ★ 输出目录随目标框架走（主工程已升到 net10.0-windows10.0.19041.0，别再跑老的 net10.0-windows 副本）。
+// ★ 要让 OpenCvSharp 原生库可加载（其依赖 opencv_world480.dll 在 dotnet exec 下不在搜索路径），
+//   把输出目录加进 PATH 再跑：PATH="<输出目录>:$PATH" dotnet exec <dll>；
+//   否则段 H 诊断项与段 M 的 OCR 端到端会跳过（不影响其余断言）。
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -1154,6 +1158,78 @@ namespace NcmSmoke
             catch (Exception ex)
             {
                 Check(false, "模板示例名称扩展验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ===================== 段 M：视觉流程「字符识别」(OCR) =====================
+            Section("M  流程视觉：字符识别（Windows.Media.Ocr）");
+            try
+            {
+                // 1) 模型默认值 + 识别区域回显
+                var st = new VisualFlowStep { StepType = "字符识别" };
+                Check(st.OcrLanguage == "自动" && st.OcrMatchMode == "包含" && !st.OcrIgnoreCase
+                      && st.OcrRoiW == 0 && st.OcrRoiH == 0,
+                      "字符识别步骤默认参数（语言=自动 / 匹配=包含 / 未框选=整图）");
+                Check(st.OcrRoiText.Contains("整图"), "未框选时识别区域回显「整图识别」");
+
+                // 2) 端到端（需要 OpenCvSharp 原生库；dotnet exec 下把输出目录加入 PATH 才可加载）
+                bool cvOk;
+                try { using var probe = new OpenCvSharp.Mat(4, 4, OpenCvSharp.MatType.CV_8UC3); cvOk = probe.Width == 4; }
+                catch { cvOk = false; }
+
+                if (!cvOk)
+                {
+                    Console.WriteLine("  SKIP  OpenCvSharp 原生库不可用，跳过字符识别端到端"
+                                      + "（模型/接线已校验；把输出目录加入 PATH 后可跑完整 OCR）");
+                }
+                else
+                {
+                    // 造一张白底黑字图，走「图像采集(文件) → 字符识别(包含 ABC)」
+                    string outDir = RepoSmokeOut() ?? Path.GetTempPath();
+                    Directory.CreateDirectory(outDir);
+                    string imgPath = Path.Combine(outDir, "ocr_sample.png");
+                    using (var img = new OpenCvSharp.Mat(120, 460, OpenCvSharp.MatType.CV_8UC4,
+                                                         new OpenCvSharp.Scalar(255, 255, 255, 255)))
+                    {
+                        OpenCvSharp.Cv2.PutText(img, "ABC123", new OpenCvSharp.Point(20, 85),
+                            OpenCvSharp.HersheyFonts.HersheySimplex, 2.4, new OpenCvSharp.Scalar(0, 0, 0, 255), 4);
+                        OpenCvSharp.Cv2.ImWrite(imgPath, img);
+                    }
+
+                    var acq = new VisualFlowStep
+                    { Name = "采集", StepType = "图像采集", SourceType = "文件", SavePath = imgPath, Enabled = true };
+                    var ocrOk = new VisualFlowStep
+                    {
+                        Name = "识别", StepType = "字符识别", Enabled = true,
+                        OcrLanguage = "英文", OcrMatchMode = "包含", OcrExpectedText = "ABC"
+                    };
+                    var rep = VisionEngine.Run(new[] { acq, ocrOk });
+                    var r = rep.Results.LastOrDefault(x => x.Type == "字符识别");
+                    Check(r != null, "字符识别步骤执行并产出结果（不崩）：" + (r?.Summary ?? "无结果"));
+                    if (r != null)
+                    {
+                        Check(!string.IsNullOrEmpty(r.Summary), "字符识别结果有摘要文本");
+                        string norm = (r.Text ?? "").Replace(" ", "");
+                        if (norm.Length > 0)
+                            Check(r.Ok == norm.Contains("ABC"),
+                                  "「包含 ABC」判定与识别文本一致（识别到：" + r.Text + "）");
+                        else
+                            Console.WriteLine("  SKIP  本机 OCR 未识别出文字（可能缺语言包），仅校验步骤跑通");
+                    }
+
+                    // 期望文本不可能出现 → 必须判 NG
+                    var ocrNg = new VisualFlowStep
+                    {
+                        Name = "识别2", StepType = "字符识别", Enabled = true,
+                        OcrLanguage = "英文", OcrMatchMode = "包含", OcrExpectedText = "ZZZZZZ"
+                    };
+                    var rep2 = VisionEngine.Run(new[] { acq, ocrNg });
+                    var r2 = rep2.Results.LastOrDefault(x => x.Type == "字符识别");
+                    Check(r2 != null && !r2.Ok, "期望文本不符时判定为 NG（" + (r2?.Summary ?? "无结果") + "）");
+                }
+            }
+            catch (Exception ex)
+            {
+                Check(false, "字符识别验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
             }
 
             Console.WriteLine("\n====================  "

@@ -8,7 +8,7 @@ namespace NoCodeMotion.Models
 {
     /// <summary>
     /// 视觉流程步骤。StepType 决定右侧参数面板显示哪一组字段。
-    /// 工具类型：模板匹配 / 图像采集 / 图像预处理 / 缺陷检测 / 测量 / 通讯。
+    /// 工具类型：模板匹配 / 图像采集 / 图像预处理 / 缺陷检测 / 测量 / 字符识别 / 通讯。
     /// </summary>
     public class VisualFlowStep : INotifyPropertyChanged
     {
@@ -61,6 +61,16 @@ namespace NoCodeMotion.Models
         private double _preParam2 = 3.0;
         private string _preRoi = "";
         private string _preImage2Path = "";
+
+        // 字符识别（OCR，Windows.Media.Ocr）
+        private string _ocrLanguage = "自动";        // 自动 / 中文 / 英文 / 日文 / 韩文 / 繁体中文
+        private string _ocrExpectedText = "";        // 期望文本（比对基准，空=仅识别不判定）
+        private string _ocrMatchMode = "包含";       // 包含 / 等于 / 正则
+        private bool _ocrIgnoreCase = false;
+        private int _ocrRoiX = 0;                    // 识别区域（原图像素坐标），W/H<=0 表示整图
+        private int _ocrRoiY = 0;
+        private int _ocrRoiW = 0;
+        private int _ocrRoiH = 0;
 
         // 运行结果（每次运行后由 VisionEngine 回写）
         private double _durationMs = 0;
@@ -117,6 +127,21 @@ namespace NoCodeMotion.Models
         public double PreParam2 { get => _preParam2; set => Set(ref _preParam2, value); }
         public string PreRoi { get => _preRoi; set => Set(ref _preRoi, value); }
         public string PreImage2Path { get => _preImage2Path; set => Set(ref _preImage2Path, value); }
+
+        // 字符识别
+        public string OcrLanguage { get => _ocrLanguage; set => Set(ref _ocrLanguage, value); }
+        public string OcrExpectedText { get => _ocrExpectedText; set => Set(ref _ocrExpectedText, value); }
+        public string OcrMatchMode { get => _ocrMatchMode; set => Set(ref _ocrMatchMode, value); }
+        public bool OcrIgnoreCase { get => _ocrIgnoreCase; set => Set(ref _ocrIgnoreCase, value); }
+        public int OcrRoiX { get => _ocrRoiX; set { if (Set(ref _ocrRoiX, value)) OnChanged(nameof(OcrRoiText)); } }
+        public int OcrRoiY { get => _ocrRoiY; set { if (Set(ref _ocrRoiY, value)) OnChanged(nameof(OcrRoiText)); } }
+        public int OcrRoiW { get => _ocrRoiW; set { if (Set(ref _ocrRoiW, value)) OnChanged(nameof(OcrRoiText)); } }
+        public int OcrRoiH { get => _ocrRoiH; set { if (Set(ref _ocrRoiH, value)) OnChanged(nameof(OcrRoiText)); } }
+
+        /// <summary>识别区域描述文本："整图识别" 或 "x,y  WxH"，用于参数区回显。</summary>
+        public string OcrRoiText => _ocrRoiW > 0 && _ocrRoiH > 0
+            ? $"({_ocrRoiX},{_ocrRoiY})  {_ocrRoiW}×{_ocrRoiH}"
+            : "整图识别（在右侧图上拖拽可框选区域）";
 
         // 运行结果
         public double DurationMs { get => _durationMs; set { if (Set(ref _durationMs, value)) OnChanged(nameof(DurationText)); } }

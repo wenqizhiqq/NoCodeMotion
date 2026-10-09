@@ -951,6 +951,15 @@ namespace NoCodeMotion.Services
                         sb.Append(", \"单位\": ").Append(J(s.Unit));
                         break;
 
+                    case "字符识别":
+                        sb.Append(", \"识别语言\": ").Append(J(s.OcrLanguage));
+                        sb.Append(", \"期望文本\": ").Append(J(s.OcrExpectedText));
+                        sb.Append(", \"匹配方式\": ").Append(J(s.OcrMatchMode));
+                        sb.Append(", \"忽略大小写\": ").Append(s.OcrIgnoreCase ? "true" : "false");
+                        if (s.OcrRoiW > 0 && s.OcrRoiH > 0)
+                            sb.Append(", \"识别框\": ").Append(J($"{s.OcrRoiX},{s.OcrRoiY},{s.OcrRoiW},{s.OcrRoiH}"));
+                        break;
+
                     case "通讯":
                         sb.Append(", \"协议\": ").Append(J(s.Protocol));
                         sb.Append(", \"目标\": ").Append(J(s.Target));
@@ -1197,7 +1206,7 @@ namespace NoCodeMotion.Services
 
             sb.AppendLine();
             sb.AppendLine("■ 沙箱里【没有】的 API（写了就报错，绝对不要用）");
-            sb.AppendLine("- 没有 Camera / Vision：视觉流程不要用 Lua 写，改用「视觉步骤」数组（类型取 图像采集 / 模板匹配 / 图像预处理 / 缺陷检测 / 测量 / 通讯）");
+            sb.AppendLine("- 没有 Camera / Vision：视觉流程不要用 Lua 写，改用「视觉步骤」数组（类型取 图像采集 / 模板匹配 / 图像预处理 / 缺陷检测 / 测量 / 字符识别 / 通讯）");
             sb.AppendLine("- 没有 File / File.Read / File.Write 之类的文件读写函数");
             sb.AppendLine("- 没有调用其它流程 / 子流程的函数（要复用请把逻辑抄进同一段 Lua）");
             sb.AppendLine("- Log 只有 Info / Output / Warn / Error / Debug 五个成员，其它（Log.Success / Log.Table …）不存在");
@@ -1683,6 +1692,24 @@ namespace NoCodeMotion.Services
                 st.PreRoi = Str(s, "预处理ROI", "preRoi") ?? st.PreRoi;
                 st.PreImage2Path = Str(s, "第二张图", "preImage2Path") ?? st.PreImage2Path;
 
+                st.OcrLanguage = Str(s, "识别语言", "ocrLanguage") ?? st.OcrLanguage;
+                st.OcrExpectedText = Str(s, "期望文本", "ocrExpectedText") ?? st.OcrExpectedText;
+                st.OcrMatchMode = Str(s, "匹配方式", "ocrMatchMode") ?? st.OcrMatchMode;
+                var ocrCase = Str(s, "忽略大小写", "ocrIgnoreCase");
+                if (ocrCase != null) st.OcrIgnoreCase = ocrCase == "true" || ocrCase == "1";
+                var ocrRoi = Str(s, "识别框", "ocrRoi");
+                if (!string.IsNullOrWhiteSpace(ocrRoi))
+                {
+                    var op = ocrRoi.Split(new[] { ',', '，' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (op.Length >= 4)
+                    {
+                        if (int.TryParse(op[0].Trim(), out var ox)) st.OcrRoiX = ox;
+                        if (int.TryParse(op[1].Trim(), out var oy)) st.OcrRoiY = oy;
+                        if (int.TryParse(op[2].Trim(), out var ow)) st.OcrRoiW = ow;
+                        if (int.TryParse(op[3].Trim(), out var oh)) st.OcrRoiH = oh;
+                    }
+                }
+
                 f.VisualSteps.Add(st);
             }
         }
@@ -1706,6 +1733,7 @@ namespace NoCodeMotion.Services
             if (t.Contains("采集") || t.Contains("拍照") || t.Contains("相机")) return "图像采集";
             if (t.Contains("匹配") || t.Contains("定位") || t.Contains("Match")) return "模板匹配";
             if (t.Contains("预处理") || t.Contains("滤波") || t.Contains("增强")) return "图像预处理";
+            if (t.Contains("字符") || t.Contains("文字") || t.Contains("识别") || t.Contains("OCR") || t.Contains("Ocr") || t.Contains("Text")) return "字符识别";
             if (t.Contains("缺陷") || t.Contains("检测") || t.Contains("Defect")) return "缺陷检测";
             if (t.Contains("测量") || t.Contains("Measure")) return "测量";
             if (t.Contains("通讯") || t.Contains("通信") || t.Contains("Comm")) return "通讯";

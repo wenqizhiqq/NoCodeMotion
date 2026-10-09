@@ -74,6 +74,7 @@ namespace NoCodeMotion.Views
         public bool IsDefect => SelectedStep?.StepType == "缺陷检测";
         public bool IsMeasure => SelectedStep?.StepType == "测量";
         public bool IsComm => SelectedStep?.StepType == "通讯";
+        public bool IsOcr => SelectedStep?.StepType == "字符识别";
 
         // ---- 图像采集来源类型显隐标志（相机 / 文件夹 / 文件） ----
         public bool IsCameraSource => SelectedStep?.SourceType == "相机";
@@ -430,6 +431,8 @@ namespace NoCodeMotion.Views
         public ICommand RunMatchCommand { get; }
         /// <summary>清除已框选的模板区域。</summary>
         public ICommand ClearTemplateRoiCommand { get; }
+        /// <summary>清除已框选的字符识别区域（回到整图识别）。</summary>
+        public ICommand ClearOcrRoiCommand { get; }
         /// <summary>
         /// 「确定模板」：把右侧已框选的 ROI 区域从当前 ResultImage 裁剪出来，保存到 Templates/ 目录，
         /// 同时把裁剪图显示到参数卡按钮下方的预览区，并把路径回写到 step.TemplatePath。
@@ -479,6 +482,15 @@ namespace NoCodeMotion.Views
                 RunStatus = "已清除模板框选";
             });
             ConfirmTemplateCommand = new SimpleRelayCommand(_ => CaptureTemplate());
+            ClearOcrRoiCommand = new SimpleRelayCommand(_ =>
+            {
+                if (SelectedStep == null) return;
+                SelectedStep.OcrRoiW = 0;
+                SelectedStep.OcrRoiH = 0;
+                SelectedStep.OcrRoiX = 0;
+                SelectedStep.OcrRoiY = 0;
+                RunStatus = "已清除识别区域（改为整图识别）";
+            });
             _progress = new Progress<string>(msg => RunStatus = msg);
         }
 
@@ -557,6 +569,7 @@ namespace NoCodeMotion.Views
             OnPropertyChanged(nameof(IsDefect));
             OnPropertyChanged(nameof(IsMeasure));
             OnPropertyChanged(nameof(IsComm));
+            OnPropertyChanged(nameof(IsOcr));
         }
 
         private void RaiseSourceFlags()

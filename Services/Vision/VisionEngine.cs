@@ -22,6 +22,9 @@ namespace NoCodeMotion.Services.Vision
         public bool Ok { get; set; }
         public string Summary { get; set; } = "";
 
+        /// <summary>识别/解析出的文本（字符识别步骤用；其它步骤为空）。</summary>
+        public string Text { get; set; } = "";
+
         /// <summary>
         /// 结构化数值结果（供节点图执行器读取，避免从 Summary 文本里正则抽数）：
         /// 模板匹配=相似度分数；测量=测量长度；缺陷检测=最大缺陷面积；其它=0。
@@ -152,6 +155,10 @@ namespace NoCodeMotion.Services.Vision
                                 break;
                             case "测量":
                                 cur = RunMeasure(s, cur, featurePts, report, progress, display);
+                                break;
+                            case "字符识别":
+                                if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
+                                RunOcr(s, cur, report, progress, display);
                                 break;
                             case "通讯":
                                 RunComm(s, report, progress);
@@ -738,6 +745,137 @@ namespace NoCodeMotion.Services.Vision
                     Summary = $"发送失败：{ex.Message}"
                 });
             }
+        }
+
+        // ============ 字符识别（OCR，Windows.Media.Ocr） ============
+        // 用系统自带的 WinRT OCR 引擎离线识别；支持 ROI、语言选择、期望文本比对（包含/等于/正则）。
+        private static void RunOcr(VisualFlowStep s, Cv.Mat cur, VisionReport report, IProgress<string>? progress, Cv.Mat? display = null)
+        {
+            Cv.Mat? roi = null;
+            try
+            {
+                bool hasRoi = s.OcrRoiW > 0 && s.OcrRoiH > 0;
+                int rx = 0, ry = 0, rw = cur.Width, rh = cur.Height;
+                if (hasRoi)
+                {
+                    rx = (int)Clamp(s.OcrRoiX, 0, Math.Max(0, cur.Width - 1));
+                    ry = (int)Clamp(s.OcrRoiY, 0, Math.Max(0, cur.Height - 1));
+                    rw = (int)Clamp(s.OcrRoiW, 1, Math.Max(1, cur.Width - rx));
+                    rh = (int)Clamp(s.OcrRoiH, 1, Math.Max(1, cur.Height - ry));
+                    roi = new Cv.Mat(cur, new Cv.Rect(rx, ry, rw, rh)).Clone();  // Clone 保证连续内存（MatToBgra 按连续读）
+                }
+                var src = roi ?? cur;
+
+                byte[] bytes = MatToBgra(src);
+                var buf = Windows.Security.Cryptography.CryptographicBuffer.CreateFromByteArray(bytes);
+                using var sb = Windows.Graphics.Imaging.SoftwareBitmap.CreateCopyFromBuffer(
+                    buf, Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, src.Width, src.Height,
+                    Windows.Graphics.Imaging.BitmapAlphaMode.Ignore);
+
+                var engine = ResolveOcrEngine(s.OcrLanguage);
+                if (engine == null)
+                {
+                    AddFail(report, s, $"系统未安装「{s.OcrLanguage}」OCR 语言包（设置 → 时间和语言 → 语言和区域 → 该语言 → 语言选项，添加可选功能「光学字符识别」）");
+                    return;
+                }
+
+                var ocr = engine.RecognizeAsync(sb).AsTask().GetAwaiter().GetResult();
+                string recognized = ((ocr?.Text) ?? "").Replace('\r', ' ').Replace('\n', ' ').Trim();
+
+                bool pass = EvaluateOcr(s, recognized, out string why);
+
+                // 在注释画布上画出识别区域（绿=通过 / 红=不通过）
+                var dst = display ?? cur;
+                if (hasRoi)
+                    Cv.Cv2.Rectangle(dst, new Cv.Rect(rx, ry, rw, rh), pass ? Rgb(30, 170, 80) : Rgb(220, 40, 40), 2);
+
+                report.Results.Add(new VisionStepResult
+                {
+                    StepName = s.Name,
+                    Type = "字符识别",
+                    Ok = pass,
+                    Text = recognized,
+                    Value = recognized.Length,
+                    Count = ocr?.Lines?.Count ?? 0,
+                    Summary = string.IsNullOrEmpty(recognized)
+                        ? $"未识别到文字（语言 {s.OcrLanguage}）"
+                        : $"识别「{recognized}」{why}"
+                });
+                progress?.Report($"字符识别：{recognized}");
+            }
+            catch (Exception ex)
+            {
+                AddFail(report, s, $"字符识别失败：{ex.Message}");
+            }
+            finally
+            {
+                roi?.Dispose();
+            }
+        }
+
+        /// <summary>按语言名解析 OCR 引擎；「自动」或未知 → 用户配置语言。找不到对应语言包返回 null。</summary>
+        private static Windows.Media.Ocr.OcrEngine? ResolveOcrEngine(string? language)
+        {
+            string lang = (language ?? "自动").Trim();
+            try
+            {
+                if (lang.Length == 0 || lang == "自动")
+                    return Windows.Media.Ocr.OcrEngine.TryCreateFromUserProfileLanguages();
+                string tag = lang switch
+                {
+                    "中文" or "简体中文" => "zh-Hans-CN",
+                    "繁体中文" => "zh-Hant-TW",
+                    "英文" => "en-US",
+                    "日文" => "ja-JP",
+                    "韩文" => "ko-KR",
+                    _ => lang,   // 也允许直接写 BCP-47 语言标签
+                };
+                return Windows.Media.Ocr.OcrEngine.TryCreateFromLanguage(new Windows.Globalization.Language(tag))
+                       ?? Windows.Media.Ocr.OcrEngine.TryCreateFromUserProfileLanguages();
+            }
+            catch { return null; }
+        }
+
+        /// <summary>按「期望文本 / 匹配方式 / 忽略大小写」判定识别结果是否通过。空期望文本 = 识别到非空文字即通过。</summary>
+        private static bool EvaluateOcr(VisualFlowStep s, string recognized, out string why)
+        {
+            string expected = (s.OcrExpectedText ?? "").Trim();
+            string mode = (s.OcrMatchMode ?? "包含").Trim();
+            if (expected.Length == 0)
+            {
+                why = "（未设期望文本，识别到文字即通过）";
+                return recognized.Length > 0;
+            }
+            if (mode == "正则")
+            {
+                bool ok;
+                try
+                {
+                    var opts = s.OcrIgnoreCase
+                        ? System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                        : System.Text.RegularExpressions.RegexOptions.None;
+                    ok = System.Text.RegularExpressions.Regex.IsMatch(recognized, expected, opts);
+                }
+                catch { ok = false; }
+                why = ok ? $"✓ 匹配正则 /{expected}/" : $"✗ 不匹配正则 /{expected}/";
+                return ok;
+            }
+
+            string a = NormalizeOcr(recognized, s.OcrIgnoreCase);
+            string b = NormalizeOcr(expected, s.OcrIgnoreCase);
+            bool pass = mode == "等于" ? a == b : a.Contains(b);
+            why = pass ? $"✓ {mode}「{expected}」" : $"✗ 不{mode}「{expected}」";
+            return pass;
+        }
+
+        /// <summary>OCR 文本归一：去空白（Windows OCR 会在汉字间插空格），可选忽略大小写。</summary>
+        private static string NormalizeOcr(string text, bool ignoreCase)
+        {
+            var sb = new System.Text.StringBuilder(text.Length);
+            foreach (var ch in text)
+                if (!char.IsWhiteSpace(ch)) sb.Append(ch);
+            string r = sb.ToString();
+            return ignoreCase ? r.ToLowerInvariant() : r;
         }
 
         // ===================== 基础工具 =====================

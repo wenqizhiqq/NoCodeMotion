@@ -1016,6 +1016,63 @@ if _cat is not None:
     check("G22.14 至少有轴使用了 0.2 秒斜坡默认值",
           _c.count("0.2, 0.2));") >= 1)
 
+# ---------------------------------------------------------------------
+# G23 流程视觉「字符识别」(OCR) —— Windows.Media.Ocr
+# ---------------------------------------------------------------------
+# 需求：视觉流程要有 OCR 字符识别工具。这里守的是几处**静默失效**：
+#   ① 类型没进 VisualStepTypes → 下拉选不到；② 参数卡没绑 IsOcr → 右侧不显示；
+#   ③ VisionEngine 的 switch 没这个 case → 跑到就报「未知步骤类型」；
+#   ④ 目标框架不带 Windows SDK 版本 → Windows.Media.Ocr 编译不过。
+_vfs = read(r"Models\VisualFlowStep.cs")
+if _vfs is not None:
+    _v = _vfs.replace("\r\n", "\n")
+    check("G23.1 视觉步骤有字符识别（OCR）字段与识别区域回显",
+          "public string OcrLanguage" in _v and "public string OcrExpectedText" in _v
+          and "public string OcrMatchMode" in _v and "public bool OcrIgnoreCase" in _v
+          and "public int OcrRoiX" in _v and "public int OcrRoiW" in _v
+          and "public string OcrRoiText" in _v)
+
+_vfp = read(r"Views\VisualFlowPage.xaml")
+if _vfp is not None:
+    _x = _vfp.replace("\r\n", "\n")
+    check("G23.2 视觉流程页工具类型含「字符识别」", "<sys:String>字符识别</sys:String>" in _x)
+    check("G23.3 视觉流程页有 OCR 参数卡（语言/匹配方式/期望文本/忽略大小写/识别区域 + 清除）",
+          'x:Key="OcrLanguages"' in _x and 'x:Key="OcrMatchModes"' in _x
+          and "Binding IsOcr," in _x
+          and "SelectedStep.OcrLanguage" in _x and "SelectedStep.OcrExpectedText" in _x
+          and "SelectedStep.OcrMatchMode" in _x and "SelectedStep.OcrIgnoreCase" in _x
+          and "ClearOcrRoiCommand" in _x)
+
+_vm = read(r"Views\VisualFlowDetailViewModel.cs")
+if _vm is not None:
+    _m = _vm.replace("\r\n", "\n")
+    check("G23.4 详情 VM 有 IsOcr 标志与「清除识别区域」命令",
+          'public bool IsOcr => SelectedStep?.StepType == "字符识别";' in _m
+          and "nameof(IsOcr)" in _m and "ClearOcrRoiCommand" in _m)
+
+_ve = read(r"Services\Vision\VisionEngine.cs")
+if _ve is not None:
+    _e = _ve.replace("\r\n", "\n")
+    check("G23.5 引擎 switch 处理「字符识别」并调用 RunOcr",
+          'case "字符识别":' in _e and "RunOcr(s, cur, report, progress, display)" in _e
+          and "private static void RunOcr(" in _e)
+    check("G23.6 引擎用 Windows.Media.Ocr 实现（语言解析 + 期望文本比对）",
+          "Windows.Media.Ocr.OcrEngine" in _e and "ResolveOcrEngine" in _e
+          and "EvaluateOcr" in _e and "SoftwareBitmap.CreateCopyFromBuffer" in _e)
+    check("G23.7 字符识别结果带结构化 Text（供后续节点/显示）",
+          'public string Text { get; set; } = "";' in _e and "Text = recognized," in _e)
+
+_csproj = read("NoCodeMotion.csproj")
+if _csproj is not None:
+    check("G23.8 目标框架含 Windows SDK 版本（否则 Windows.Media.Ocr 编译不过）",
+          "net10.0-windows10.0.19041.0" in _csproj)
+
+_ai = read(r"Services\AiProjectExchange.cs")
+if _ai is not None:
+    _a = _ai.replace("\r\n", "\n")
+    check("G23.9 AI 交换：字符识别类型归一 + 导出",
+          'return "字符识别";' in _a and 'case "字符识别":' in _a)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

@@ -7,8 +7,10 @@
 - ★ **清理要复核**：`Remove-Item -Recurse -Force` 静默不删；bash `rm -rf obj bin` 被沙箱**批量删除守卫**拦下（`SAFE_DELETE_BULK_CONFIRM_REQUIRED`，`&&` 短路）。up-to-date 跳过 CoreCompile → 误判「全量成功」，**删完必须 `ls` 复核**。全量 ≈0.4 MB / `626 警告 0 错误`；**空或极短日志 = 没编译**。
 - ★ **build 非 0 时冒烟仍会跑旧 dll**（`exit=0`、输出是上一次的，看着「全部通过」）→ **先确认 build 的 `0 个错误` 再看冒烟**。build 偶发 `exit=-1073741571`（0xC00000FD 栈溢出），重跑即可。
 - ★ `dotnet exec` 严格按 deps.json → 主工程 `<Reference>`+`HintPath` 的 dll **不进引用方 deps.json**，冒烟要**照抄同样的 `<Reference>`**。`NETSDK1060` = shell `APPDATA`/`ProgramFiles` 空 → 显式 `env` 传入。
-- ★ 源码守卫**必须在仓库目录跑**（`%TEMP%` 进程读 `D:\` 被沙箱替换成乱码；`%TEMP%` 还会被系统清理整删）→ 工具全放仓库：`tools\guard_sources.py`（G1–G22，**208 PASS**）、`tools\_dump.py`（看 BOM）、`.smoke\`。
-- 冒烟：`dotnet build .smoke/ncm_smoke.csproj -p:UseAppHost=false` → `dotnet exec .smoke/bin/Debug/net10.0-windows/ncm_smoke.dll`（段 A–L，**150 PASS**）。★ `%TEMP%` 里的 exe 跑不起来（`exit 127`）→ 一律 `dotnet exec <dll>`。冒烟与 `--no-incremental` 不可并行（互删 `obj\`）；`-t:Rebuild` 跳过 CoreCompile 报假「0 警告」。
+- ★ 源码守卫**必须在仓库目录跑**（`%TEMP%` 进程读 `D:\` 被沙箱替换成乱码；`%TEMP%` 还会被系统清理整删）→ 工具全放仓库：`tools\guard_sources.py`（G1–G23，**222 PASS**）、`tools\_dump.py`（看 BOM）、`.smoke\`。
+- 冒烟：`dotnet build .smoke/ncm_smoke.csproj -p:UseAppHost=false` → `dotnet exec .smoke/bin/Debug/net10.0-windows10.0.19041.0/ncm_smoke.dll`（段 A–M，**157 PASS**）。★ `%TEMP%` 里的 exe 跑不起来（`exit 127`）→ 一律 `dotnet exec <dll>`。冒烟与 `--no-incremental` 不可并行（互删 `obj\`）；`-t:Rebuild` 跳过 CoreCompile 报假「0 警告」。
+- ★ **改 `TargetFramework` 会挪输出目录**：`net10.0-windows` → `net10.0-windows10.0.19041.0` 后，旧路径的 dll 还在 → `dotnet exec` 旧路径**静默跑旧代码**（新加的段「消失」）。改 TFM 后**先删旧 bin 目录**或直接确认新路径。
+- ★ **`dotnet exec` 下 OpenCvSharp 原生库不可用**：`OpenCvSharpExtern.dll` 能加载，但它的依赖 `opencv_world480.dll` 不在 DLL 搜索路径 → `DllNotFoundException … 0x8007007E`。修：把输出目录加进 `PATH`（`PATH="<outdir>:$PATH" dotnet exec <dll>`）。冒烟里凡走 OpenCV 的段都要**先探测、探测失败就 `SKIP`**，别让环境限制把整轮跑红。
 - 补丁脚本：优先按行号区间替换，或 `sub1` 断言 `count==1`、锚点全过后一次写盘。★ **别把 BOM 写成硬断言**（`MEMORY.md` 无 BOM → abort）。并发编辑器报假 CS1061 → 先看 mtime。临时目录带点前缀（`.smoke/`）不编译，不带点（`scratch/`）会被 `**/*.cs` 收走。
 
 ## 二、代码约定
@@ -64,3 +66,13 @@
 ## 八、变量与表达式
 - `ExpressionEvaluator.Tokenize` 用 `char.IsLetter` → **中文也算标识符**，`-` 是减运算符：变量名里的 `-` 一旦进表达式就被当减号（`下料-计数` → `下料 - 计数` = 0）。流程步骤按**名称精确匹配**取变量（`GetVariableValue`/`SetVariableValue`），`{变量名}` 走 `FlowRunnerService.Sub()` 正则 `\{([^}]+)\}` 字面替换 → 声明与引用都安全。
 - ★ **已修（N-samples 收尾）**：`SimFlowPlayer` 的「变量」步骤**不再**把变量名拼进表达式。改为存 `VarOp`（加/减/乘/除/取模/取反）+ `VarExpr`（操作数），Apply 时 `GetVariableResolved(VarName)` **按名精确取值**后再运算 → `-` 命名的变量在仿真里也算对（取反保持 `1-cur` 语义）。真机 `FlowRunnerService.ExecVar` 本来就走 `GetVarNum(name)` 精确匹配，无此问题。
+
+## 九、视觉流程（图像工具）
+- 一个视觉步骤 = 四处同改（**少一处就静默失效**）：① `Models/VisualFlowStep.cs` 参数字段；② `Views/VisualFlowDetailViewModel.cs` 的 `IsXxx` 标志（并加进 `RaiseTypeFlags()` 的 `nameof` 列表，否则切类型后参数卡不刷新）；③ `Views/VisualFlowPage.xaml` 左侧调色板 `VisualStepTypes` + 右侧参数卡（绑 `IsXxx`）；④ `Services/Vision/VisionEngine.cs` 的 `switch (StepType)` 分支 + 一个 `RunXxx`。
+- 图像链：OpenCvSharp `Cv.Mat`（BGRA）；另有一块 `display` 注释画布用于画框/写字。`VisionStepResult.Text` 是给后续节点/显示用的结构化文本结果。
+- ★ **OCR = Windows 自带引擎（`Windows.Media.Ocr`，离线零三方依赖）**，新增步骤类型 `字符识别`（与 图像采集/预处理/模板匹配/缺陷检测/测量/通讯 并列）。链路：`Cv.Mat` → BGRA `byte[]` → `CryptographicBuffer.CreateFromByteArray` → `SoftwareBitmap.CreateCopyFromBuffer(..., Bgra8, ..., Ignore)` → `OcrEngine.RecognizeAsync(sb).AsTask().GetAwaiter().GetResult()`。
+- ★ **必须把 `TargetFramework` 抬到带 Windows SDK 版本**（`net10.0-windows10.0.19041.0`）才拿得到 WinRT 投影；否则 `Windows.Media.Ocr` 命名空间编不过。同时 `NoWarn` 加 `CA1416`（平台兼容分析器）。`.smoke/ncm_smoke.csproj` 要同步改，否则冒烟引不到。
+- ★ 语言映射：`自动`→`TryCreateFromUserProfileLanguages()`，`中文`→`zh-Hans-CN`、`繁体中文`→`zh-Hant-TW`、`英文`→`en-US`、`日文`→`ja-JP`、`韩文`→`ko-KR`（`OcrEngine.TryCreateFromLanguage(new Language(tag))`）。**中文识别要目标机装中文 OCR 语言包**，否则建引擎失败 → 必须优雅降级。
+- ★ **Windows OCR 会在 CJK 之间插空格** → 比对前先 `NormalizeOcr` 去掉所有空白，否则「ABC 123」≠「ABC123」。匹配方式 包含/等于/正则（可选忽略大小写）→ 输出 OK/NG。
+- ★ **ROI 复用现有拖拽手势**：`VisualFlowPage.xaml.cs` 的 `ApplyTemplateRoi` 里按 `StepType` 分流 —— 字符识别写 `OcrRoiX/Y/W/H` 后 `return`（**不**走模板裁剪/保存）。未框选（W/H≤0）时 `OcrRoiText` 回显「整图识别」。
+- AI 交换：`Services/AiProjectExchange.cs` 的 `NormalizeStepType`（别名归一）+ `ExportVisualSteps`/`FillVisualSteps`（含 `识别框` = `"x,y,w,h"`）+ prompt 类型清单，三处同改。
