@@ -33,3 +33,11 @@
 - ★ **外层 `Border` 必须 `ClipToBounds="True"`**（不能用 `UIElement.Clip`，它在渲染变换**之前**生效）→ 放大后不溢出。
 - ★ 框选只认**左键单击**：`ImageHost_MouseDown` 开头 `if (e.ChangedButton != MouseButton.Left || e.ClickCount != 1) return;`；小框（<8×8）只提示不落盘（否则双击复位的第一次点击会留下 1px 框）。
 - 冒烟段 O：纯函数断言（锚定/平移/钳制/复位）+ 真 `new VisualFlowPage()` 验 XAML 附加属性生效 + **合成 `MouseButtonEventArgs`** 真发一次中键按下，证明 `handledEventsToo` 接线生效。守卫 G25.1–G25.6 钉这几条。
+
+## 五、运行结果标注颜色
+- **结果要绿色显示在图像上**：`VisionEngine` 把标注烧进「注释画布」`display`（= 最终 `ResultImage`）。颜色约定：
+  - ★ **缺陷检测**框 = 绿 `Rgb(30,170,80)`；**测量**线 + 十字标记 = 绿 `Rgb(30,170,80)`（原本是红 `Rgb(220,40,40)` / 蓝 `Rgb(40,120,240)`，已统一改绿）。
+  - ★ **字符识别**：识别区域框 **通过=绿 / 不通过=红**（`pass ? Rgb(30,170,80) : Rgb(220,40,40)`）保留——通过绿、不通过红是约定，不要全改绿。
+  - ★ **模板匹配**：不在 Mat 上烧框，改由 WPF 叠加层 `MatchOverlay` 画**旋转绿/红框 + 相似度/角度文字**（绿=通过、红=不通过），按 `Stretch=Uniform` 投影到屏幕坐标（`ProjectOverlayBoxes`）。
+  - `Rgb(r,g,b)` 是 **RGB→OpenCV BGR** 的助手（`new Cv.Scalar(b,g,r)`），传 RGB 分量即可。
+  - 守卫 **G25.7** 钉这条（缺陷=绿、测量无残留蓝、OCR 的 NG 仍红）。

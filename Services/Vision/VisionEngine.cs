@@ -573,7 +573,7 @@ namespace NoCodeMotion.Services.Vision
                 idx++;
                 var r = Cv.Cv2.BoundingRect(c);
                 var dst = display ?? cur;
-                Cv.Cv2.Rectangle(dst, r, Rgb(220, 40, 40), 2);
+                Cv.Cv2.Rectangle(dst, r, Rgb(30, 170, 80), 2);
                 var m = Cv.Cv2.Moments(c);
                 double cx = m.M00 != 0 ? m.M10 / m.M00 : r.X + r.Width / 2.0;
                 double cy = m.M00 != 0 ? m.M01 / m.M00 : r.Y + r.Height / 2.0;
@@ -614,9 +614,9 @@ namespace NoCodeMotion.Services.Vision
             double len = px * cal;
 
             var dst = display ?? cur;
-            Cv.Cv2.Line(dst, new Cv.Point((int)a.X, (int)a.Y), new Cv.Point((int)b.X, (int)b.Y), Rgb(40, 120, 240), 2);
-            Cv.Cv2.DrawMarker(dst, new Cv.Point((int)a.X, (int)a.Y), Rgb(40, 120, 240), Cv.MarkerTypes.Cross, 10, 2);
-            Cv.Cv2.DrawMarker(dst, new Cv.Point((int)b.X, (int)b.Y), Rgb(40, 120, 240), Cv.MarkerTypes.Cross, 10, 2);
+            Cv.Cv2.Line(dst, new Cv.Point((int)a.X, (int)a.Y), new Cv.Point((int)b.X, (int)b.Y), Rgb(30, 170, 80), 2);
+            Cv.Cv2.DrawMarker(dst, new Cv.Point((int)a.X, (int)a.Y), Rgb(30, 170, 80), Cv.MarkerTypes.Cross, 10, 2);
+            Cv.Cv2.DrawMarker(dst, new Cv.Point((int)b.X, (int)b.Y), Rgb(30, 170, 80), Cv.MarkerTypes.Cross, 10, 2);
 
             report.Results.Add(new VisionStepResult
             {

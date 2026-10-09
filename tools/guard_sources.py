@@ -1177,6 +1177,16 @@ if _vfc is not None:
     check("G25.6 框选只认左键单击（中键/双击让给缩放平移行为）",
           "if (e.ChangedButton != MouseButton.Left || e.ClickCount != 1) return;" in _c2)
 
+# G25.7 运行结果标注颜色：缺陷框 + 测量线/标记为绿色（不再红/蓝）；OCR 的 NG 仍红
+_ve = read(r"Services\Vision\VisionEngine.cs")
+if _ve is not None:
+    _e = _ve.replace("\r\n", "\n")
+    _def_green = "Cv.Cv2.Rectangle(dst, r, Rgb(30, 170, 80), 2);" in _e
+    _measure_no_blue = "Rgb(40, 120, 240)" not in _e           # 测量三条原本是蓝，已全部改绿
+    _ocr_ng_red = "pass ? Rgb(30, 170, 80) : Rgb(220, 40, 40)" in _e  # 通过绿/不通过红保留
+    check("G25.7 运行结果标注统一为绿色（缺陷框+测量线/标记=绿；OCR 的 NG 仍红）",
+          _def_green and _measure_no_blue and _ocr_ng_red)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")
