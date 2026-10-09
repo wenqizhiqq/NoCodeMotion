@@ -1135,6 +1135,48 @@ if _ai2 is not None:
           "必须同时给" in _a2
           and "图像采集的「来源」取 相机/文件/文件夹" in _a2)
 
+# G25 视觉流程页结果图：滚轮缩放 / 中键拖拽平移 / 双击复位
+_zp = read(r"Views\ZoomPanBehavior.cs")
+if _zp is None:
+    check("G25.1 存在可复用的 ZoomPanBehavior（滚轮缩放 + 中键拖拽平移 + 双击复位）", False, "文件缺失")
+else:
+    _z = _zp.replace("\r\n", "\n")
+    check("G25.1 存在可复用的 ZoomPanBehavior（滚轮缩放 + 中键拖拽平移 + 双击复位）",
+          "public static class ZoomPanBehavior" in _z
+          and "namespace NoCodeMotion.Behaviors" in _z
+          and "MouseButton.Middle" in _z
+          and "MouseWheel" in _z
+          and "ClickCount == 2" in _z
+          and "public static void Reset(FrameworkElement el)" in _z)
+    check("G25.2 变换顺序 Scale → Translate，且原点取左上角",
+          "tg.Children.Add(new ScaleTransform(1, 1));" in _z
+          and "tg.Children.Add(new TranslateTransform(0, 0));" in _z
+          and "el.RenderTransformOrigin = new Point(0, 0);" in _z)
+    check("G25.3 鼠标位移必须在父空间量（禁止直接用 e.GetPosition(el) 做平移基准）",
+          "private static Point GetStablePos(FrameworkElement el, MouseEventArgs e)" in _z
+          and "el.Parent as IInputElement ?? el" in _z
+          and "e.GetPosition(relative)" in _z)
+    check("G25.4 光标锚定缩放的解析式 + 中键/左键各司其职",
+          "mouseX * (1 - s) + offsetX * s" in _z
+          and "public static (double X, double Y) PanOffset(" in _z
+          and "e.ChangedButton != MouseButton.Middle" in _z
+          and "handledEventsToo: true" in _z)
+
+_vfx = read(r"Views\VisualFlowPage.xaml")
+if _vfx is not None:
+    _x2 = _vfx.replace("\r\n", "\n")
+    check("G25.5 视觉流程页结果图启用行为 + 外层 Border 裁剪 + 操作说明",
+          'xmlns:beh="clr-namespace:NoCodeMotion.Behaviors"' in _x2
+          and 'beh:ZoomPanBehavior.IsEnabled="True"' in _x2
+          and 'ClipToBounds="True"' in _x2
+          and "中键拖拽平移" in _x2 and "双击复位" in _x2 and "滚轮缩放" in _x2)
+
+_vfc = read(r"Views\VisualFlowPage.xaml.cs")
+if _vfc is not None:
+    _c2 = _vfc.replace("\r\n", "\n")
+    check("G25.6 框选只认左键单击（中键/双击让给缩放平移行为）",
+          "if (e.ChangedButton != MouseButton.Left || e.ClickCount != 1) return;" in _c2)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

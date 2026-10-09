@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
+             xmlns:beh="clr-namespace:NoCodeMotion.Behaviors"
              mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1100">
 
     <UserControl.Resources>
@@ -227,9 +228,19 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock Grid.Row="0" Style="{StaticResource AppleSectionHeader}" Text="运行结果"/>
-                        <!-- 图像占满整个 740px Border；支持鼠标拖拽画框确定模板区域 -->
-                        <Border Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" Background="#1D1D1F">
+                        <!-- 操作说明（用户要求）：中键拖拽平移 / 滚轮缩放 / 双击复位 / 左键拖拽框选 -->
+                        <TextBlock Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                   Margin="0,9,14,2" FontSize="11" IsHitTestVisible="False"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Text="滚轮缩放 · 中键拖拽平移 · 双击复位 · 左键拖拽框选"/>
+                        <!-- 图像占满整个 740px Border；左键拖拽画框，中键拖拽平移，滚轮缩放 -->
+                        <!-- ClipToBounds 必须在外层 Border 上：缩放/平移后的内容靠它裁剪，否则图会溢出到相邻列。
+                             UIElement.Clip 在 RenderTransform **之前**生效，挡不住缩放后的子元素。 -->
+                        <Border Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" Background="#1D1D1F"
+                                ClipToBounds="True">
                             <Grid x:Name="ImageHost" Background="Transparent" Cursor="Cross"
+                                  beh:ZoomPanBehavior.IsEnabled="True"
+                                  ToolTip="滚轮缩放　中键拖拽平移　双击复位　左键拖拽框选"
                                   MouseDown="ImageHost_MouseDown" MouseMove="ImageHost_MouseMove"
                                   MouseUp="ImageHost_MouseUp">
                                 <Image x:Name="ResultImageView" Source="{Binding ResultImage}" Stretch="Uniform"/>

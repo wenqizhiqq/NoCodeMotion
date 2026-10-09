@@ -184,6 +184,9 @@ namespace NoCodeMotion.Views
 
         private void ImageHost_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            // 只处理「左键单击」：中键拖拽平移、左键双击复位都交给挂在 ImageHost 上的
+            // ZoomPanBehavior（它用 handledEventsToo 注册，即使这里 return 也收得到）。
+            if (e.ChangedButton != MouseButton.Left || e.ClickCount != 1) return;
             if (ResultImageView.Source == null) return;
             _dragStart = e.GetPosition(ImageHost);
             _dragging = true;
@@ -249,10 +252,11 @@ namespace NoCodeMotion.Views
             double y2 = System.Math.Min(src.PixelHeight, (System.Math.Max(a.Y, b.Y) - offsetY) / scale);
 
             int w = (int)System.Math.Round(x2 - x1), h = (int)System.Math.Round(y2 - y1);
-            if (w < 8 || h < 8)   // 太小的框视为误操作
+            if (w < 8 || h < 8)
             {
                 RoiRect.Visibility = Visibility.Collapsed;
-                vm.RunStatus = "框选区域太小（至少 8×8 像素），已忽略";
+                // 纯单击（几乎没拖动，例如双击复位的第一下）静默忽略；真拖了一点但太小才提示
+                if (w >= 2 || h >= 2) vm.RunStatus = "框选区域太小（至少 8×8 像素），已忽略";
                 return;
             }
 

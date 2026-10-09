@@ -7,11 +7,13 @@
 //   把输出目录加进 PATH 再跑：PATH="<输出目录>:$PATH" dotnet exec <dll>；
 //   否则段 H 诊断项、段 M 的 OCR 端到端、段 N 的「相机回退」会跳过（不影响其余断言）。
 // 段 N：图像采集来源 —— 默认「相机」/ 相机名解析 / 文件或文件夹路径无效时明确报错（不静默出测试图）。
+// 段 O：视觉流程页结果图 —— 滚轮缩放 / 中键拖拽平移 / 双击复位（ZoomPanBehavior 的光标锚定与 1:1 跟手不变式）。
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using NoCodeMotion.Models;
@@ -19,6 +21,7 @@ using NoCodeMotion.Services;
 using NoCodeMotion.Services.Camera;
 using NoCodeMotion.Services.Vision;
 using NoCodeMotion.ViewModels;
+using NoCodeMotion.Behaviors;
 
 namespace NcmSmoke
 {
@@ -97,6 +100,25 @@ namespace NcmSmoke
                 foreach (var c in Children(stack.Pop()))
                     if (seen.Add(c)) { yield return c; stack.Push(c); }
             }
+        }
+
+        /// <summary>造一张有明显纹理的合成图（渐变 + 棋盘格），用来肉眼判断「缩放/平移是否真的生效」。</summary>
+        private static BitmapSource MakeTestBitmap(int w, int h)
+        {
+            int stride = w * 4;
+            var px = new byte[h * stride];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int i = y * stride + x * 4;
+                    px[i + 0] = (byte)(x * 255 / Math.Max(1, w - 1));                 // B
+                    px[i + 1] = (byte)(y * 255 / Math.Max(1, h - 1));                 // G
+                    px[i + 2] = (byte)(((x / 40) + (y / 40)) % 2 == 0 ? 40 : 215);    // R（棋盘格）
+                    px[i + 3] = 255;                                                  // A
+                }
+            var bmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, px, stride);
+            bmp.Freeze();
+            return bmp;
         }
 
         [STAThread]
@@ -1343,6 +1365,179 @@ namespace NcmSmoke
             catch (Exception ex)
             {
                 Check(false, "图像采集来源验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ===================== 段 O：结果图缩放 / 平移行为 =====================
+            Section("O  视觉流程页结果图：滚轮缩放 + 中键拖拽平移 + 双击复位（ZoomPanBehavior）");
+            try
+            {
+                // 1) 光标锚定缩放的不变式：缩放前后，光标底下那个内容点必须停在同一屏幕位置
+                bool anchorOk = true;
+                var cases = new[] { (100.0, 1.0, 2.0), (37.5, 1.0, 1.15), (640.0, 3.0, 1.5), (12.0, 8.0, 1.0 / 1.15) };
+                foreach (var (mx, oldS, newS) in cases)
+                {
+                    double my = mx / 2;
+                    var (nox, noy) = ZoomPanBehavior.ZoomOffset(mx, my, oldS, newS, 0, 0);
+                    double px = mx / oldS, py = my / oldS;          // 光标下的内容点（本地坐标）
+                    if (Math.Abs(newS * px + nox - mx) > 1e-6 || Math.Abs(newS * py + noy - my) > 1e-6)
+                        anchorOk = false;
+                }
+                Check(anchorOk, "光标锚定缩放：光标下的内容点缩放后仍停在原屏幕位置（4 组参数）");
+
+                // 2) 平移 1:1 跟手
+                var (px2, py2) = ZoomPanBehavior.PanOffset(10, -20, 33.5, -7.25);
+                Check(Math.Abs(px2 - 43.5) < 1e-9 && Math.Abs(py2 + 27.25) < 1e-9,
+                      "平移 1:1：新偏移 = 起始偏移 + 鼠标位移");
+
+                // 3) 挂到元素上：变换组顺序必须是 Scale → Translate，原点左上
+                var zoomBorder = new System.Windows.Controls.Border();
+                var zoomHost = new System.Windows.Controls.Grid();
+                zoomBorder.Child = zoomHost;
+                ZoomPanBehavior.SetIsEnabled(zoomHost, true);
+                Check(zoomHost.RenderTransform is TransformGroup tg0 && tg0.Children.Count >= 2
+                      && tg0.Children[0] is ScaleTransform && tg0.Children[1] is TranslateTransform,
+                      "启用后建立 TransformGroup(Scale → Translate)（顺序反了 offset 语义就错）");
+                Check(zoomHost.RenderTransformOrigin == new Point(0, 0), "变换原点取左上角 (0,0)");
+
+                // 4) 缩放 → 变换值同步
+                ZoomPanBehavior.ZoomAtPoint(zoomHost, new Point(200, 120), 2.0);
+                Check(Math.Abs(ZoomPanBehavior.GetScale(zoomHost) - 2.0) < 1e-9
+                      && Math.Abs(ZoomPanBehavior.GetOffsetX(zoomHost) + 200) < 1e-9
+                      && Math.Abs(ZoomPanBehavior.GetOffsetY(zoomHost) + 120) < 1e-9,
+                      "ZoomAtPoint(2x @200,120) → scale=2 且 offset=(-200,-120)");
+                var tg1 = (TransformGroup)zoomHost.RenderTransform;
+                var sc1 = (ScaleTransform)tg1.Children[0];
+                var tr1 = (TranslateTransform)tg1.Children[1];
+                Check(Math.Abs(sc1.ScaleX - 2.0) < 1e-9 && Math.Abs(sc1.ScaleY - 2.0) < 1e-9
+                      && Math.Abs(tr1.X + 200) < 1e-9 && Math.Abs(tr1.Y + 120) < 1e-9,
+                      "TransformGroup 内的 Scale/Translate 已同步（不是只有附加属性变了）");
+
+                // 5) 平移 → 偏移累加
+                ZoomPanBehavior.PanBy(zoomHost, 30, -15);
+                Check(Math.Abs(ZoomPanBehavior.GetOffsetX(zoomHost) + 170) < 1e-9
+                      && Math.Abs(ZoomPanBehavior.GetOffsetY(zoomHost) + 135) < 1e-9,
+                      "PanBy(30,-15) → offset 累加为 (-170,-135)");
+
+                // 6) 上限钳制
+                ZoomPanBehavior.ZoomAtPoint(zoomHost, new Point(0, 0), 1000.0);
+                Check(Math.Abs(ZoomPanBehavior.GetScale(zoomHost) - ZoomPanBehavior.GetMaxScale(zoomHost)) < 1e-9,
+                      "缩放钳制到 MaxScale（" + ZoomPanBehavior.GetMaxScale(zoomHost) + "）");
+
+                // 7) 双击复位
+                ZoomPanBehavior.Reset(zoomHost);
+                Check(Math.Abs(ZoomPanBehavior.GetScale(zoomHost) - 1.0) < 1e-9
+                      && ZoomPanBehavior.GetOffsetX(zoomHost) == 0 && ZoomPanBehavior.GetOffsetY(zoomHost) == 0,
+                      "Reset() → scale=1 / offset=(0,0)");
+
+                // 8) 视觉流程页确实挂上了（XAML 里的附加属性真的生效，不只是写了个属性名）
+                var vfpZoom = new NoCodeMotion.Views.VisualFlowPage();
+                if (vfpZoom.FindName("ImageHost") is FrameworkElement imgHost)
+                    Check(ZoomPanBehavior.GetIsEnabled(imgHost),
+                          "视觉流程页 ImageHost 已启用 ZoomPanBehavior（XAML 生效）");
+                else
+                    Check(false, "视觉流程页里找不到 ImageHost");
+
+                // 9) 事件接线：合成一次「中键按下」→ 行为应接管（光标切 SizeAll / 事件被标记已处理）
+                try
+                {
+                    ZoomPanBehavior.Reset(zoomHost);
+                    var downArgs = new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Middle)
+                    { RoutedEvent = UIElement.MouseDownEvent };
+                    zoomHost.RaiseEvent(downArgs);
+                    Check(downArgs.Handled && zoomHost.Cursor == Cursors.SizeAll,
+                          "中键按下被行为接管（事件接线生效：Handled=true 且光标切 SizeAll）");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("  SKIP  合成鼠标事件在本环境不可用（" + ex.GetType().Name
+                                      + "），中键接线以源码守卫 G25 为准");
+                }
+            }
+            catch (Exception ex)
+            {
+                Check(false, "结果图缩放/平移验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ===================== 段 P：缩放/平移的「肉眼可见」证据（离屏渲染截图） =====================
+            Section("P  结果图缩放 / 平移：离屏渲染截图（1x vs 2x）+ 操作说明真的在可视化树上");
+            try
+            {
+                string outDirP = RepoSmokeOut() ?? Path.Combine(AppContext.BaseDirectory, "out");
+                Directory.CreateDirectory(outDirP);
+
+                var tplP = ProjectTemplateCatalog.All.First(t => t.Id == "vision-guided");
+                var pdP = tplP.Build();
+                ProjectStore.Data.CopyFrom(pdP);          // 让页面不是空态
+                var visFlowP = pdP.Flows.FirstOrDefault(f => f.Kind == FlowKind.Vision);
+                Check(visFlowP != null && visFlowP.VisualSteps.Count > 0,
+                      "视觉引导模板里存在视觉流程步骤（" + (visFlowP?.VisualSteps.Count ?? 0) + " 步）");
+
+                var pageP = new NoCodeMotion.Views.VisualFlowPage();
+                var vmP = (NoCodeMotion.Views.VisualFlowDetailViewModel)pageP.DataContext;
+                vmP.Steps = visFlowP!.VisualSteps;
+                vmP.SelectedStep = vmP.Steps.FirstOrDefault(s => s.StepType == "图像采集") ?? vmP.Steps[0];
+                vmP.ResultImage = MakeTestBitmap(640, 480);   // 造一张有纹理的「运行结果」图
+                vmP.RunStatus = "就绪";
+
+                pageP.Measure(new Size(1240, 780));
+                pageP.Arrange(new Rect(0, 0, 1240, 780));
+                pageP.UpdateLayout();
+
+                var hostP = pageP.FindName("ImageHost") as System.Windows.Controls.Grid;
+                Check(hostP != null && hostP.ActualWidth > 50 && hostP.ActualHeight > 50,
+                      "结果图容器有真实版面：" + (int)(hostP?.ActualWidth ?? 0) + "×"
+                      + (int)(hostP?.ActualHeight ?? 0));
+
+                // 操作说明必须在可视化树里（不是只写在 XAML 源码里、被样式藏了 / 被裁了）
+                var hintP = AllDescendants(pageP).OfType<System.Windows.Controls.TextBlock>()
+                                .FirstOrDefault(t => t.Text != null && t.Text.Contains("中键拖拽平移"));
+                Check(hintP != null && hintP.ActualWidth > 0,
+                      "操作说明已渲染到树上：「" + (hintP?.Text ?? "(缺失)") + "」");
+
+                byte[] RenderPixels(FrameworkElement fe)
+                {
+                    int w = Math.Max(1, (int)Math.Ceiling(fe.ActualWidth));
+                    int hh = Math.Max(1, (int)Math.Ceiling(fe.ActualHeight));
+                    var rtb = new RenderTargetBitmap(w, hh, 96, 96, PixelFormats.Pbgra32);
+                    rtb.Render(fe);
+                    var px = new byte[w * hh * 4];
+                    rtb.CopyPixels(px, w * 4, 0);
+                    return px;
+                }
+                string SavePng(FrameworkElement fe, string file)
+                {
+                    int w = Math.Max(1, (int)Math.Ceiling(fe.ActualWidth));
+                    int hh = Math.Max(1, (int)Math.Ceiling(fe.ActualHeight));
+                    var rtb = new RenderTargetBitmap(w, hh, 96, 96, PixelFormats.Pbgra32);
+                    rtb.Render(fe);
+                    var enc = new PngBitmapEncoder();
+                    enc.Frames.Add(BitmapFrame.Create(rtb));
+                    string pp = Path.Combine(outDirP, file);
+                    using (var fs = File.Create(pp)) enc.Save(fs);
+                    return pp;
+                }
+
+                var px1 = RenderPixels(pageP);
+                string f1 = SavePng(pageP, "zoompan_1x.png");
+
+                // 真的放大 2 倍（模拟滚轮在容器中心滚到 2x）
+                if (hostP != null)
+                    ZoomPanBehavior.ZoomAtPoint(hostP,
+                        new Point(hostP.ActualWidth / 2, hostP.ActualHeight / 2), 2.0);
+                pageP.UpdateLayout();
+                var px2 = RenderPixels(pageP);
+                string f2 = SavePng(pageP, "zoompan_2x.png");
+
+                Check(Math.Abs(ZoomPanBehavior.GetScale(hostP!) - 2.0) < 1e-9,
+                      "截图时容器 scale = 2.0（放大真的落到了元素上）");
+                Check(!px1.SequenceEqual(px2),
+                      "2x 后的渲染像素与 1x 不同（缩放作用到渲染结果，而不只是改了附加属性）");
+                Console.WriteLine("  截图：" + f1);
+                Console.WriteLine("        " + f2);
+            }
+            catch (Exception ex)
+            {
+                Check(false, "结果图缩放/平移截图验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
             }
 
             Console.WriteLine("\n====================  "

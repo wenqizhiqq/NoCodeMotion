@@ -42,3 +42,11 @@
 - 构建**通不过**这一关：`{StaticResource}` 找不到是**运行期** `XamlParseException`。
 - 所以冒烟段 F 会真的 `new` 一次页面/弹窗（`PointPage` / `EngineerPage` / `CameraPage` / `VisualFlowPage` / `GraphGenDialog`），走 `InitializeComponent()` 解析 XAML。
 - ★ 给某个页面加了新控件/新绑定后，**把它加进段 F** —— 这是唯一能抓到「键写错 / 绑错」的自动手段。
+
+## 五、新建 Apple 弹窗的 Owner（会崩，别照抄）
+- ★ 别照抄 `Owner = Application.Current?.MainWindow;`：① 本窗口若是应用里第一个 `Window`，getter 返回**它自己** → 「不能把 Owner 设为自己」；② Owner 必须是**已显示过**的窗口，否则「无法将 Owner 设置为之前未显示的 Window」（离屏 / 冒烟场景必踩）。
+- `NewProjectDialog` 已改成 `if (owner is not null && !ReferenceEquals(owner, this) && owner.IsVisible) Owner = owner;` —— 另有 10 个弹窗（`ArrayGenDialog` / `ConfirmDialog` / `RenameDialog` …）仍是裸写法，遇到崩先查这里。
+
+## 六、「工位-对象」约定的用户提示（Request N-samples）
+- `NewProjectDialog` 名称框下方一条提示文字。
+- 轴 / IO / 气缸 / 变量四页底部 `Views/PageHintBar`（两个 DP `OperationText` / `PrecautionText`）—— **定义了但一直没人用**。接入位置：IO / 变量页根 Grid 末尾本就留了空 `Auto` 行；轴页用 `DockPanel.Dock="Bottom"`；气缸页 Detail 原本直接是 `ScrollViewer`，需先包一层 `DockPanel`。
