@@ -207,7 +207,8 @@ namespace NoCodeMotion.Services
     }
   ],
   "通讯": [
-    { "名称": "主站", "类型": "串口", "端口": "COM1", "波特率": 9600 }
+    { "名称": "主站", "类型": "串口", "端口": "COM1", "波特率": 9600 },
+    { "名称": "SECS1", "类型": "SECS(HSMS)", "角色": "被动", "端口": 5000, "DeviceID": 0 }
   ],
   "相机": [
     { "名称": "顶视相机", "类型": "海康面阵", "接口": "GigE", "编号": 0, "触发模式": "软件触发", "曝光ms": 20, "增益": 1.0 },
@@ -471,7 +472,17 @@ namespace NoCodeMotion.Services
                     Parity = Str(e, "校验", "parity") ?? "无",
                     DataBits = IntDef(e, 8, "数据位", "dataBits"),
                     StopBits = DblDef(e, 1, "停止位", "stopBits"),
-                    TimeoutMs = IntDef(e, 1000, "超时", "timeoutMs")
+                    TimeoutMs = IntDef(e, 1000, "超时", "timeoutMs"),
+                    SecsRole = Str(e, "角色", "secsRole", "HSMS角色") ?? "被动",
+                    SecsDeviceId = IntDef(e, 0, "DeviceID", "secsDeviceId", "设备号"),
+                    SecsT3Ms = IntDef(e, 45000, "T3", "secsT3Ms"),
+                    SecsT5Ms = IntDef(e, 10000, "T5", "secsT5Ms"),
+                    SecsT6Ms = IntDef(e, 5000, "T6", "secsT6Ms"),
+                    SecsT7Ms = IntDef(e, 10000, "T7", "secsT7Ms"),
+                    SecsT8Ms = IntDef(e, 5000, "T8", "secsT8Ms"),
+                    SecsAutoReply = BoolDef(e, true, "自动应答", "secsAutoReply"),
+                    SecsMdln = Str(e, "机型", "secsMdln", "MDLN") ?? "NoCodeMotion",
+                    SecsSoftRev = Str(e, "版本", "secsSoftRev", "SOFTREV") ?? "1.0.0"
                 });
                 n++;
             }
@@ -769,6 +780,29 @@ namespace NoCodeMotion.Services
             if (v.ValueKind == JsonValueKind.String &&
                 double.TryParse(v.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var s)) return s;
             return def;
+        }
+
+        /// <summary>布尔取值：认 JSON 布尔，也认 1/0 与 "true"/"false"/"是"/"否"。</summary>
+        private static bool BoolDef(JsonElement e, bool def, params string[] aliases)
+        {
+            if (!TryGet(e, out var v, aliases)) return def;
+            switch (v.ValueKind)
+            {
+                case JsonValueKind.True: return true;
+                case JsonValueKind.False: return false;
+                case JsonValueKind.Number: return !(v.TryGetDouble(out var n) && n == 0);
+                case JsonValueKind.String:
+                    {
+                        string s = (v.GetString() ?? string.Empty).Trim();
+                        if (s.Length == 0) return def;
+                        if (s == "1" || s.Equals("true", StringComparison.OrdinalIgnoreCase)
+                            || s == "是" || s == "开" || s == "启用") return true;
+                        if (s == "0" || s.Equals("false", StringComparison.OrdinalIgnoreCase)
+                            || s == "否" || s == "关" || s == "禁用") return false;
+                        return def;
+                    }
+                default: return def;
+            }
         }
 
         // ==================== 3. 流程级交换（流程页「复制JSON / 粘贴生成」按钮用） ====================

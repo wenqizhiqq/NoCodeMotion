@@ -48,7 +48,7 @@
                                 <TextBox Text="{Binding SelectedItem.PortOrIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
                             </StackPanel>
                         </Border>
-                        <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口|西门子S7|三菱MC'}">
+                        <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口|SECS(HSMS)|西门子S7|三菱MC'}">
                             <StackPanel>
                                 <TextBlock Text="端口 / IP" Style="{StaticResource AppleChipLabel}"/>
                                 <TextBox Text="{Binding SelectedItem.PortOrIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
@@ -60,7 +60,7 @@
                                 <TextBox Text="{Binding SelectedItem.BaudOrPort}" Style="{StaticResource AppleNumField}"/>
                             </StackPanel>
                         </Border>
-                        <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口|西门子S7|三菱MC'}">
+                        <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口|SECS(HSMS)|西门子S7|三菱MC'}">
                             <StackPanel>
                                 <TextBlock Text="端口号" Style="{StaticResource AppleChipLabel}"/>
                                 <TextBox Text="{Binding SelectedItem.BaudOrPort}" Style="{StaticResource AppleNumField}"/>
@@ -170,6 +170,108 @@
                         </Border>
                     </WrapPanel>
 
+                    <!-- SECS/HSMS 参数（仅 SECS(HSMS) 类型显示）-->
+                    <Border Style="{StaticResource AppleGroupCard}" Padding="12,10"
+                            Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='SECS(HSMS)'}">
+                        <StackPanel>
+                            <TextBlock Text="SECS / HSMS 参数（SEMI E37 会话 + E5 报文）" Style="{StaticResource AppleSectionHeader}"/>
+                            <WrapPanel Margin="0,0,0,4">
+                                <Border Style="{StaticResource AppleChip}">
+                                    <StackPanel>
+                                        <TextBlock Text="HSMS 角色" Style="{StaticResource AppleChipLabel}"/>
+                                        <ListBox ItemsSource="{Binding SecsRoleOptions}" SelectedItem="{Binding SelectedItem.SecsRole}" Style="{StaticResource ApplePillList}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource AppleChip}">
+                                    <StackPanel>
+                                        <TextBlock Text="DeviceID" Style="{StaticResource AppleChipLabel}"/>
+                                        <TextBox Text="{Binding SelectedItem.SecsDeviceId}" Style="{StaticResource AppleNumField}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource AppleChip}">
+                                    <StackPanel>
+                                        <TextBlock Text="T3 数据应答" Style="{StaticResource AppleChipLabel}"/>
+                                        <DockPanel LastChildFill="False">
+                                            <TextBox DockPanel.Dock="Right" Text="{Binding SelectedItem.SecsT3Ms}" Style="{StaticResource AppleNumField}"/>
+                                            <TextBlock DockPanel.Dock="Right" Text="ms" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource AppleChip}">
+                                    <StackPanel>
+                                        <TextBlock Text="T5 重连间隔" Style="{StaticResource AppleChipLabel}"/>
+                                        <DockPanel LastChildFill="False">
+                                            <TextBox DockPanel.Dock="Right" Text="{Binding SelectedItem.SecsT5Ms}" Style="{StaticResource AppleNumField}"/>
+                                            <TextBlock DockPanel.Dock="Right" Text="ms" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource AppleChip}">
+                                    <StackPanel>
+                                        <TextBlock Text="T6 控制应答" Style="{StaticResource AppleChipLabel}"/>
+                                        <DockPanel LastChildFill="False">
+                                            <TextBox DockPanel.Dock="Right" Text="{Binding SelectedItem.SecsT6Ms}" Style="{StaticResource AppleNumField}"/>
+                                            <TextBlock DockPanel.Dock="Right" Text="ms" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource AppleChip}">
+                                    <StackPanel>
+                                        <TextBlock Text="T7 未选中容忍" Style="{StaticResource AppleChipLabel}"/>
+                                        <DockPanel LastChildFill="False">
+                                            <TextBox DockPanel.Dock="Right" Text="{Binding SelectedItem.SecsT7Ms}" Style="{StaticResource AppleNumField}"/>
+                                            <TextBlock DockPanel.Dock="Right" Text="ms" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource AppleChip}">
+                                    <StackPanel>
+                                        <TextBlock Text="T8 字符间超时" Style="{StaticResource AppleChipLabel}"/>
+                                        <DockPanel LastChildFill="False">
+                                            <TextBox DockPanel.Dock="Right" Text="{Binding SelectedItem.SecsT8Ms}" Style="{StaticResource AppleNumField}"/>
+                                            <TextBlock DockPanel.Dock="Right" Text="ms" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource AppleChip}">
+                                    <StackPanel>
+                                        <TextBlock Text="机型 MDLN" Style="{StaticResource AppleChipLabel}"/>
+                                        <TextBox Text="{Binding SelectedItem.SecsMdln, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource AppleChip}">
+                                    <StackPanel>
+                                        <TextBlock Text="版本 SOFTREV" Style="{StaticResource AppleChipLabel}"/>
+                                        <TextBox Text="{Binding SelectedItem.SecsSoftRev, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource AppleChip}">
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left" Text="自动应答 S1F1/F13" Style="{StaticResource AppleLabel}"/>
+                                        <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.SecsAutoReply}"/>
+                                    </DockPanel>
+                                </Border>
+                            </WrapPanel>
+
+                            <DockPanel LastChildFill="False" Margin="0,4,0,0">
+                                <TextBlock DockPanel.Dock="Left" Text="会话状态" Style="{StaticResource AppleLabel}"/>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding SecsStateText}" Foreground="{StaticResource TextMutedBrush}"
+                                           FontSize="12" VerticalAlignment="Center"/>
+                            </DockPanel>
+
+                            <DockPanel LastChildFill="True" Margin="0,8,0,0">
+                                <TextBlock DockPanel.Dock="Left" Text="SML 预设" Style="{StaticResource AppleLabel}" Margin="0,0,10,0"/>
+                                <Button DockPanel.Dock="Right" Content="载入" Style="{StaticResource AppleBtnSecondary}" Margin="8,0,0,0"
+                                        Command="{Binding ApplySecsPresetCommand}"/>
+                                <ComboBox ItemsSource="{Binding SecsPresets}"
+                                          SelectedItem="{Binding SelectedSecsPreset, UpdateSourceTrigger=PropertyChanged}"
+                                          BorderThickness="1" BorderBrush="{StaticResource LineBrush}"
+                                          Background="{StaticResource SurfaceBrush}" VerticalAlignment="Center" Padding="6"
+                                          ToolTip="SML（SECS Message Language）常用报文，点「载入」填入发送框后可编辑再发。"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
                     <!-- 调试操作 -->
                     <Border Style="{StaticResource AppleGroupCard}" Padding="12,10">
                         <StackPanel>
@@ -219,10 +321,32 @@
                                         <TextBlock Text="关闭连接" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
+                                <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding RecvCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource SignalIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="接收" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                                 <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding AutoScanCommand}">
                                     <StackPanel Orientation="Horizontal">
                                         <Path Data="{StaticResource SearchIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                         <TextBlock Text="自动扫描端口" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding SecsSelectCommand}"
+                                        Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='SECS(HSMS)'}"
+                                        ToolTip="主动发一条 Select.req 建立 HSMS 会话（被动模式等对方发）。">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource LinkIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="建立会话" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding SecsLinktestCommand}"
+                                        Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='SECS(HSMS)'}"
+                                        ToolTip="发一条 Linktest.req 探活，确认对方还在。">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource SignalIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                                        <TextBlock Text="探活" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource TtDeleteBtn}" Command="{Binding ClearLogCommand}">

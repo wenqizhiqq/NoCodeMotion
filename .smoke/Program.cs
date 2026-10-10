@@ -10,6 +10,7 @@
 // 段 O：视觉流程页结果图 —— 滚轮缩放 / 中键拖拽平移 / 双击复位（ZoomPanBehavior 的光标锚定与 1:1 跟手不变式）。
 // 段 Q：字符识别结果 —— 每行文字画绿框 + 框上方绿字标签（TextOverlayBox 投影 + XAML 叠加层）。
 // 段 R：视觉标定 —— 9 点 XY 仿射 + 5 点旋转圆拟合（合成数据端到端：假轴 + 合成圆斑 → 还原像素当量/方向/旋转中心）。
+// 段 S：真实 SECS/HSMS 通讯 —— E5 数据项编解码 + E37 会话 + 127.0.0.1 回环端到端（Select / S1F1→S1F2 / S6F11 / Separate）。
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,6 +24,8 @@ using NoCodeMotion.Services;
 using NoCodeMotion.Services.Camera;
 using NoCodeMotion.Services.Vision;
 using NoCodeMotion.Services.Vision.Calibration;
+using NoCodeMotion.Services.Hardware.Comm;
+using NoCodeMotion.Services.Hardware.Comm.Secs;
 using NoCodeMotion.ViewModels;
 using NoCodeMotion.Behaviors;
 
@@ -316,6 +319,19 @@ namespace NcmSmoke
                 catch (Exception ex)
                 {
                     Check(false, "GraphGenDialog 构造抛异常：" + ex.GetType().Name + " / "
+                                 + (ex.InnerException?.Message ?? ex.Message));
+                }
+
+                try
+                {
+                    // 通讯页：新加的 SECS/HSMS 参数卡 + 「接收 / 建立会话 / 探活」按钮 + SML 预设下拉
+                    // 都在这里真走一遍 InitializeComponent（build 抓不到 StaticResource 键写错 / 绑定写错）
+                    var cmp = new NoCodeMotion.Views.CommPage();
+                    Check(cmp != null, "CommPage 构造成功（SECS 参数卡 / 端口芯片 / 接收按钮 的 XAML 解析通过）");
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "CommPage 构造抛异常：" + ex.GetType().Name + " / "
                                  + (ex.InnerException?.Message ?? ex.Message));
                 }
             }
@@ -2009,6 +2025,380 @@ namespace NcmSmoke
             catch (Exception ex)
             {
                 Check(false, "视觉标定验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ==================== 段 S：真实 SECS/HSMS 通讯 ====================
+            // 数据项编解码（全 15 种格式二进制往返 + SML 往返 + 长度字段 1/2/3 字节边界）、
+            // 报文头精确字节、控制消息 vs 数据消息判定、CommManager 分派，
+            // 以及 127.0.0.1 上「被动设备端 ↔ 主动主机端」的完整端到端会话
+            // （Select / S1F1→S1F2 自动应答 / S1F13→S1F14 / 未请求 S6F11 / Linktest / Separate / 非法帧长度断开）。
+            Section("段 S：真实 SECS/HSMS 通讯（E5 数据项 + E37 会话 + 127.0.0.1 回环端到端）");
+            try
+            {
+                // ---------- S1 格式码就是 SEMI E5 的 6 位格式码 ----------
+                Check((int)SecsFormat.List == 0 && (int)SecsFormat.Binary == 8 && (int)SecsFormat.Boolean == 9
+                      && (int)SecsFormat.Ascii == 16 && (int)SecsFormat.Jis8 == 17
+                      && (int)SecsFormat.I8 == 24 && (int)SecsFormat.I1 == 25 && (int)SecsFormat.I2 == 26
+                      && (int)SecsFormat.I4 == 28 && (int)SecsFormat.F8 == 32 && (int)SecsFormat.F4 == 36
+                      && (int)SecsFormat.U8 == 40 && (int)SecsFormat.U1 == 41 && (int)SecsFormat.U2 == 42
+                      && (int)SecsFormat.U4 == 44,
+                      "S1  SecsFormat 枚举值就是 SEMI E5 的 6 位格式码（L=0 / A=16 / U4=44）");
+
+                // ---------- S2 首字节 = (格式码 << 2) | 长度字节数 ----------
+                var sA = SecsItem.A("ABC").ToBytes();
+                var sU1 = SecsItem.U1(0x5A).ToBytes();
+                var sL = SecsItem.L(SecsItem.U4(1)).ToBytes();
+                Check(sA.Length == 5 && sA[0] == 0x41 && sA[1] == 3 && sA[2] == (byte)'A' && sA[4] == (byte)'C',
+                      "S2  A「ABC」→ 首字节 0x41（16<<2|1）、长度 3、随后 ASCII 字节");
+                Check(sU1.Length == 3 && sU1[0] == 0xA5 && sU1[1] == 1 && sU1[2] == 0x5A,
+                      "S3  U1 0x5A → 首字节 0xA5（41<<2|1）、长度 1（元素数）");
+                Check(sL.Length == 8 && sL[0] == 0x01 && sL[1] == 1
+                      && sL[2] == 0xB1 && sL[3] == 1 && sL[7] == 1,
+                      "S4  ★ L 的长度字段写「子项个数」1（不是字节数）；内层 U4 首字节 0xB1");
+
+                // ---------- S5 长度字段 1 / 2 / 3 字节边界 ----------
+                var s255 = SecsItem.U1(Enumerable.Range(0, 255).Select(i => (long)i).ToArray()).ToBytes();
+                var s256 = SecsItem.U1(Enumerable.Range(0, 256).Select(i => (long)i).ToArray()).ToBytes();
+                var s65535 = SecsItem.U1(Enumerable.Range(0, 65535).Select(i => (long)i).ToArray()).ToBytes();
+                var s65536 = SecsItem.U1(Enumerable.Range(0, 65536).Select(i => (long)(i & 0xFF)).ToArray()).ToBytes();
+                Check(s255.Length == 2 + 255 && s255[0] == 0xA5 && s255[1] == 0xFF,
+                      "S5  255 个元素 → 1 字节长度字段（0xA5 0xFF）");
+                Check(s256.Length == 3 + 256 && s256[0] == 0xA6 && s256[1] == 0x01 && s256[2] == 0x00,
+                      "S6  256 个元素 → 长度字段涨到 2 字节（0xA6 0x01 0x00）");
+                Check(s65535.Length == 3 + 65535 && s65535[0] == 0xA6 && s65535[1] == 0xFF && s65535[2] == 0xFF,
+                      "S7  65535 个元素 → 仍是 2 字节长度字段（0xA6 0xFF 0xFF）");
+                Check(s65536.Length == 4 + 65536 && s65536[0] == 0xA7 && s65536[1] == 0x01
+                      && s65536[2] == 0x00 && s65536[3] == 0x00,
+                      "S8  65536 个元素 → 长度字段涨到 3 字节（0xA7 0x01 0x00 0x00）");
+                int sPos = 0;
+                var sBig = SecsItem.Decode(s65536, ref sPos, out string sErr);
+                Check(sBig != null && sPos == s65536.Length && sBig.Ints.Count == 65536
+                      && sBig.Ints[255] == 255 && sBig.Ints[256] == 0,
+                      "S9  65536 元素大项二进制往返完整（3 字节长度字段解码正确）");
+                var sBigA = SecsItem.A(new string('x', 300)).ToBytes();
+                Check(sBigA.Length == 3 + 300 && sBigA[0] == 0x42 && sBigA[1] == 0x01 && sBigA[2] == 0x2C,
+                      "S10 A 的长度字段写「字节数」（300 字节 → 0x012C，首字节 0x42）");
+
+                // ---------- S11 全 15 种格式的二进制往返 ----------
+                var sAll = SecsItem.L(
+                    SecsItem.A("START"), SecsItem.Jis("JIS"),
+                    SecsItem.B(0x01, 0xFF), SecsItem.Bool(true, false),
+                    SecsItem.U1(1, 200), SecsItem.U2(300, 40000), SecsItem.U4(70000), SecsItem.U8(5000000000L),
+                    SecsItem.I1(-1, 100), SecsItem.I2(-300), SecsItem.I4(-70000), SecsItem.I8(-5000000000L),
+                    SecsItem.F4(1.5), SecsItem.F8(-2.25),
+                    SecsItem.L());
+                var sAllBytes = sAll.ToBytes();
+                int sPos2 = 0;
+                var sAllBack = SecsItem.Decode(sAllBytes, ref sPos2, out string sErr2);
+                Check(sAllBack != null && sPos2 == sAllBytes.Length,
+                      "S11 全 15 种格式（L/A/JIS8/B/BOOLEAN/I1..I8/U1..U8/F4/F8）编码后能完整解码"
+                      + (sAllBack == null ? "（解码失败：" + sErr2 + "）" : string.Empty));
+                Check(sAllBack != null && sAllBack.ToSmlLine() == sAll.ToSmlLine(),
+                      "S12 ★ 二进制往返后 SML 文本逐字相同（" + sAll.ToSmlLine().Substring(0, Math.Min(70, sAll.ToSmlLine().Length)) + "…）");
+                Check(sAllBack != null && sAllBack.Children.Count == 15 && sAllBack.Children[14].Children.Count == 0,
+                      "S13 列表子项数正确，空列表 <L> 往返不丢");
+
+                // ---------- S14 SML 文本解析与往返 ----------
+                string sSml = "S6F11 W <L <U4 1> <U4 1001> <A LOT01> <L <B 0x01 0x02> <BOOLEAN TRUE FALSE> <F8 1.5>>>";
+                var sMsg = SecsMessage.ParseSml(sSml, 7, out string sErr3);
+                Check(sMsg != null, "S14 SML 解析成功" + (sMsg == null ? "（失败：" + sErr3 + "）" : string.Empty));
+                Check(sMsg != null && sMsg.Stream == 6 && sMsg.Function == 11 && sMsg.WBit && sMsg.DeviceId == 7,
+                      "S15 SML「S6F11 W」→ Stream=6 / Function=11 / W-bit / DeviceId=7");
+                if (sMsg != null)
+                {
+                    var sAgain = SecsMessage.ParseSml(sMsg.ToSmlLine(), 7, out string sErr4);
+                    Check(sAgain != null && sAgain.ToSmlLine() == sMsg.ToSmlLine(),
+                          "S16 ★ SML 文本往返逐字相同（" + sMsg.ToSmlLine() + "）");
+                }
+                Check(SecsMessage.ParseSml("LINKTEST", 0, out _)?.SType == HsmsSType.LinktestReq
+                      && SecsMessage.ParseSml("SELECT", 0, out _)?.SType == HsmsSType.SelectReq
+                      && SecsMessage.ParseSml("SEPARATE", 0, out _)?.SType == HsmsSType.SeparateReq,
+                      "S17 SML 控制关键字 SELECT / LINKTEST / SEPARATE 都能解析");
+                Check(SecsMessage.ParseSml("S1F1 后面不该有东西", 0, out string sErr5) == null && sErr5 != null,
+                      "S18 非法 SML 明确失败并给中文原因（" + sErr5 + "）");
+
+                // ---------- S19 报文头精确字节 ----------
+                var s1f1 = SecsMessage.Data(3, 1, 1, true, 0x11223344);
+                var s1f1F = s1f1.Encode();
+                Check(s1f1F.Length == 10 && s1f1F[0] == 0 && s1f1F[1] == 3
+                      && s1f1F[2] == 0x80 && s1f1F[3] == 1 && s1f1F[4] == 0 && s1f1F[5] == 1
+                      && s1f1F[6] == 0x11 && s1f1F[9] == 0x44,
+                      "S19 S1F1 W 头 10 字节：DeviceID=3 / byte2=0x80(W) / byte3=1(Stream) / byte4=0(PType) / byte5=1(Func) / SystemBytes 大端");
+                var sBack1 = SecsMessage.Decode(s1f1F, 0, s1f1F.Length, out string sErr6);
+                Check(sBack1 != null && sBack1.IsData && sBack1.Stream == 1 && sBack1.Function == 1
+                      && sBack1.WBit && sBack1.SystemBytes == 0x11223344,
+                      "S20 ★ S1F1 W 解码回来仍是「数据消息」（byte5=1 与 Select.req 同值，判定必须看 byte3==0）");
+                var sSel = SecsMessage.Control(HsmsSType.SelectReq, 0, 0x11223344);
+                var sSelF = sSel.Encode();
+                Check(sSelF.Length == 10 && sSelF[0] == 0xFF && sSelF[1] == 0xFF && sSelF[2] == 0
+                      && sSelF[3] == 0 && sSelF[4] == 0 && sSelF[5] == 1,
+                      "S21 Select.req 头：SessionID=0xFFFF / byte2=0 / byte3=0 / byte5=1");
+                var sBack2 = SecsMessage.Decode(sSelF, 0, sSelF.Length, out string sErr7);
+                Check(sBack2 != null && sBack2.IsControl && sBack2.SType == HsmsSType.SelectReq
+                      && sBack2.SessionId == 0xFFFF,
+                      "S22 ★ Select.req 解码回来是「控制消息」（byte3==0 且 byte5 在控制码集合里）");
+                var sBadPtype = (byte[])s1f1F.Clone();
+                sBadPtype[4] = 1;
+                Check(SecsMessage.Decode(sBadPtype, 0, sBadPtype.Length, out string sErr8) == null,
+                      "S23 PType != 0 的帧明确解码失败（" + sErr8 + "）");
+                Check(SecsMessage.Control(HsmsSType.SeparateReq, 0, 1).ReplyType() == null
+                      && SecsMessage.Control(HsmsSType.SelectReq, 0, 1).ReplyType() == HsmsSType.SelectRsp
+                      && SecsMessage.Control(HsmsSType.LinktestReq, 0, 1).ReplyType() == HsmsSType.LinktestRsp,
+                      "S24 ★ Separate.req 没有应答（ReplyType()==null）→ 发送方不能等，否则白等 T6");
+
+                // ---------- S25 CommManager 分派 + 模型默认值 ----------
+                var sCfg = new CommItem { Name = "SECS1", CommType = "SECS(HSMS)", PortOrIp = "127.0.0.1", BaudOrPort = 5000 };
+                using (var sCm = new CommManager())
+                {
+                    var sCh = sCm.Peek(sCfg);
+                    Check(sCh is SecsCommChannel,
+                          "S25 CommType=SECS(HSMS) → SecsCommChannel（★ 不能落到默认 TCP 分支，否则静默失去 SECS 语义）");
+                    Check(sCm.TryPeek(sCfg) != null
+                          && sCm.TryPeek(new CommItem { Name = "没建过", CommType = "SECS(HSMS)" }) == null,
+                          "S26 TryPeek 只取已存在的通道，绝不创建（页面刷状态靠它，避免 S7 的 Create 抛异常）");
+                    bool sThrew = false;
+                    try { sCm.Peek(new CommItem { Name = "S7", CommType = "西门子S7" }); }
+                    catch (NotSupportedException) { sThrew = true; }
+                    Check(sThrew, "S27 西门子S7 仍是明确的「暂未内置协议」，不会被静默当成 TCP");
+                    sCm.Close(sCfg);
+                    Check(sCm.TryPeek(sCfg) == null, "S28 Close() 之后通道从缓存里移除");
+                }
+                var sDef = new CommItem();
+                Check(sDef.SecsRole == "被动" && sDef.SecsDeviceId == 0 && sDef.SecsAutoReply
+                      && sDef.SecsT3Ms == 45000 && sDef.SecsT5Ms == 10000 && sDef.SecsT6Ms == 5000
+                      && sDef.SecsT7Ms == 10000 && sDef.SecsT8Ms == 5000
+                      && sDef.SecsMdln == "NoCodeMotion" && sDef.SecsSoftRev == "1.0.0",
+                      "S29 CommItem 的 10 个 SECS 默认值（T3=45s / T5=10s / T6=5s / T7=10s / T8=5s、自动应答开）");
+                var sRole = new CommItem { SecsRole = "主动" };
+                Check(sRole.SecsRole == "主动", "S30 SecsRole 可读写（「主动」= 主机端）");
+            }
+            catch (Exception ex)
+            {
+                Check(false, "SECS 编解码验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ---------- 回环端到端（本环境不允许监听时只跳过这一段）----------
+            bool sCanListen = false;
+            try
+            {
+                var sProbe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+                sProbe.Start();
+                sProbe.Stop();
+                sCanListen = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("  SKIP  本环境不允许本机监听 TCP，跳过 SECS 回环端到端（" + ex.GetType().Name + "）");
+            }
+
+            if (sCanListen)
+            {
+                HsmsSession? sDev = null;
+                HsmsSession? sHost = null;
+                HsmsSession? sDev2 = null;
+                try
+                {
+                    // ---------- 被动（设备端）监听 0 号端口 → 系统分配 ----------
+                    sDev = new HsmsSession
+                    {
+                        Active = false, Port = 0, DeviceId = 0, AutoReply = true,
+                        Mdln = "NCM-TEST", SoftRev = "9.9.9",
+                        T3Ms = 4000, T5Ms = 300, T6Ms = 4000, T7Ms = 8000, T8Ms = 1000,
+                    };
+                    sDev.Open();
+                    int sPort = sDev.BoundPort;
+                    Check(sPort > 0 && sDev.IsListening, "S31 被动端监听成功，BoundPort = " + sPort);
+
+                    // ---------- 主动（主机端）连上并 Select ----------
+                    sHost = new HsmsSession
+                    {
+                        Active = true, Host = "127.0.0.1", Port = sPort, DeviceId = 1,
+                        T3Ms = 4000, T5Ms = 1000, T6Ms = 4000, T7Ms = 8000, T8Ms = 1000,
+                    };
+                    sHost.Open();
+                    Check(sHost.IsConnected && sHost.IsSelected,
+                          "S32 主动端连上 127.0.0.1:" + sPort + " 并完成 Select（IsSelected = true）");
+                    for (int i = 0; i < 200 && !sDev.IsSelected; i++) System.Threading.Thread.Sleep(10);
+                    Check(sDev.IsSelected, "S33 被动端收到 Select.req 并回 Select.rsp（IsSelected = true）");
+
+                    // ---------- S1F1 → 自动应答 S1F2 ----------
+                    var sRsp2 = sHost.Send(SecsMessage.Data(1, 1, 1, true, SecsMessage.NewSystemBytes()), out string sE2);
+                    Check(sRsp2 != null, "S34 S1F1 W 收到应答" + (sRsp2 == null ? "（失败：" + sE2 + "）" : string.Empty));
+                    Check(sRsp2 != null && sRsp2.Stream == 1 && sRsp2.Function == 2 && !sRsp2.WBit,
+                          "S35 应答是 S1F2（Stream=1 / Function=2 / 无 W-bit）");
+                    Func<SecsItem, string> sTxt = it => (it == null || it.Raw == null) ? string.Empty : System.Text.Encoding.UTF8.GetString(it.Raw);
+                    Check(sRsp2 != null && sRsp2.Root != null && sRsp2.Root.Children.Count == 2
+                          && sRsp2.Root.Children[0].Format == SecsFormat.Ascii
+                          && sRsp2.Root.Children[1].Format == SecsFormat.Ascii,
+                          "S36 S1F2 数据体 = <L <A MDLN> <A SOFTREV>>");
+                    Check(sRsp2 != null && sRsp2.Root != null && sRsp2.Root.Children.Count == 2
+                          && sTxt(sRsp2.Root.Children[0]) == "NCM-TEST"
+                          && sTxt(sRsp2.Root.Children[1]) == "9.9.9",
+                          "S37 MDLN / SOFTREV 就是配置里填的值（NCM-TEST / 9.9.9）");
+
+                    // ---------- S1F13 → S1F14 / S1F15 → S1F16 / S1F17 → S1F18 ----------
+                    var sRsp13 = sHost.Send(SecsMessage.Data(1, 1, 13, true, SecsMessage.NewSystemBytes()), out string sE13);
+                    Check(sRsp13 != null && sRsp13.Stream == 1 && sRsp13.Function == 14
+                          && sRsp13.Root != null && sRsp13.Root.Children.Count == 2
+                          && sRsp13.Root.Children[0].Format == SecsFormat.Binary
+                          && sRsp13.Root.Children[0].Ints.Count == 1 && sRsp13.Root.Children[0].Ints[0] == 0,
+                          "S38 S1F13 → S1F14 <L <B 0(COMMACK)> <L <A MDLN> <A SOFTREV>>>"
+                          + (sRsp13 == null ? "（失败：" + sE13 + "）" : string.Empty));
+                    var sRsp15 = sHost.Send(SecsMessage.Data(1, 1, 15, true, SecsMessage.NewSystemBytes()), out string sE15);
+                    Check(sRsp15 != null && sRsp15.Function == 16 && sRsp15.Root != null
+                          && sRsp15.Root.Format == SecsFormat.Binary,
+                          "S39 S1F15（请求离线）→ S1F16 <B 0(OFFLACK)>" + (sRsp15 == null ? "（失败：" + sE15 + "）" : string.Empty));
+                    var sRsp17 = sHost.Send(SecsMessage.Data(1, 1, 17, true, SecsMessage.NewSystemBytes()), out string sE17);
+                    Check(sRsp17 != null && sRsp17.Function == 18 && sRsp17.Root != null
+                          && sRsp17.Root.Format == SecsFormat.Binary,
+                          "S40 S1F17（请求在线）→ S1F18 <B 0(ONLACK)>" + (sRsp17 == null ? "（失败：" + sE17 + "）" : string.Empty));
+
+                    // ---------- 未请求消息：被动端上报 S6F11，主动端从收件队列取 ----------
+                    var sEv = SecsMessage.Data(0, 6, 11, false, SecsMessage.NewSystemBytes(),
+                                               SecsItem.L(SecsItem.U4(1), SecsItem.U4(1001), SecsItem.A("LOT01")));
+                    var sEvRet = sDev.Send(sEv, out string sE18);
+                    Check(sEvRet == null && sE18 == null, "S41 非 W-bit 消息发完即返回（不等应答、不报错）");
+                    var sGot = sHost.Recv(3000);
+                    Check(sGot != null && sGot.Stream == 6 && sGot.Function == 11,
+                          "S42 主动端从收件队列收到被动端上报的 S6F11（未请求消息）");
+                    Check(sGot != null && sGot.ToSmlLine().Contains("LOT01"),
+                          "S43 S6F11 数据体完整：" + (sGot == null ? "(null)" : sGot.ToSmlLine()));
+                    Check(sHost.Recv(200) == null, "S44 队列取空后再 Recv 超时返回 null（不阻塞、不重复）");
+
+                    // ---------- Linktest 探活 ----------
+                    Check(sHost.Linktest(), "S45 Linktest.req → Linktest.rsp（探活通过）");
+
+                    // ---------- 收发计数 ----------
+                    Check(sHost.SentCount >= 5 && sHost.ReceivedCount >= 2
+                          && sDev.SentCount >= 2 && sDev.ReceivedCount >= 5,
+                          "S46 收发计数非零（主动 sent=" + sHost.SentCount + " recv=" + sHost.ReceivedCount
+                          + "，被动 sent=" + sDev.SentCount + " recv=" + sDev.ReceivedCount + "）");
+
+                    // ---------- Separate.req 无应答：必须立即返回，不能死等 T6 ----------
+                    var sSwSep = System.Diagnostics.Stopwatch.StartNew();
+                    var sSepRet = sHost.Send(SecsMessage.Control(HsmsSType.SeparateReq, 0, SecsMessage.NewSystemBytes()), out string sE19);
+                    sSwSep.Stop();
+                    Check(sSepRet == null && sE19 == null && sSwSep.ElapsedMilliseconds < 1500,
+                          "S47 ★ Separate.req 没有应答，发完立即返回（" + sSwSep.ElapsedMilliseconds
+                          + " ms，不会白等 T6=" + sHost.T6Ms + " ms）");
+                    for (int i = 0; i < 200 && sDev.IsConnected; i++) System.Threading.Thread.Sleep(10);
+                    Check(!sDev.IsConnected, "S48 被动端收到 Separate.req 后主动断开连接");
+
+                    // ---------- 非法帧长度必须断开 ----------
+                    sDev2 = new HsmsSession { Active = false, Port = 0, DeviceId = 0, T7Ms = 8000, T8Ms = 800 };
+                    sDev2.Open();
+                    using (var sRaw = new System.Net.Sockets.TcpClient())
+                    {
+                        sRaw.Connect("127.0.0.1", sDev2.BoundPort);
+                        var sNs = sRaw.GetStream();
+                        for (int i = 0; i < 300 && !sDev2.IsConnected; i++) System.Threading.Thread.Sleep(10);
+                        bool sWasConn = sDev2.IsConnected;
+                        // 声明长度 4（< 10 字节头）→ 非法，必须断开
+                        sNs.Write(new byte[] { 0, 0, 0, 4, 0, 0, 0, 0 }, 0, 8);
+                        sNs.Flush();
+                        for (int i = 0; i < 300 && sDev2.IsConnected; i++) System.Threading.Thread.Sleep(10);
+                        Check(sWasConn && !sDev2.IsConnected,
+                              "S49 ★ 非法帧长度（声明 4 < 头长 10）→ 会话立即断开，绝不把垃圾当报文");
+                        Check(sDev2.LastError.Contains("非法帧长度"),
+                              "S50 断开原因写明「非法帧长度」：" + sDev2.LastError);
+                    }
+
+                    // ---------- Close 幂等 ----------
+                    sHost.Close();
+                    sHost.Close();
+                    Check(!sHost.IsConnected && !sHost.IsSelected, "S51 Close() 幂等，且状态复位（IsConnected / IsSelected 都 false）");
+                    sDev.Close();
+                    Check(!sDev.IsListening && !sDev.IsConnected, "S52 被动端 Close() 后停止监听");
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "SECS 回环端到端抛异常：" + ex.GetType().Name + " / " + ex.Message);
+                }
+                finally
+                {
+                    try { sHost?.Close(); } catch { }
+                    try { sDev?.Close(); } catch { }
+                    try { sDev2?.Close(); } catch { }
+                }
+            }
+
+            // ---------- 通讯页 SECS 参数卡：离屏实例化 + 可见性关系 + 截图 ----------
+            try
+            {
+                var sPage = new NoCodeMotion.Views.CommPage();
+                var sVm = sPage.DataContext as CommViewModel;
+                Check(sVm != null, "S53 CommPage 的 DataContext 是 CommViewModel（XAML 解析通过）");
+                if (sVm != null)
+                {
+                    Check(sVm.CommTypeOptions.Contains("SECS(HSMS)"), "S54 通讯类型下拉含 SECS(HSMS)");
+                    Check(sVm.SecsPresets.Any(p => p == "S1F1 W") && sVm.SecsPresets.Count >= 8,
+                          "S55 SML 预设齐备（" + sVm.SecsPresets.Count + " 条，含 S1F1 W）");
+
+                    // ★ 不往共享集合里加（避免触发自动落盘）；XAML 只绑 SelectedItem.*，独立对象足够
+                    var sItem = new CommItem
+                    {
+                        Name = "SECS1", CommType = "SECS(HSMS)", PortOrIp = "127.0.0.1", BaudOrPort = 5000
+                    };
+                    sVm.SelectedItem = sItem;
+
+                    List<DependencyObject> sWalk(DependencyObject root)
+                    {
+                        var list = new List<DependencyObject>();
+                        var stack = new Stack<DependencyObject>();
+                        stack.Push(root);
+                        int guard = 0;
+                        while (stack.Count > 0 && guard++ < 60000)
+                        {
+                            var cur = stack.Pop();
+                            list.Add(cur);
+                            foreach (var c in Children(cur)) stack.Push(c);
+                        }
+                        return list;
+                    }
+                    System.Windows.Controls.Border? sCardOf(string head)
+                    {
+                        foreach (var tb in sWalk(sPage).OfType<System.Windows.Controls.TextBlock>())
+                        {
+                            if (tb.Text == null || !tb.Text.StartsWith(head, StringComparison.Ordinal)) continue;
+                            for (var cur = VisualTreeHelper.GetParent(tb); cur != null; cur = VisualTreeHelper.GetParent(cur))
+                                if (cur is System.Windows.Controls.Border bb) return bb;
+                        }
+                        return null;
+                    }
+
+                    sPage.Measure(new Size(1240, 900));
+                    sPage.Arrange(new Rect(0, 0, 1240, 900));
+                    sPage.UpdateLayout();
+
+                    var sCard = sCardOf("SECS / HSMS 参数");
+                    Check(sCard != null && sCard.Visibility == Visibility.Visible,
+                          "S56 ★ 选中 SECS(HSMS) 时 SECS 参数卡真的可见（XAML 绑定 + 精确匹配转换器都对）");
+
+                    sItem.CommType = "串口";
+                    sPage.UpdateLayout();
+                    var sCard2 = sCardOf("SECS / HSMS 参数");
+                    Check(sCard2 != null && sCard2.Visibility != Visibility.Visible,
+                          "S57 切回「串口」后 SECS 参数卡收起（与选中时形成对照）");
+
+                    // 截图（切回 SECS 让卡片可见，留一张肉眼证据）
+                    sItem.CommType = "SECS(HSMS)";
+                    sPage.UpdateLayout();
+                    string sOutDir = RepoSmokeOut() ?? Path.Combine(AppContext.BaseDirectory, "out");
+                    Directory.CreateDirectory(sOutDir);
+                    int sw3 = Math.Max(1, (int)Math.Ceiling(sPage.ActualWidth));
+                    int sh3 = Math.Max(1, (int)Math.Ceiling(sPage.ActualHeight));
+                    var sRtb2 = new RenderTargetBitmap(sw3, sh3, 96, 96, PixelFormats.Pbgra32);
+                    sRtb2.Render(sPage);
+                    var sEnc2 = new PngBitmapEncoder();
+                    sEnc2.Frames.Add(BitmapFrame.Create(sRtb2));
+                    string sPng = Path.Combine(sOutDir, "comm_secs_card.png");
+                    using (var sFs2 = File.Create(sPng)) sEnc2.Save(sFs2);
+                    Console.WriteLine("  截图：" + sPng);
+                }
+            }
+            catch (Exception ex)
+            {
+                Check(false, "通讯页 SECS 卡片验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
             }
 
             Console.WriteLine("\n====================  "

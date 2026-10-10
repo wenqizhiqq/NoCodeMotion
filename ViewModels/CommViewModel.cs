@@ -3,11 +3,14 @@
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
+using NoCodeMotion.Services.Hardware.Comm;
+using NoCodeMotion.Services.Hardware.Comm.Secs;
 
 namespace NoCodeMotion.ViewModels
 {
@@ -15,13 +18,20 @@ namespace NoCodeMotion.ViewModels
     /// 通讯页 ViewModel：在原有「连接参数」基础上，扩展出苹果风格的密集参数面板与一组调试操作。
     /// 连接参数（名称/类型/端口IP/波特率/数据位/校验位/停止位/超时）绑定到 CommItem 模型并自动落盘；
     /// 高级调试参数与运行态（连接状态/重试/轮询/缓冲/流控/字节序/日志）为运行时状态，不落盘。
-    /// 调试操作：测试连接（TCP 真实连接探测、串口回环自检）、打开/关闭连接（仿真）、发送回显、自动扫描串口、清空日志。
+    /// 调试操作：测试连接（TCP 真实连接探测）、打开/关闭连接（★ 走真实通道）、发送/接收（★ 真实收发）、
+    /// 自动扫描串口、清空日志。SECS(HSMS) 类型另有「建立会话 / 探活」与一组 SML 报文预设。
+    ///
+    /// ★ 本页收发全部委托给 <see cref="CommManager"/>（与 Lua 的 CommSend / CommRecv 同一条通道实现），
+    ///   不再有「打开连接只改个 bool」「发送只回显」的仿真分支。
     /// </summary>
     public class CommViewModel : ListEditorViewModel<CommItem>, IEnsureDefaultSelection
     {
         // ---------- 药丸选择器数据源（绑定到字符串型模型字段）----------
         public string[] CommTypeOptions { get; } =
-            { "串口", "网口TCP", "网口UDP", "ModbusTCP", "ModbusRTU", "相机网口", "GPIB", "西门子S7", "三菱MC" };
+            { "串口", "网口TCP", "网口UDP", "ModbusTCP", "ModbusRTU", "相机网口", "SECS(HSMS)", "GPIB", "西门子S7", "三菱MC" };
+
+        /// <summary>HSMS 角色：被动 = 设备端监听，主动 = 主机端连对方。</summary>
+        public string[] SecsRoleOptions { get; } = { "被动", "主动" };
         public string[] DataBitsOptions { get; } = { "7", "8" };
         public string[] ParityOptions { get; } = { "无", "奇校验", "偶校验" };
         public string[] StopBitsOptions { get; } = { "1", "1.5", "2" };
@@ -44,6 +54,15 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>调试终端日志（最新在上）。</summary>
         public ObservableCollection<string> DebugLog { get; } = new();
+
+        /// <summary>本页的通道管理器：与 Lua 用同一套 ICommChannel 实现，真实收发。</summary>
+        private readonly CommManager _comm = new CommManager();
+
+        private string _secsStateText = "—";
+        private CommItem? _watched;
+
+        /// <summary>SECS 会话状态文案（监听中 / 已选中 / 未连接）。</summary>
+        public string SecsStateText { get => _secsStateText; private set => SetField(ref _secsStateText, value); }
 
         public bool IsConnected
         {
@@ -104,8 +123,16 @@ namespace NoCodeMotion.ViewModels
         public ICommand SendCommand { get; }
         public ICommand ClearLogCommand { get; }
         public ICommand AutoScanCommand { get; }
+        /// <summary>接收一次（真实 Recv，超时按配置的 TimeoutMs）。</summary>
+        public ICommand RecvCommand { get; }
         /// <summary>命令预设：把常用报文模板一键填入发送框（用户可改后发送）。</summary>
         public ICommand ApplyPresetCommand { get; }
+        /// <summary>SECS 专用：发 Select.req 建立 HSMS 会话。</summary>
+        public ICommand SecsSelectCommand { get; }
+        /// <summary>SECS 专用：发 Linktest.req 探活。</summary>
+        public ICommand SecsLinktestCommand { get; }
+        /// <summary>SECS 专用：把 SML 预设填入发送框。</summary>
+        public ICommand ApplySecsPresetCommand { get; }
 
         /// <summary>常用命令预设模板（Modbus / 心跳 / 查询等），选中「应用预设」即填入发送框。</summary>
         public ObservableCollection<string> CommandPresets { get; } = new()
@@ -128,6 +155,29 @@ namespace NoCodeMotion.ViewModels
             set => SetField(ref _selectedPreset, value);
         }
 
+        /// <summary>SECS SML 报文预设（半导体设备常用对话）。</summary>
+        public ObservableCollection<string> SecsPresets { get; } = new()
+        {
+            "S1F1 W",                                   // 在线查询（对方回 S1F2 机型/版本）
+            "S1F13 W",                                  // 建立通讯请求（对方回 S1F14）
+            "S1F15 W",                                  // 请求离线（对方回 S1F16）
+            "S1F17 W",                                  // 请求在线（对方回 S1F18）
+            "S2F41 W <L <A START> <L>>",                // 远程命令：启动
+            "S2F41 W <L <A STOP> <L>>",                 // 远程命令：停止
+            "S6F11 W <L <U4 1> <U4 1001> <A LOT01>>",   // 事件上报：LOT01 进站
+            "S5F1 W <L <B 1> <U4 1001> <A 报警示例>>",   // 报警上报
+            "LINKTEST",                                 // 探活
+            "SELECT",                                   // 建立 HSMS 会话
+        };
+
+        private string? _selectedSecsPreset;
+        /// <summary>当前选中的 SML 预设。</summary>
+        public string? SelectedSecsPreset
+        {
+            get => _selectedSecsPreset;
+            set => SetField(ref _selectedSecsPreset, value);
+        }
+
         public CommViewModel()
         {
             CatalogCategory = "Comm";
@@ -135,21 +185,100 @@ namespace NoCodeMotion.ViewModels
             Counter = Items.Count;
             AttachAutoSave();
 
+            // ★ 把通道管理器的日志接到本页日志：HSMS 会话在后台线程里跑，这里必须能收到
+            _comm.Log = Log;
+
             TestConnectionCommand = new RelayCommand(_ => _ = TestConnection());
             OpenCommand = new RelayCommand(_ => OpenConnection());
             CloseCommand = new RelayCommand(_ => CloseConnection(), _ => IsConnected);
             SendCommand = new RelayCommand(_ => Send());
+            RecvCommand = new RelayCommand(_ => Recv());
             ClearLogCommand = new RelayCommand(_ => DebugLog.Clear());
             AutoScanCommand = new RelayCommand(_ => AutoScan());
             ApplyPresetCommand = new RelayCommand(_ => ApplyPreset(), _ => !string.IsNullOrEmpty(SelectedPreset));
+            ApplySecsPresetCommand = new RelayCommand(_ => ApplySecsPreset(), _ => !string.IsNullOrEmpty(SelectedSecsPreset));
+            SecsSelectCommand = new RelayCommand(_ => SecsSelect());
+            SecsLinktestCommand = new RelayCommand(_ => SecsLinktest());
+        }
+
+        /// <summary>选中项变了 → 重新盯着它的属性变化，并刷新连接状态。</summary>
+        protected override void OnPropertyChanged(string? propertyName = null)
+        {
+            base.OnPropertyChanged(propertyName);
+            if (propertyName != nameof(SelectedItem)) return;
+            WatchSelected();
+            SyncConnectionState();
+        }
+
+        private void WatchSelected()
+        {
+            if (ReferenceEquals(_watched, SelectedItem)) return;
+            if (_watched != null) _watched.PropertyChanged -= OnWatchedChanged;
+            _watched = SelectedItem;
+            if (_watched != null) _watched.PropertyChanged += OnWatchedChanged;
+        }
+
+        private void OnWatchedChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // 改了通讯类型 / 角色 / 端口，连接状态与 SECS 文案都要跟着变
+            if (e.PropertyName == nameof(CommItem.CommType)
+                || e.PropertyName == nameof(CommItem.PortOrIp)
+                || e.PropertyName == nameof(CommItem.BaudOrPort)
+                || e.PropertyName == nameof(CommItem.SecsRole))
+                SyncConnectionState();
         }
 
         protected override CommItem CreateNewItem() => new CommItem { Name = $"通讯{Counter + 1}" };
 
         private void Log(string line)
         {
-            DebugLog.Insert(0, $"{DateTime.Now:HH:mm:ss}  {line}");
-            while (DebugLog.Count > 300) DebugLog.RemoveAt(DebugLog.Count - 1);
+            // ★ HSMS 会话的读线程会直接回调到这里；ObservableCollection 不允许非 UI 线程改，
+            //   不 marshal 的话「对方一连上来」就会抛 InvalidOperationException。
+            PostToUi(() =>
+            {
+                DebugLog.Insert(0, $"{DateTime.Now:HH:mm:ss}  {line}");
+                while (DebugLog.Count > 300) DebugLog.RemoveAt(DebugLog.Count - 1);
+            });
+        }
+
+        /// <summary>把动作丢回 UI 线程（没有 Application 的冒烟环境就直接执行）。</summary>
+        private static void PostToUi(Action action)
+        {
+            var app = System.Windows.Application.Current;
+            if (app == null || app.Dispatcher.CheckAccess()) action();
+            else app.Dispatcher.BeginInvoke(action);
+        }
+
+        /// <summary>按真实通道刷新「连接状态 / SECS 会话状态」显示。</summary>
+        private void SyncConnectionState()
+        {
+            IsConnected = false;
+            SecsStateText = "—";
+
+            var item = SelectedItem;
+            if (item == null) return;
+
+            // ★ 用 TryPeek（不创建）：Peek 会真去 Create，而 S7 / 三菱MC 的 Create 是抛异常的
+            var ch = _comm.TryPeek(item);
+            if (ch == null) return;
+
+            IsConnected = ch.IsOpen;
+
+            if (ch is SecsCommChannel secs)
+            {
+                if (secs.IsSelected) SecsStateText = "HSMS 已选中（会话已建立）";
+                else if (secs.IsConnected) SecsStateText = "TCP 已连接，等待 Select…";
+                else if (secs.IsListening) SecsStateText = $"监听中 0.0.0.0:{secs.BoundPort}（等对方连入）";
+                else SecsStateText = string.IsNullOrEmpty(secs.LastError) ? "未连接" : "未连接：" + secs.LastError;
+            }
+        }
+
+        /// <summary>当前配置是不是 SECS 类型。</summary>
+        private static bool IsSecs(CommItem item)
+        {
+            string type = item.CommType ?? string.Empty;
+            return type.IndexOf("SECS", StringComparison.OrdinalIgnoreCase) >= 0
+                || type.IndexOf("HSMS", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         // ---------- 测试连接：TCP 类真实探测，串口类回环自检 ----------
@@ -209,26 +338,147 @@ namespace NoCodeMotion.ViewModels
 
         private void OpenConnection()
         {
-            if (SelectedItem == null) { Log("⚠ 未选择通讯项。"); return; }
-            IsConnected = true;
-            Log($"● 已打开连接：{SelectedItem.Name}");
+            var item = SelectedItem;
+            if (item == null) { Log("⚠ 未选择通讯项。"); return; }
+
+            Log($"▶ 打开连接：{item.Name}（{item.CommType} → {item.PortOrIp}:{item.BaudOrPort}）");
+            try
+            {
+                var ch = _comm.Peek(item);
+                ch.Open();
+                if (ch is SecsCommChannel secs)
+                {
+                    if (secs.IsSelected) Log("  ✓ HSMS 会话已建立（Select 完成）。");
+                    else if (secs.IsConnected) Log("  · TCP 已连接，等待对方 Select…");
+                    else if (secs.IsListening) Log($"  · 正在监听 0.0.0.0:{secs.BoundPort}，等对方连入…");
+                }
+                else
+                {
+                    Log("  ✓ 连接已打开。");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"✗ 打开连接失败：{ex.Message}");
+            }
+            SyncConnectionState();
         }
 
         private void CloseConnection()
         {
-            IsConnected = false;
+            var item = SelectedItem;
+            if (item != null) _comm.Close(item);
             Log("○ 已关闭连接。");
+            SyncConnectionState();
         }
 
         private void Send()
         {
-            if (SelectedItem == null) return;
+            var item = SelectedItem;
+            if (item == null) { Log("⚠ 未选择通讯项。"); return; }
             var txt = (SendText ?? string.Empty).Trim();
             if (string.IsNullOrEmpty(txt)) return;
+
             Log($"» 发送：{txt}");
-            if (!IsConnected) Log("  ⚠ 当前未连接，以下为回显仿真。");
-            Log($"« 回应：{txt}");
-            SendText = string.Empty;
+            try
+            {
+                string reply = _comm.SendAndReply(item, txt);
+                if (reply != null) Log($"« 应答：{reply}");
+                else if (IsSecs(item)) Log("  （该报文不需要应答，或等待超时；非请求消息请点「接收」取）");
+                SendText = string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Log($"✗ 发送失败：{ex.Message}");
+            }
+            SyncConnectionState();
+        }
+
+        /// <summary>
+        /// 接收一次（真实 Recv，超时按配置的 TimeoutMs）。
+        /// ★ 放后台线程：Recv 会阻塞到超时（默认 1 秒），在 UI 线程上做会卡界面；
+        ///   日志已由 Log() marshal 回 UI 线程，所以后台线程写日志是安全的。
+        /// </summary>
+        private void Recv()
+        {
+            var item = SelectedItem;
+            if (item == null) { Log("⚠ 未选择通讯项。"); return; }
+
+            int timeout = item.TimeoutMs > 0 ? item.TimeoutMs : 1000;
+            Log($"▶ 接收（等待 ≤{timeout} ms）...");
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    string s = _comm.Recv(item);
+                    Log(string.IsNullOrEmpty(s) ? "« 接收：无数据（超时）" : $"« 接收：{s}");
+                }
+                catch (Exception ex)
+                {
+                    Log($"✗ 接收失败：{ex.Message}");
+                }
+                PostToUi(SyncConnectionState);
+            });
+        }
+
+        /// <summary>把选中的 SML 预设填入发送框。</summary>
+        private void ApplySecsPreset()
+        {
+            if (string.IsNullOrEmpty(SelectedSecsPreset)) return;
+            SendText = SelectedSecsPreset;
+            Log($"▷ 已载入 SECS 预设：{SelectedSecsPreset}（可编辑后点「发送」）");
+        }
+
+        /// <summary>SECS：发 Select.req 建立 HSMS 会话。</summary>
+        private void SecsSelect()
+        {
+            var secs = SecsChannelOf(out string why);
+            if (secs == null) { Log("⚠ " + why); return; }
+            Log("▶ 发送 Select.req …");
+            try
+            {
+                Log(secs.Select() ? "  ✓ 会话已建立（收到 Select.rsp）。" : "  ✗ 失败：" + secs.LastError);
+            }
+            catch (Exception ex)
+            {
+                Log("  ✗ 失败：" + ex.Message);
+            }
+            SyncConnectionState();
+        }
+
+        /// <summary>SECS：发 Linktest.req 探活。</summary>
+        private void SecsLinktest()
+        {
+            var secs = SecsChannelOf(out string why);
+            if (secs == null) { Log("⚠ " + why); return; }
+            Log("▶ 发送 Linktest.req …");
+            try
+            {
+                Log(secs.Linktest() ? "  ✓ 对方有应答，链路正常。" : "  ✗ 无应答：" + secs.LastError);
+            }
+            catch (Exception ex)
+            {
+                Log("  ✗ 失败：" + ex.Message);
+            }
+            SyncConnectionState();
+        }
+
+        /// <summary>取当前选中项的 SECS 通道（不是 SECS / 创建失败都给出中文原因）。</summary>
+        private SecsCommChannel? SecsChannelOf(out string why)
+        {
+            why = string.Empty;
+            var item = SelectedItem;
+            if (item == null) { why = "未选择通讯项。"; return null; }
+            if (!IsSecs(item)) { why = "当前通讯类型不是 SECS，请先在「通讯类型」里选 SECS(HSMS)。"; return null; }
+            try
+            {
+                return _comm.Peek(item) as SecsCommChannel;
+            }
+            catch (Exception ex)
+            {
+                why = "打开 SECS 通道失败：" + ex.Message;
+                return null;
+            }
         }
 
         /// <summary>把选中的命令预设填入发送框（不立即发送，便于修改后手动发送）。</summary>
@@ -262,6 +512,8 @@ namespace NoCodeMotion.ViewModels
         {
             if (SelectedItem == null && Items.Count > 0)
                 SelectedItem = Items[0];
+            WatchSelected();
+            SyncConnectionState();
         }
     }
 }

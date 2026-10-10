@@ -19,6 +19,7 @@ namespace NoCodeMotion.Services.Hardware.Comm
     ///   网口UDP           → UdpCommChannel
     ///   ModbusRTU         → ModbusCommChannel（串口）
     ///   ModbusTCP         → ModbusCommChannel（网口）
+    ///   SECS(HSMS)        → SecsCommChannel（半导体 SECS/GEM：SEMI E37 会话 + E5 报文）
     ///   西门子S7 / 三菱MC → 暂未内置专用协议，给出中文提示（可后续扩展）
     /// </summary>
     public sealed class CommManager : IDisposable
@@ -43,6 +44,46 @@ namespace NoCodeMotion.Services.Hardware.Comm
             return ch.Recv();
         }
 
+        /// <summary>
+        /// 发送并取回「立即应答」的文本：
+        ///   SECS 通道 → W-bit 报文配到的应答（如 S1F1 的 S1F2），不需要应答 / 超时返回 null；
+        ///   其它通道 → 按普通发送处理，返回 null。
+        /// 页面与 Lua 都用它把应答显示出来（普通 Send 是 void，拿不到应答）。
+        /// </summary>
+        public string SendAndReply(CommItem cfg, string data)
+        {
+            var ch = GetOrCreate(cfg);
+            if (ch is SecsCommChannel secs) return secs.SendAndReply(data);
+            ch.Send(data);
+            return null;
+        }
+
+        /// <summary>取通道（不存在则按配置创建，但不会 Open）。页面用它读 IsOpen / 监听端口 / 最近错误。</summary>
+        public ICommChannel Peek(CommItem cfg) => cfg == null ? null : GetOrCreate(cfg);
+
+        /// <summary>
+        /// 取「已存在」的通道，不创建。★ 页面刷新状态必须用它：
+        ///   Peek 会真的去 Create，而「西门子S7 / 三菱MC」的 Create 是直接抛 NotSupportedException 的，
+        ///   拿 Peek 刷状态会让「选中一条 S7 配置」当场抛异常。
+        /// </summary>
+        public ICommChannel TryPeek(CommItem cfg)
+        {
+            if (cfg == null) return null;
+            _channels.TryGetValue(ChannelKey(cfg), out var ch);
+            return ch;
+        }
+
+        /// <summary>关闭并移除某条配置对应的通道（页面点「关闭连接」，或配置改了要重建）。</summary>
+        public void Close(CommItem cfg)
+        {
+            if (cfg == null) return;
+            if (_channels.TryRemove(ChannelKey(cfg), out var ch))
+            {
+                try { ch.Dispose(); } catch { }
+                Log?.Invoke($"[通讯] 关闭通道 {cfg.Name}");
+            }
+        }
+
         /// <summary>获取或创建通道（按名称 + 类型指纹缓存，配置变了会重建）。</summary>
         private ICommChannel GetOrCreate(CommItem cfg)
         {
@@ -50,17 +91,25 @@ namespace NoCodeMotion.Services.Hardware.Comm
             return _channels.GetOrAdd(key, _ =>
             {
                 var ch = Create(cfg);
+                // ★ SECS 会话在后台线程里跑，它的日志必须接到同一个出口，否则页面/Lua 看不到收发
+                if (ch is SecsCommChannel secs) secs.Log = Log;
                 Log?.Invoke($"[通讯] 打开通道 {cfg.Name}（{cfg.CommType} → {cfg.PortOrIp}:{cfg.BaudOrPort}）");
                 return ch;
             });
         }
 
         private static string ChannelKey(CommItem cfg) =>
-            $"{cfg.Name}|{cfg.CommType}|{cfg.PortOrIp}|{cfg.BaudOrPort}|{cfg.DataBits}|{cfg.Parity}|{cfg.StopBits}";
+            $"{cfg.Name}|{cfg.CommType}|{cfg.PortOrIp}|{cfg.BaudOrPort}|{cfg.DataBits}|{cfg.Parity}|{cfg.StopBits}"
+            + $"|{cfg.SecsRole}|{cfg.SecsDeviceId}";
 
         private static ICommChannel Create(CommItem cfg)
         {
             string type = (cfg.CommType ?? string.Empty).Trim();
+
+            // ★ SECS/HSMS 必须最先判断：它的类型串里没有 TCP 字样，
+            //   落到最后会被默认分支当成普通 TcpCommChannel（不报错，但完全没有 SECS 语义）。
+            if (Contains(type, "SECS", "HSMS", "E37", "E5"))
+                return new SecsCommChannel(cfg);
 
             if (Contains(type, "ModbusRTU", "Modbus RTU", "MODBUSRTU"))
                 return new ModbusCommChannel(cfg, isTcp: false);

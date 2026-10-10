@@ -1505,6 +1505,211 @@ if _mb27 is not None:
           and "public bool HasReal { get; set; }" in _m27
           and 'public string RealText => HasReal ? $"({RealX:F2}, {RealY:F2}) mm" : "未标定";' in _m27)
 
+# ---------------------------------------------------------------------
+section("G28  真实 SECS/HSMS 通讯（SEMI E37 会话 + E5 报文；防「假收发」回归）")
+# ---------------------------------------------------------------------
+_SECS28 = r"Services\Hardware\Comm\Secs"
+_si28 = read(_SECS28 + r"\SecsItem.cs")
+_sm28 = read(_SECS28 + r"\SecsMessage.cs")
+_hs28 = read(_SECS28 + r"\HsmsSession.cs")
+_sc28 = read(_SECS28 + r"\SecsCommChannel.cs")
+_cm28 = read(r"Services\Hardware\Comm\CommManager.cs")
+_ci28 = read(r"Models\CommItem.cs")
+_cv28 = read(r"ViewModels\CommViewModel.cs")
+_cx28 = read(r"Views\CommPage.xaml")
+_ax28 = read(r"Services\AiProjectExchange.cs")
+
+_pairs28 = (("SecsItem.cs", _si28), ("SecsMessage.cs", _sm28),
+            ("HsmsSession.cs", _hs28), ("SecsCommChannel.cs", _sc28))
+_miss28 = [n for n, v in _pairs28 if v is None]
+check("G28.1 四个 SECS 新文件都在（SecsItem / SecsMessage / HsmsSession / SecsCommChannel）",
+      not _miss28, "缺失：" + ", ".join(_miss28))
+_ph28 = [n for n, v in _pairs28 if v is not None and ("@@HDR@@" in v or "@@FTR@@" in v)]
+check("G28.2 新文件都已封页眉页脚水印（没有 @@HDR@@ / @@FTR@@ 占位符残留）",
+      not _ph28, "仍有占位符：" + ", ".join(_ph28))
+
+# ---- 数据项编解码 ----
+_FMT28 = {"List": 0, "Binary": 8, "Boolean": 9, "Ascii": 16, "Jis8": 17,
+          "I8": 24, "I1": 25, "I2": 26, "I4": 28,
+          "F8": 32, "F4": 36, "U8": 40, "U1": 41, "U2": 42, "U4": 44}
+if _si28 is None:
+    check("G28.3 SecsFormat 枚举值 == SEMI E5 的 6 位格式码", False, "文件缺失")
+else:
+    _b28 = [k for k, v in _FMT28.items() if ("%s = %d," % (k, v)) not in _si28]
+    check("G28.3 SecsFormat 枚举值 == SEMI E5 的 6 位格式码（15 个，含 L=0 / A=16 / U4=44）",
+          not _b28, "缺失或值不对：" + ", ".join(_b28))
+    check("G28.4 数据项首字节 = (格式码 << 2) | 长度字节数",
+          "outp.Add((byte)(((int)Format << 2) | lenBytes));" in _si28)
+    check("G28.5 长度字段语义：L 写子项数、A/JIS8 写字节数、其余写元素数",
+          "case SecsFormat.List: return Children.Count;" in _si28
+          and "case SecsFormat.Jis8: return Raw == null ? 0 : Raw.Length;" in _si28)
+    check("G28.6 ★ 静态工厂叫 Numbers / Floats（叫 Ints / Reals 会和同名实例属性撞 CS0102）",
+          "public static SecsItem Numbers(SecsFormat format, params long[] values)" in _si28
+          and "public static SecsItem Floats(SecsFormat format, params double[] values)" in _si28
+          and "public static SecsItem Ints(" not in _si28
+          and "public static SecsItem Reals(" not in _si28)
+    check("G28.7 SML 往返：ToSml / ParseSml 都在，空列表写 <>",
+          "public string ToSml()" in _si28
+          and "public static SecsItem ParseSml(string text, ref int pos, out string error)" in _si28
+          and 'return "<L>";' in _si28)
+
+# ---- 报文头编解码 ----
+_ST28 = {"DataMessage": 0, "SelectReq": 1, "SelectRsp": 2, "DeselectReq": 3, "DeselectRsp": 4,
+         "LinktestReq": 5, "LinktestRsp": 6, "RejectReq": 7, "SeparateReq": 9}
+if _sm28 is None:
+    check("G28.8 HsmsSType 控制码 == E37 取值", False, "文件缺失")
+else:
+    _b28 = [k for k, v in _ST28.items() if ("%s = %d," % (k, v)) not in _sm28]
+    check("G28.8 HsmsSType 控制码 == E37 取值（Separate.req=9；★ 没有 Separate.rsp / 没有 8）",
+          not _b28 and "SeparateRsp" not in _sm28, "缺失：" + ", ".join(_b28))
+    check("G28.9 头 10 字节：byte2=W-bit(0x80)/状态，byte3=Stream，byte4=PType 0，byte5=Function/SType",
+          "public const int HeaderLength = 10;" in _sm28
+          and "frame[2] = IsData ? (byte)(WBit ? 0x80 : 0x00) : Status;" in _sm28
+          and "frame[3] = IsData ? Stream : (byte)0;" in _sm28
+          and "frame[4] = 0;" in _sm28
+          and "frame[5] = IsData ? Function : (byte)SType;" in _sm28)
+    check("G28.10 ★ 控制消息判定必须同时要求 Stream(byte3)==0（只看 byte5 会把 S1F1 当成 Select.req）",
+          "bool isControl = hb3 == 0 && Array.IndexOf(ControlTypes, maybe) >= 0;" in _sm28)
+    check("G28.11 控制消息会话号固定 0xFFFF（数据消息才用 DeviceID）",
+          "public const ushort ControlSessionId = 0xFFFF;" in _sm28)
+    check("G28.12 SML 解析认控制关键字（SELECT / DESELECT / LINKTEST / SEPARATE）",
+          'case "SELECT": return HsmsSType.SelectReq;' in _sm28
+          and 'case "SEPARATE": return HsmsSType.SeparateReq;' in _sm28)
+
+# ---- HSMS 会话层 ----
+if _hs28 is None:
+    check("G28.13 HSMS 会话层齐备", False, "文件缺失")
+else:
+    check("G28.13 会话层：主动/被动两角色 + T3/T5/T6/T7/T8 超时齐备",
+          "public bool Active { get; set; }" in _hs28
+          and "public int T3Ms { get; set; } = 45000;" in _hs28
+          and "public int T5Ms { get; set; } = 10000;" in _hs28
+          and "public int T6Ms { get; set; } = 5000;" in _hs28
+          and "public int T7Ms { get; set; } = 10000;" in _hs28
+          and "public int T8Ms { get; set; } = 5000;" in _hs28)
+    check("G28.14 会话层：Select / Linktest 就地处理 + 自动应答 S1F1→S1F2、S1F13→S1F14、S1F15→S1F16、S1F17→S1F18",
+          "case HsmsSType.SelectReq:" in _hs28
+          and "case HsmsSType.LinktestReq:" in _hs28
+          and "return SecsMessage.Data(DeviceId, 1, 2, false, msg.SystemBytes, body);" in _hs28
+          and "return SecsMessage.Data(DeviceId, 1, 14, false, msg.SystemBytes," in _hs28
+          and "if (msg.Function == 15) return SecsMessage.Data(DeviceId, 1, 16, false, msg.SystemBytes, SecsItem.B(0));" in _hs28
+          and "if (msg.Function == 17) return SecsMessage.Data(DeviceId, 1, 18, false, msg.SystemBytes, SecsItem.B(0));" in _hs28)
+    check("G28.15 ★ 无应答的控制消息不能等（Separate.req / Reject.req 没有应答，要用 ReplyType() 判断）",
+          "bool waitReply = msg.IsData ? msg.WBit : msg.ReplyType().HasValue;" in _hs28
+          and "bool waitReply = msg.IsControl || msg.WBit;" not in _hs28)
+    check("G28.16 ★ 通讯会话线程不碰 HardwareBridge.WaitGuard（通讯与运动互不阻塞）",
+          "HardwareBridge.WaitGuard" not in _hs28)
+    check("G28.17 单帧长度上限 + 非法长度立即断开（防畸形长度字段吃内存）",
+          "public const int MaxFrameLength = 16 * 1024 * 1024;" in _hs28
+          and "if (len < SecsMessage.HeaderLength || len > MaxFrameLength)" in _hs28)
+    check("G28.18 被动模式暴露实际监听端口（BaudOrPort 填 0 时由系统分配，测试/显示都靠它）",
+          "public int BoundPort { get; private set; }" in _hs28
+          and "BoundPort = ((IPEndPoint)listener.LocalEndpoint).Port;" in _hs28)
+
+# ---- SECS 通道 ----
+if _sc28 is None:
+    check("G28.19 SECS 通道齐备", False, "文件缺失")
+else:
+    check("G28.19 SECS 通道实现 ICommChannel：Send 收 SML、Recv 出单行 SML",
+          "public sealed class SecsCommChannel : ICommChannel" in _sc28
+          and "SecsMessage.ParseSml(data.Trim()" in _sc28
+          and "return m == null ? string.Empty : m.ToSmlLine();" in _sc28)
+    check("G28.20 ★ W-bit 应答会被会话层按 SystemBytes 吃掉，通道必须额外给 SendAndReply 把应答交回调用方",
+          "public string SendAndReply(string data)" in _sc28
+          and "return reply == null ? null : reply.ToSmlLine();" in _sc28)
+
+# ---- CommManager 接线 ----
+if _cm28 is None:
+    check("G28.21 CommManager 接线", False, "文件缺失")
+else:
+    _c28 = _cm28.replace("\r\n", "\n")
+    _i_secs = _c28.find('if (Contains(type, "SECS", "HSMS", "E37", "E5"))')
+    _i_modbus = _c28.find('if (Contains(type, "ModbusRTU"')
+    _i_def = _c28.find("// 默认按 TCP 处理")
+    check("G28.21 ★ SECS 分支必须在 Modbus / 默认 TCP 之前（落到最后会被当普通 TCP，静默失去 SECS 语义）",
+          0 <= _i_secs < _i_modbus < _i_def,
+          "secs=%d modbus=%d default=%d" % (_i_secs, _i_modbus, _i_def))
+    check("G28.22 CommManager 提供 SendAndReply / Peek / TryPeek / Close",
+          "public string SendAndReply(CommItem cfg, string data)" in _c28
+          and "public ICommChannel Peek(CommItem cfg)" in _c28
+          and "public ICommChannel TryPeek(CommItem cfg)" in _c28
+          and "public void Close(CommItem cfg)" in _c28)
+    check("G28.23 ★ 页面刷状态必须用 TryPeek（Peek 会真 Create，而 S7/三菱MC 的 Create 直接抛异常）",
+          "★ 页面刷新状态必须用它" in _c28)
+    check("G28.24 SECS 会话日志接到同一出口（后台线程的收发，页面 / Lua 要看得到）",
+          "if (ch is SecsCommChannel secs) secs.Log = Log;" in _c28)
+    check("G28.25 通道指纹含 SECS 角色 / DeviceID（改了要重建通道，不能复用旧连接）",
+          '+ $"|{cfg.SecsRole}|{cfg.SecsDeviceId}";' in _c28)
+
+# ---- 模型参数 ----
+if _ci28 is None:
+    check("G28.26 CommItem 的 SECS 标量参数", False, "文件缺失")
+else:
+    _need28 = ["SecsRole", "SecsDeviceId", "SecsT3Ms", "SecsT5Ms", "SecsT6Ms",
+               "SecsT7Ms", "SecsT8Ms", "SecsAutoReply", "SecsMdln", "SecsSoftRev"]
+    _b28 = [n for n in _need28 if n not in _ci28]
+    check("G28.26 CommItem 有 10 个 SECS 标量属性（反射导出会自动带进 xlsx「通讯」表）",
+          not _b28, "缺失：" + ", ".join(_b28))
+    check("G28.27 类型注释补了 SECS(HSMS)（下拉候选外的值渲染空白）",
+          "SECS(HSMS)" in _ci28)
+
+# ---- 通讯页 VM ----
+if _cv28 is None:
+    check("G28.28 通讯页 VM 接真收发", False, "文件缺失")
+else:
+    check("G28.28 通讯类型下拉含 SECS(HSMS)",
+          '"SECS(HSMS)"' in _cv28)
+    check("G28.29 ★ 不再有「打开连接只改个 bool」「发送只回显」的假实现",
+          "回显仿真" not in _cv28
+          and "« 回应：" not in _cv28
+          and "IsConnected = true;" not in _cv28)
+    check("G28.30 打开 / 发送 / 接收 / 关闭 都走 CommManager（与 Lua 同一条真实通道）",
+          "_comm.Peek(item)" in _cv28
+          and "_comm.SendAndReply(item, txt)" in _cv28
+          and "_comm.Recv(item)" in _cv28
+          and "_comm.Close(item)" in _cv28)
+    check("G28.31 ★ 日志必须 marshal 回 UI 线程（HSMS 读线程直接回调，ObservableCollection 跨线程会抛）",
+          "private static void PostToUi(Action action)" in _cv28
+          and "app.Dispatcher.BeginInvoke(action);" in _cv28
+          and "PostToUi(() =>" in _cv28)
+    check("G28.32 SECS 会话操作齐备：建立会话 / 探活 / SML 预设",
+          "SecsSelectCommand" in _cv28 and "SecsLinktestCommand" in _cv28
+          and "ApplySecsPresetCommand" in _cv28
+          and "public ObservableCollection<string> SecsPresets" in _cv28)
+
+# ---- 通讯页 XAML ----
+if _cx28 is None:
+    check("G28.33 通讯页 XAML", False, "文件缺失")
+else:
+    _x28 = _cx28.replace("\r\n", "\n")
+    _i_p = _x28.find("ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口")
+    _j_p = _x28.find("'", _i_p + len("ConverterParameter='"))
+    _param28 = _x28[_i_p + len("ConverterParameter='"):_j_p] if _i_p >= 0 else ""
+    check("G28.33 ★ 端口/IP 芯片的 ConverterParameter 必须含 SECS(HSMS)（转换器是精确匹配，漏了永远不显示）",
+          "SECS(HSMS)" in _param28, "实际参数=%r" % _param28)
+    check("G28.34 SECS 参数卡 + 建立会话 / 探活 / 接收 按钮 + 会话状态回显",
+          'Text="SECS / HSMS 参数（SEMI E37 会话 + E5 报文）"' in _x28
+          and 'Text="建立会话"' in _x28
+          and 'Text="探活"' in _x28
+          and 'Text="接收"' in _x28
+          and 'Text="{Binding SecsStateText}"' in _x28)
+    _n28 = _x28.count("SECS(HSMS)")
+    check("G28.35 SECS(HSMS) 在页面里出现 ≥5 处（端口/IP + 端口号 + 参数卡 + 两个按钮）",
+          _n28 >= 5, "count=%d" % _n28)
+
+# ---- AI 工程交换 ----
+if _ax28 is None:
+    check("G28.36 AI 工程交换带 SECS 字段", False, "文件缺失")
+else:
+    _a28 = _ax28.replace("\r\n", "\n")
+    check("G28.36 AI 工程交换：通讯项带 SECS 字段（角色 / DeviceID / T3..T8 / 自动应答 / MDLN / SOFTREV）",
+          "SecsRole = Str(e," in _a28 and "SecsDeviceId = IntDef(e," in _a28
+          and "SecsT3Ms = IntDef(e," in _a28 and "SecsT8Ms = IntDef(e," in _a28
+          and "SecsAutoReply = BoolDef(e," in _a28
+          and "SecsMdln = Str(e," in _a28 and "SecsSoftRev = Str(e," in _a28)
+    check("G28.37 AI 工程交换：新增 BoolDef 助手（认 JSON 布尔，也认 1/0 与 true/false/是/否）",
+          "private static bool BoolDef(JsonElement e, bool def, params string[] aliases)" in _a28)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")
