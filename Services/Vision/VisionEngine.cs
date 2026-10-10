@@ -11,6 +11,7 @@ using GrayMatch;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 using NoCodeMotion.Services.Camera;
+using NoCodeMotion.Services.Vision.Calibration;
 
 namespace NoCodeMotion.Services.Vision
 {
@@ -53,6 +54,15 @@ namespace NoCodeMotion.Services.Vision
         public string Mode { get; set; } = "";
         public string Template { get; set; } = "";
 
+        /// <summary>真实位置 X（机台 mm）。当前相机已有可用标定时由标定换算填入，否则为 NaN。</summary>
+        public double RealX { get; set; } = double.NaN;
+        /// <summary>真实位置 Y（机台 mm）。未标定时为 NaN。</summary>
+        public double RealY { get; set; } = double.NaN;
+        /// <summary>是否已换算成真实位置（当前相机已有可用标定）。</summary>
+        public bool HasReal { get; set; }
+        /// <summary>真实位置显示文本："(X.XX, Y.YY) mm" 或 "未标定"。</summary>
+        public string RealText => HasReal ? $"({RealX:F2}, {RealY:F2}) mm" : "未标定";
+
         /// <summary>相似度 0~1。</summary>
         public double Similarity => Score;
 
@@ -85,6 +95,12 @@ namespace NoCodeMotion.Services.Vision
         /// 不在引擎里烧轴对齐框，避免 angle≠0 时框方向错。
         /// </summary>
         public List<MatchBox> Matches { get; } = new();
+
+        /// <summary>
+        /// 字符识别的逐行文字框（源图像素坐标，含识别文字与通过标志）。
+        /// 与 Matches 分开收集：结果图上由 WPF 矢量叠加层画绿色矩形 + 绿字标签。
+        /// </summary>
+        public List<TextBoxItem> TextBoxes { get; } = new();
     }
 
     /// <summary>
@@ -103,6 +119,7 @@ namespace NoCodeMotion.Services.Vision
             bool usedSynthetic = false;
             int tplX = 0, tplY = 0, tplW = 0, tplH = 0; // 合成测试图里的“目标”矩形（用于无模板文件时自动取模板）
             var featurePts = new List<(double X, double Y, string Tag)>();
+            string acquireCameraName = "";   // 最近一次「图像采集」用的相机名（模板匹配按它查标定）
 
             // 运行前清空每步上次结果（steps 与主流程 Steps 是同批引用，直接回写对象）
             foreach (var s in steps)
@@ -139,6 +156,8 @@ namespace NoCodeMotion.Services.Vision
                                     display?.Dispose();
                                     display = cur?.Clone();  // 采集后建立与 cur 同步的注释画布（采集失败 → cur 为 null，后续步骤报「请先执行图像采集」）
                                     featurePts.Clear();
+                                    // 记住本次采集用的相机名：后面「模板匹配」要按它查标定，换算真实位置
+                                    acquireCameraName = CameraNameOf(ResolveCameraIndex(s.CameraId));
                                     break;
                                 }
                             case "图像预处理":
@@ -149,7 +168,7 @@ namespace NoCodeMotion.Services.Vision
                                 break;
                             case "模板匹配":
                                 if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
-                                cur = RunMatch(s, cur, usedSynthetic, tplX, tplY, tplW, tplH, featurePts, report, progress, display);
+                                cur = RunMatch(s, cur, usedSynthetic, tplX, tplY, tplW, tplH, featurePts, report, progress, display, acquireCameraName);
                                 break;
                             case "缺陷检测":
                                 if (cur == null) { AddFail(report, s, "请先执行图像采集"); break; }
@@ -166,10 +185,19 @@ namespace NoCodeMotion.Services.Vision
                             case "通讯":
                                 RunComm(s, report, progress);
                                 break;
+                            case "标定":
+                                RunCalibration(s, report, progress);
+                                break;
                             default:
                                 report.Results.Add(new VisionStepResult { StepName = s.Name, Type = s.StepType, Ok = false, Summary = "未知步骤类型，已跳过" });
                                 break;
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // 暂停 / 停止 / 急停：必须原样冒泡给流程运行器，绝不能被当成「步骤失败」吞掉。
+                        // 「标定」步骤会驱动真实轴走 9+5 个点，吞掉 = 操作员按了停止轴还在动。
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -184,6 +212,10 @@ namespace NoCodeMotion.Services.Vision
                         s.LastResult = r.Summary;
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;   // 停止 / 急停：同样必须冒泡，不能包装成「引擎异常」
             }
             catch (Exception ex)
             {
@@ -382,6 +414,14 @@ namespace NoCodeMotion.Services.Vision
             return 0;
         }
 
+        /// <summary>把相机索引解析成工程里的相机名（越界或工程未载入返回空串）。</summary>
+        public static string CameraNameOf(int cameraIndex)
+        {
+            var cams = ProjectStore.Data?.Cameras;
+            if (cams == null || cameraIndex < 0 || cameraIndex >= cams.Count) return "";
+            return (cams[cameraIndex]?.Name ?? "").Trim();
+        }
+
         // 无可用来源时生成测试图（含明矩形目标，供模板匹配/测量演示），并回写 usedSynthetic / 目标矩形
         private static Cv.Mat SyntheticFallback(VisualFlowStep s, ref bool usedSynthetic,
             ref int tplX, ref int tplY, ref int tplW, ref int tplH, VisionReport report, IProgress<string>? progress, string note)
@@ -402,7 +442,7 @@ namespace NoCodeMotion.Services.Vision
         // ============ 模板匹配（OpenCV matchTemplate + 角度扫描） ============
         private static Cv.Mat RunMatch(VisualFlowStep s, Cv.Mat cur, bool usedSynthetic,
             int tplX, int tplY, int tplW, int tplH, List<(double X, double Y, string Tag)> featurePts,
-            VisionReport report, IProgress<string>? progress, Cv.Mat? display = null)
+            VisionReport report, IProgress<string>? progress, Cv.Mat? display = null, string acquireCameraName = "")
         {
             Cv.Mat? tpl = null;
             string tsrc = "";
@@ -437,6 +477,13 @@ namespace NoCodeMotion.Services.Vision
             // ===== 改用 GrayMatch.Wpf 的旋转不变 NCC 匹配核心（RotatedTemplateMatcher） =====
             // 源图与模板都转单通道灰度喂给 native NCC；轮廓匹配模式复用 UseContour 开关。
             string mode = (s.MatchMode ?? "灰度匹配").Trim();
+
+            // 标定（若有）：优先用最近一次「图像采集」的相机，其次用本步骤自己填的相机。
+            // 命中则把匹配框中心按匹配角度绕标定旋转中心旋转后仿射到机台 mm，作为「真实位置」。
+            string calibCam = string.IsNullOrWhiteSpace(acquireCameraName)
+                ? CameraNameOf(ResolveCameraIndex(s.CameraId))
+                : acquireCameraName;
+            CameraCalibration? calib = CalibrationStore.FindUsable(calibCam);
             using var sGray = new Cv.Mat();
             Cv.Cv2.CvtColor(cur, sGray, Cv.ColorConversionCodes.BGRA2GRAY);
             using var tGray = new Cv.Mat();
@@ -474,7 +521,7 @@ namespace NoCodeMotion.Services.Vision
                 // 收全部 top-N 结果到 report.Matches（供 WPF 叠加层画旋转框；不再只取 [0]）
                 foreach (var r in results)
                 {
-                    report.Matches.Add(new MatchBox
+                    var box = new MatchBox
                     {
                         LeftTopX = r.LeftTopX,
                         LeftTopY = r.LeftTopY,
@@ -484,7 +531,18 @@ namespace NoCodeMotion.Services.Vision
                         Score = r.Score,
                         Scale = r.Scale,
                         Pass = r.Score >= thr
-                    });
+                    };
+                    if (calib != null && r.TemplateWidth > 0 && r.TemplateHeight > 0)
+                    {
+                        // 模板框中心 → 绕标定旋转中心按匹配角度旋转 → 仿射 → 机台 mm
+                        calib.ImageToMachineRotated(r.LeftTopX + r.TemplateWidth / 2.0,
+                                                    r.LeftTopY + r.TemplateHeight / 2.0,
+                                                    r.Angle, out double rx, out double ry);
+                        box.RealX = rx;
+                        box.RealY = ry;
+                        box.HasReal = true;
+                    }
+                    report.Matches.Add(box);
                 }
                 if (results.Count > 0)
                 {
@@ -520,6 +578,17 @@ namespace NoCodeMotion.Services.Vision
                 Template = tsrc
             };
 
+            // 已标定 → 最佳匹配也给出机台 mm 真实位置（供流程 / 通讯 / 变量直接使用）
+            string realNote = "";
+            if (calib != null && tw > 0 && th > 0)
+            {
+                calib.ImageToMachineRotated(bx + tw / 2.0, by + th / 2.0, bangle, out double mx, out double my);
+                report.Match.RealX = mx;
+                report.Match.RealY = my;
+                report.Match.HasReal = true;
+                realNote = $"　真实位置 ({mx:F2}, {my:F2}) mm";
+            }
+
             tpl.Dispose();
 
             report.Results.Add(new VisionStepResult
@@ -530,11 +599,172 @@ namespace NoCodeMotion.Services.Vision
                 Value = best,
                 Count = report.Matches.Count,
                 Summary = pass
-                    ? $"[{mode}] 匹配成功 分数 {best:F3} @ ({bx},{by}) 角度 {bangle:F0}°　模板={tsrc}"
-                    : $"[{mode}] 未达阈值（{s.ScoreThreshold:F2}）分数 {best:F3} @ ({bx},{by})　模板={tsrc}"
+                    ? $"[{mode}] 匹配成功 分数 {best:F3} @ ({bx},{by}) 角度 {bangle:F0}°　模板={tsrc}{realNote}"
+                    : $"[{mode}] 未达阈值（{s.ScoreThreshold:F2}）分数 {best:F3} @ ({bx},{by})　模板={tsrc}{realNote}"
             });
             progress?.Report($"模板匹配：分数 {best:F3}");
             return cur;
+        }
+
+        // ============ 标定（9 点 XY 仿射 + 5 点旋转圆拟合） ============
+
+        /// <summary>
+        /// 执行「标定」步骤：程序自动走 9 点（3×3）与 5 点旋转，每点取真实相机图 → 找标记质心 →
+        /// 与轴读回值配对 → 最小二乘求仿射（像素 → 机台 mm）与旋转中心，结果写入
+        /// ProjectData.Calibrations（xlsx「标定」表）；后续「模板匹配」按它输出机台 mm 真实位置。
+        ///
+        /// 标定必须真实取像：相机不可用一律明确失败，**不回退合成图** ——
+        /// 否则会悄悄标出一堆垃圾参数，比直接报错危险得多。
+        /// </summary>
+        private static void RunCalibration(VisualFlowStep s, VisionReport report, IProgress<string>? progress)
+        {
+            int camIdx = ResolveCameraIndex(s.CameraId);
+            string camName = CameraNameOf(camIdx);
+            if (camName.Length == 0) camName = (s.CameraId ?? "").Trim();
+
+            var bridge = HardwareBridge.Current;
+            if (bridge is StubHardwareBridge)
+            {
+                AddFail(report, s, "当前是仿真桩硬件（未连接真实控制卡），标定会驱动真实轴，已中止");
+                return;
+            }
+
+            var axes = ProjectStore.Data?.Axes;
+            AxisItem? FindAxis(string? name)
+            {
+                var n = (name ?? "").Trim();
+                if (n.Length == 0 || axes == null) return null;
+                foreach (var a in axes)
+                    if (a != null && string.Equals((a.Name ?? "").Trim(), n, StringComparison.OrdinalIgnoreCase)) return a;
+                return null;
+            }
+
+            string mode = (s.CalibMode ?? "XY+旋转").Trim();
+            var opt = new CalibrationRunOptions
+            {
+                XAxisName = (s.CalibXAxis ?? "").Trim(),
+                YAxisName = (s.CalibYAxis ?? "").Trim(),
+                RotationAxisName = (s.CalibRotAxis ?? "").Trim(),
+                PitchMm = s.CalibPitchMm > 0 ? s.CalibPitchMm : 10.0,
+                RotationStepDeg = s.CalibRotationStepDeg > 0 ? s.CalibRotationStepDeg : 20.0,
+                RotationCount = Math.Max(3, s.CalibRotationCount),
+                Speed = s.CalibSpeed,
+                SettleMs = Math.Max(0, s.CalibSettleMs),
+                DoNinePoint = mode != "仅旋转",
+                DoRotation = mode != "仅XY",
+                Detect = new MarkerDetectOptions
+                {
+                    Threshold = (int)Clamp(s.CalibThreshold, 0, 255),
+                    DarkMarker = s.CalibDarkMarker,
+                    MinArea = Math.Max(1, s.CalibMinArea),
+                    MaxArea = Math.Max(Math.Max(1, s.CalibMinArea) + 1, s.CalibMaxArea)
+                }
+            };
+
+            // 轴名必须能在工程里找到：找不到就直接失败，绝不「拿轴 0 顶上」——那会撞机
+            var axX = FindAxis(opt.XAxisName);
+            var axY = FindAxis(opt.YAxisName);
+            var axR = FindAxis(opt.RotationAxisName);
+            if (opt.DoNinePoint && (axX == null || axY == null))
+            {
+                AddFail(report, s, $"标定的 X/Y 轴名在工程里找不到（X=「{opt.XAxisName}」 Y=「{opt.YAxisName}」），请先在参数卡里选轴");
+                return;
+            }
+            if (opt.DoRotation && axR == null)
+            {
+                AddFail(report, s, $"标定的旋转轴名在工程里找不到（旋转轴=「{opt.RotationAxisName}」），请先在参数卡里选轴");
+                return;
+            }
+
+            // 标定前使能：真实轴上电后未使能是动不了的；已使能再调一次无副作用
+            foreach (var a in new[] { axX, axY, axR })
+            {
+                if (a == null) continue;
+                try { bridge.EnableAxis(a); }
+                catch (Exception ex) { Debug.WriteLine($"[VisionEngine] 标定前使能「{a.Name}」失败：{ex.Message}"); }
+            }
+
+            var runner = new CalibrationRunner
+            {
+                ReadAxisPosition = name => { var a = FindAxis(name); return a == null ? 0 : bridge.ReadAxisPosition(a); },
+                MoveAxisAbs = (name, pos) =>
+                {
+                    var a = FindAxis(name);
+                    if (a == null) throw new InvalidOperationException($"轴「{name}」不存在");
+                    bridge.MoveAxisAbs(a, pos);
+                },
+                // 直接用桥的阻塞等待：它内部按 ≤50ms 轮询 WaitGuard，天然响应暂停/停止，也有自己的超时
+                IsAxisDone = name => { var a = FindAxis(name); if (a != null) bridge.WaitAxisDone(a); return true; },
+                SetAxisSpeed = (name, sp) => { var a = FindAxis(name); if (a != null) bridge.SetAxisSpeed(a, sp); },
+                // 标定必须真实取像：TryGrabRealCamera 失败就返回空帧让执行器明确报错，不回退合成图
+                GrabFrame = () =>
+                {
+                    var real = TryGrabRealCamera(camIdx, out int gw, out int gh, out _);
+                    return real == null ? ((byte[]?)null, 0, 0) : (real, gw, gh);
+                },
+                Guard = () => HardwareBridge.WaitGuard?.Invoke(),
+                Log = m => progress?.Report(m)
+            };
+
+            var res = runner.Run(opt);
+
+            // 结果落工程（一台相机一条）：模板匹配随后据此输出机台 mm 真实位置
+            if (camName.Length > 0)
+            {
+                var rec = res.ToRecord(camName);
+                CalibrationStore.Upsert(rec);
+                // 导出为工程变量（标定_像素当量 / 标定_旋转中心X …），供流程步骤与通讯直接引用
+                int nVar = CalibVarExport.Export(rec);
+                if (nVar > 0) progress?.Report($"标定结果已导出 {nVar} 个变量（{CalibVarExport.VarPixelEquivalent} …）");
+                ProjectStore.ScheduleSave();
+            }
+
+            s.CalibResultText = BuildCalibText(res, camName);
+
+            report.Results.Add(new VisionStepResult
+            {
+                StepName = s.Name,
+                Type = "标定",
+                Ok = res.Ok,
+                Value = res.Affine?.PixelEquivalentU ?? 0,
+                Count = res.NinePoints.Count,
+                Summary = res.Ok
+                    ? $"标定成功（相机「{camName}」）：{res.Message}"
+                    : $"标定失败：{res.Message}"
+            });
+            progress?.Report(res.Ok ? "标定完成" : "标定失败：" + res.Message);
+        }
+
+        /// <summary>标定结果多行回显文本（视觉流程参数卡里显示）。</summary>
+        private static string BuildCalibText(CalibrationRunResult res, string camName)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append(res.Ok ? "标定成功" : "标定失败");
+            if (!string.IsNullOrEmpty(camName)) sb.Append("（相机：").Append(camName).Append('）');
+            sb.AppendLine();
+            if (res.Affine != null && res.Affine.Ok)
+            {
+                sb.Append("像素当量：").Append(CalibSolver.Fmt(res.Affine.PixelEquivalentU)).Append(" mm/px（X 向）")
+                  .Append(" / ").Append(CalibSolver.Fmt(res.Affine.PixelEquivalentV)).Append(" mm/px（Y 向）").AppendLine();
+                sb.Append("方向角：X ").Append(CalibSolver.Fmt(res.Affine.AngleXDeg)).Append("° / Y ")
+                  .Append(CalibSolver.Fmt(res.Affine.AngleYDeg)).Append("°").AppendLine();
+                sb.Append("仿射残差 RMS：").Append(CalibSolver.Fmt(res.Affine.RmsMm)).Append(" mm").AppendLine();
+            }
+            if (res.Circle != null && res.Circle.Ok)
+            {
+                sb.Append("旋转中心：(").Append(CalibSolver.Fmt(res.Circle.CenterU)).Append(", ")
+                  .Append(CalibSolver.Fmt(res.Circle.CenterV)).Append(") px，半径 ")
+                  .Append(CalibSolver.Fmt(res.Circle.RadiusPx)).Append(" px，残差 ")
+                  .Append(CalibSolver.Fmt(res.Circle.RmsPx)).Append(" px").AppendLine();
+            }
+            if (res.Affine != null && res.Affine.Ok && res.Circle != null && res.Circle.Ok)
+            {
+                res.Affine.Map(res.Circle.CenterU, res.Circle.CenterV, out double mx, out double my);
+                sb.Append("旋转中心（机台 mm）：(").Append(CalibSolver.Fmt(mx)).Append(", ")
+                  .Append(CalibSolver.Fmt(my)).Append(')').AppendLine();
+            }
+            if (!res.Ok) sb.Append("原因：").Append(res.Message).AppendLine();
+            return sb.ToString().TrimEnd();
         }
 
         // ============ 缺陷检测（OpenCV 阈值 + 轮廓连通域） ============
@@ -862,6 +1092,37 @@ namespace NoCodeMotion.Services.Vision
                 var dst = display ?? cur;
                 if (hasRoi)
                     Cv.Cv2.Rectangle(dst, new Cv.Rect(rx, ry, rw, rh), pass ? Rgb(30, 170, 80) : Rgb(220, 40, 40), 2);
+
+                // 逐行文字 → 绿色叠加框（结果图由 WPF 矢量叠加层绘制，单独收集，不并入 report.Matches，
+                // 避免污染模板匹配的「共找到 N 个目标」统计）。
+                // OcrWord.BoundingRect 是「OCR 输入位图」的像素坐标：有 ROI 时输入是 ROI 裁剪图，
+                // 必须加回 ROI 原点 (rx,ry) 才是整图坐标（无 ROI 时 rx=ry=0，加不加都一样）。
+                if (ocr?.Lines != null)
+                {
+                    foreach (var line in ocr.Lines)
+                    {
+                        int bx = int.MaxValue, by = int.MaxValue, ex = int.MinValue, ey = int.MinValue;
+                        foreach (var word in line.Words)
+                        {
+                            var br = word.BoundingRect;
+                            if (br.Width <= 0 || br.Height <= 0) continue;
+                            bx = Math.Min(bx, (int)Math.Floor(br.X));
+                            by = Math.Min(by, (int)Math.Floor(br.Y));
+                            ex = Math.Max(ex, (int)Math.Ceiling(br.X + br.Width));
+                            ey = Math.Max(ey, (int)Math.Ceiling(br.Y + br.Height));
+                        }
+                        if (bx == int.MaxValue) continue;   // 该行没有有效词框
+                        report.TextBoxes.Add(new TextBoxItem
+                        {
+                            Left = bx + rx,
+                            Top = by + ry,
+                            Width = Math.Max(1, ex - bx),
+                            Height = Math.Max(1, ey - by),
+                            Text = (line.Text ?? "").Trim(),
+                            Pass = pass
+                        });
+                    }
+                }
 
                 report.Results.Add(new VisionStepResult
                 {

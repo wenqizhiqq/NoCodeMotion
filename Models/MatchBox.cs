@@ -23,6 +23,16 @@ namespace NoCodeMotion.Models
         public double Scale { get; set; } = 1.0;
         /// <summary>是否达到阈值（决定绿框/红框）。</summary>
         public bool Pass { get; set; }
+
+        /// <summary>真实位置 X（机台 mm）。当前相机已有可用标定时由标定结果换算填入，否则为 NaN。</summary>
+        public double RealX { get; set; } = double.NaN;
+        /// <summary>真实位置 Y（机台 mm）。未标定时为 NaN。</summary>
+        public double RealY { get; set; } = double.NaN;
+        /// <summary>是否带真实位置（当前相机已有可用标定）。</summary>
+        public bool HasReal { get; set; }
+
+        /// <summary>真实位置显示文本："(X.XX, Y.YY) mm" 或 "未标定"。</summary>
+        public string RealText => HasReal ? $"({RealX:F2}, {RealY:F2}) mm" : "未标定";
     }
 
     /// <summary>
@@ -67,6 +77,52 @@ namespace NoCodeMotion.Models
                 OriginalAngle = mb.Angle,
                 Score = mb.Score,
                 Pass = mb.Pass
+            };
+        }
+    }
+
+    /// <summary>
+    /// 字符识别（OCR）结果在源图像素坐标系下的框（供结果图 WPF 矢量叠加层绘制绿色矩形 + 识别文字标签）。
+    /// 与 MatchBox 分开：MatchBox 带角度/相似度语义（模板匹配专用），且 VisionReport.Matches 还被
+    /// 「共找到 N 个目标」这类文案消费 —— 把 OCR 框混进去会污染匹配统计。
+    /// </summary>
+    public sealed class TextBoxItem
+    {
+        public int Left { get; set; }
+        public int Top { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+        /// <summary>该行识别到的文字。</summary>
+        public string Text { get; set; } = "";
+        /// <summary>该行所在步骤是否通过（决定绿框/红框）。</summary>
+        public bool Pass { get; set; }
+    }
+
+    /// <summary>
+    /// 字符识别叠加层用的屏幕坐标框。把 TextBoxItem 按当前 ImageHost 的 Stretch=Uniform
+    /// 缩放/居中映射为屏幕坐标，叠加层直接用 Canvas.Left/Top/Width/Height 定位（与 OverlayBox 同思路，
+    /// 彻底避开 PropertyChanged / 布局时序 race）。
+    /// </summary>
+    public sealed class TextOverlayBox
+    {
+        public double ScreenLeft { get; set; }
+        public double ScreenTop { get; set; }
+        public double ScreenWidth { get; set; }
+        public double ScreenHeight { get; set; }
+        public string Text { get; set; } = "";
+        public bool Pass { get; set; }
+
+        /// <summary>给定一个源图像素 TextBoxItem，按 scale/offset 投影到屏幕坐标。</summary>
+        public static TextOverlayBox Project(TextBoxItem tb, double scale, double offsetX, double offsetY)
+        {
+            return new TextOverlayBox
+            {
+                ScreenLeft = tb.Left * scale + offsetX,
+                ScreenTop = tb.Top * scale + offsetY,
+                ScreenWidth = tb.Width * scale,
+                ScreenHeight = tb.Height * scale,
+                Text = tb.Text,
+                Pass = tb.Pass
             };
         }
     }

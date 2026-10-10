@@ -1,6 +1,6 @@
 # NoCodeMotion 视觉子系统笔记（MEMORY.md 的补充）
-> 由 `MEMORY.md` 拆出。覆盖：视觉流程步骤、OCR 字符识别、图像采集「来源」、结果图缩放/平移。
-> 触发场景：改 `Views/VisualFlowPage.*` / `VisualFlowDetailViewModel` / `Models/VisualFlowStep.cs` / `Services/Vision/**`，或调相机取像。
+> 由 `MEMORY.md` 拆出。覆盖：视觉流程步骤、OCR 字符识别、图像采集「来源」、结果图缩放/平移、**标定（9 点 XY + 5 点旋转）**。
+> 触发场景：改 `Views/VisualFlowPage.*` / `VisualFlowDetailViewModel` / `Models/VisualFlowStep.cs` / `Models/CameraCalibration.cs` / `Services/Vision/**`（含 `Calibration/`），或调相机取像。
 > 逐日原始推导见同目录日志。
 
 ## 一、视觉流程步骤（四处同改）
@@ -41,3 +41,29 @@
   - ★ **模板匹配**：不在 Mat 上烧框，改由 WPF 叠加层 `MatchOverlay` 画**旋转绿/红框 + 相似度/角度文字**（绿=通过、红=不通过），按 `Stretch=Uniform` 投影到屏幕坐标（`ProjectOverlayBoxes`）。
   - `Rgb(r,g,b)` 是 **RGB→OpenCV BGR** 的助手（`new Cv.Scalar(b,g,r)`），传 RGB 分量即可。
   - 守卫 **G25.7** 钉这条（缺陷=绿、测量无残留蓝、OCR 的 NG 仍红）。
+
+## 六、字符识别结果叠加（每行文字绿框 + 框上方绿字标签）
+- 需求：**「为什么字符识别没有显示图像的匹配情况」** → 要像模板匹配那样把识别结果画到图上。
+- ★ **根因是「从来没实现」而不是坏了**：图上的「匹配情况」叠加层数据源是**单线**的 `VisionReport.Matches → VM.MatchResults → ProjectOverlayBoxes() → XAML MatchOverlay`，而 `report.Matches` **全工程只有模板匹配 `RunMatch` 一处写入**。`RunOcr` 原来只做两件事：① 在注释画布上画**一个** ROI 矩形（且**只有框选了 ROI 才画**）② 往 `report.Results` 加一条文字结果 → 图上自然什么都没有。
+- ★ **OCR 的框数据源是 `OcrLine.Words[].BoundingRect`**（`Windows.Foundation.Rect`，**是「OCR 输入位图」的像素坐标**）。有 ROI 时输入是 ROI 裁剪图 → **必须加回 ROI 原点** `Left = bx + rx, Top = by + ry`，否则框整体偏左上。
+- ★ **单独收集，不并入 `report.Matches`**：`Matches` 还被「共找到 N 个目标」文案和 `MatchResult`（best）消费，混入 OCR 框会污染匹配统计。新增 `VisionReport.TextBoxes`（`TextBoxItem`：Left/Top/W/H/Text/Pass）→ VM `OcrTextBoxes` → `TextOverlayBoxes`（`TextOverlayBox.Project` 按同一 scale/offset 投影）→ XAML 第二个 `Canvas x:Name="TextOverlay"`。
+- ★ **两类叠加层共用一次投影**：`ProjectOverlayBoxes()` 里 `anyMatch || anyText` 都要投影，各自用**同一个** `scale/offset`，才能保证文字框、匹配框与源图三者相对位置严格一致。
+- ★ **走向量叠加层而不是 OpenCV `PutText`**：`PutText` 只有 Hershey 字体、**中文会变 `???`**；WPF TextBlock 能正常渲染中文，且随 `ImageHost` 的缩放/平移一起走。
+- 颜色：绿 `Lime`（不通过 → `#DC2626` 框 / `#FF6B6B` 字），与 `MatchOverlay` 保持一致的观感。文字标签贴在框上沿外侧 `Canvas.Top="-20"`。
+- 守卫 G26.1–G26.6 钉这六环；冒烟段 Q 断言投影数学 + 真 `new VisualFlowPage()` 找 `TextOverlay` + 塞 2 个框后**渲染出 2 个 Rectangle 与 2 条文字** + 离屏截图 `.smoke/out/ocr_overlay.png`。
+
+## 七、标定（9 点 XY 仿射 + 5 点旋转圆拟合）→ 模板匹配输出机台真实位置
+- 需求：**「xy的9点+旋转的5点标定，确定旋转中心和xy方向和像素当量，方便模板匹配之后的计算真实位置」**。工具形式 = 与「图像采集」同级的视觉步骤类型 `标定`（调色板里本来就有外壳）。
+- 新增文件（都在 `Services/Vision/Calibration/`）：`CalibSolver.cs`（纯 C# 数学）、`MarkerDetector.cs`（纯托管质心检测）、`CalibrationRunner.cs`（自动走点执行器）、`CalibrationStore.cs`（工程仓库）、`CalibVarExport.cs`（导出变量）；模型 `Models/CameraCalibration.cs`（工程级、一台相机一条）。
+- ★ **数学约定**：`X = A1·u + A2·v + A3`、`Y = B1·u + B2·v + B3`；**像素当量 = √(A1²+B1²)** mm/px（+u 向），+v 向 = √(A2²+B2²)；**X 方向角 = atan2(B1,A1)**、Y 方向角 = atan2(B2,A2)（度）。**轴向对齐时 Y 方向角是 90° 不是 0°**（别按直觉写断言）。旋转中心 = 5 点 (θ,u,v) 的 **Kåsa 圆拟合**（图像 px），再经仿射换算成机台 mm。
+- ★ **求解器/检测器刻意不依赖 OpenCV**：`dotnet exec` 下 `opencv_world480.dll` 不在搜索路径，标定是最需要「可离线断言」的一环 → 纯托管实现（亮度 `(r*299+g*587+b*114)/1000` + 4 连通域栈式标记 + 裂纹周长求圆度）。冒烟因此能端到端跑完整流程。
+- ★ **执行器硬件/采集全走注入委托**（`ReadAxisPosition`/`MoveAxisAbs`/`IsAxisDone`/`SetAxisSpeed`/`GrabFrame`/`Guard`/`Log`）：既避开 `Services.Vision → Services` 耦合，也让冒烟用**合成圆斑 + 假轴**跑真流程（合成图里画圆 → 质心已知 → 断言像素当量/方向角/旋转中心都被还原）。
+- ★ **标定是「真驱动轴」的危险动作，三条硬约束**：① `HardwareBridge.Current is StubHardwareBridge` → 直接 `AddFail` 中止（仿真桩下会假装成功）；② 轴名必须能在 `ProjectStore.Data.Axes` 里按名找到，**找不到就失败，绝不「拿轴 0 顶上」**（会撞机）；③ `GrabFrame` 走 `TryGrabRealCamera`，**取不到就返回空帧让执行器明确报错，不回退合成图**（合成图会悄悄产出垃圾标定参数）。
+- ★ **停止必须冒泡**：`CalibrationRunner` 里所有 `catch (OperationCanceledException)` 一律 `throw`（3 处），`VisionEngine.Run` 也补了 `catch (OperationCanceledException) { throw; }`。吞掉的话按「停止」后轴会**继续走完 14 个点**。可中断等待 `Sleep` 每 ≤50ms 轮询 `Guard`。
+- ★ **模板匹配输出真实位置**：`RunMatch` 新增 `acquireCameraName` 形参（由「图像采集」分支记下，避免匹配步自己再解析相机名），`CalibrationStore.FindUsable(cam)` 取标定 → 每个 `MatchBox` 与 best `MatchOutcome` 用 `CameraCalibration.ImageToMachineRotated(cx, cy, angle, out x, out y)`。**先在图像空间绕标定出的旋转中心旋转、再走仿射**（匹配出的模板自带角度，直接走仿射会丢旋转量；仿射线性部分是相似变换时与「先换算 mm 再绕机台旋转中心转」等价）。未标定时 `RealText = "未标定"`（`HasReal=false`，不假装有值）。
+- ★ **落盘两处**：① `ProjectData.Calibrations` → `XlsxProjectStore` 的 `SheetNameOverrides["Calibrations"]="标定"` 工作表（`CameraCalibration` 字段**全是标量**，点集序列化成 `"u,v;u,v"` / `"θ,u,v;…"` 字符串，才能走反射导出）；② 「流程」表新增 **14 个标定列**（导出与回填一一对应）。
+- ★ **顺手修了一个静默 bug**：OCR 字段（`OcrLanguage`/`OcrExpectedText`/`OcrMatchMode`/`OcrIgnoreCase`/`OcrRoi*`）此前只在 AI 交换 JSON 里往返，**xlsx 流程表里根本没有这些列** → 保存再打开会静默丢 OCR 配置。已补 8 列。
+- ★ **变量导出名一律用 `_` 不用 `-`**（`标定_像素当量` / `标定_旋转中心U` …）：表达式求值器把 `-` 当减运算符，名字带减号一进表达式就被拆成减法。`CalibVarExport.EnsureCell` 走「同名复用 → 空槽复用 → 新开一行」，因为 `SimRuntime.WriteVarRow` **只改不建**。
+- 界面：`VisualFlowPage.xaml` 标定参数卡（绑 `IsCalibration`）—— 标定方式（XY+旋转/仅XY/仅旋转）、相机（可编辑下拉，标定按相机名存）、X/Y/旋转轴（可编辑下拉 `CalibAxisNames`）、9 点间距 / 旋转步距 / 旋转点数 / 稳定延时 / 标记阈值 / 标记最小·最大面积 / 暗标记、`CalibCurrentText` 回显已有标定、`CalibResultText` 回显本次结果。
+- 守卫 **G27.1–G27.29** 钉以上全部；冒烟**段 R**（45 条）：解析点集精确恢复（含 30° 旋转、Y 向 90°/60°）、点数不足/共线明确失败、圆拟合精确恢复、合成圆斑质心、假轴端到端 9 点与 5 点、一次跑完 9+5 → 工程记录 → 真实位置换算（0°/90°/180° 与不动点）、失败路径（没轴名/无图/缺回调）、停止冒泡、仓库往返 + 7 个变量 + 表达式里引用、真 `new VisualFlowPage()` 验卡片可见性（选中 vs 切走对照），离屏截图 `.smoke/out/calibration_card.png`。
+- ★ 另一个易漂移点：`XlsxProjectStore` 的合并页图例字符串 `Add("流程（N列）", …)` 手写列数 → 加了守卫 **G27.26** 拿 `BuildFlowSheet` 的真实 `dt.Columns.Add` 数量与图例里的 N 对比（这次加 22 列就把图例从 51 改到 74）。

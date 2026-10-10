@@ -960,6 +960,19 @@ namespace NoCodeMotion.Services
                             sb.Append(", \"识别框\": ").Append(J($"{s.OcrRoiX},{s.OcrRoiY},{s.OcrRoiW},{s.OcrRoiH}"));
                         break;
 
+                    case "标定":
+                        sb.Append(", \"标定方式\": ").Append(J(s.CalibMode));
+                        sb.Append(", \"X轴\": ").Append(J(s.CalibXAxis));
+                        sb.Append(", \"Y轴\": ").Append(J(s.CalibYAxis));
+                        sb.Append(", \"旋转轴\": ").Append(J(s.CalibRotAxis));
+                        sb.Append(", \"间距mm\": ").Append(JN(s.CalibPitchMm));
+                        sb.Append(", \"旋转步距\": ").Append(JN(s.CalibRotationStepDeg));
+                        sb.Append(", \"旋转点数\": ").Append(JN(s.CalibRotationCount));
+                        sb.Append(", \"稳定延时ms\": ").Append(JN(s.CalibSettleMs));
+                        sb.Append(", \"标记阈值\": ").Append(JN(s.CalibThreshold));
+                        sb.Append(", \"暗标记\": ").Append(s.CalibDarkMarker ? "true" : "false");
+                        break;
+
                     case "通讯":
                         sb.Append(", \"协议\": ").Append(J(s.Protocol));
                         sb.Append(", \"目标\": ").Append(J(s.Target));
@@ -1710,6 +1723,19 @@ namespace NoCodeMotion.Services
                     }
                 }
 
+                st.CalibMode = Str(s, "标定方式", "calibMode") ?? st.CalibMode;
+                st.CalibXAxis = Str(s, "X轴", "标定X轴", "calibXAxis") ?? st.CalibXAxis;
+                st.CalibYAxis = Str(s, "Y轴", "标定Y轴", "calibYAxis") ?? st.CalibYAxis;
+                st.CalibRotAxis = Str(s, "旋转轴", "标定旋转轴", "calibRotAxis") ?? st.CalibRotAxis;
+                st.CalibPitchMm = DblDef(s, st.CalibPitchMm, "间距mm", "标定间距", "calibPitchMm");
+                st.CalibRotationStepDeg = DblDef(s, st.CalibRotationStepDeg, "旋转步距", "calibRotationStepDeg");
+                st.CalibRotationCount = IntDef(s, st.CalibRotationCount, "旋转点数", "calibRotationCount");
+                st.CalibSpeed = DblDef(s, st.CalibSpeed, "标定速度", "calibSpeed");
+                st.CalibSettleMs = IntDef(s, st.CalibSettleMs, "稳定延时ms", "calibSettleMs");
+                st.CalibThreshold = IntDef(s, st.CalibThreshold, "标记阈值", "calibThreshold");
+                var calibDark = Str(s, "暗标记", "calibDarkMarker");
+                if (calibDark != null) st.CalibDarkMarker = calibDark == "true" || calibDark == "1";
+
                 f.VisualSteps.Add(st);
             }
         }
@@ -1730,6 +1756,8 @@ namespace NoCodeMotion.Services
         private static string NormalizeStepType(string? t)
         {
             if (string.IsNullOrWhiteSpace(t)) return "图像采集";
+            // ★ 标定必须排在「相机 → 图像采集」之前：AI 常写「相机标定」，先命中「相机」就变图像采集了
+            if (t.Contains("标定") || t.Contains("Calib") || t.Contains("calib")) return "标定";
             if (t.Contains("采集") || t.Contains("拍照") || t.Contains("相机")) return "图像采集";
             if (t.Contains("匹配") || t.Contains("定位") || t.Contains("Match")) return "模板匹配";
             if (t.Contains("预处理") || t.Contains("滤波") || t.Contains("增强")) return "图像预处理";

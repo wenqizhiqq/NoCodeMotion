@@ -24,6 +24,13 @@
             <sys:String>通讯</sys:String>
         </x:Array>
 
+        <!-- 标定方式 -->
+        <x:Array x:Key="CalibModes" Type="sys:String">
+            <sys:String>XY+旋转</sys:String>
+            <sys:String>仅XY</sys:String>
+            <sys:String>仅旋转</sys:String>
+        </x:Array>
+
         <!-- 图像采集来源 -->
         <x:Array x:Key="SourceTypes" Type="sys:String">
             <sys:String>相机</sys:String>
@@ -329,6 +336,61 @@
                                                             <Run Text="角度 "/>
                                                             <Run Text="{Binding Mode=OneWay, Path=OriginalAngle, StringFormat={}{0:F0}}"/>
                                                             <Run Text="°"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </Canvas>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Canvas>
+                                <!-- 字符识别结果叠加层：每行识别到的文字画绿框（不通过=红框），框上方用绿字标出识别内容。
+                                     与 MatchOverlay 同思路：TextOverlayBox 已在 code-behind 按 Stretch=Uniform 投影为屏幕坐标，
+                                     子元素用 Canvas.Left/Top/Width/Height 直接定位。 -->
+                                <Canvas x:Name="TextOverlay" IsHitTestVisible="False"
+                                        Visibility="{Binding HasTextOverlayBoxes, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl ItemsSource="{Binding TextOverlayBoxes}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas IsItemsHost="True"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding ScreenLeft}"/>
+                                                <Setter Property="Canvas.Top" Value="{Binding ScreenTop}"/>
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Canvas>
+                                                    <Rectangle Width="{Binding ScreenWidth}" Height="{Binding ScreenHeight}"
+                                                               Fill="Transparent">
+                                                        <Rectangle.Style>
+                                                            <Style TargetType="Rectangle">
+                                                                <Setter Property="Stroke" Value="Lime"/>
+                                                                <Setter Property="StrokeThickness" Value="2"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Pass}" Value="False">
+                                                                        <Setter Property="Stroke" Value="#DC2626"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Rectangle.Style>
+                                                    </Rectangle>
+                                                    <!-- 识别到的文字：紧贴框上沿外侧（绿字，Pass=False 切红） -->
+                                                    <Border Canvas.Left="-2" Canvas.Top="-20" Background="#CC000000" CornerRadius="3" Padding="4,1"
+                                                            IsHitTestVisible="False">
+                                                        <TextBlock Text="{Binding Text}" FontSize="11" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="Lime"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Pass}" Value="False">
+                                                                            <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
                                                         </TextBlock>
                                                     </Border>
                                                 </Canvas>
@@ -719,6 +781,107 @@
                                                Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
                                                Text="{Binding SelectedStep.OcrRoiText}"/>
                                 </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 标定（9 点 XY + 5 点旋转） -->
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                            Visibility="{Binding IsCalibration, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="标定参数"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"
+                                       Text="程序自动走点标定：9 点 XY 铺成 3×3 网格，每点取图找标记质心，最小二乘拟合「像素 → 机台 mm」仿射（得出像素当量与 X/Y 方向角）；旋转按步距绕旋转轴走 5 个角度，圆拟合求旋转中心。结果存进工程「标定」表并导出为变量（标定_像素当量 等），模板匹配随后即可输出机台真实位置。注意：标记要放在视野里，旋转标定时标记须偏离旋转中心，否则半径过小会判失败。"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="标定方式"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          ItemsSource="{StaticResource CalibModes}"
+                                          SelectedItem="{Binding SelectedStep.CalibMode, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="相机"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          MinWidth="150" IsEditable="True" IsReadOnly="False"
+                                          ItemsSource="{Binding CameraNames}"
+                                          Text="{Binding SelectedStep.CameraId, UpdateSourceTrigger=PropertyChanged}"
+                                          ToolTip="标定结果按相机名存放：从工程相机里选，或直接填相机编号（0/1/…）"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="X 轴"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          MinWidth="150" IsEditable="True" IsReadOnly="False"
+                                          ItemsSource="{Binding CalibAxisNames}"
+                                          Text="{Binding SelectedStep.CalibXAxis, UpdateSourceTrigger=PropertyChanged}"
+                                          ToolTip="9 点标定的 X 轴（工程轴名，如「上料-轴1」）"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="Y 轴"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          MinWidth="150" IsEditable="True" IsReadOnly="False"
+                                          ItemsSource="{Binding CalibAxisNames}"
+                                          Text="{Binding SelectedStep.CalibYAxis, UpdateSourceTrigger=PropertyChanged}"
+                                          ToolTip="9 点标定的 Y 轴（工程轴名）"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="旋转轴"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          MinWidth="150" IsEditable="True" IsReadOnly="False"
+                                          ItemsSource="{Binding CalibAxisNames}"
+                                          Text="{Binding SelectedStep.CalibRotAxis, UpdateSourceTrigger=PropertyChanged}"
+                                          ToolTip="旋转标定的旋转轴（工程轴名）"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="9 点间距" Unit="mm"
+                                                    Minimum="0.1" Maximum="500" TickFrequency="0.1"
+                                                    Value="{Binding SelectedStep.CalibPitchMm}"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="旋转步距" Unit="°"
+                                                    Minimum="1" Maximum="90" TickFrequency="1"
+                                                    Value="{Binding SelectedStep.CalibRotationStepDeg}"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="旋转点数" Unit="点"
+                                                    Minimum="3" Maximum="12" TickFrequency="1"
+                                                    Value="{Binding SelectedStep.CalibRotationCount}"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="稳定延时" Unit="ms"
+                                                    Minimum="0" Maximum="5000" TickFrequency="50"
+                                                    Value="{Binding SelectedStep.CalibSettleMs}"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="标记阈值" Unit="0-255"
+                                                    Minimum="0" Maximum="255" TickFrequency="1"
+                                                    Value="{Binding SelectedStep.CalibThreshold}"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="标记最小面积" Unit="px"
+                                                    Minimum="1" Maximum="100000" TickFrequency="10"
+                                                    Value="{Binding SelectedStep.CalibMinArea}"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <local:NumericSliderRow Label="标记最大面积" Unit="px"
+                                                    Minimum="1" Maximum="2000000" TickFrequency="100"
+                                                    Value="{Binding SelectedStep.CalibMaxArea}"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="暗标记（亮底黑点）"/>
+                                    <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center"
+                                          IsChecked="{Binding SelectedStep.CalibDarkMarker, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="开始标定"/>
+                                    <Button DockPanel.Dock="Right" Content="运行本步" Padding="10,3"
+                                            Style="{StaticResource TtPillGreenBtn}"
+                                            ToolTip="只运行到本步骤：程序会驱动真实轴走 9+5 个点，请先确认机台安全"
+                                            Command="{Binding RunStepCommand}"
+                                            CommandParameter="{Binding SelectedStep}"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"
+                                       Text="{Binding CalibCurrentText}"/>
+                                <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                       Text="{Binding SelectedStep.CalibResultText}"/>
                             </StackPanel>
                         </Border>
 

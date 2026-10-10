@@ -72,6 +72,7 @@ namespace NoCodeMotion.Services
             ["Outputs"] = "输出",
             ["Variables"] = "变量",
             ["Cameras"] = "相机",
+            ["Calibrations"] = "标定",
             ["DesignerWidgets"] = "自定义",
             ["Io"] = "IO",
         };
@@ -90,7 +91,7 @@ namespace NoCodeMotion.Services
         public static readonly string[] MenuSheetNames =
         {
             "项目管理", "控制器", "轴", "IO", "气缸", "点位表", "通讯",
-            "料盘", "相机", "变量", "流程", "工程师", "自定义", "操作员",
+            "料盘", "相机", "标定", "变量", "流程", "工程师", "自定义", "操作员",
         };
 
         /// <summary>导出/导入时跳过的属性：Io 为 Inputs+Outputs 的计算合并属性，避免重复存储；Points/PointAxes 是旧版单工位字段，EnsurePointTables 后已清空，不再落盘。</summary>
@@ -694,7 +695,7 @@ namespace NoCodeMotion.Services
             Add("== 合并页列说明 ==", "列数固定，勿增删。");
             Add("点位表（18列）", "类型/名称/父项名称/时序/同步组/条件/轴1位置/轴1速度/轴2位置/轴2速度/轴3位置/轴3速度/轴4位置/轴4速度/轴1名/轴2名/轴3名/轴4名。条件列：多条以 ; 分隔，每条「类型|目标名|期望状态」，留空行不落盘。");
             Add("料盘（12列）", "类型/名称/父项名称/行数/列数/起点X/起点Y/间距X/间距Y/行号/列号/已占用。");
-            Add("流程（51列）", "类型/名称/父项名称/类型标记/角色/Lua源码/状态 + 步骤列(逻辑/功能/属性/操作/设值/超时/时长ms/实际值) + 视步列(视步类型/使能/相机ID/保存路径/曝光ms/宽度/高度/源类型/文件夹路径/模板路径/分数阈值/角度范围/匹配模式/模板框X/模板框Y/模板框W/模板框H/算法/最小面积/最大面积/阈值/检测模式/测量模式/标定/单位/协议/目标/内容/预处理操作/预处理参数1/预处理参数2/预处理ROI/第二图路径/运行时长ms/上次成功/上次结果)。");
+            Add("流程（74列）", "类型/名称/父项名称/类型标记/角色/Lua源码/节点图JSON/状态 + 步骤列(逻辑/功能/属性/操作/设值/超时/时长ms/实际值) + 视步列(视步类型/使能/相机ID/保存路径/曝光ms/宽度/高度/源类型/文件夹路径/模板路径/分数阈值/角度范围/匹配模式/模板框X/模板框Y/模板框W/模板框H/算法/最小面积/最大面积/阈值/检测模式/测量模式/标定/单位/协议/目标/内容/预处理操作/预处理参数1/预处理参数2/预处理ROI/第二图路径/运行时长ms/上次成功/上次结果) + 字符识别列(识别语言/期望文本/匹配方式/忽略大小写/识别框X/识别框Y/识别框W/识别框H) + 标定列(标定方式/标定X轴/标定Y轴/标定旋转轴/标定间距mm/旋转步距/旋转点数/标定速度/标定稳定ms/标记阈值/暗标记/标记最小面积/标记最大面积/标定结果)。");
         }
 
         // ----- 点位表 -----
@@ -1022,6 +1023,30 @@ namespace NoCodeMotion.Services
             dt.Columns.Add("运行时长ms", typeof(string));
             dt.Columns.Add("上次成功", typeof(string));
             dt.Columns.Add("上次结果", typeof(string));
+            // 字符识别（OCR）参数：此前只落了 AI 交换 JSON，xlsx 侧漏了这几列 → 存盘再打开会丢配置
+            dt.Columns.Add("识别语言", typeof(string));
+            dt.Columns.Add("期望文本", typeof(string));
+            dt.Columns.Add("匹配方式", typeof(string));
+            dt.Columns.Add("忽略大小写", typeof(string));
+            dt.Columns.Add("识别框X", typeof(string));
+            dt.Columns.Add("识别框Y", typeof(string));
+            dt.Columns.Add("识别框W", typeof(string));
+            dt.Columns.Add("识别框H", typeof(string));
+            // 标定（9 点 XY + 5 点旋转）参数
+            dt.Columns.Add("标定方式", typeof(string));
+            dt.Columns.Add("标定X轴", typeof(string));
+            dt.Columns.Add("标定Y轴", typeof(string));
+            dt.Columns.Add("标定旋转轴", typeof(string));
+            dt.Columns.Add("标定间距mm", typeof(string));
+            dt.Columns.Add("旋转步距", typeof(string));
+            dt.Columns.Add("旋转点数", typeof(string));
+            dt.Columns.Add("标定速度", typeof(string));
+            dt.Columns.Add("标定稳定ms", typeof(string));
+            dt.Columns.Add("标记阈值", typeof(string));
+            dt.Columns.Add("暗标记", typeof(string));
+            dt.Columns.Add("标记最小面积", typeof(string));
+            dt.Columns.Add("标记最大面积", typeof(string));
+            dt.Columns.Add("标定结果", typeof(string));
 
             foreach (var flObj in parentColl)
             {
@@ -1104,6 +1129,28 @@ namespace NoCodeMotion.Services
                         SetStr(r, "运行时长ms", vObj, "DurationMs");
                         SetStr(r, "上次成功", vObj, "LastOk");
                         SetStr(r, "上次结果", vObj, "LastResult");
+                        SetStr(r, "识别语言", vObj, "OcrLanguage");
+                        SetStr(r, "期望文本", vObj, "OcrExpectedText");
+                        SetStr(r, "匹配方式", vObj, "OcrMatchMode");
+                        SetStr(r, "忽略大小写", vObj, "OcrIgnoreCase");
+                        SetStr(r, "识别框X", vObj, "OcrRoiX");
+                        SetStr(r, "识别框Y", vObj, "OcrRoiY");
+                        SetStr(r, "识别框W", vObj, "OcrRoiW");
+                        SetStr(r, "识别框H", vObj, "OcrRoiH");
+                        SetStr(r, "标定方式", vObj, "CalibMode");
+                        SetStr(r, "标定X轴", vObj, "CalibXAxis");
+                        SetStr(r, "标定Y轴", vObj, "CalibYAxis");
+                        SetStr(r, "标定旋转轴", vObj, "CalibRotAxis");
+                        SetStr(r, "标定间距mm", vObj, "CalibPitchMm");
+                        SetStr(r, "旋转步距", vObj, "CalibRotationStepDeg");
+                        SetStr(r, "旋转点数", vObj, "CalibRotationCount");
+                        SetStr(r, "标定速度", vObj, "CalibSpeed");
+                        SetStr(r, "标定稳定ms", vObj, "CalibSettleMs");
+                        SetStr(r, "标记阈值", vObj, "CalibThreshold");
+                        SetStr(r, "暗标记", vObj, "CalibDarkMarker");
+                        SetStr(r, "标记最小面积", vObj, "CalibMinArea");
+                        SetStr(r, "标记最大面积", vObj, "CalibMaxArea");
+                        SetStr(r, "标定结果", vObj, "CalibResultText");
                         dt.Rows.Add(r);
                     }
                 dt.Rows.Add(dt.NewRow());
@@ -1206,6 +1253,28 @@ namespace NoCodeMotion.Services
                             DurationMs = GetDouble(r["运行时长ms"]?.ToString()),
                             LastOk = r["上次成功"]?.ToString() == "True" || r["上次成功"]?.ToString() == "是" || r["上次成功"]?.ToString() == "true",
                             LastResult = r["上次结果"]?.ToString() ?? "",
+                            OcrLanguage = r["识别语言"]?.ToString() ?? "自动",
+                            OcrExpectedText = r["期望文本"]?.ToString() ?? "",
+                            OcrMatchMode = r["匹配方式"]?.ToString() ?? "包含",
+                            OcrIgnoreCase = r["忽略大小写"]?.ToString() == "True" || r["忽略大小写"]?.ToString() == "是" || r["忽略大小写"]?.ToString() == "true",
+                            OcrRoiX = GetInt(r["识别框X"]?.ToString()),
+                            OcrRoiY = GetInt(r["识别框Y"]?.ToString()),
+                            OcrRoiW = GetInt(r["识别框W"]?.ToString()),
+                            OcrRoiH = GetInt(r["识别框H"]?.ToString()),
+                            CalibMode = r["标定方式"]?.ToString() ?? "XY+旋转",
+                            CalibXAxis = r["标定X轴"]?.ToString() ?? "",
+                            CalibYAxis = r["标定Y轴"]?.ToString() ?? "",
+                            CalibRotAxis = r["标定旋转轴"]?.ToString() ?? "",
+                            CalibPitchMm = GetDouble(r["标定间距mm"]?.ToString()),
+                            CalibRotationStepDeg = GetDouble(r["旋转步距"]?.ToString()),
+                            CalibRotationCount = GetInt(r["旋转点数"]?.ToString()),
+                            CalibSpeed = GetDouble(r["标定速度"]?.ToString()),
+                            CalibSettleMs = GetInt(r["标定稳定ms"]?.ToString()),
+                            CalibThreshold = GetInt(r["标记阈值"]?.ToString()),
+                            CalibDarkMarker = r["暗标记"]?.ToString() == "True" || r["暗标记"]?.ToString() == "是" || r["暗标记"]?.ToString() == "true",
+                            CalibMinArea = GetInt(r["标记最小面积"]?.ToString()),
+                            CalibMaxArea = GetInt(r["标记最大面积"]?.ToString()),
+                            CalibResultText = r["标定结果"]?.ToString() ?? "",
                         };
                         a.Invoke(vsteps, new object[] { v });
                     }

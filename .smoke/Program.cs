@@ -8,6 +8,8 @@
 //   否则段 H 诊断项、段 M 的 OCR 端到端、段 N 的「相机回退」会跳过（不影响其余断言）。
 // 段 N：图像采集来源 —— 默认「相机」/ 相机名解析 / 文件或文件夹路径无效时明确报错（不静默出测试图）。
 // 段 O：视觉流程页结果图 —— 滚轮缩放 / 中键拖拽平移 / 双击复位（ZoomPanBehavior 的光标锚定与 1:1 跟手不变式）。
+// 段 Q：字符识别结果 —— 每行文字画绿框 + 框上方绿字标签（TextOverlayBox 投影 + XAML 叠加层）。
+// 段 R：视觉标定 —— 9 点 XY 仿射 + 5 点旋转圆拟合（合成数据端到端：假轴 + 合成圆斑 → 还原像素当量/方向/旋转中心）。
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,6 +22,7 @@ using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 using NoCodeMotion.Services.Camera;
 using NoCodeMotion.Services.Vision;
+using NoCodeMotion.Services.Vision.Calibration;
 using NoCodeMotion.ViewModels;
 using NoCodeMotion.Behaviors;
 
@@ -1538,6 +1541,474 @@ namespace NcmSmoke
             catch (Exception ex)
             {
                 Check(false, "结果图缩放/平移截图验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ===================== 段 Q：字符识别结果 —— 每行文字画绿框 + 框上方绿字标签 =====================
+            Section("Q  字符识别结果：每行文字框（绿框 + 绿字标签）叠加到结果图");
+            try
+            {
+                // 1) 投影数学：屏幕坐标 = 像素 * scale + offset，文字 / 通过标志原样带过
+                var qItem = new TextBoxItem { Left = 100, Top = 50, Width = 200, Height = 40, Text = "ABC-123", Pass = true };
+                var qBox = TextOverlayBox.Project(qItem, 0.5, 10, 20);
+                Check(Math.Abs(qBox.ScreenLeft - 60) < 1e-9 && Math.Abs(qBox.ScreenTop - 45) < 1e-9
+                      && Math.Abs(qBox.ScreenWidth - 100) < 1e-9 && Math.Abs(qBox.ScreenHeight - 20) < 1e-9
+                      && qBox.Text == "ABC-123" && qBox.Pass,
+                      "TextOverlayBox.Project：屏幕坐标 = 像素*scale + offset，文字/通过标志原样带过");
+
+                // 2) Pass=False 原样传递（渲染层据此切红框红字）
+                var qBox2 = TextOverlayBox.Project(
+                    new TextBoxItem { Left = 0, Top = 0, Width = 10, Height = 10, Text = "NG", Pass = false }, 2.0, 0, 0);
+                Check(!qBox2.Pass && Math.Abs(qBox2.ScreenWidth - 20) < 1e-9,
+                      "Pass=False 原样传递（渲染层据此切红框红字）");
+
+                // 3) 真页面：XAML 里的字符识别叠加层确实存在
+                var qTpl = ProjectTemplateCatalog.All.First(x => x.Id == "vision-guided");
+                var qPd = qTpl.Build();
+                ProjectStore.Data.CopyFrom(qPd);
+                var qFlow = qPd.Flows.First(f => f.Kind == FlowKind.Vision);
+                var qPage = new NoCodeMotion.Views.VisualFlowPage();
+                var qVm = (NoCodeMotion.Views.VisualFlowDetailViewModel)qPage.DataContext;
+                qVm.Steps = qFlow.VisualSteps;
+                qVm.SelectedStep = qVm.Steps.FirstOrDefault(s => s.StepType == "字符识别") ?? qVm.Steps[0];
+                qVm.ResultImage = MakeTestBitmap(640, 480);
+                qPage.Measure(new Size(1240, 780));
+                qPage.Arrange(new Rect(0, 0, 1240, 780));
+                qPage.UpdateLayout();
+
+                var qCanvas = qPage.FindName("TextOverlay") as System.Windows.Controls.Canvas;
+                Check(qCanvas != null, "视觉流程页存在字符识别叠加层 TextOverlay（XAML 生效）");
+
+                // 4) 布局完成后再塞文字框（此时 ImageHost 已有真实尺寸，投影会立即执行）
+                qVm.OcrTextBoxes = new System.Collections.ObjectModel.ObservableCollection<TextBoxItem>
+                {
+                    new TextBoxItem { Left = 40, Top = 40,  Width = 180, Height = 36, Text = "SN:2026", Pass = true },
+                    new TextBoxItem { Left = 40, Top = 120, Width = 150, Height = 36, Text = "NG-CODE", Pass = false }
+                };
+                qPage.UpdateLayout();
+                Check(qVm.TextOverlayBoxes != null && qVm.TextOverlayBoxes.Count == 2,
+                      "VM 把 2 个文字框投影为 TextOverlayBoxes（与匹配框共用同一 scale/offset）");
+
+                // 5) 匹配框走同一条投影路径（两类叠加层共用 ProjectOverlayBoxes）
+                qVm.MatchResults = new System.Collections.ObjectModel.ObservableCollection<MatchBox>
+                {
+                    new MatchBox { LeftTopX = 10, LeftTopY = 10, TemplateWidth = 50, TemplateHeight = 50, Score = 0.99, Pass = true }
+                };
+                qPage.UpdateLayout();
+                Check(qVm.OverlayBoxes != null && qVm.OverlayBoxes.Count == 1,
+                      "匹配框也走同一投影路径（OverlayBoxes 随 MatchResults 刷新）");
+
+                if (qCanvas != null)
+                {
+                    qCanvas.UpdateLayout();
+                    int qRects = Descendants(qCanvas).OfType<System.Windows.Shapes.Rectangle>().Count();
+                    int qLabels = Descendants(qCanvas).OfType<System.Windows.Controls.TextBlock>()
+                                      .Count(x => x.Text == "SN:2026" || x.Text == "NG-CODE");
+                    Check(qRects >= 2, "叠加层渲染出 " + qRects + " 个文字框");
+                    Check(qLabels == 2, "框上方渲染出识别文字标签：" + qLabels + " 条");
+                }
+
+                // 6) 离屏渲染一张图作为肉眼证据（字符识别绿框 + 框上方绿字标签）
+                string outDirQ = RepoSmokeOut() ?? Path.Combine(AppContext.BaseDirectory, "out");
+                Directory.CreateDirectory(outDirQ);
+                int qw2 = Math.Max(1, (int)Math.Ceiling(qPage.ActualWidth));
+                int qh2 = Math.Max(1, (int)Math.Ceiling(qPage.ActualHeight));
+                var rtbQ = new RenderTargetBitmap(qw2, qh2, 96, 96, PixelFormats.Pbgra32);
+                rtbQ.Render(qPage);
+                var encQ = new PngBitmapEncoder();
+                encQ.Frames.Add(BitmapFrame.Create(rtbQ));
+                string fq = Path.Combine(outDirQ, "ocr_overlay.png");
+                using (var fs = File.Create(fq)) encQ.Save(fs);
+                Console.WriteLine("  截图：" + fq);
+            }
+            catch (Exception ex)
+            {
+                Check(false, "字符识别叠加层验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ===================== 段 R：视觉标定 —— 9 点 XY 仿射 + 5 点旋转圆拟合 =====================
+            Section("R  视觉标定：9 点 XY 仿射 + 5 点旋转圆拟合（纯合成数据端到端）");
+            try
+            {
+                // 合成圆斑（BGRA，字节序 B,G,R,A）：白底黑点，与 MarkerDetector / VisionEngine 的约定一致
+                byte[] Disc(int w, int h, double cu, double cv, double r)
+                {
+                    var buf = new byte[w * h * 4];
+                    for (int i = 0; i < buf.Length; i += 4)
+                    { buf[i] = 255; buf[i + 1] = 255; buf[i + 2] = 255; buf[i + 3] = 255; }
+                    double r2 = r * r;
+                    int v0 = Math.Max(0, (int)Math.Floor(cv - r - 1)), v1 = Math.Min(h - 1, (int)Math.Ceiling(cv + r + 1));
+                    int u0 = Math.Max(0, (int)Math.Floor(cu - r - 1)), u1 = Math.Min(w - 1, (int)Math.Ceiling(cu + r + 1));
+                    for (int v = v0; v <= v1; v++)
+                        for (int u = u0; u <= u1; u++)
+                        {
+                            double du = u - cu, dv = v - cv;
+                            if (du * du + dv * dv > r2) continue;
+                            int o = (v * w + u) * 4;
+                            buf[o] = 0; buf[o + 1] = 0; buf[o + 2] = 0; buf[o + 3] = 255;
+                        }
+                    return buf;
+                }
+
+                // 可视化树 + 逻辑树一起走（离屏、没进窗口时可视化树可能还没完全展开）
+                List<DependencyObject> Walk(DependencyObject root)
+                {
+                    var all = new List<DependencyObject>();
+                    var stack = new Stack<DependencyObject>();
+                    stack.Push(root);
+                    int guard = 0;
+                    while (stack.Count > 0 && guard++ < 40000)
+                    {
+                        var cur = stack.Pop();
+                        all.Add(cur);
+                        foreach (var c in Children(cur)) stack.Push(c);
+                    }
+                    return all;
+                }
+
+                System.Windows.Controls.Border? NearestBorder(DependencyObject? d)
+                {
+                    for (var cur = d; cur != null; cur = VisualTreeHelper.GetParent(cur))
+                        if (cur is System.Windows.Controls.Border b) return b;
+                    return null;
+                }
+
+                const double S = 0.5;   // 真值像素当量 mm/px
+
+                // ---------- R1 求解器：9 点仿射（解析点集，精确恢复） ----------
+                var rAna = new List<(double U, double V, double X, double Y)>();
+                for (int iy = -1; iy <= 1; iy++)
+                    for (int ix = -1; ix <= 1; ix++)
+                    {
+                        double mx = ix * 10.0, my = iy * 10.0;
+                        rAna.Add((320.0 + mx / S, 240.0 + my / S, mx, my));
+                    }
+                var rFa = CalibSolver.FitAffine(rAna);
+                Check(rFa.Ok && rFa.RmsMm < 1e-9,
+                      "9 点仿射无噪声精确恢复（RMS " + CalibSolver.Fmt(rFa.RmsMm) + " mm ≈ 0）");
+                Check(Math.Abs(rFa.PixelEquivalentU - S) < 1e-6
+                      && Math.Abs(rFa.PixelEquivalentV - S) < 1e-6
+                      && Math.Abs(rFa.AngleXDeg) < 1e-6
+                      && Math.Abs(rFa.AngleYDeg - 90.0) < 1e-6,
+                      "像素当量 = √(A1²+B1²) = " + CalibSolver.Fmt(rFa.PixelEquivalentU)
+                      + " mm/px，X 向 " + CalibSolver.Fmt(rFa.AngleXDeg)
+                      + "°、Y 向 " + CalibSolver.Fmt(rFa.AngleYDeg) + "°");
+                rFa.Map(320.0, 240.0, out double rFaX, out double rFaY);
+                Check(Math.Abs(rFaX) < 1e-6 && Math.Abs(rFaY) < 1e-6,
+                      "Map(图像中心) 回到机台原点（" + CalibSolver.Fmt(rFaX) + ", " + CalibSolver.Fmt(rFaY) + "）mm");
+
+                // 机台系相对图像系旋转 30°：u = 320 + (X·cosθ - Y·sinθ)/s，v = 240 + (X·sinθ + Y·cosθ)/s
+                double th = 30.0 * Math.PI / 180.0, cth = Math.Cos(th), sth = Math.Sin(th);
+                var rAna2 = new List<(double U, double V, double X, double Y)>();
+                for (int iy = -1; iy <= 1; iy++)
+                    for (int ix = -1; ix <= 1; ix++)
+                    {
+                        double mx = ix * 10.0, my = iy * 10.0;
+                        rAna2.Add((320.0 + (mx * cth - my * sth) / S,
+                                   240.0 + (mx * sth + my * cth) / S, mx, my));
+                    }
+                var rFa2 = CalibSolver.FitAffine(rAna2);
+                Check(rFa2.Ok && Math.Abs(rFa2.PixelEquivalentU - S) < 1e-6
+                      && Math.Abs(rFa2.AngleXDeg + 30.0) < 1e-6
+                      && Math.Abs(rFa2.AngleYDeg - 60.0) < 1e-6,
+                      "带 30° 旋转的 9 点同样精确恢复（X 向 " + CalibSolver.Fmt(rFa2.AngleXDeg)
+                      + "°、Y 向 " + CalibSolver.Fmt(rFa2.AngleYDeg) + "°）");
+
+                // 反向：点不够 / 共线必须明确失败，不能返回一个「看着像成功」的仿射
+                var rFew = CalibSolver.FitAffine(new List<(double U, double V, double X, double Y)>
+                    { (0, 0, 0, 0), (1, 1, 1, 1) });
+                Check(!rFew.Ok && rFew.Message.Length > 0, "点数不足 → 明确失败：" + rFew.Message);
+                var rCol = CalibSolver.FitAffine(new List<(double U, double V, double X, double Y)>
+                    { (0, 0, 0, 0), (10, 10, 1, 1), (20, 20, 2, 2), (30, 30, 3, 3), (40, 40, 4, 4) });
+                Check(!rCol.Ok, "点共线（退化）→ 明确失败，不返回假结果：" + rCol.Message);
+
+                // ---------- R2 求解器：5 点圆拟合（解析点集，精确恢复） ----------
+                var rAnaC = new List<(double U, double V)>();
+                for (int k = 0; k < 5; k++)
+                {
+                    double a = (-40.0 + k * 20.0) * Math.PI / 180.0;
+                    rAnaC.Add((400.0 + 40.0 * Math.Cos(a), 300.0 + 40.0 * Math.Sin(a)));
+                }
+                var rFc = CalibSolver.FitCircle(rAnaC);
+                Check(rFc.Ok && Math.Abs(rFc.CenterU - 400.0) < 1e-6 && Math.Abs(rFc.CenterV - 300.0) < 1e-6
+                      && Math.Abs(rFc.RadiusPx - 40.0) < 1e-6 && rFc.RmsPx < 1e-8,
+                      "5 点圆拟合精确恢复旋转中心 (" + CalibSolver.Fmt(rFc.CenterU) + ", "
+                      + CalibSolver.Fmt(rFc.CenterV) + ") px、半径 " + CalibSolver.Fmt(rFc.RadiusPx) + " px");
+
+                // ---------- R3 点集序列化往返（落盘用字符串存，读回必须一模一样） ----------
+                var rSer = CalibSolver.SerializePoints2(new[] { (1.5, -2.25), (3.0, 4.0) });
+                var rPar = CalibSolver.ParsePoints2(rSer);
+                Check(rSer == "1.5,-2.25;3,4" && rPar.Count == 2
+                      && Math.Abs(rPar[1].A - 3.0) < 1e-12 && Math.Abs(rPar[0].B + 2.25) < 1e-12,
+                      "点集序列化用不变文化（小数点是 '.'，不受系统区域影响）：" + rSer);
+
+                // ---------- R4 标记检测：合成圆斑质心 ----------
+                var rBlob = MarkerDetector.DetectLargest(Disc(640, 480, 123.0, 234.0, 8.0), 640, 480,
+                                                         new MarkerDetectOptions(), out string rBlobErr);
+                Check(rBlob != null && Math.Abs(rBlob.CenterU - 123.0) < 0.05 && Math.Abs(rBlob.CenterV - 234.0) < 0.05,
+                      "合成圆斑质心 ≈ (123, 234)：" + (rBlob == null ? rBlobErr : rBlob.Describe()));
+                Check(rBlob != null && rBlob.Area > 150 && rBlob.FillRatio > 0.6 && rBlob.Circularity > 0.45,
+                      "圆斑面积/填充率/圆度都在合理区间（实心圆填充率 ≈ 0.68、圆度 ≈ 0.54）");
+                var rBlank = MarkerDetector.DetectLargest(Disc(640, 480, -500, -500, 8.0), 640, 480,
+                                                          new MarkerDetectOptions(), out string rBlankErr);
+                Check(rBlank == null && rBlankErr.Length > 0,
+                      "全白图里找不到标记 → 返回 null 并给出原因：" + rBlankErr);
+
+                // ---------- R5 端到端：假轴 + 合成图，程序自动走 9 点 ----------
+                double fX = 0, fY = 0, fA = 0;
+                int guardCount = 0;
+                bool rotPhase = false;
+
+                var runner9 = new CalibrationRunner
+                {
+                    ReadAxisPosition = n => n == "X" ? fX : fY,
+                    MoveAxisAbs = (n, p) => { if (n == "X") fX = p; else fY = p; },
+                    IsAxisDone = n => true,
+                    GrabFrame = () => (Disc(640, 480, 320.0 + fX / S, 240.0 + fY / S, 8.0), 640, 480),
+                    Guard = () => guardCount++
+                };
+                var opt9 = new CalibrationRunOptions
+                {
+                    XAxisName = "X", YAxisName = "Y", RotationAxisName = "R",
+                    PitchMm = 10.0, SettleMs = 2, DoNinePoint = true, DoRotation = false
+                };
+                var res9 = runner9.Run(opt9);
+                Check(res9.Ok && res9.NinePoints.Count == 9,
+                      "程序自动走满 9 点并取到 9 个样本：" + res9.Message);
+                Check(res9.Affine != null && res9.Affine.Ok && res9.Affine.RmsMm < 1e-6
+                      && Math.Abs(res9.Affine.PixelEquivalentU - S) < 1e-6
+                      && Math.Abs(res9.Affine.AngleXDeg) < 1e-6,
+                      "9 点端到端还原像素当量 " + CalibSolver.Fmt(res9.Affine?.PixelEquivalentU ?? -1)
+                      + " mm/px（真值 " + CalibSolver.Fmt(S) + "）");
+                Check(Math.Abs((res9.Affine?.A3 ?? 0) + 160.0) < 1e-6 && Math.Abs((res9.Affine?.B3 ?? 0) + 120.0) < 1e-6,
+                      "仿射平移项也还原（图像中心 (320,240) 对应机台原点）");
+                Check(guardCount > 0,
+                      "标定过程中每点都轮询暂停/停止守卫（Guard 被调用 " + guardCount + " 次）");
+
+                // ---------- R6 端到端：5 点旋转（标记绕旋转中心走 5 个角度） ----------
+                fA = 0;
+                var runnerRot = new CalibrationRunner
+                {
+                    ReadAxisPosition = n => fA,
+                    MoveAxisAbs = (n, p) => fA = p,
+                    IsAxisDone = n => true,
+                    GrabFrame = () =>
+                    {
+                        double a = fA * Math.PI / 180.0;
+                        return (Disc(640, 480, 400.0 + 40.0 * Math.Cos(a), 300.0 + 40.0 * Math.Sin(a), 8.0), 640, 480);
+                    },
+                    Guard = () => guardCount++
+                };
+                var optR = new CalibrationRunOptions
+                {
+                    RotationAxisName = "R", RotationStepDeg = 20.0, RotationCount = 5,
+                    SettleMs = 2, DoNinePoint = false, DoRotation = true
+                };
+                var resR = runnerRot.Run(optR);
+                Check(resR.Ok && resR.RotationPoints.Count == 5,
+                      "程序自动走满 5 点旋转并取到 5 个样本：" + resR.Message);
+                Check(resR.Circle != null && resR.Circle.Ok
+                      && Math.Abs(resR.Circle.CenterU - 400.0) < 0.5 && Math.Abs(resR.Circle.CenterV - 300.0) < 0.5
+                      && Math.Abs(resR.Circle.RadiusPx - 40.0) < 0.5,
+                      "5 点端到端还原旋转中心 (" + CalibSolver.Fmt(resR.Circle?.CenterU ?? -1) + ", "
+                      + CalibSolver.Fmt(resR.Circle?.CenterV ?? -1) + ") px、半径 "
+                      + CalibSolver.Fmt(resR.Circle?.RadiusPx ?? -1) + " px");
+                Check(Math.Abs((resR.RotationPoints[0].Angle) + 40.0) < 1e-9
+                      && Math.Abs(resR.RotationPoints[4].Angle - 40.0) < 1e-9,
+                      "5 个角度以基准角为中心对称铺开（-40° … +40°，基准 0°）");
+
+                // ---------- R7 端到端：一次跑完 9 点 + 5 点 → 工程记录 → 真实位置换算 ----------
+                fX = 0; fY = 0; fA = 0; rotPhase = false;
+                var runnerAll = new CalibrationRunner
+                {
+                    ReadAxisPosition = n => n == "R" ? fA : (n == "X" ? fX : fY),
+                    // 第一次动旋转轴 = 进入旋转阶段（9 点在先、5 点在后）
+                    MoveAxisAbs = (n, p) => { if (n == "R") { rotPhase = true; fA = p; } else if (n == "X") fX = p; else fY = p; },
+                    IsAxisDone = n => true,
+                    GrabFrame = () =>
+                    {
+                        if (rotPhase)
+                        {
+                            double a = fA * Math.PI / 180.0;
+                            return (Disc(640, 480, 400.0 + 40.0 * Math.Cos(a), 300.0 + 40.0 * Math.Sin(a), 8.0), 640, 480);
+                        }
+                        return (Disc(640, 480, 320.0 + fX / S, 240.0 + fY / S, 8.0), 640, 480);
+                    },
+                    Guard = () => guardCount++
+                };
+                var optAll = new CalibrationRunOptions
+                {
+                    XAxisName = "X", YAxisName = "Y", RotationAxisName = "R",
+                    PitchMm = 10.0, RotationStepDeg = 20.0, RotationCount = 5, SettleMs = 2
+                };
+                var resAll = runnerAll.Run(optAll);
+                Check(resAll.Ok && resAll.Affine != null && resAll.Circle != null,
+                      "一次跑完 9 点 + 5 点：" + resAll.Message);
+                var recAll = resAll.ToRecord("CAM-E2E");
+                Check(recAll.IsUsable && recAll.RotRadiusPx > 0 && recAll.RotCenterU > 0 && recAll.Points9.Length > 0,
+                      "结果转成工程记录（像素当量 / 旋转中心 / 半径 / 点集字符串都齐）");
+                Check(CalibSolver.ParsePoints2(recAll.Points9).Count == 9
+                      && CalibSolver.ParsePoints2(recAll.Machine9).Count == 9
+                      && CalibSolver.ParsePoints3(recAll.Points5).Count == 5,
+                      "落盘用的点集字符串往返正确（图像 9 点 / 机台 9 点 / 旋转 5 点）");
+
+                recAll.ImageToMachine(320.0, 240.0, out double rMx, out double rMy);
+                Check(Math.Abs(rMx) < 0.05 && Math.Abs(rMy) < 0.05,
+                      "ImageToMachine(图像中心) ≈ 机台原点（" + CalibSolver.Fmt(rMx) + ", " + CalibSolver.Fmt(rMy) + "）mm");
+                recAll.ImageToMachineRotated(recAll.RotCenterU, recAll.RotCenterV, 90.0, out double rCx, out double rCy);
+                recAll.ImageToMachine(recAll.RotCenterU, recAll.RotCenterV, out double rEx, out double rEy);
+                Check(Math.Abs(rCx - rEx) < 1e-9 && Math.Abs(rCy - rEy) < 1e-9,
+                      "旋转中心自身是旋转不动点（绕它转 90° 结果不变）");
+                recAll.ImageToMachineRotated(recAll.RotCenterU + 40.0, recAll.RotCenterV, 180.0, out double r180x, out double r180y);
+                recAll.ImageToMachine(recAll.RotCenterU - 40.0, recAll.RotCenterV, out double r180ex, out double r180ey);
+                Check(Math.Abs(r180x - r180ex) < 1e-9 && Math.Abs(r180y - r180ey) < 1e-9,
+                      "绕旋转中心转 180° 落在中心的另一侧（与直接换算镜像点一致）");
+                recAll.ImageToMachineRotated(320.0, 240.0, 0.0, out double r0x, out double r0y);
+                Check(Math.Abs(r0x - rMx) < 1e-9 && Math.Abs(r0y - rMy) < 1e-9,
+                      "角度 0 退化为直接仿射（模板无旋转时不改变结果）");
+
+                // ---------- R8 失败路径：不瞎动轴 / 不回退合成图 / 停止必须冒泡 ----------
+                var runnerBadAxis = new CalibrationRunner
+                {
+                    ReadAxisPosition = n => 0,
+                    MoveAxisAbs = (n, p) => { },
+                    IsAxisDone = n => true,
+                    GrabFrame = () => (Disc(640, 480, 320, 240, 8), 640, 480)
+                };
+                var resBadAxis = runnerBadAxis.Run(new CalibrationRunOptions { SettleMs = 0 });
+                Check(!resBadAxis.Ok && resBadAxis.Message.Contains("X 轴与 Y 轴"),
+                      "没指定轴名 → 明确失败，不会拿默认轴乱动：" + resBadAxis.Message);
+
+                var runnerNoImg = new CalibrationRunner
+                {
+                    ReadAxisPosition = n => 0,
+                    MoveAxisAbs = (n, p) => { },
+                    IsAxisDone = n => true,
+                    GrabFrame = () => ((byte[]?)null, 0, 0)
+                };
+                var resNoImg = runnerNoImg.Run(new CalibrationRunOptions
+                {
+                    XAxisName = "X", YAxisName = "Y", RotationAxisName = "R", SettleMs = 0
+                });
+                Check(!resNoImg.Ok && resNoImg.Affine == null && resNoImg.Message.Contains("采集图像失败"),
+                      "取不到图 → 明确失败且不产出仿射（不回退合成图，合成图会悄悄给出垃圾标定）：" + resNoImg.Message);
+
+                var runnerNoCb = new CalibrationRunner();
+                var resNoCb = runnerNoCb.Run(new CalibrationRunOptions { XAxisName = "X", YAxisName = "Y" });
+                Check(!resNoCb.Ok && resNoCb.Message.Contains("缺少硬件回调"),
+                      "缺硬件回调 → 明确失败：" + resNoCb.Message);
+
+                int stopAfter = 4, guardHits = 0;
+                var runnerStop = new CalibrationRunner
+                {
+                    ReadAxisPosition = n => 0,
+                    MoveAxisAbs = (n, p) => { },
+                    IsAxisDone = n => true,
+                    GrabFrame = () => (Disc(640, 480, 320, 240, 8), 640, 480),
+                    Guard = () => { if (++guardHits > stopAfter) throw new OperationCanceledException(); }
+                };
+                bool stopThrew = false;
+                try
+                {
+                    runnerStop.Run(new CalibrationRunOptions
+                    {
+                        XAxisName = "X", YAxisName = "Y", RotationAxisName = "R", SettleMs = 2
+                    });
+                }
+                catch (OperationCanceledException) { stopThrew = true; }
+                Check(stopThrew,
+                      "标定中途按「停止」：OperationCanceledException 冒泡给上层（没被吞成「标定失败」，否则轴会继续走）");
+
+                // ---------- R9 标定仓库 + 变量导出（随工程落盘、流程里可直接引用） ----------
+                ProjectStore.Data.Calibrations.Clear();
+                CalibrationStore.Upsert(recAll);
+                Check(CalibrationStore.HasUsable("CAM-E2E") && CalibrationStore.Find("cam-e2e") != null,
+                      "标定按相机名存进工程，查表忽略大小写");
+                CalibrationStore.Upsert(new CameraCalibration
+                {
+                    CameraName = "CAM-E2E", IsValid = true, PixelEquivalent = 0.25,
+                    AngleX = 1.0, AngleY = 91.0, RotCenterX = 5.0, RotCenterY = 6.0,
+                    RotCenterU = 400.0, RotCenterV = 300.0
+                });
+                Check(ProjectStore.Data.Calibrations.Count == 1
+                      && Math.Abs(CalibrationStore.Find("CAM-E2E")!.PixelEquivalent - 0.25) < 1e-12,
+                      "同名 Upsert 是覆盖而不是新增（一台相机只有一条标定）");
+                int nVar = CalibVarExport.Export(CalibrationStore.Find("CAM-E2E"));
+                Check(nVar == 7, "导出 7 个标定变量（像素当量 / X·Y 方向角 / 旋转中心 mm 与 px），实得 " + nVar);
+                Check(Math.Abs(SimRuntime.GetVariableResolved("标定_像素当量") - 0.25) < 1e-9
+                      && Math.Abs(SimRuntime.GetVariableResolved("标定_旋转中心U") - 400.0) < 1e-9,
+                      "变量读得回来（GetVariableResolved 命中变量表单元格）");
+                bool exprOk = ExpressionEvaluator.Evaluate("标定_像素当量 * 2",
+                                                           n => SimRuntime.GetVariableResolved(n), out double exprVal);
+                Check(exprOk && Math.Abs(exprVal - 0.5) < 1e-9,
+                      "变量名可在表达式里直接引用（标定_像素当量 * 2 = " + CalibSolver.Fmt(exprVal)
+                      + "；名字带 '-' 的话会被当成减号算错）");
+                CalibrationStore.Remove("CAM-E2E");
+                Check(!CalibrationStore.HasUsable("CAM-E2E"), "删除标定后查不到（清干净，别影响后面的用例）");
+
+                // ---------- R10 真页面：标定参数卡确实渲染出来 ----------
+                var rTpl = ProjectTemplateCatalog.All.First(x => x.Id == "vision-guided");
+                var rPd = rTpl.Build();
+                ProjectStore.Data.CopyFrom(rPd);
+                var rFlow = rPd.Flows.First(f => f.Kind == FlowKind.Vision);
+                var rStep = new VisualFlowStep
+                {
+                    Name = "标定1", StepType = "标定",
+                    CalibMode = "XY+旋转", CalibXAxis = "X", CalibYAxis = "Y", CalibRotAxis = "R"
+                };
+                rFlow.VisualSteps.Add(rStep);
+                var rPage = new NoCodeMotion.Views.VisualFlowPage();
+                var rVm = (NoCodeMotion.Views.VisualFlowDetailViewModel)rPage.DataContext;
+                rVm.Steps = rFlow.VisualSteps;
+                rVm.SelectedStep = rStep;
+                rPage.Measure(new Size(1240, 780));
+                rPage.Arrange(new Rect(0, 0, 1240, 780));
+                rPage.UpdateLayout();
+
+                Check(rVm.IsCalibration, "选中「标定」步骤 → VM.IsCalibration = true");
+                Check(rVm.CalibAxisNames.Count > 0,
+                      "轴名候选来自工程（CalibAxisNames 共 " + rVm.CalibAxisNames.Count + " 个）");
+
+                var rNodes = Walk(rPage);
+                var rHeader = rNodes.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault(x => x.Text == "标定参数");
+                Check(rHeader != null, "页面里存在「标定参数」标题（XAML 生效，没被 StaticResource 键写错搞崩）");
+                Check(rHeader != null && NearestBorder(rHeader)?.Visibility == Visibility.Visible,
+                      "选中标定步骤时，标定参数卡是可见的");
+                var rTexts = rNodes.OfType<System.Windows.Controls.TextBlock>().Select(x => x.Text).ToList();
+                Check(rTexts.Contains("标定方式") && rTexts.Contains("旋转轴") && rTexts.Contains("开始标定"),
+                      "卡片含 标定方式 / 旋转轴 / 开始标定 三项");
+                var rSliders = rNodes.OfType<NoCodeMotion.Views.NumericSliderRow>().ToList();
+                Check(rSliders.Any(x => x.Label == "9 点间距") && rSliders.Any(x => x.Label == "旋转步距")
+                      && rSliders.Any(x => x.Label == "标记阈值"),
+                      "卡片含 9 点间距 / 旋转步距 / 标记阈值 数值行（共 " + rSliders.Count + " 行）");
+                Check(rVm.CalibCurrentText.Length > 0, "当前标定回显有内容：" + rVm.CalibCurrentText);
+
+                // 切到非标定步骤 → 卡片收起（关系断言，不锁死具体可见性值）
+                rVm.SelectedStep = rFlow.VisualSteps.First(s => s.StepType != "标定");
+                rPage.UpdateLayout();
+                Check(!rVm.IsCalibration, "切到非标定步骤 → IsCalibration = false（卡片收起）");
+                var rNodes2 = Walk(rPage);
+                var rHeader2 = rNodes2.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault(x => x.Text == "标定参数");
+                Check(rHeader2 != null && NearestBorder(rHeader2)?.Visibility != Visibility.Visible,
+                      "切走后标定参数卡不再可见（与选中时形成对照）");
+
+                // ---------- R11 离屏渲染一张图作为肉眼证据 ----------
+                rVm.SelectedStep = rStep;
+                rPage.UpdateLayout();
+                string outDirR = RepoSmokeOut() ?? Path.Combine(AppContext.BaseDirectory, "out");
+                Directory.CreateDirectory(outDirR);
+                int rw = Math.Max(1, (int)Math.Ceiling(rPage.ActualWidth));
+                int rh = Math.Max(1, (int)Math.Ceiling(rPage.ActualHeight));
+                var rtbR = new RenderTargetBitmap(rw, rh, 96, 96, PixelFormats.Pbgra32);
+                rtbR.Render(rPage);
+                var encR = new PngBitmapEncoder();
+                encR.Frames.Add(BitmapFrame.Create(rtbR));
+                string fr = Path.Combine(outDirR, "calibration_card.png");
+                using (var fs = File.Create(fr)) encR.Save(fs);
+                Console.WriteLine("  截图：" + fr);
+            }
+            catch (Exception ex)
+            {
+                Check(false, "视觉标定验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
             }
 
             Console.WriteLine("\n====================  "

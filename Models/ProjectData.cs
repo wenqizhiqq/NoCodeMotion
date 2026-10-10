@@ -21,6 +21,13 @@ namespace NoCodeMotion.Models
         /// <summary>相机列表：相机页/视觉流程共用。模板填充时直接在这里 Add 即可。</summary>
         public ObservableCollection<CameraItem> Cameras { get; set; } = new();
 
+        /// <summary>
+        /// 相机标定结果：一台相机一条（9 点 XY 仿射 + 5 点旋转圆拟合）。
+        /// 由视觉流程的「标定」步骤写入，模板匹配读取它把像素位置换算成机台 mm。
+        /// 落盘为 xlsx 的「标定」工作表（字段全标量，走反射导出）。
+        /// </summary>
+        public ObservableCollection<CameraCalibration> Calibrations { get; set; } = new();
+
         /// <summary>点位表列表：一个点位表 = 一个工位，含该工位的 4 个轴与全部点位行。</summary>
         public ObservableCollection<PointTable> PointTables { get; set; } = new();
 

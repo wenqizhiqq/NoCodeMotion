@@ -72,6 +72,22 @@ namespace NoCodeMotion.Models
         private int _ocrRoiW = 0;
         private int _ocrRoiH = 0;
 
+        // 标定（9 点 XY + 5 点旋转；程序自动走点，结果落工程「标定」表）
+        private string _calibMode = "XY+旋转";        // XY+旋转 / 仅XY / 仅旋转
+        private string _calibXAxis = "";              // 9 点标定的 X 轴（工程轴名）
+        private string _calibYAxis = "";              // 9 点标定的 Y 轴
+        private string _calibRotAxis = "";            // 旋转标定的旋转轴
+        private double _calibPitchMm = 10.0;          // 9 点网格间距（mm）
+        private double _calibRotationStepDeg = 20.0;  // 旋转步距（度）
+        private int _calibRotationCount = 5;          // 旋转采样点数
+        private double _calibSpeed = 0;               // 定位速度（0 = 沿用工程轴速度）
+        private int _calibSettleMs = 300;             // 每点到位后的稳定延时（ms）
+        private int _calibThreshold = 128;            // 标记亮度阈值
+        private bool _calibDarkMarker = true;         // true = 亮底黑点（暗标记）
+        private int _calibMinArea = 30;               // 标记最小面积
+        private int _calibMaxArea = 400000;           // 标记最大面积
+        private string _calibResultText = "";         // 上次标定结果回显（多行文本）
+
         // 运行结果（每次运行后由 VisionEngine 回写）
         private double _durationMs = 0;
         private bool _lastOk = false;
@@ -142,6 +158,36 @@ namespace NoCodeMotion.Models
         public string OcrRoiText => _ocrRoiW > 0 && _ocrRoiH > 0
             ? $"({_ocrRoiX},{_ocrRoiY})  {_ocrRoiW}×{_ocrRoiH}"
             : "整图识别（在右侧图上拖拽可框选区域）";
+
+        // 标定
+        /// <summary>标定方式：XY+旋转 / 仅XY / 仅旋转。</summary>
+        public string CalibMode { get => _calibMode; set => Set(ref _calibMode, value); }
+        /// <summary>9 点标定的 X 轴名称（工程轴名）。</summary>
+        public string CalibXAxis { get => _calibXAxis; set => Set(ref _calibXAxis, value); }
+        /// <summary>9 点标定的 Y 轴名称。</summary>
+        public string CalibYAxis { get => _calibYAxis; set => Set(ref _calibYAxis, value); }
+        /// <summary>旋转标定的旋转轴名称。</summary>
+        public string CalibRotAxis { get => _calibRotAxis; set => Set(ref _calibRotAxis, value); }
+        /// <summary>9 点网格间距（mm）。</summary>
+        public double CalibPitchMm { get => _calibPitchMm; set => Set(ref _calibPitchMm, value); }
+        /// <summary>旋转步距（度）。</summary>
+        public double CalibRotationStepDeg { get => _calibRotationStepDeg; set => Set(ref _calibRotationStepDeg, value); }
+        /// <summary>旋转采样点数（默认 5 点）。</summary>
+        public int CalibRotationCount { get => _calibRotationCount; set => Set(ref _calibRotationCount, value); }
+        /// <summary>标定定位速度（0 = 沿用工程轴速度）。</summary>
+        public double CalibSpeed { get => _calibSpeed; set => Set(ref _calibSpeed, value); }
+        /// <summary>每点到位后的稳定延时（ms）。</summary>
+        public int CalibSettleMs { get => _calibSettleMs; set => Set(ref _calibSettleMs, value); }
+        /// <summary>标记亮度阈值（0~255）。</summary>
+        public int CalibThreshold { get => _calibThreshold; set => Set(ref _calibThreshold, value); }
+        /// <summary>标记明暗：true = 亮底黑点（暗标记）。</summary>
+        public bool CalibDarkMarker { get => _calibDarkMarker; set => Set(ref _calibDarkMarker, value); }
+        /// <summary>标记最小面积（像素）。</summary>
+        public int CalibMinArea { get => _calibMinArea; set => Set(ref _calibMinArea, value); }
+        /// <summary>标记最大面积（像素）。</summary>
+        public int CalibMaxArea { get => _calibMaxArea; set => Set(ref _calibMaxArea, value); }
+        /// <summary>上次标定结果回显（多行：像素当量 / 方向角 / 旋转中心 / 残差）。</summary>
+        public string CalibResultText { get => _calibResultText; set => Set(ref _calibResultText, value); }
 
         // 运行结果
         public double DurationMs { get => _durationMs; set { if (Set(ref _durationMs, value)) OnChanged(nameof(DurationText)); } }

@@ -14,6 +14,7 @@ using Microsoft.Win32;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
 using NoCodeMotion.Services.Vision;
+using NoCodeMotion.Services.Vision.Calibration;
 
 namespace NoCodeMotion.Views
 {
@@ -26,6 +27,18 @@ namespace NoCodeMotion.Views
     public class VisualFlowDetailViewModel : DependencyObject, INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
+
+        /// <summary>
+        /// 依赖属性变化时，除了 DP 自身通知，还要把「属性名」用 INPC 抛出去。
+        /// VisualFlowPage 的 code-behind 靠 PropertyChanged(ResultImage / MatchResults / OcrTextBoxes)
+        /// 决定何时把像素坐标框重新投影成屏幕坐标；只注册 DP 回调（Has* 系列）不会通知到这些名字，
+        /// 于是叠加层只能等 ImageHost.SizeChanged（窗口缩放 / 切页）才刷新 —— 运行完不刷新绿框。
+        /// </summary>
+        protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
+        {
+            base.OnPropertyChanged(e);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(e.Property.Name));
+        }
 
         // ---- 依赖属性（与 FlowPage 的绑定对应） ----
         public static readonly DependencyProperty StepsProperty =
@@ -75,6 +88,7 @@ namespace NoCodeMotion.Views
         public bool IsMeasure => SelectedStep?.StepType == "测量";
         public bool IsComm => SelectedStep?.StepType == "通讯";
         public bool IsOcr => SelectedStep?.StepType == "字符识别";
+        public bool IsCalibration => SelectedStep?.StepType == "标定";
 
         // ---- 图像采集来源类型显隐标志（相机 / 文件夹 / 文件） ----
         public bool IsCameraSource => SelectedStep?.SourceType == "相机";
@@ -94,6 +108,47 @@ namespace NoCodeMotion.Views
                     foreach (var c in cams)
                         if (!string.IsNullOrWhiteSpace(c.Name) && !list.Contains(c.Name.Trim())) list.Add(c.Name.Trim());
                 return list;
+            }
+        }
+
+        /// <summary>
+        /// 工程轴名称（供「标定」步骤选 X / Y / 旋转轴）。轴名是「工位-轴1」这种带工位前缀的全名。
+        /// </summary>
+        public IReadOnlyList<string> CalibAxisNames
+        {
+            get
+            {
+                var list = new List<string>();
+                var axes = ProjectStore.Data?.Axes;
+                if (axes != null)
+                    foreach (var a in axes)
+                        if (!string.IsNullOrWhiteSpace(a.Name) && !list.Contains(a.Name.Trim())) list.Add(a.Name.Trim());
+                return list;
+            }
+        }
+
+        /// <summary>
+        /// 当前步骤所属相机的标定状态（参数卡里回显「存工程」的结果）。
+        /// 让用户一眼看出：这台相机到底标过没有、参数是多少、旋转中心在哪。
+        /// </summary>
+        public string CalibCurrentText
+        {
+            get
+            {
+                var step = SelectedStep;
+                if (step == null) return "";
+                string cam = VisionEngine.CameraNameOf(VisionEngine.ResolveCameraIndex(step.CameraId));
+                if (cam.Length == 0) cam = (step.CameraId ?? "").Trim();
+                if (cam.Length == 0) return "未指定相机：请先选相机再标定";
+
+                var rec = CalibrationStore.Find(cam);
+                if (rec == null) return $"相机「{cam}」尚未标定";
+                if (!rec.IsUsable) return $"相机「{cam}」标定无效：{rec.Message}";
+                return $"相机「{cam}」已标定（{rec.CalibratedAt}）\n"
+                     + $"像素当量 {CalibSolver.Fmt(rec.PixelEquivalent)} mm/px（X 向 {CalibSolver.Fmt(rec.AngleX)}°"
+                     + $"／Y 向 {CalibSolver.Fmt(rec.AngleY)}°），残差 {CalibSolver.Fmt(rec.ResidualRms)} mm\n"
+                     + $"旋转中心 ({CalibSolver.Fmt(rec.RotCenterU)}, {CalibSolver.Fmt(rec.RotCenterV)}) px"
+                     + $" → 机台 ({CalibSolver.Fmt(rec.RotCenterX)}, {CalibSolver.Fmt(rec.RotCenterY)}) mm";
             }
         }
 
@@ -206,6 +261,33 @@ namespace NoCodeMotion.Views
         }
 
         public bool HasOverlayBoxes => OverlayBoxes != null && OverlayBoxes.Count > 0;
+
+        // ---- 字符识别结果框（源图像素坐标）→ 屏幕坐标。供结果图叠加层画绿框 + 框上方绿字标签。---- //
+        public static readonly DependencyProperty OcrTextBoxesProperty =
+            DependencyProperty.Register(nameof(OcrTextBoxes), typeof(ObservableCollection<TextBoxItem>),
+                typeof(VisualFlowDetailViewModel),
+                new PropertyMetadata(null, (d, e) => ((VisualFlowDetailViewModel)d).OnPropertyChanged(nameof(HasOcrTextBoxes))));
+
+        public ObservableCollection<TextBoxItem>? OcrTextBoxes
+        {
+            get => (ObservableCollection<TextBoxItem>?)GetValue(OcrTextBoxesProperty);
+            set => SetValue(OcrTextBoxesProperty, value);
+        }
+
+        public bool HasOcrTextBoxes => OcrTextBoxes != null && OcrTextBoxes.Count > 0;
+
+        public static readonly DependencyProperty TextOverlayBoxesProperty =
+            DependencyProperty.Register(nameof(TextOverlayBoxes), typeof(ObservableCollection<TextOverlayBox>),
+                typeof(VisualFlowDetailViewModel),
+                new PropertyMetadata(null, (d, e) => ((VisualFlowDetailViewModel)d).OnPropertyChanged(nameof(HasTextOverlayBoxes))));
+
+        public ObservableCollection<TextOverlayBox>? TextOverlayBoxes
+        {
+            get => (ObservableCollection<TextOverlayBox>?)GetValue(TextOverlayBoxesProperty);
+            set => SetValue(TextOverlayBoxesProperty, value);
+        }
+
+        public bool HasTextOverlayBoxes => TextOverlayBoxes != null && TextOverlayBoxes.Count > 0;
 
         /// <summary>每步执行结果（绑定到结果列表）。同一实例，增删由集合自身通知。</summary>
         public ObservableCollection<VisionStepResult> Results { get; } = new();
@@ -420,6 +502,10 @@ namespace NoCodeMotion.Views
                 MatchResults = report.Matches.Count > 0
                     ? new ObservableCollection<MatchBox>(report.Matches)
                     : null;
+                // 字符识别的逐行文字框 → 叠加层画绿框 + 绿字标签
+                OcrTextBoxes = report.TextBoxes.Count > 0
+                    ? new ObservableCollection<TextBoxItem>(report.TextBoxes)
+                    : null;
 
                 int ok = 0;
                 foreach (var r in Results) if (r.Ok) ok++;
@@ -567,6 +653,7 @@ namespace NoCodeMotion.Views
             vm.HasTemplatePreview = false;
             vm.MatchResult = null;
             vm.MatchResults = null;
+            vm.OcrTextBoxes = null;
             vm.RaiseTypeFlags();
             vm.RaiseSourceFlags();
         }
@@ -575,6 +662,8 @@ namespace NoCodeMotion.Views
         {
             if (e.PropertyName == nameof(VisualFlowStep.StepType)) RaiseTypeFlags();
             else if (e.PropertyName == nameof(VisualFlowStep.SourceType)) RaiseSourceFlags();
+            // 标定跑完会把结果写进步骤（CalibResultText）并落到工程标定表 → 刷新「已标定」回显
+            else if (e.PropertyName == nameof(VisualFlowStep.CalibResultText)) OnPropertyChanged(nameof(CalibCurrentText));
         }
 
         private void RaiseTypeFlags()
@@ -586,6 +675,9 @@ namespace NoCodeMotion.Views
             OnPropertyChanged(nameof(IsMeasure));
             OnPropertyChanged(nameof(IsComm));
             OnPropertyChanged(nameof(IsOcr));
+            OnPropertyChanged(nameof(IsCalibration));
+            OnPropertyChanged(nameof(CalibAxisNames));
+            OnPropertyChanged(nameof(CalibCurrentText));
         }
 
         private void RaiseSourceFlags()
@@ -637,6 +729,10 @@ namespace NoCodeMotion.Views
             // 全部匹配框 → 叠加层旋转矩形
             MatchResults = report.Matches.Count > 0
                 ? new ObservableCollection<MatchBox>(report.Matches)
+                : null;
+            // 字符识别的逐行文字框 → 叠加层画绿框 + 绿字标签
+            OcrTextBoxes = report.TextBoxes.Count > 0
+                ? new ObservableCollection<TextBoxItem>(report.TextBoxes)
                 : null;
 
             int ok = 0;
@@ -692,6 +788,10 @@ namespace NoCodeMotion.Views
             MatchResult = report.Match;
             MatchResults = report.Matches.Count > 0
                 ? new ObservableCollection<MatchBox>(report.Matches)
+                : null;
+            // 字符识别的逐行文字框 → 叠加层画绿框 + 绿字标签
+            OcrTextBoxes = report.TextBoxes.Count > 0
+                ? new ObservableCollection<TextBoxItem>(report.TextBoxes)
                 : null;
 
             int ok = 0;

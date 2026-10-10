@@ -27,6 +27,7 @@ namespace NoCodeMotion.Views
         private FlowPage? _flowPage;
         private PropertyChangedEventHandler? _fvmHandler;
         private NotifyCollectionChangedEventHandler? _matchResultsHandler;
+        private NotifyCollectionChangedEventHandler? _ocrTextHandler;
         private int _projRetry;   // 布局时序重试计数，避免无限重排
 
         public VisualFlowPage()
@@ -54,6 +55,11 @@ namespace NoCodeMotion.Views
                 HookMatchResultsCollection(_vm.MatchResults);
                 ProjectOverlayBoxes();
             }
+            else if (e.PropertyName == nameof(VisualFlowDetailViewModel.OcrTextBoxes))
+            {
+                HookOcrTextCollection(_vm.OcrTextBoxes);
+                ProjectOverlayBoxes();
+            }
         }
 
         private void HookMatchResultsCollection(ObservableCollection<MatchBox>? col)
@@ -66,11 +72,21 @@ namespace NoCodeMotion.Views
             if (col != null) col.CollectionChanged += _matchResultsHandler;
         }
 
+        private void HookOcrTextCollection(ObservableCollection<TextBoxItem>? col)
+        {
+            if (_ocrTextHandler != null && _vm.OcrTextBoxes != null)
+            {
+                _vm.OcrTextBoxes.CollectionChanged -= _ocrTextHandler;
+            }
+            _ocrTextHandler = (_, _) => ProjectOverlayBoxes();
+            if (col != null) col.CollectionChanged += _ocrTextHandler;
+        }
+
         /// <summary>
-        /// 按当前 ResultImage 的像素尺寸 + ImageHost 的实际显示尺寸，把 MatchBox 投影为屏幕坐标 OverlayBox。
-        /// 公式与 Image.Stretch=Uniform 完全一致：scale = min(hostW/srcW, hostH/srcH)，
+        /// 按当前 ResultImage 的像素尺寸 + ImageHost 的实际显示尺寸，把 MatchBox / TextBoxItem 投影为屏幕坐标
+        /// OverlayBox / TextOverlayBox。公式与 Image.Stretch=Uniform 完全一致：scale = min(hostW/srcW, hostH/srcH)，
         /// 偏移 = (hostW - srcW*scale)/2, (hostH - srcH*scale)/2。
-        /// OverlayBoxes 喂给叠加层 ItemsControl 直接使用 Canvas.Left/Top/Width/Height（屏幕像素），
+        /// 两类框共用同一 scale/offset，喂给叠加层 ItemsControl 直接使用 Canvas.Left/Top/Width/Height（屏幕像素），
         /// 不再依赖外层 RenderTransform，避免 PropertyChanged / 布局时序 race。
         /// </summary>
         private void ProjectOverlayBoxes()
@@ -79,9 +95,13 @@ namespace NoCodeMotion.Views
             // 避免「MatchResults 已就绪但 Image 控件 Source 还没刷新」导致拿不到像素尺寸。
             var src = _vm.ResultImage as BitmapSource;
             var matches = _vm.MatchResults;
-            if (matches == null || matches.Count == 0)
+            var texts = _vm.OcrTextBoxes;
+            bool anyMatch = matches != null && matches.Count > 0;
+            bool anyText = texts != null && texts.Count > 0;
+            if (!anyMatch && !anyText)
             {
                 _vm.OverlayBoxes = null;
+                _vm.TextOverlayBoxes = null;
                 return;
             }
             // 图像尚未解码完成（PixelWidth=0）或宿主尚未完成布局（ActualWidth=0）时，
@@ -106,8 +126,15 @@ namespace NoCodeMotion.Views
             double dispW = src.PixelWidth * scale, dispH = src.PixelHeight * scale;
             double offsetX = (hostW - dispW) / 2.0, offsetY = (hostH - dispH) / 2.0;
 
-            _vm.OverlayBoxes = new ObservableCollection<OverlayBox>(
-                matches.Select(m => OverlayBox.Project(m, scale, offsetX, offsetY)));
+            // 同一 scale/offset 作用于两类框，保证文字框与匹配框、以及它们与源图的相对位置严格一致
+            _vm.OverlayBoxes = anyMatch
+                ? new ObservableCollection<OverlayBox>(
+                      matches!.Select(m => OverlayBox.Project(m, scale, offsetX, offsetY)))
+                : null;
+            _vm.TextOverlayBoxes = anyText
+                ? new ObservableCollection<TextOverlayBox>(
+                      texts!.Select(x => TextOverlayBox.Project(x, scale, offsetX, offsetY)))
+                : null;
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -148,6 +175,10 @@ namespace NoCodeMotion.Views
             if (_vm.MatchResults != null && _matchResultsHandler != null)
             {
                 _vm.MatchResults.CollectionChanged -= _matchResultsHandler;
+            }
+            if (_vm.OcrTextBoxes != null && _ocrTextHandler != null)
+            {
+                _vm.OcrTextBoxes.CollectionChanged -= _ocrTextHandler;
             }
             _fvmHandler = null;
         }

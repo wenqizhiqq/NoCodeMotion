@@ -1187,6 +1187,324 @@ if _ve is not None:
     check("G25.7 运行结果标注统一为绿色（缺陷框+测量线/标记=绿；OCR 的 NG 仍红）",
           _def_green and _measure_no_blue and _ocr_ng_red)
 
+# G26 字符识别结果叠加：每行文字画绿框 + 框上方绿字标签（与模板匹配同一套矢量叠加思路）
+_mb = read(r"Models\MatchBox.cs")
+if _mb is not None:
+    _m = _mb.replace("\r\n", "\n")
+    check("G26.1 存在 TextBoxItem / TextOverlayBox（字符识别框模型 + 屏幕坐标投影）",
+          "public sealed class TextBoxItem" in _m
+          and "public sealed class TextOverlayBox" in _m
+          and "public static TextOverlayBox Project(TextBoxItem tb, double scale, double offsetX, double offsetY)" in _m
+          and "public string Text { get; set; }" in _m)
+
+if _ve is not None:
+    check("G26.2 VisionReport 单独收集逐行文字框 TextBoxes（不并入 Matches 污染匹配统计）",
+          "public List<TextBoxItem> TextBoxes { get; } = new();" in _e
+          and _e.count("report.Matches.Add(") == 1)
+    check("G26.3 RunOcr 逐行取词框（OcrWord.BoundingRect）并按 ROI 原点偏移回整图坐标",
+          "foreach (var line in ocr.Lines)" in _e
+          and "foreach (var word in line.Words)" in _e
+          and "word.BoundingRect" in _e
+          and "report.TextBoxes.Add(new TextBoxItem" in _e
+          and "Left = bx + rx," in _e and "Top = by + ry," in _e)
+
+_vm2 = read(r"Views\VisualFlowDetailViewModel.cs")
+if _vm2 is not None:
+    _v2 = _vm2.replace("\r\n", "\n")
+    check("G26.4 VM 暴露 OcrTextBoxes / TextOverlayBoxes 两个 DP，三处运行入口都回填",
+          "public ObservableCollection<TextBoxItem>? OcrTextBoxes" in _v2
+          and "public ObservableCollection<TextOverlayBox>? TextOverlayBoxes" in _v2
+          and _v2.count("OcrTextBoxes = report.TextBoxes.Count > 0") == 3)
+
+if _vfc is not None:
+    check("G26.5 页面把文字框投影成屏幕坐标（与匹配框共用同一 scale/offset）",
+          "var texts = _vm.OcrTextBoxes;" in _c2
+          and "TextOverlayBox.Project(x, scale, offsetX, offsetY)" in _c2
+          and "HookOcrTextCollection" in _c2)
+
+if _vfx is not None:
+    check("G26.6 结果图新增 TextOverlay 叠加层：绿框 + 框上方文字标签",
+          'x:Name="TextOverlay"' in _x2
+          and 'ItemsSource="{Binding TextOverlayBoxes}"' in _x2
+          and 'Visibility="{Binding HasTextOverlayBoxes' in _x2
+          and 'Text="{Binding Text}"' in _x2)
+
+# ---------------------------------------------------------------------
+section("G27  视觉标定：9 点 XY 仿射 + 5 点旋转圆拟合（模型 / 求解器 / 检测 / 执行器 / 接线 / 落盘 / UI）")
+# ---------------------------------------------------------------------
+
+
+def col_names_of(src, start_marker, stop_prefix):
+    """从某个 Build*Sheet 方法体里按顺序抽出 dt.Columns.Add("名字") 的列名。"""
+    names = []
+    started = False
+    for ln in src.replace("\r\n", "\n").split("\n"):
+        if not started:
+            if start_marker in ln:
+                started = True
+            continue
+        if ln.strip().startswith(stop_prefix):
+            break
+        key = 'dt.Columns.Add("'
+        i = ln.find(key)
+        if i >= 0:
+            j = ln.find('"', i + len(key))
+            if j > i:
+                names.append(ln[i + len(key):j])
+    return names
+
+
+def has_dashed_calib_var(src):
+    """标定变量名里绝不能出现减号（表达式求值器把 '-' 当减运算符）。"""
+    i = 0
+    while True:
+        i = src.find('"标定_', i)
+        if i < 0:
+            return False
+        j = src.find('"', i + 1)
+        if j < 0:
+            return False
+        if "-" in src[i + 1:j]:
+            return True
+        i = j + 1
+
+
+_cc = read(r"Models\CameraCalibration.cs")
+if _cc is None:
+    check("G27.1 找到 Models\\CameraCalibration.cs", False, "文件缺失")
+else:
+    check("G27.1 标定结果模型：仿射换算 + 绕旋转中心换算 + 可用性判定",
+          "public sealed class CameraCalibration" in _cc
+          and "public bool IsUsable => IsValid && PixelEquivalent > 0;" in _cc
+          and "public void ImageToMachine(double u, double v, out double x, out double y)" in _cc
+          and "x = A1 * u + A2 * v + A3;" in _cc
+          and "y = B1 * u + B2 * v + B3;" in _cc
+          and "public void ImageToMachineRotated(double u, double v, double angleDeg, out double x, out double y)" in _cc
+          and "double du = u - RotCenterU, dv = v - RotCenterV;" in _cc
+          and "ImageToMachine(ru, rv, out x, out y);" in _cc)
+    check("G27.2 字段全标量（xlsx 反射导出「标定」表要能直接落盘；点集用字符串存）",
+          "public string CameraName { get; set; }" in _cc
+          and "public double PixelEquivalent { get; set; }" in _cc
+          and "public double RotCenterU { get; set; }" in _cc
+          and "public string Points9 { get; set; }" in _cc
+          and "public string Machine9 { get; set; }" in _cc
+          and "public string Points5 { get; set; }" in _cc)
+
+_cs = read(r"Services\Vision\Calibration\CalibSolver.cs")
+if _cs is None:
+    check("G27.3 找到 CalibSolver.cs", False, "文件缺失")
+else:
+    check("G27.3 仿射最小二乘：正规方程 + 高斯消元；像素当量/方向角/残差都有解析式",
+          "public static AffineFit FitAffine(IReadOnlyList<(double U, double V, double X, double Y)> pts)" in _cs
+          and "m[0, 0] = suu; m[0, 1] = suv; m[0, 2] = su;" in _cs
+          and "if (!Solve3(m, new[] { sux, svx, sx }, cx))" in _cs
+          and "r.PixelEquivalentU = Math.Sqrt(r.A1 * r.A1 + r.B1 * r.B1);" in _cs
+          and "r.AngleXDeg = Math.Atan2(r.B1, r.A1) * 180.0 / Math.PI;" in _cs
+          and "r.RmsMm = Math.Sqrt(se / (2.0 * n));" in _cs
+          and "private static bool Solve3(" in _cs)
+    check("G27.4 圆拟合（Kåsa 线性化）+ 不变文化格式化（小数点不被本地化）",
+          "public static CircleFit FitCircle(IReadOnlyList<(double U, double V)> pts)" in _cs
+          and "double z = p.U * p.U + p.V * p.V;" in _cs
+          and "if (!Solve3(m, new[] { -suz, -svz, -sz }, sol))" in _cs
+          and "double cu = -d / 2.0, cv = -e / 2.0;" in _cs
+          and "r.RmsPx = Math.Sqrt(se / n);" in _cs
+          and "CultureInfo.InvariantCulture" in _cs)
+    check("G27.5 求解器不依赖 OpenCV / WPF（标定是最需要离线断言的一环）",
+          "OpenCvSharp" not in _cs and "Cv." not in _cs and "System.Windows" not in _cs)
+
+_md = read(r"Services\Vision\Calibration\MarkerDetector.cs")
+if _md is None:
+    check("G27.6 找到 MarkerDetector.cs", False, "文件缺失")
+else:
+    check("G27.6 标记质心检测：亮度阈值 + 4 连通域 + 质心/填充率/圆度 + 面积降序",
+          "public static List<MarkerBlob> Detect(byte[]? bgra, int width, int height, MarkerDetectOptions? opt = null)" in _md
+          and "public static MarkerBlob? DetectLargest(" in _md
+          and "int lum = (r * 299 + g * 587 + b * 114) / 1000;" in _md
+          and "int b = bgra[i * 4], g = bgra[i * 4 + 1], r = bgra[i * 4 + 2];" in _md
+          and "CenterU = (double)su / area," in _md
+          and "list.Sort((a, b) => b.Area.CompareTo(a.Area));" in _md)
+    check("G27.7 检测器刻意纯托管（opencv_world480.dll 不在搜索路径时冒烟也要能跑）",
+          "OpenCvSharp" not in _md and "Cv." not in _md)
+
+_cr = read(r"Services\Vision\Calibration\CalibrationRunner.cs")
+if _cr is None:
+    check("G27.8 找到 CalibrationRunner.cs", False, "文件缺失")
+else:
+    check("G27.8 执行器：硬件/采集全走注入委托（冒烟可用合成数据端到端跑完整流程）",
+          "public sealed class CalibrationRunner" in _cr
+          and "public Func<string, double>? ReadAxisPosition { get; set; }" in _cr
+          and "public Action<string, double>? MoveAxisAbs { get; set; }" in _cr
+          and "public Func<(byte[]? Bgra, int Width, int Height)>? GrabFrame { get; set; }" in _cr
+          and "public Action? Guard { get; set; }" in _cr)
+    check("G27.9 9 点铺 3×3 网格；5 点以「基准角为中心」按步距绕旋转轴",
+          "for (int iy = -1; iy <= 1; iy++)" in _cr
+          and "for (int ix = -1; ix <= 1; ix++)" in _cr
+          and "double tx = baseX + ix * o.PitchMm;" in _cr
+          and "double start = baseAngle - (count - 1) / 2.0 * o.RotationStepDeg;" in _cr)
+    check("G27.10 停止/暂停必须冒泡（OperationCanceledException 一律重抛，绝不吞成「标定失败」）",
+          _cr.count("catch (OperationCanceledException)") >= 3
+          and _cr.count("catch (OperationCanceledException) { throw; }") >= 2
+          and "不能当成「标定失败」吞掉" in _cr)
+    check("G27.11 可中断等待（每 ≤50ms 轮询 Guard）+ 残差/半径闸门",
+          "int step = Math.Min(50, ms - elapsed);" in _cr
+          and "if (fit.RmsMm > o.MaxResidualMm)" in _cr
+          and "if (circ.RadiusPx < o.MinRotationRadiusPx)" in _cr
+          and "if (circ.RmsPx > o.MaxRotationResidualPx)" in _cr)
+    check("G27.12 取不到图就明确失败（不回退合成图；合成图会悄悄产出垃圾标定参数）",
+          'return (null, "采集图像失败（相机不可用或返回空帧）");' in _cr)
+
+_cst = read(r"Services\Vision\Calibration\CalibrationStore.cs")
+if _cst is None:
+    check("G27.13 找到 CalibrationStore.cs", False, "文件缺失")
+else:
+    check("G27.13 标定仓库按相机名增改查（数据落 ProjectData.Calibrations，随工程落盘）",
+          "public static ObservableCollection<CameraCalibration>? All => ProjectStore.Data?.Calibrations;" in _cst
+          and "public static CameraCalibration? FindUsable(string? cameraName)" in _cst
+          and "public static CameraCalibration? Upsert(CameraCalibration? rec)" in _cst
+          and "public static bool HasUsable(string? cameraName)" in _cst)
+
+_cve = read(r"Services\Vision\Calibration\CalibVarExport.cs")
+if _cve is None:
+    check("G27.14 找到 CalibVarExport.cs", False, "文件缺失")
+else:
+    check("G27.14 导出 7 个标定变量，变量名一律不带减号（'-' 会被表达式求值器当减号）",
+          "public const string VarPixelEquivalent = \"标定_像素当量\";" in _cve
+          and "public const string VarRotCenterV = \"标定_旋转中心V\";" in _cve
+          and _cve.count("public const string Var") == 7
+          and not has_dashed_calib_var(_cve))
+    check("G27.15 变量单元格：同名复用 → 空槽复用 → 新开一行（WriteVarRow 只改不建）",
+          "private static bool EnsureCell(string name, out VariableRow row, out int col)" in _cve
+          and "var nr = new VariableRow();" in _cve
+          and "SimRuntime.SetVariable(name, v);" in _cve)
+
+_ve27 = read(r"Services\Vision\VisionEngine.cs")
+if _ve27 is None:
+    check("G27.16 找到 VisionEngine.cs", False, "文件缺失")
+else:
+    _e27 = _ve27.replace("\r\n", "\n")
+    check("G27.16 引擎接线：case「标定」→ RunCalibration；模板匹配按标定输出机台真实位置",
+          "using NoCodeMotion.Services.Vision.Calibration;" in _e27
+          and 'case "标定":' in _e27
+          and "RunCalibration(s, report, progress);" in _e27
+          and "CameraCalibration? calib = CalibrationStore.FindUsable(calibCam);" in _e27
+          and _e27.count("calib.ImageToMachineRotated(") == 2
+          and "public static string CameraNameOf(int cameraIndex)" in _e27)
+    check("G27.17 标定会驱动真实轴：仿真桩拒绝 + 轴名找不到就失败（绝不拿轴 0 顶上）+ 不回退合成图",
+          "if (bridge is StubHardwareBridge)" in _e27
+          and "标定会驱动真实轴，已中止" in _e27
+          and "标定的 X/Y 轴名在工程里找不到" in _e27
+          and "标定的旋转轴名在工程里找不到" in _e27
+          and "return real == null ? ((byte[]?)null, 0, 0) : (real, gw, gh);" in _e27)
+    check("G27.18 引擎运行路径不吞停止信号（标定期间按停止必须真的停下来）",
+          _e27.count("catch (OperationCanceledException)") >= 2)
+
+_ax = read(r"Services\AiProjectExchange.cs")
+if _ax is None:
+    check("G27.19 找到 AiProjectExchange.cs", False, "文件缺失")
+else:
+    _a = _ax.replace("\r\n", "\n")
+    _ns = _a.split("private static string NormalizeStepType")[1] if "private static string NormalizeStepType" in _a else ""
+    check("G27.19 AI 交换：标定步骤可导出 / 可回填（标定方式 / X轴 / Y轴 / 旋转轴 / 间距mm …）",
+          'case "标定":' in _a
+          and 'sb.Append(", \\"标定方式\\": ").Append(J(s.CalibMode));' in _a
+          and 'st.CalibMode = Str(s, "标定方式", "calibMode") ?? st.CalibMode;' in _a
+          and 'st.CalibRotAxis = Str(s, "旋转轴", "标定旋转轴", "calibRotAxis") ?? st.CalibRotAxis;' in _a)
+    check("G27.20 类型归一化：标定必须排在「相机 → 图像采集」之前（AI 常写「相机标定」）",
+          't.Contains("标定")' in _ns
+          and 't.Contains("采集")' in _ns
+          and _ns.find('t.Contains("标定")') < _ns.find('t.Contains("采集")'))
+
+_vfs = read(r"Models\VisualFlowStep.cs")
+if _vfs is None:
+    check("G27.21 找到 VisualFlowStep.cs", False, "文件缺失")
+else:
+    check("G27.21 视觉步骤模型新增 14 个标定字段（方式/三轴/间距/步距/点数/速度/延时/检测参数/结果文本）",
+          "public string CalibMode" in _vfs
+          and "public string CalibXAxis" in _vfs
+          and "public string CalibYAxis" in _vfs
+          and "public string CalibRotAxis" in _vfs
+          and "public double CalibPitchMm" in _vfs
+          and "public double CalibRotationStepDeg" in _vfs
+          and "public int CalibRotationCount" in _vfs
+          and "public double CalibSpeed" in _vfs
+          and "public int CalibSettleMs" in _vfs
+          and "public int CalibThreshold" in _vfs
+          and "public bool CalibDarkMarker" in _vfs
+          and "public int CalibMinArea" in _vfs
+          and "public int CalibMaxArea" in _vfs
+          and "public string CalibResultText" in _vfs)
+
+_pd = read(r"Models\ProjectData.cs")
+if _pd is None:
+    check("G27.22 找到 ProjectData.cs", False, "文件缺失")
+else:
+    check("G27.22 工程数据新增 Calibrations 集合（一台相机一条）",
+          "public ObservableCollection<CameraCalibration> Calibrations { get; set; } = new();" in _pd)
+
+_xs = read(r"Services\XlsxProjectStore.cs")
+if _xs is None:
+    check("G27.23 找到 XlsxProjectStore.cs", False, "文件缺失")
+else:
+    _flow_cols = col_names_of(_xs, "private static DataTable BuildFlowSheet", "private static ")
+    check("G27.23 落盘：新增「标定」工作表 + 菜单顺序（料盘/相机/标定/变量/流程…）",
+          '["Calibrations"] = "标定",' in _xs
+          and '"料盘", "相机", "标定", "变量", "流程", "工程师", "自定义", "操作员",' in _xs)
+    check("G27.24 流程表新增 14 个标定列（导出与回填一一对应）",
+          all(c in _flow_cols for c in
+              ("标定方式", "标定X轴", "标定Y轴", "标定旋转轴", "标定间距mm", "旋转步距",
+               "旋转点数", "标定速度", "标定稳定ms", "标记阈值", "暗标记",
+               "标记最小面积", "标记最大面积", "标定结果"))
+          and 'SetStr(r, "标定方式", vObj, "CalibMode");' in _xs
+          and 'CalibRotAxis = r["标定旋转轴"]?.ToString() ?? "",' in _xs)
+    check("G27.25 顺手补上 OCR 字段的落盘（此前只在 AI 交换 JSON 里有，xlsx 会静默丢配置）",
+          all(c in _flow_cols for c in
+              ("识别语言", "期望文本", "匹配方式", "忽略大小写", "识别框X", "识别框Y", "识别框W", "识别框H"))
+          and 'SetStr(r, "识别语言", vObj, "OcrLanguage");' in _xs
+          and 'OcrLanguage = r["识别语言"]?.ToString() ?? "自动",' in _xs)
+    _key = 'Add("流程（'
+    _i = _xs.find(_key)
+    _j = _xs.find("列）", _i)
+    _legend_n = int(_xs[_i + len(_key):_j]) if (_i >= 0 and _j > _i) else -1
+    check("G27.26 合并页列说明的「流程（N列）」必须与 BuildFlowSheet 的真实列数一致（防图例漂移）",
+          _legend_n == len(_flow_cols),
+          "图例写 %d 列，实际 %d 列" % (_legend_n, len(_flow_cols)))
+
+_vm27 = read(r"Views\VisualFlowDetailViewModel.cs")
+if _vm27 is None:
+    check("G27.27 找到 VisualFlowDetailViewModel.cs", False, "文件缺失")
+else:
+    _v27 = _vm27.replace("\r\n", "\n")
+    check("G27.27 VM：标定类型开关 + 轴名候选 + 当前标定回显，并在切步/改结果时刷新",
+          'public bool IsCalibration => SelectedStep?.StepType == "标定";' in _v27
+          and "public IReadOnlyList<string> CalibAxisNames" in _v27
+          and "public string CalibCurrentText" in _v27
+          and "OnPropertyChanged(nameof(IsCalibration));" in _v27
+          and "OnPropertyChanged(nameof(CalibCurrentText));" in _v27)
+
+_vfx27 = read(r"Views\VisualFlowPage.xaml")
+if _vfx27 is None:
+    check("G27.28 找到 VisualFlowPage.xaml", False, "文件缺失")
+else:
+    _x27 = _vfx27.replace("\r\n", "\n")
+    check("G27.28 视觉流程页：标定参数卡（方式/相机/三轴/9 点间距/旋转步距/标记阈值/开始标定）",
+          'x:Key="CalibModes"' in _x27
+          and 'Text="标定参数"' in _x27
+          and 'Text="标定方式"' in _x27
+          and 'Text="旋转轴"' in _x27
+          and 'Text="开始标定"' in _x27
+          and 'ItemsSource="{Binding CalibAxisNames}"' in _x27
+          and 'Text="{Binding CalibCurrentText}"' in _x27
+          and 'Text="{Binding SelectedStep.CalibResultText}"' in _x27
+          and 'Visibility="{Binding IsCalibration, Converter={StaticResource BoolToVis}}"' in _x27)
+
+_mb27 = read(r"Models\MatchBox.cs")
+if _mb27 is not None:
+    _m27 = _mb27.replace("\r\n", "\n")
+    check("G27.29 匹配框带机台真实位置（未标定时 RealText 明确说「未标定」，不假装有值）",
+          "public double RealX { get; set; } = double.NaN;" in _m27
+          and "public bool HasReal { get; set; }" in _m27
+          and 'public string RealText => HasReal ? $"({RealX:F2}, {RealY:F2}) mm" : "未标定";' in _m27)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")
