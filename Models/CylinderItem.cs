@@ -11,7 +11,7 @@ namespace NoCodeMotion.Models
     {
         // ===================== 基本信息 =====================
         private string _deviceId = string.Empty;       // 设备编号
-        private string _type = "双作用";               // 气缸类型：单作用 / 双作用
+        private string _type = "双动气缸";               // 气缸类型：单动气缸（1 路输出）/ 双动气缸（2 路输出）
         private string _action = "伸出";               // 默认动作：伸出 / 缩回
         private string _initialState = "缩回";         // 初始状态：伸出 / 缩回
         private string _remark = string.Empty;         // 备注说明
@@ -23,7 +23,7 @@ namespace NoCodeMotion.Models
         private string _sensorExtend = string.Empty;   // 伸出到位感应（关联 IO 名称）
         private string _sensorRetract = string.Empty;  // 缩回到位感应（关联 IO 名称）
         private string _sensorType = "NPN";            // 感应类型：NPN / PNP
-        private string _backupSensor = string.Empty;   // 备用感应点
+        private string _backupSensor = string.Empty;   // 缩回输出（第 2 路输出，仅双动气缸用；旧名「备用感应」）
 
         // ===================== 动作参数 =====================
         private int _delayMs = 200;                    // 动作延时(ms)
@@ -48,7 +48,35 @@ namespace NoCodeMotion.Models
 
         // ===================== 基本信息 =====================
         public string DeviceId { get => _deviceId; set => SetField(ref _deviceId, value); }
-        public string Type { get => _type; set => SetField(ref _type, value); }
+        public string Type
+        {
+            get => _type;
+            // ★ 在 setter 里归一化：xlsx 载入 / AI 导入 / 模板 / 界面写入四条路径都走属性 setter，
+            //   一处归一即全覆盖（旧工程存的是「单作用 / 双作用」，不归一的话类型药丸渲染空白并写回 null）。
+            set { if (SetField(ref _type, NormalizeType(value))) OnPropertyChanged(nameof(IsSingleActing)); }
+        }
+
+        /// <summary>
+        /// 气缸类型归一化：统一成「单动气缸」/「双动气缸」两个受限值。
+        /// 类型药丸（ApplePillList）是受限值域下拉 —— 候选外的值渲染空白，所以必须归一。
+        /// </summary>
+        public static string NormalizeType(string? raw)
+        {
+            string s = (raw ?? string.Empty).Trim();
+            if (s.Length == 0) return "双动气缸";
+            if (s.Contains("单动") || s.Contains("单作")) return "单动气缸";
+            if (s.Contains("双动") || s.Contains("双作")) return "双动气缸";
+            // 只写了「单 / 双」的（旧工程、AI 乱填）也能认；实在认不出的按双动 ——
+            // 双动是功能超集，最多多写一路输出，不会漏动作。
+            if (s.Contains("单")) return "单动气缸";
+            return "双动气缸";
+        }
+
+        /// <summary>
+        /// 是否单动气缸：只有 1 路输出（<see cref="OutPoint"/> 伸出输出），缩回靠弹簧复位。
+        /// 单动气缸不写第 2 路输出（<see cref="BackupSensor"/>），气缸页也会收起「缩回输出」那一行。
+        /// </summary>
+        public bool IsSingleActing => NormalizeType(_type) == "单动气缸";
         public string Action { get => _action; set => SetField(ref _action, value); }
         public string InitialState { get => _initialState; set => SetField(ref _initialState, value); }
         public string Remark { get => _remark; set => SetField(ref _remark, value); }

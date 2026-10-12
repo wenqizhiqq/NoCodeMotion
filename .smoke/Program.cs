@@ -470,9 +470,9 @@ namespace NcmSmoke
 
                 // ---- 气缸列表搜索 ----
                 evm.Cylinders.Add(new CylinderRuntime(
-                    new CylinderItem { Name = "夹爪气缸", Type = "双作用", OutPoint = "输出3" }, false));
+                    new CylinderItem { Name = "夹爪气缸", Type = "双动气缸", OutPoint = "输出3" }, false));
                 evm.Cylinders.Add(new CylinderRuntime(
-                    new CylinderItem { Name = "顶升气缸", Type = "单作用", OutPoint = "输出4" }, true));
+                    new CylinderItem { Name = "顶升气缸", Type = "单动气缸", OutPoint = "输出4" }, true));
                 int totalCyl = evm.Cylinders.Count;
 
                 Check(evm.CylindersView != null, "暴露了气缸过滤视图 CylindersView");
@@ -488,9 +488,9 @@ namespace NcmSmoke
                 evm.CylinderSearch = "输出4";
                 Check(evm.CylindersView.Cast<object>().Count() == 1,
                       "气缸按输出点也能搜（「输出4」→ 1）");
-                evm.CylinderSearch = "单作用";
+                evm.CylinderSearch = "单动气缸";
                 Check(evm.CylindersView.Cast<object>().Count() == 1,
-                      "气缸按类型也能搜（「单作用」→ 1）");
+                      "气缸按类型也能搜（「单动气缸」→ 1）");
                 evm.CylinderSearch = "绝不可能匹配xyzzy";
                 Check(evm.CylindersView.Cast<object>().Count() == 0, "气缸搜不到 → 0 项");
 
@@ -525,7 +525,7 @@ namespace NcmSmoke
                     evm2.Outputs.Add(new IoItem { Name = "输出" + i, CardNo = i / 8, ModuleNo = i % 8, Value = i % 2 });
                 for (int i = 0; i < 8; i++)
                     evm2.Cylinders.Add(new CylinderRuntime(
-                        new CylinderItem { Name = "气缸" + i, Type = i % 2 == 0 ? "双作用" : "单作用", OutPoint = "输出" + i },
+                        new CylinderItem { Name = "气缸" + i, Type = i % 2 == 0 ? "双动气缸" : "单动气缸", OutPoint = "输出" + i },
                         i % 2 == 0));
 
                 ep.Width = 1240; ep.Height = 780;
@@ -2399,6 +2399,137 @@ namespace NcmSmoke
             catch (Exception ex)
             {
                 Check(false, "通讯页 SECS 卡片验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ==================== 段 T：气缸单动 / 双动 + 连接控制器后 IO 名称库同刷 ====================
+            Section("段 T：气缸单动 / 双动（类型归一化 + 单动收起「缩回输出」）+ 连接控制器后 IO 名称库同刷");
+
+            try
+            {
+                // ---- 类型归一化：旧工程存的是「单作用 / 双作用」，必须映射进新的受限值域 ----
+                Check(CylinderItem.NormalizeType("单作用") == "单动气缸", "T1 旧值「单作用」→ 单动气缸");
+                Check(CylinderItem.NormalizeType("双作用") == "双动气缸", "T2 旧值「双作用」→ 双动气缸");
+                Check(CylinderItem.NormalizeType("单动气缸") == "单动气缸"
+                      && CylinderItem.NormalizeType("双动气缸") == "双动气缸", "T3 新值原样保留");
+                Check(CylinderItem.NormalizeType(null) == "双动气缸"
+                      && CylinderItem.NormalizeType("") == "双动气缸"
+                      && CylinderItem.NormalizeType("   ") == "双动气缸", "T4 空 / 空白兜底为双动气缸");
+                Check(CylinderItem.NormalizeType("单动") == "单动气缸"
+                      && CylinderItem.NormalizeType("双动") == "双动气缸", "T5 简写「单动 / 双动」也认");
+                Check(CylinderItem.NormalizeType("说不清") == "双动气缸", "T6 认不出的值按双动（功能超集，不漏动作）");
+
+                // ---- 属性 setter 归一化：xlsx 载入 / AI 导入 / 模板 / UI 写入四条路径都走它 ----
+                var cyS = new CylinderItem { Name = "T顶升缸", Type = "单作用" };
+                var cyD = new CylinderItem { Name = "T夹爪缸", Type = "双作用" };
+                Check(cyS.Type == "单动气缸" && cyD.Type == "双动气缸",
+                      "T7 Type 的 setter 就地归一（" + cyS.Type + " / " + cyD.Type + "）");
+                Check(cyS.IsSingleActing && !cyD.IsSingleActing, "T8 IsSingleActing 与归一后的类型一致");
+                bool raisedT = false;
+                cyS.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(CylinderItem.IsSingleActing)) raisedT = true; };
+                cyS.Type = "双动气缸";
+                Check(raisedT && !cyS.IsSingleActing,
+                      "T9 改 Type 会通知 IsSingleActing（否则气缸页的触发器不刷新）");
+
+                // ---- 类型药丸候选（受限值域：候选外的值会渲染空白） ----
+                var cvmT = new NoCodeMotion.ViewModels.CylinderViewModel();
+                Check(cvmT.TypeOptions.Length == 2
+                      && cvmT.TypeOptions.Contains("单动气缸") && cvmT.TypeOptions.Contains("双动气缸"),
+                      "T10 气缸类型候选 = 单动气缸 / 双动气缸");
+                Check(!cvmT.TypeOptions.Contains("单作用") && !cvmT.TypeOptions.Contains("双作用"),
+                      "T11 旧的「单作用 / 双作用」已从候选移除");
+
+                // ---- 气缸页离屏：单动收起「缩回输出」，双动显示 ----
+                var cylPageT = new NoCodeMotion.Views.CylinderPage();
+                var cvvmT = cylPageT.DataContext as NoCodeMotion.ViewModels.CylinderViewModel;
+                Check(cvvmT != null, "T12 气缸页 DataContext 是 CylinderViewModel");
+                var probeCyl = new CylinderItem { Name = "T-探针缸", Type = "单动气缸", OutPoint = "输出0" };
+                ProjectStore.Data.Cylinders.Add(probeCyl);
+                if (cvvmT != null) cvvmT.SelectedItem = probeCyl;
+                cylPageT.Measure(new Size(1200, 900));
+                cylPageT.Arrange(new Rect(0, 0, 1200, 900));
+                cylPageT.UpdateLayout();
+
+                if (cvvmT != null)
+                {
+                    // 找「缩回输出」那一行的宿主 StackPanel —— 它带 Style.Triggers（就是新包的折叠容器）
+                    System.Windows.Controls.StackPanel? ToggleHost(System.Windows.DependencyObject d)
+                    {
+                        System.Windows.DependencyObject? cur = d;
+                        while (cur != null)
+                        {
+                            if (cur is System.Windows.Controls.StackPanel sp
+                                && sp.Style != null && sp.Style.Triggers.Count > 0) return sp;
+                            cur = System.Windows.Media.VisualTreeHelper.GetParent(cur);
+                        }
+                        return null;
+                    }
+
+                    var rowsT = AllDescendants(cylPageT)
+                        .OfType<System.Windows.Controls.TextBlock>()
+                        .Where(x => x.Text == "缩回输出")
+                        .Select(x => ToggleHost(x))
+                        .Where(x => x != null)
+                        .Select(x => x!)
+                        .ToList();
+
+                    Check(rowsT.Count == 2,
+                          "T13 气缸页「缩回输出」有 2 处（IO 配置卡 + 状态显示卡），实际 " + rowsT.Count);
+                    Check(rowsT.Count == 2 && rowsT.All(r => r.Visibility == System.Windows.Visibility.Collapsed),
+                          "T14 单动气缸 → 两处「缩回输出」都收起");
+
+                    probeCyl.Type = "双动气缸";
+                    cylPageT.UpdateLayout();
+                    Check(rowsT.Count == 2 && rowsT.All(r => r.Visibility == System.Windows.Visibility.Visible),
+                          "T15 切回双动气缸 → 两处「缩回输出」都显示");
+
+                    probeCyl.Type = "单作用";
+                    cylPageT.UpdateLayout();
+                    Check(probeCyl.Type == "单动气缸"
+                          && rowsT.All(r => r.Visibility == System.Windows.Visibility.Collapsed),
+                          "T16 界面写回旧值「单作用」也会归一 → 行照常收起");
+
+                    string outDirT = RepoSmokeOut() ?? Path.Combine(AppContext.BaseDirectory, "out");
+                    Directory.CreateDirectory(outDirT);
+                    string shotT = Path.Combine(outDirT, "cylinder_single_acting.png");
+                    var rtbT = new RenderTargetBitmap(Math.Max(1, (int)Math.Ceiling(cylPageT.ActualWidth)),
+                                                      Math.Max(1, (int)Math.Ceiling(cylPageT.ActualHeight)),
+                                                      96, 96, PixelFormats.Pbgra32);
+                    rtbT.Render(cylPageT);
+                    var encT = new PngBitmapEncoder();
+                    encT.Frames.Add(BitmapFrame.Create(rtbT));
+                    using (var fsT = File.Create(shotT)) encT.Save(fsT);
+                    var fiT = new FileInfo(shotT);
+                    Check(fiT.Exists && fiT.Length > 5000,
+                          "T17 已离屏渲染「气缸页（单动）」PNG（" + fiT.Length + " 字节）：" + shotT);
+                }
+                ProjectStore.Data.Cylinders.Remove(probeCyl);
+
+                // ---- 连接控制器后：按方向拆分的两个 IO 名称库必须一起刷新 ----
+                //   ★ 这正是「连上控制器后气缸页选不了 IO 名称」的根因：GenerateIoPoints 原来只刷了
+                //     合并库 IoNames，气缸页 4 个下拉绑的 InIoNames / OutIoNames 还停在旧值（新工程是空）。
+                var genIo = typeof(NoCodeMotion.ViewModels.AxisControllerViewModel)
+                    .GetMethod("GenerateIoPoints", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                Check(genIo != null, "T18 找得到 AxisControllerViewModel.GenerateIoPoints");
+                if (genIo != null)
+                {
+                    Catalog.SetIoIn(new[] { "旧输入A", "旧输入B" });
+                    Catalog.SetIoOut(new[] { "旧输出A" });
+                    var ctlT = new AxisControllerItem { Name = "T控制卡", InIoCount = 3, OutIoCount = 2 };
+                    ProjectStore.SuppressSave(true);
+                    try { genIo.Invoke(null, new object[] { ctlT }); }
+                    finally { ProjectStore.SuppressSave(false); }
+
+                    Check(Catalog.InIoNames.SequenceEqual(new[] { "输入0", "输入1", "输入2" }),
+                          "T19 连接控制器后 InIoNames 已刷新（" + string.Join(",", Catalog.InIoNames) + "）");
+                    Check(Catalog.OutIoNames.SequenceEqual(new[] { "输出0", "输出1" }),
+                          "T20 连接控制器后 OutIoNames 已刷新（" + string.Join(",", Catalog.OutIoNames) + "）");
+                    Check(Catalog.IoNames.Count == 5,
+                          "T21 合并库 IoNames 同步（" + Catalog.IoNames.Count + " 个）");
+                }
+            }
+            catch (Exception ex)
+            {
+                Check(false, "气缸单动 / 双动 + IO 名称库验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
             }
 
             Console.WriteLine("\n====================  "

@@ -1605,9 +1605,13 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
             WriteOutput(outIo, state);   // 伸出输出（第 1 路）：1=伸出 / 0=缩回
 
-            // 缩回输出（第 2 路，配置了才写）：与第 1 路互斥（1=缩回）。
-            var retIo = FindIo(cyl.BackupSensor, isOutput: true);
-            if (retIo != null) WriteOutput(retIo, state != 0 ? 0 : 1);
+            // 缩回输出（第 2 路）：只有**双动气缸**才写。单动气缸缩回靠弹簧复位 ——
+            // 即使旧配置里残留了 BackupSensor，也不能驱动第 2 路（会把机构顶坏）。
+            if (!cyl.IsSingleActing)
+            {
+                var retIo = FindIo(cyl.BackupSensor, isOutput: true);
+                if (retIo != null) WriteOutput(retIo, state != 0 ? 0 : 1);
+            }
 
             Log($"[卡族] 气缸「{cyl.Name}」{(state == 1 ? "伸出" : "缩回")}（输出点 {cyl.OutPoint}）");
         }

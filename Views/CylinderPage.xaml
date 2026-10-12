@@ -189,14 +189,27 @@
                                           ItemsSource="{x:Static svc:Catalog.InIoNames}"
                                           SelectedItem="{Binding SelectedItem.SensorRetract, UpdateSourceTrigger=PropertyChanged}"/>
                             </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缩回输出"/>
-                                <ComboBox DockPanel.Dock="Right" Style="{StaticResource AppleCombo}"
-                                          ToolTip="第 2 路输出：缩回（来自 IO 页「输出IO」）；与伸出输出互斥"
-                                          ItemsSource="{x:Static svc:Catalog.OutIoNames}"
-                                          SelectedItem="{Binding SelectedItem.BackupSensor, UpdateSourceTrigger=PropertyChanged}"/>
-                            </DockPanel>
+                            <!-- 单动气缸只有 1 路输出（缩回靠弹簧复位）：
+                                 整块收起，连上面那条分隔线一起，否则底部会留一条悬空细线。 -->
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedItem.IsSingleActing}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缩回输出"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource AppleCombo}"
+                                              ToolTip="第 2 路输出：缩回（来自 IO 页「输出IO」）；与伸出输出互斥"
+                                              ItemsSource="{x:Static svc:Catalog.OutIoNames}"
+                                              SelectedItem="{Binding SelectedItem.BackupSensor, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DockPanel>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -300,11 +313,24 @@
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缩回感应"/>
                                 <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding StatusRetractText}"/>
                             </DockPanel>
-                            <Rectangle Style="{StaticResource AppleHairline}"/>
-                            <DockPanel Style="{StaticResource AppleRow}">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缩回输出"/>
-                                <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding StatusBackupText}"/>
-                            </DockPanel>
+                            <!-- 单动气缸只有 1 路输出（缩回靠弹簧复位）：
+                                 整块收起，连上面那条分隔线一起，否则底部会留一条悬空细线。 -->
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedItem.IsSingleActing}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="缩回输出"/>
+                                    <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding StatusBackupText}"/>
+                                </DockPanel>
+                            </StackPanel>
                             <TextBlock Margin="16,6,16,12" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}"
                                        Text="以上电平实时取自 IO 页对应点位的当前值；未关联时显示「未关联」。"/>
                         </StackPanel>

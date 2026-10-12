@@ -93,7 +93,7 @@ namespace NoCodeMotion.Services
                 "【气缸】InitialState 初始状态 / CurrentState 当前状态: 伸出 | 缩回。\n" +
                 "  OutPoint 输出点: 控制电磁阀的输出点名（如 Y0）\n" +
                 "  SensorExtend/SensorRetract: 伸出到位/缩回到位 感应输入点名（如 X0/X1）\n" +
-                "  Type 类型: 单作用 | 双作用",
+                "  Type 类型: 单动气缸（1 路输出，缩回靠弹簧） | 双动气缸（2 路输出）",
             ["Cameras"] =
                 "【相机】IpAddress 是 GigE 相机的 IP；Port 默认 8000。\n" +
                 "  Width/Height: 分辨率宽/高；ExposureMs 曝光毫秒；Gain 增益\n" +

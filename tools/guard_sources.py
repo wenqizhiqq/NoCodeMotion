@@ -1710,6 +1710,113 @@ else:
     check("G28.37 AI 工程交换：新增 BoolDef 助手（认 JSON 布尔，也认 1/0 与 true/false/是/否）",
           "private static bool BoolDef(JsonElement e, bool def, params string[] aliases)" in _a28)
 
+# ---------------------------------------------------------------------
+section("G29  气缸单动 / 双动（类型归一化 + 单动收起「缩回输出」）+ 连接控制器后 IO 名称库同刷")
+# ---------------------------------------------------------------------
+_CYL = r"Models\CylinderItem.cs"
+_CVM = r"ViewModels\CylinderViewModel.cs"
+_ACVM = r"ViewModels\AxisControllerViewModel.cs"
+_CX = r"Views\CylinderPage.xaml"
+_LS = r"Services\Hardware\Leadshine\LeadshineHardwareBridge.cs"
+_WQ = r"Services\Hardware\Cards\WenQiZhiCardBridge.cs"
+_AIX = r"Services\AiProjectExchange.cs"
+_TPL = r"Services\ProjectTemplateCatalog.cs"
+_ANN = r"Services\ProjectJsonAnnotator.cs"
+_OM = r"Views\OperatorManualPage.xaml.cs"
+_SMK = r".smoke\Program.cs"
+
+# ---- 气缸类型：归一化 + 单动语义 ----
+_cy = read(_CYL)
+if _cy is None:
+    check("G29.0 找到 CylinderItem.cs", False, _CYL)
+else:
+    check("G29.0 找到 CylinderItem.cs", True)
+    check("G29.1 有 public static string NormalizeType(string? raw)",
+          "public static string NormalizeType(string? raw)" in _cy)
+    check("G29.2 归一化认「单动 / 单作 / 单」→ 单动气缸",
+          's.Contains("单动") || s.Contains("单作")' in _cy
+          and 'if (s.Contains("单")) return "单动气缸";' in _cy)
+    check("G29.3 归一化认「双动 / 双作 / 兜底」→ 双动气缸",
+          's.Contains("双动") || s.Contains("双作")' in _cy
+          and 'if (s.Length == 0) return "双动气缸";' in _cy)
+    check("G29.4 默认类型 = 双动气缸", 'private string _type = "双动气缸";' in _cy)
+    check("G29.5 Type 的 setter 走 NormalizeType，并补通知 IsSingleActing",
+          "set { if (SetField(ref _type, NormalizeType(value))) OnPropertyChanged(nameof(IsSingleActing)); }" in _cy)
+    check("G29.6 有 IsSingleActing（单动 = 只有 1 路输出）",
+          'public bool IsSingleActing => NormalizeType(_type) == "单动气缸";' in _cy)
+    check("G29.7 不再有旧默认值 _type = \"双作用\"", '_type = "双作用"' not in _cy)
+
+_cvm = read(_CVM)
+check("G29.8 类型候选 = 单动气缸 / 双动气缸（旧的单作用 / 双作用已移除）",
+      _cvm is not None
+      and 'public string[] TypeOptions { get; } = { "单动气缸", "双动气缸" };' in _cvm)
+
+# ---- 连接控制器后：按方向拆分的两个 IO 名称库必须一起刷新（气缸页选不了点的根因） ----
+_acvm = read(_ACVM)
+if _acvm is None:
+    check("G29.9 GenerateIoPoints 三库同刷", False, "文件缺失")
+else:
+    _g = _acvm.replace("\r\n", "\n")
+    i0 = _g.find("private static string GenerateIoPoints")
+    i1 = _g.find("private static IoItem MakeIo")
+    seg = _g[i0:i1] if 0 <= i0 < i1 else ""
+    check("G29.9 GenerateIoPoints 同时刷新 InIoNames / OutIoNames / IoNames",
+          "Catalog.SetIoIn(data.Inputs" in seg
+          and "Catalog.SetIoOut(data.Outputs" in seg
+          and "Catalog.SetIo(data.Inputs" in seg)
+    check("G29.10 该处有 ★ 注释说明「只刷合并库 → 气缸页选不了 IO 名称」",
+          "★ 三个名称库必须一起刷新" in seg)
+
+# ---- 运行时：单动气缸不写第 2 路输出 ----
+for _lbl, _f in (("雷赛", _LS), ("卡族", _WQ)):
+    _b = read(_f)
+    _b2 = _b.replace("\r\n", "\n") if _b else ""
+    check("G29.11 %s CylinderMove：只有双动气缸才写第 2 路输出（BackupSensor）" % _lbl,
+          "if (!cyl.IsSingleActing)" in _b2
+          and "var retIo = FindIo(cyl.BackupSensor, isOutput: true);" in _b2)
+
+# ---- 气缸页：单动收起「缩回输出」两处 ----
+_x = read(_CX)
+if _x is None:
+    check("G29.12 气缸页单动收起「缩回输出」", False, _CX)
+else:
+    _x2 = _x.replace("\r\n", "\n")
+    check("G29.12 气缸页：IsSingleActing 触发器 2 处（IO 配置卡 + 状态显示卡）",
+          _x2.count('Binding="{Binding SelectedItem.IsSingleActing}"') == 2,
+          "count=%d" % _x2.count('Binding="{Binding SelectedItem.IsSingleActing}"'))
+    check("G29.13 触发器命中时 Value=Collapsed（两处都收起）",
+          _x2.count('<Setter Property="Visibility" Value="Collapsed"/>') == 2
+          and _x2.count('Value="True">') == 2)
+    _ind14 = [len(l) - len(l.lstrip(" ")) for l in _x2.split("\n") if 'Text="缩回输出"/>' in l]
+    check("G29.14 两处「缩回输出」都已包进折叠容器（缩进加深到 36 格，不再是 32 格裸行）",
+          _ind14 == [36, 36], "indents=%r" % (_ind14,))
+
+# ---- 文案 / 默认类型 ----
+_aix = read(_AIX)
+check("G29.15 AI 工程交换：气缸默认类型 = 双动气缸（旧「双作用」已清除）",
+      _aix is not None and '?? "双动气缸",' in _aix and '"双作用"' not in _aix)
+_tpl = read(_TPL)
+check("G29.16 工程模板 / 示例：不再出现「双作用」", _tpl is not None and "双作用" not in _tpl)
+_ann = read(_ANN)
+check("G29.17 工程 JSON 注释：气缸类型口径已换成单动 / 双动气缸",
+      _ann is not None and "单动气缸" in _ann and "双作用" not in _ann)
+_om = read(_OM)
+check("G29.18 操作手册文案：单动气缸 / 双动气缸",
+      _om is not None and "单动气缸" in _om and "双作用" not in _om)
+
+# ---- 冒烟覆盖 ----
+_sm = read(_SMK)
+if _sm is None:
+    check("G29.19 冒烟段 T 覆盖气缸单动 / 双动", False, _SMK)
+else:
+    check("G29.19 冒烟段 T 覆盖类型归一化 + 单动收起 + IO 名称库同刷",
+          'Section("段 T' in _sm and "CylinderItem.NormalizeType" in _sm
+          and "GenerateIoPoints" in _sm and "IsSingleActing" in _sm)
+    check("G29.20 冒烟用旧值「单作用 / 双作用」验证归一化（不是把旧值当类型用）",
+          'CylinderItem.NormalizeType("单作用") == "单动气缸"' in _sm
+          and 'CylinderItem.NormalizeType("双作用") == "双动气缸"' in _sm
+          and 'evm.CylinderSearch = "单动气缸";' in _sm)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

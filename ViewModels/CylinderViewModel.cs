@@ -18,7 +18,7 @@ namespace NoCodeMotion.ViewModels
     public class CylinderViewModel : ListEditorViewModel<CylinderItem>, IEnsureDefaultSelection
     {
         // 药丸选择的可选项（多选一）
-        public string[] TypeOptions { get; } = { "单作用", "双作用" };
+        public string[] TypeOptions { get; } = { "单动气缸", "双动气缸" };
         public string[] SensorTypeOptions { get; } = { "NPN", "PNP" };
         public string[] InitialStateOptions { get; } = { "伸出", "缩回" };
         public string[] ActionOptions { get; } = { "伸出", "缩回" };

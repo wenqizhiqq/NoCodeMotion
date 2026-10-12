@@ -395,7 +395,7 @@ namespace NoCodeMotion.Services
                     OutPoint = Str(e, "输出点", "outPoint") ?? "",
                     SensorExtend = Str(e, "伸出感应", "sensorExtend") ?? "",
                     SensorRetract = Str(e, "缩回感应", "sensorRetract") ?? "",
-                    Type = Str(e, "类型", "type") ?? "双作用",
+                    Type = Str(e, "类型", "type") ?? "双动气缸",
                     InitialState = init,
                     CurrentState = init
                 });

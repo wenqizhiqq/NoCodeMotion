@@ -10,8 +10,8 @@
 - ★ **清理要复核**：`Remove-Item -Recurse -Force` 静默不删；bash `rm -rf obj bin` 被沙箱**批量删除守卫**拦下 —— 连 `for f in …; do rm -f` 循环删多个也会被 **SIGTERM 掐断**（只删掉前几个）→ **逐个删、删完 `ls` 复核**。up-to-date 会跳过 CoreCompile → 误判「全量成功」；**空或极短日志 = 没编译**。
 - ★ **build 非 0 时冒烟仍会跑旧 dll**（`exit=0`、输出是上一次的，看着「全部通过」）→ **先确认 `0 个错误` 再看冒烟**。build 偶发 `exit=-1073741571`（栈溢出），重跑即可。
 - ★ `dotnet exec` 严格按 deps.json → 主工程 `<Reference>`+`HintPath` 的 dll **不进引用方 deps.json**，冒烟要**照抄同样的 `<Reference>`**。`NETSDK1060` = shell `APPDATA`/`ProgramFiles` 空 → 显式 `env` 传入。
-- ★ 源码守卫**必须在仓库目录跑**（`%TEMP%` 读 `D:\` 被沙箱替换成乱码，还会被清理整删）→ 工具全放仓库：`tools\guard_sources.py`（G1–G28，**311 PASS**）、`tools\_dump.py`（看 BOM）、`tools\_seal.py`（新 `.cs` 补页眉页脚水印 + BOM）、`.smoke\`。
-- 冒烟：`dotnet build .smoke/ncm_smoke.csproj -p:UseAppHost=false` → `PATH="<outdir>:$PATH" dotnet exec .smoke/bin/Debug/net10.0-windows10.0.19041.0/ncm_smoke.dll`（段 A–S，**297 PASS**）。★ `%TEMP%` 里的 exe 跑不起来（`exit 127`）→ 一律 `dotnet exec <dll>`。冒烟与 `--no-incremental` 不可并行（互删 `obj\`）；`-t:Rebuild` 跳过 CoreCompile 报假「0 警告」。
+- ★ 源码守卫**必须在仓库目录跑**（`%TEMP%` 读 `D:\` 被沙箱替换成乱码，还会被清理整删）→ 工具全放仓库：`tools\guard_sources.py`（G1–G29，**333 PASS**）、`tools\_dump.py`（看 BOM）、`tools\_seal.py`（新 `.cs` 补页眉页脚水印 + BOM）、`.smoke\`。
+- 冒烟：`dotnet build .smoke/ncm_smoke.csproj -p:UseAppHost=false` → `PATH="<outdir>:$PATH" dotnet exec .smoke/bin/Debug/net10.0-windows10.0.19041.0/ncm_smoke.dll`（段 A–T，**318 PASS**）。★ `%TEMP%` 里的 exe 跑不起来（`exit 127`）→ 一律 `dotnet exec <dll>`。冒烟与 `--no-incremental` 不可并行（互删 `obj\`）；`-t:Rebuild` 跳过 CoreCompile 报假「0 警告」。
 - ★ **改 `TargetFramework` 会挪输出目录** → 旧路径 dll 还在 → `dotnet exec` 旧路径**静默跑旧代码**（新加的段「消失」）。改完先删旧 bin 或确认新路径。
 - ★ **`dotnet exec` 下 OpenCvSharp 原生库不可用**：`opencv_world480.dll` 不在 DLL 搜索路径 → `DllNotFoundException … 0x8007007E`。修：`PATH="<outdir>:$PATH" dotnet exec <dll>`。冒烟里走 OpenCV 的段都要**先探测、探测失败就 `SKIP`**。
 - 补丁脚本：按行号区间替换，或 `sub1` 断言 `count==1`、锚点全过后一次写盘。★ **别把 BOM 写成硬断言**；★ **行尾断言要拿「重建后」的计数比**（CRLF 文件写盘时会把每个 `\n` 都转成 `\r\n`，拿原始 CRLF 计数比会假报 drift）。★ 新建 `.cs` 时从**同级已有文件**原样复用页眉/页脚**尾部**（零宽水印逐文件不同，别自己编）→ 用 `python tools/_seal.py <目标.cs> [模板.cs]`：目标里写 `@@HDR@@`/`@@FTR@@` 占位行，脚本按**模板**给 BOM、按参数给行尾；占位符为 0/0 时按「已封过」处理，只补 BOM/统一行尾。★ 工具调用参数里的 heredoc 会把 `\n` 折成真换行 → 要写 C# 的 `\\n` 转义时用 `chr(92)`/`chr(34)` 拼，并在写盘前 `assert NEW.count(chr(92))==0`。临时目录带点前缀（`.smoke/`）不编译，不带点（`scratch/`）会被 `**/*.cs` 收走。
@@ -31,6 +31,7 @@
 - ★ 重复轴号是静默灾难：`AxisOf` 的 `slot.Axes` 是 `Dictionary<轴号,IAxis>`，卡族读写不带轴号 → 两轴同号共用物理通道。
 - ★ **`DependencyObject` 型 VM：DP 变化不会自动抛 `INotifyPropertyChanged`**。只注册 DP 回调（`HasXxx` 系列）→ 靠 `PropertyChanged("Xxx")` 驱动副作用的代码是**死代码**。`VisualFlowDetailViewModel` 已 override `OnPropertyChanged(DependencyPropertyChangedEventArgs e)` 把 `e.Property.Name` 也抛出去；否则结果图叠加层只能等 `ImageHost.SizeChanged`（缩放窗口 / 切页）才刷新 —— **跑完一次不刷新绿框**。
 - ★ **过滤共享集合必须用私有 `CollectionViewSource`**：`GetDefaultView(coll)` 的 Filter **全局共享**；`IoPage`/`EngineerPage` 绑**同一** `ProjectData.Inputs/Outputs` → 工程师页只能 `new CollectionViewSource { Source = … }`（G16.7）。★ 反向：**分组**故意打在**默认视图**上（在 `Catalog` 一处改即全体生效）。
+- ★ **连接控制器后「按方向」的名称库必须一起刷**：`GenerateIoPoints` 原来只调 `Catalog.SetIo`，漏了 `SetIoIn`/`SetIoOut` → 气缸页 4 个下拉（绑 `InIoNames`/`OutIoNames`）连卡后仍旧值（新工程是空）→「选不了 IO 名称」。**三个库永远同刷**（G29.9/G29.10）。
 
 ## 四、流程 / UI 页
 - `TableToolbar`「共 N 项」来自 `MatchInfo`；行数权威是 `TargetGrid.ItemsSource`。
@@ -40,8 +41,9 @@
 - Lua API 唯一权威是 `Services/HardwareApi.cs` 的 `Register()`；`Camera`/`Vision` 不注册。视觉流程契约是 `视觉步骤` 数组。
 - FlowPage.xaml Row-0（复制JSON/粘贴生成/回退）四流程共用、在 `EditorPage.Detail` 里，**不能起 `x:Name`（MC3093）**。
 - 「图像生成点位」= 工具栏按钮 + `Views/GraphGenDialog.xaml(.cs)`（VM=`GraphPointGenViewModel`）；`Graph.Generated` → 追加到当前工位。画布**最上层透明 `Border` 收单击**，底下全 `IsHitTestVisible=False`。
-- 新建工程示例模板（Request N-samples）：`ProjectTemplate.Build()` 是唯一出口 → 三道后处理 `SeedSampleConditions` + `EnsureNodeGraphFlow` + **`ExpandNameLists`**（由 `ExpandSampleNames` 开关，仅「空白工程」= false）。给每个模板追加 3 工位 × 8 = **24 个**轴/输入/输出/气缸/变量，全「工位-对象」命名（`上料-轴1`…）→ 一建工程下拉就是级联（轴 25 / 入 28 / 出 28 / 缸 24 / 变量 26 / 并集 134）。
+- 新建工程示例模板（Request N-samples）：`ProjectTemplate.Build()` 唯一出口 → 三道后处理 `SeedSampleConditions` + `EnsureNodeGraphFlow` + **`ExpandNameLists`**（`ExpandSampleNames` 开关，仅「空白工程」= false）。每模板追加 3 工位 × 8 = **24 个**轴/入/出/缸/变量，全「工位-对象」命名 → 一建工程即级联（轴 25 / 入 28 / 出 28 / 缸 24 / 变量 26 / 并集 134）。
 - ★ 扩展轴卡厂商**必须写「雷赛」**：`CanServeProject()` 只 `continue` 掉 `fam.Vendor=="雷赛"`，写成「模拟卡」会把**所有模板**的默认硬件通道整体改成卡族层（不报错，行为全变）。卡型号 `DMC-E3000`，`CardNo=9` 避开模板自带 0/1/2，卡内 `AxisNo` 0..23 唯一。
+- ★ 气缸分**单动气缸**（1 路输出，缩回靠弹簧）/ **双动气缸**（2 路输出）：`NormalizeType` 在 **Type 的 setter** 里归一（旧值「单作用/双作用」自动映射，覆盖 xlsx/AI/模板/UI 四条路径），`IsSingleActing` 让气缸页收起「缩回输出」两处 + 两个 `CylinderMove` 不写第 2 路输出。细节见 `UI.md`。
 - ★ 名称库级联下拉 / 工程师页布局 / **新建弹窗 Owner** / 「工位-对象」提示栏：**细节见 `UI.md`**。
 
 ## 五、暂停/停止守卫（Request B）
@@ -61,11 +63,11 @@
 
 ## 八、变量与表达式
 - `ExpressionEvaluator.Tokenize` 用 `char.IsLetter` → **中文也算标识符**，`-` 是减运算符：变量名里的 `-` 一旦进表达式就被当减号（`下料-计数` → `下料 - 计数` = 0）。流程步骤按**名称精确匹配**取变量，`{变量名}` 走 `FlowRunnerService.Sub()` 正则 `\{([^}]+)\}` 字面替换 → 声明与引用都安全。
-- ★ **已修（N-samples 收尾）**：`SimFlowPlayer` 的「变量」步骤**不再**把变量名拼进表达式。改为存 `VarOp`（加/减/乘/除/取模/取反）+ `VarExpr`（操作数），Apply 时 `GetVariableResolved(VarName)` **按名精确取值**后再运算 → `-` 命名的变量在仿真里也算对（取反保持 `1-cur`）。真机 `FlowRunnerService.ExecVar` 本来就走 `GetVarNum(name)` 精确匹配。
+- ★ `SimFlowPlayer` 的「变量」步骤**不把变量名拼进表达式**：存 `VarOp`（加减乘除模 / 取反）+ `VarExpr`，Apply 时 `GetVariableResolved(VarName)` **按名精确取值**再运算 → `-` 命名变量在仿真里也算对。真机 `FlowRunnerService.ExecVar` 本来就走 `GetVarNum(name)`。
 
 ## 九、视觉流程 / 图像采集 / 结果图缩放
 - **细节全在 `VISION.md`**：视觉步骤「四处同改」、OCR=Windows 自带引擎（`Windows.Media.Ocr`）、图像采集「来源」= 相机/文件/文件夹、结果图 `ZoomPanBehavior`（滚轮缩放 / 中键平移 / 双击复位）、**标定（9 点 XY 仿射 + 5 点旋转圆拟合）**。
-- 四条最贵的坑：① 加视觉步骤类型**四处同改**，少一处静默失效；② 图像采集默认来源是「相机」，**来源=文件/文件夹 路径无效一律明确失败**（旧行为是悄悄出合成测试图还报 `Ok=true`）；③ 真实取像只有 `TryGrabRealCamera` 一处，`ResolveCameraIndex` 同时认**相机名**与编号；④ OCR 的框只能来自 `OcrLine.Words[].BoundingRect`，**有 ROI 时要加回 ROI 原点**，且要**单独收集**（混进 `report.Matches` 会污染「共找到 N 个目标」）；⑤ **标定会真驱动轴**：仿真桩必须拒绝、轴名找不到必须失败（绝不拿轴 0 顶上）、取不到图必须失败（不回退合成图），且停止信号 `OperationCanceledException` **必须冒泡**（吞掉就会继续走完 14 个点）。
+- 四条最贵的坑：① 加视觉步骤类型**四处同改**，少一处静默失效；② 图像采集默认来源是「相机」，**来源=文件/文件夹 路径无效一律明确失败**（旧行为是悄悄出合成测试图还报 `Ok=true`）；③ 真实取像只有 `TryGrabRealCamera` 一处，`ResolveCameraIndex` 同时认**相机名**与编号；④ OCR 的框只能来自 `OcrLine.Words[].BoundingRect`，**有 ROI 时要加回 ROI 原点**，且要**单独收集**（混进 `report.Matches` 会污染「共找到 N 个目标」）；⑤ **标定会真驱动轴**：仿真桩必须拒绝、轴名找不到必须失败、取不到图必须失败、停止信号必须冒泡 —— 细节见 `VISION.md` 第七节。
 
 ## 十、通讯 / SECS
 - **细节全在 `COMM.md`**（SEMI E5 数据项 / E37 会话 / 页面真收发 / 与 Lua 同一条通道）。

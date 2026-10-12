@@ -402,6 +402,12 @@ namespace NoCodeMotion.ViewModels
                 }
             }
 
+            // ★ 三个名称库必须一起刷新：气缸页 4 个下拉绑的是按方向拆分的
+            //   OutIoNames（伸出输出 / 缩回输出）与 InIoNames（伸出感应 / 缩回感应），
+            //   节点图属性、流程页「输入IO / 输出IO」也读这两个；只刷新合并库 IoNames 的话，
+            //   连接控制器后这两个库还停在旧值（新工程直接是空）→ 气缸页选不了任何 IO 名称。
+            Catalog.SetIoIn(data.Inputs.Select(x => x.Name));
+            Catalog.SetIoOut(data.Outputs.Select(x => x.Name));
             Catalog.SetIo(data.Inputs.Select(x => x.Name).Concat(data.Outputs.Select(x => x.Name)));
             ProjectStore.ScheduleSave();
             return $"已按配置自动生成 IO 点：输入 {nIn} / 输出 {nOut}（控制器「{tag}」）。";

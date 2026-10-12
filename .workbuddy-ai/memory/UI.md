@@ -50,3 +50,14 @@
 ## 六、「工位-对象」约定的用户提示（Request N-samples）
 - `NewProjectDialog` 名称框下方一条提示文字。
 - 轴 / IO / 气缸 / 变量四页底部 `Views/PageHintBar`（两个 DP `OperationText` / `PrecautionText`）—— **定义了但一直没人用**。接入位置：IO / 变量页根 Grid 末尾本就留了空 `Auto` 行；轴页用 `DockPanel.Dock="Bottom"`；气缸页 Detail 原本直接是 `ScrollViewer`，需先包一层 `DockPanel`。
+
+## 七、气缸单动 / 双动（Request G）
+- 类型只有两个受限值：**单动气缸**（1 路输出，缩回靠弹簧）/ **双动气缸**（2 路输出）。
+- ★ 归一化写在 `CylinderItem.Type` 的 **setter** 里（`NormalizeType`）：旧工程「单作用 / 双作用」自动映射，
+  一次覆盖 xlsx 载入 / AI 导入 / 模板 / 界面写入四条路径。受限值域下拉**不归一就会渲染空白 + 回写 null**。
+- ★ 收起「缩回输出」用 **`DataTrigger` 绑 `SelectedItem.IsSingleActing`（bool）**，不是绑类型字符串：
+  ① 不用新增 Converter / 资源键（避开 `{StaticResource}` 可达链那个坑）；② 改标签不会静默失效。
+  `Type` 的 setter 里必须补 `OnPropertyChanged(nameof(IsSingleActing))`，否则触发器不刷新。
+- 折叠要连**上面那条 `AppleHairline`** 一起包进 `StackPanel`，否则卡片底部会留一条悬空细线。
+- 运行时同一条语义：两个 `CylinderMove` 只在 `!cyl.IsSingleActing` 时才写 `BackupSensor` 那一路输出。
+- 验证：守卫 G29.0–G29.20；冒烟段 T（T13–T16 离屏量两处「缩回输出」的 Visibility，T19/T20 反射验名称库同刷）。

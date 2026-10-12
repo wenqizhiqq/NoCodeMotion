@@ -613,7 +613,7 @@ namespace NoCodeMotion.Services
             Id = "simple-cylinder",
             Name = "简单气缸",
             Category = "气缸",
-            Description = "2 个双作用气缸 + 4 入 4 出 + Modbus 主站 + 变量，最小气缸演示工程。",
+            Description = "2 个双动气缸 + 4 入 4 出 + Modbus 主站 + 变量，最小气缸演示工程。",
             Summary = "4 入 4 出 · 2 气缸 · 1 通讯 · 2 变量 · 1 主流程 · 1 复位",
             Highlights = new[]
             {
@@ -2217,7 +2217,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             {
                 "控制器：运动控制卡(DMC5400) + IO扩展卡 + 视觉控制卡(EtherCAT)",
                 "轴：载台 X/Y/θ（对位平台）+ 固晶头Z + 顶针Z",
-                "气缸/吸嘴：固晶吸嘴(真空) + 顶针(双作用) + 点胶阀(双作用)",
+                "气缸/吸嘴：固晶吸嘴(真空) + 顶针(双动气缸) + 点胶阀(双动气缸)",
                 "盘：晶圆环(供晶) / 基板条(邦定) / 收料盘（共 3 盘）",
                 "相机：固晶对位相机（上视晶片 + 下视基板，模板匹配）",
                 "通讯：点胶控制器 ModbusRTU",
@@ -2241,8 +2241,8 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
 
                 // 吸嘴 / 气缸
                 d.Cylinders.Add(Cyl("固晶吸嘴", "Y0", "真空检测", "真空检测", "真空吸嘴"));
-                d.Cylinders.Add(Cyl("顶针", "Y1", "X0", "X1", "双作用"));
-                d.Cylinders.Add(Cyl("点胶阀", "Y2", "X2", "X3", "双作用"));
+                d.Cylinders.Add(Cyl("顶针", "Y1", "X0", "X1", "双动气缸"));
+                d.Cylinders.Add(Cyl("点胶阀", "Y2", "X2", "X3", "双动气缸"));
 
                 // 盘（3）
                 d.Trays.Add(Tray("晶圆环", 25, 25, 0, 0, 4, 4));
@@ -2316,7 +2316,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             {
                 "控制器：运动控制卡(精密 EtherCAT) + IO扩展卡 + 视觉控制卡",
                 "轴：载台 X/Y/θ（晶圆精密平台）+ 探针Z（接触下压）",
-                "气缸/吸嘴：真空吸盘(吸晶) + 探针卡夹紧(双作用)",
+                "气缸/吸嘴：真空吸盘(吸晶) + 探针卡夹紧(双动气缸)",
                 "盘：晶圆盘（吸盘上 25×25 Die，共 1 盘）",
                 "相机：显微镜对位相机（Die 与探针卡对位）",
                 "通讯：测试机 GPIB（MEAS:BIN? 读取 Bin）",
@@ -2339,7 +2339,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
 
                 // 吸盘 / 探针卡夹紧
                 d.Cylinders.Add(Cyl("真空吸盘", "Y0", "真空检测", "真空检测", "真空吸嘴"));
-                d.Cylinders.Add(Cyl("探针卡夹紧", "Y1", "X0", "X1", "双作用"));
+                d.Cylinders.Add(Cyl("探针卡夹紧", "Y1", "X0", "X1", "双动气缸"));
 
                 // 盘（1）：晶圆盘
                 d.Trays.Add(Tray("晶圆盘", 25, 25, 0, 0, 4, 4));
@@ -2504,7 +2504,7 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 Level = level,
             };
 
-        private static CylinderItem Cyl(string deviceId, string outPoint, string sensorExtend, string sensorRetract, string type = "双作用", int delayMs = 200)
+        private static CylinderItem Cyl(string deviceId, string outPoint, string sensorExtend, string sensorRetract, string type = "双动气缸", int delayMs = 200)
             => new()
             {
                 Name = deviceId,        // 同时设 Name，否则左侧列表（绑 Name）显示空白
