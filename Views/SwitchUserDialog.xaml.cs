@@ -18,7 +18,11 @@ namespace NoCodeMotion.Views
         public SwitchUserDialog()
         {
             InitializeComponent();
-            Owner = Application.Current?.MainWindow;
+            // ★ Owner 只能是「已显示过且不是自己」的窗口：Application.Current.MainWindow 极可能就是
+            //   本窗口自己，或在离屏 / 冒烟场景下尚未 Show → 直接赋会抛
+            //   「无法将 Owner 属性设置为之前未显示的 Window」（详见 UI.md 第五节）。
+            var owner = Application.Current?.MainWindow;
+            if (owner is not null && !ReferenceEquals(owner, this) && owner.IsVisible) Owner = owner;
             UserList.ItemsSource = UserStore.Users;
             // 默认选中当前登录用户
             if (UserStore.Current != null)

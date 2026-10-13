@@ -275,18 +275,47 @@ namespace NoCodeMotion.ViewModels
         /// <summary>导出异常日志到文件（按钮：导出）。仅当面板有内容（Warn/Error）时可用。</summary>
         public ICommand ExportLogCommand { get; }
 
-        // ---------- 用户切换 ----------
-        public ObservableCollection<string> Users { get; } = new() { "操作员 A", "操作员 B", "班组长", "管理员" };
-        private string _currentUser = "操作员 A";
+        // ---------- 用户切换 / 用户设置（真实用户库 UserStore，持久化在 Users.json） ----------
+        private string _currentUser = "未登录";
 
+        /// <summary>当前登录用户名（取 <see cref="UserStore.Current"/>；未登录为「未登录」）。</summary>
         public string CurrentUser
         {
             get => _currentUser;
-            set
+            private set
             {
                 if (!SetField(ref _currentUser, value)) return;
-                AddLog(LogLevel.Info, $"用户切换为：{value}");
+                OnPropertyChanged(nameof(CurrentUserRole));
+                OnPropertyChanged(nameof(ShowRole));
             }
+        }
+
+        /// <summary>当前登录用户角色（管理员 / 操作员）。</summary>
+        public string CurrentUserRole => UserStore.Current?.Role ?? string.Empty;
+
+        /// <summary>
+        /// 是否单独显示角色标签：默认用户「管理员 / 操作员」的名字与角色相同，
+        /// 再显示一遍就是「管理员 管理员」这种重复字样，故相同时隐藏。
+        /// </summary>
+        public bool ShowRole => !string.Equals(CurrentUserRole, CurrentUser, StringComparison.Ordinal);
+
+        /// <summary>
+        /// 从 <see cref="UserStore"/> 重新读取当前用户。
+        /// ★ 「用户设置」弹窗里可能新增 / 重命名 / 删除用户，甚至改掉当前用户，关闭后必须调它同步界面。
+        /// </summary>
+        public void RefreshUser() => CurrentUser = UserStore.Current?.Name ?? "未登录";
+
+        /// <summary>
+        /// 切换当前登录用户（真实切换：写 <see cref="UserStore"/> 并持久化到 Users.json）。
+        /// 目标就是当前用户时直接返回 true，不重复落盘。切换成功返回 true。
+        /// </summary>
+        public bool SwitchToUser(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            if (UserStore.Current != null && UserStore.Current.Name == name) return true;
+            UserStore.SetCurrent(name);
+            RefreshUser();
+            return UserStore.Current != null && UserStore.Current.Name == name;
         }
 
         public ICommand RunCommand { get; }
@@ -340,13 +369,16 @@ namespace NoCodeMotion.ViewModels
         {
             _ = AuthorWatermark.Signature;   // 作者水印引用（误删 AuthorWatermark.cs 将编译失败）
 
+            // 当前登录用户取真实用户库 UserStore（不再用写死的假名单）
+            RefreshUser();
+
             Tables = ProjectStore.Data.PointTables;
             RunCommand = new RelayCommand(_ => StartOrResume());
             StopCommand = new RelayCommand(_ => Stop());
             EStopCommand = new RelayCommand(_ => EStop());
             ResetCommand = new RelayCommand(_ => Reset());
             PauseCommand = new RelayCommand(_ => Pause());
-            SwitchUserCommand = new RelayCommand(p => { if (p is string u && !string.IsNullOrEmpty(u)) CurrentUser = u; });
+            SwitchUserCommand = new RelayCommand(p => { if (p is string u) SwitchToUser(u); });
             ManualCommand = new RelayCommand(_ => Mode = OpMode.Manual);
             AutoCommand = new RelayCommand(_ => Mode = OpMode.Auto);
             ClearLogCommand = new RelayCommand(_ => ClearLog());

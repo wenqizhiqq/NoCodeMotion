@@ -1817,6 +1817,83 @@ else:
           and 'CylinderItem.NormalizeType("双作用") == "双动气缸"' in _sm
           and 'evm.CylinderSearch = "单动气缸";' in _sm)
 
+# ---------------------------------------------------------------------
+section("G30  操作员页：用户切换 / 用户设置（真实 UserStore + 安全 Owner）")
+# ---------------------------------------------------------------------
+_OPX = r"Views\OperatorPage.xaml"
+_OPC = r"Views\OperatorPage.xaml.cs"
+_OVM = r"ViewModels\OperatorViewModel.cs"
+_SUD = r"Views\SwitchUserDialog.xaml.cs"
+_UMD = r"Views\UserManagementDialog.xaml.cs"
+_SMK = r".smoke\Program.cs"
+
+_x = read(_OPX)
+if _x is None:
+    check("G30.0 找到 OperatorPage.xaml", False, _OPX)
+else:
+    check("G30.0 找到 OperatorPage.xaml", True)
+    check("G30.1 工具栏有「切换用户」按钮并接到 SwitchUser_Click",
+          '<Button Content="切换用户" Style="{StaticResource TtBaseBtn}" Click="SwitchUser_Click"' in _x)
+    check("G30.2 工具栏有「用户设置」按钮并接到 UserSettings_Click",
+          '<Button Content="用户设置" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0" Click="UserSettings_Click"' in _x)
+    check("G30.3 当前用户芯片显示 用户名 + 角色（取自真实用户库）",
+          'Text="{Binding CurrentUser}"' in _x and 'Text="{Binding CurrentUserRole}"' in _x)
+    check("G30.4 假名单下拉已移除（ComboBox 绑 Users / CurrentUser）",
+          'ItemsSource="{Binding Users}"' not in _x and 'SelectedItem="{Binding CurrentUser' not in _x)
+    check("G30.18 角色标签按 ShowRole 收起（用的是本页自己的 BoolToVis，不引外部资源键）",
+          'Visibility="{Binding ShowRole, Converter={StaticResource BoolToVis}}"' in _x)
+
+_c = read(_OPC)
+check("G30.5 切换用户：真开 SwitchUserDialog + UserStore.SetCurrent + 刷新状态栏",
+      _c is not None
+      and 'new SwitchUserDialog()' in _c
+      and 'vm.SwitchToUser(name)' in _c
+      and 'StatusBarService.RefreshUser();' in _c
+      and 'StatusBarService.ReportInfo("已切换用户：" + name);' in _c)
+check("G30.6 用户设置：真开 UserManagementDialog，关闭后 RefreshUser 同步",
+      _c is not None and 'new UserManagementDialog()' in _c and 'vm.RefreshUser();' in _c)
+check("G30.7 两个入口都用安全 Owner（已显示过且不是自己）",
+      _c is not None
+      and _c.count('if (owner is not null && !ReferenceEquals(owner, dlg) && owner.IsVisible) dlg.Owner = owner;') == 2)
+
+_v = read(_OVM)
+if _v is None:
+    check("G30.8 OperatorViewModel 用真实用户库", False, _OVM)
+else:
+    check("G30.8 假名单已清除（操作员 A / 操作 B / 班组长）",
+          '操作员 A' not in _v and '操作员 B' not in _v and '班组长' not in _v)
+    check("G30.9 当前用户 / 角色直接读 UserStore",
+          'public string CurrentUserRole => UserStore.Current?.Role ?? string.Empty;' in _v
+          and 'public void RefreshUser() => CurrentUser = UserStore.Current?.Name ?? "未登录";' in _v)
+    check("G30.10 SwitchToUser 真调 UserStore.SetCurrent（不再只改一个字符串）",
+          'UserStore.SetCurrent(name);' in _v)
+    check("G30.11 构造函数里就 RefreshUser（页面一打开就是真实当前用户）",
+          'RefreshUser();' in _v)
+    check("G30.12 SwitchUserCommand 也走真实切换",
+          'SwitchUserCommand = new RelayCommand(p => { if (p is string u) SwitchToUser(u); });' in _v)
+    check("G30.17 角色与用户名相同时不重复显示（ShowRole）",
+          'public bool ShowRole => !string.Equals(CurrentUserRole, CurrentUser, StringComparison.Ordinal);' in _v)
+
+for _lbl, _f in (("SwitchUserDialog", _SUD), ("UserManagementDialog", _UMD)):
+    _d = read(_f)
+    check("G30.13 %s：Owner 用安全判空（不再裸赋 Application.Current?.MainWindow）" % _lbl,
+          _d is not None
+          and 'Owner = Application.Current?.MainWindow;' not in _d
+          and 'if (owner is not null && !ReferenceEquals(owner, this) && owner.IsVisible) Owner = owner;' in _d)
+
+_sm = read(_SMK)
+if _sm is None:
+    check("G30.14 冒烟段覆盖用户切换 / 用户设置", False, _SMK)
+else:
+    check("G30.14 冒烟段 F 实例化 OperatorPage（XAML 解析）",
+          'var op = new NoCodeMotion.Views.OperatorPage();' in _sm)
+    check("G30.15 冒烟段 U 覆盖真实切换 + RefreshUser + 按钮在可视化树上",
+          'Section("段 U' in _sm and 'uvm.SwitchToUser(probe)' in _sm
+          and 'uvm.RefreshUser();' in _sm and 's == "切换用户"' in _sm)
+    check("G30.16 冒烟里两个弹窗都要真构造（Owner 陷阱会在这里现形）",
+          'new NoCodeMotion.Views.SwitchUserDialog()' in _sm
+          and 'new NoCodeMotion.Views.UserManagementDialog()' in _sm)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

@@ -60,6 +60,62 @@
             </Style.Triggers>
         </Style>
 
+        <!-- 2D/3D 仿真切换药丸：激活蓝底白字，非激活灰字 -->
+        <Style x:Key="SimToggleBtn" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="10,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="bd" Background="Transparent" CornerRadius="10"
+                                Padding="{TemplateBinding Padding}" Margin="2,0">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SimToolBtn" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="10,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="Transparent" CornerRadius="10"
+                                Padding="{TemplateBinding Padding}" Margin="2,0">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.75"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- KPI 卡片标题 -->
         <Style x:Key="KpiTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12"/>
@@ -164,7 +220,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 顶部工具栏：标题 + 用户切换 -->
+        <!-- 顶部工具栏：标题 + 当前用户 + 用户切换 / 用户设置 -->
         <Border Grid.Row="0" Style="{StaticResource ToolbarStyle}" Margin="16,16,16,0">
             <DockPanel LastChildFill="False" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
@@ -174,8 +230,19 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
                     <TextBlock Text="当前用户" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
-                    <ComboBox ItemsSource="{Binding Users}" SelectedItem="{Binding CurrentUser, Mode=TwoWay}"
-                              Style="{StaticResource CellComboStyle}" MinWidth="120"/>
+                    <!-- 当前用户取自真实用户库 UserStore（持久化在 Users.json），不再是写死的假名单 -->
+                    <Border VerticalAlignment="Center" Margin="0,0,10,0" Padding="9,3" CornerRadius="10" Background="{StaticResource AccentSoftBrush}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding CurrentUser}" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                            <!-- 角色与用户名相同时隐藏（默认用户「管理员」名字=角色，否则会出现「管理员 管理员」） -->
+                            <TextBlock Text="{Binding CurrentUserRole}" FontSize="11" Margin="6,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"
+                                       Visibility="{Binding ShowRole, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
+                    </Border>
+                    <Button Content="切换用户" Style="{StaticResource TtBaseBtn}" Click="SwitchUser_Click"
+                            ToolTip="打开用户列表，切换当前登录用户（真实用户库，切换结果写入 Users.json）。"/>
+                    <Button Content="用户设置" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0" Click="UserSettings_Click"
+                            ToolTip="新增 / 重命名 / 删除用户，并设置角色（管理员 / 操作员）。"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -326,22 +393,40 @@
                 </Border>
             </Grid>
 
-            <!-- 右列(占一半)：运行轨迹 3D 仿真，占满整列高度 -->
+            <!-- 右列(占一半)：运行仿真（2D 俯视 / 3D 切换），占满整列高度 -->
             <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Padding="12" Margin="8,0,0,0">
                 <DockPanel LastChildFill="True">
                     <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,8">
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                             <Ellipse Style="{StaticResource SimRunDot}" Margin="0,0,8,0"/>
-                            <TextBlock Text="3D 运行仿真" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="运行仿真" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="RbSim2D" Content="2D" GroupName="SimMode" IsChecked="True"
+                                         Style="{StaticResource SimToggleBtn}" Margin="14,0,0,0"
+                                         Checked="SimMode_Changed" Unchecked="SimMode_Changed"/>
+                            <RadioButton x:Name="RbSim3D" Content="3D" GroupName="SimMode"
+                                         Style="{StaticResource SimToggleBtn}"
+                                         Checked="SimMode_Changed" Unchecked="SimMode_Changed"/>
                         </StackPanel>
                         <TextBlock DockPanel.Dock="Right" Style="{StaticResource SimStatusTextStyle}" VerticalAlignment="Center"/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <Button x:Name="BtnAxisIoCalib" Content="轴IO标定" Style="{StaticResource SimToolBtn}" Visibility="Collapsed"
+                                    ToolTip="为每个轴绑定 正限位/负限位/原点开关（输入IO）与 轴使能（输出IO）。" Click="BtnAxisIoCalib_Click"/>
+                            <Button x:Name="BtnBuildFromIo" Content="生成3D模型" Style="{StaticResource SimToolBtn}" Visibility="Collapsed" Margin="6,0,0,0"
+                                    ToolTip="按当前轴配置与标定的轴IO重建 3D 机台（行程端点显示限位/原点传感器，绿=信号有效）。" Click="BtnBuildFromIo_Click"/>
+                        </StackPanel>
                     </DockPanel>
-                    <local:Sim3DView Points="{Binding OpSimPoints}"
-                                     Head="{Binding OpSimHead}"
-                                     HeadVisible="{Binding OpSimHeadVisible}"
-                                     CurrentIndex="{Binding OpSimIndex}"
-                                     CaptureImage="{Binding OpSimCapture}"
-                                     FocusAxisName="{Binding OpFocusAxis}"/>
+                    <Grid>
+                        <!-- 2D 俯视运控仿真（默认） -->
+                        <local:Sim2DView x:Name="Sim2DHost"/>
+                        <!-- 3D 运行仿真 -->
+                        <local:Sim3DView x:Name="Sim3DHost" Visibility="Collapsed"
+                                         Points="{Binding OpSimPoints}"
+                                         Head="{Binding OpSimHead}"
+                                         HeadVisible="{Binding OpSimHeadVisible}"
+                                         CurrentIndex="{Binding OpSimIndex}"
+                                         CaptureImage="{Binding OpSimCapture}"
+                                         FocusAxisName="{Binding OpFocusAxis}"/>
+                    </Grid>
                 </DockPanel>
             </Border>
         </Grid>

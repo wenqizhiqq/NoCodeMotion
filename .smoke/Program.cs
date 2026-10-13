@@ -334,6 +334,18 @@ namespace NcmSmoke
                     Check(false, "CommPage 构造抛异常：" + ex.GetType().Name + " / "
                                  + (ex.InnerException?.Message ?? ex.Message));
                 }
+
+                try
+                {
+                    // 操作员页：工具栏新加的「当前用户」芯片（AccentSoftBrush）+ 切换用户 / 用户设置 按钮
+                    var op = new NoCodeMotion.Views.OperatorPage();
+                    Check(op != null, "OperatorPage 构造成功（当前用户芯片 / 切换用户 / 用户设置 的 XAML 解析通过）");
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "OperatorPage 构造抛异常：" + ex.GetType().Name + " / "
+                                 + (ex.InnerException?.Message ?? ex.Message));
+                }
             }
             catch (Exception ex)
             {
@@ -2530,6 +2542,117 @@ namespace NcmSmoke
             catch (Exception ex)
             {
                 Check(false, "气缸单动 / 双动 + IO 名称库验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
+            }
+
+            // ==================== 段 U：操作员页「用户切换 / 用户设置」真实用户库 ====================
+            Section("段 U：操作员页用户切换 / 用户设置（真实 UserStore，持久化 Users.json）");
+
+            try
+            {
+                // ---- VM 直接读真实用户库，不再是写死的假名单 ----
+                var uvm = new NoCodeMotion.ViewModels.OperatorViewModel();
+                Check(uvm.CurrentUser == (UserStore.Current != null ? UserStore.Current.Name : "未登录"),
+                      "U1 当前用户名取自 UserStore（" + uvm.CurrentUser + "）");
+                Check(uvm.CurrentUserRole == (UserStore.Current != null ? UserStore.Current.Role : string.Empty),
+                      "U2 当前用户角色取自 UserStore（" + uvm.CurrentUserRole + "）");
+                Check(uvm.CurrentUser != "操作员 A" && uvm.CurrentUser != "班组长",
+                      "U3 假名单（操作员 A / 班组长）已清除");
+
+                // ---- 真实切换：落 UserStore + 同步 VM，再还原现场 ----
+                string origName = UserStore.Current != null ? UserStore.Current.Name : string.Empty;
+                string probe = "U-测试用户";
+                UserStore.Remove(probe);                       // 上次运行异常退出时可能残留
+                Check(UserStore.Add(probe, "操作员"), "U4 预置一个临时用户（" + probe + "）");
+
+                Check(uvm.SwitchToUser(probe)
+                      && UserStore.Current != null && UserStore.Current.Name == probe
+                      && uvm.CurrentUser == probe && uvm.CurrentUserRole == "操作员",
+                      "U5 SwitchToUser 真实切换（UserStore 与 VM 同步，角色也对）");
+
+                // 直接改 UserStore（模拟「用户设置」弹窗改掉当前用户）→ RefreshUser 必须跟上
+                UserStore.SetCurrent(origName);
+                uvm.RefreshUser();
+                Check(uvm.CurrentUser == origName && uvm.CurrentUserRole == (UserStore.Current != null ? UserStore.Current.Role : string.Empty),
+                      "U6 RefreshUser 会跟随 UserStore（用户设置弹窗关闭后同步）");
+
+                Check(!uvm.SwitchToUser("") && !uvm.SwitchToUser("   ")
+                      && !uvm.SwitchToUser("不存在的用户"),
+                      "U7 空名 / 不存在用户名都返回 false（不会把当前用户改没）");
+                Check(uvm.SwitchToUser(origName), "U8 切回自己直接成功（不重复落盘）");
+                Check(UserStore.Current != null && UserStore.Current.Name == origName,
+                      "U9 还原后 UserStore 仍是原用户（" + origName + "）");
+
+                // ---- 角色标签：名字与角色相同时隐藏（默认「管理员」名字=角色，否则显示成「管理员 管理员」） ----
+                Check(!uvm.ShowRole, "U18 名字=角色时不显示角色标签");
+                Check(uvm.SwitchToUser(probe) && uvm.ShowRole && uvm.CurrentUserRole == "操作员",
+                      "U19 切到角色不同的用户时角色标签显示");
+                UserStore.SetCurrent(origName);
+                uvm.RefreshUser();
+
+                // ---- 页面：两个按钮真的在可视化树上，且 Click 处理器真的存在 ----
+                var opPage = new NoCodeMotion.Views.OperatorPage();
+                var ovm2 = opPage.DataContext as NoCodeMotion.ViewModels.OperatorViewModel;
+                Check(ovm2 != null && ovm2.CurrentUser == origName, "U10 页面 DataContext 是 OperatorViewModel 且用户一致");
+
+                var mSwitch = typeof(NoCodeMotion.Views.OperatorPage)
+                    .GetMethod("SwitchUser_Click", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var mSetup = typeof(NoCodeMotion.Views.OperatorPage)
+                    .GetMethod("UserSettings_Click", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                Check(mSwitch != null && mSetup != null,
+                      "U11 两个 Click 处理器都在（XAML 里方法名写错不报错，按钮直接失灵）");
+
+                var btns = AllDescendants(opPage).OfType<System.Windows.Controls.Button>()
+                    .Where(b => b.Content is string s && (s == "切换用户" || s == "用户设置"))
+                    .ToList();
+                Check(btns.Count == 2, "U12 工具栏上有「切换用户」+「用户设置」两个按钮，实际 " + btns.Count);
+
+                opPage.Measure(new Size(1280, 860));
+                opPage.Arrange(new Rect(0, 0, 1280, 860));
+                opPage.UpdateLayout();
+                Check(btns.Count == 2 && btns.All(b => b.IsEnabled && b.ActualWidth > 20 && b.ActualHeight > 10),
+                      "U13 两个按钮可见可点（离屏布局出真实尺寸）");
+
+                string outDirU = RepoSmokeOut() ?? Path.Combine(AppContext.BaseDirectory, "out");
+                Directory.CreateDirectory(outDirU);
+                string shotU = Path.Combine(outDirU, "operator_user_buttons.png");
+                var rtbU = new RenderTargetBitmap(Math.Max(1, (int)Math.Ceiling(opPage.ActualWidth)),
+                                                  Math.Max(1, (int)Math.Ceiling(opPage.ActualHeight)),
+                                                  96, 96, PixelFormats.Pbgra32);
+                rtbU.Render(opPage);
+                var encU = new PngBitmapEncoder();
+                encU.Frames.Add(BitmapFrame.Create(rtbU));
+                using (var fsU = File.Create(shotU)) encU.Save(fsU);
+                var fiU = new FileInfo(shotU);
+                Check(fiU.Exists && fiU.Length > 5000,
+                      "U14 已离屏渲染「操作员页」PNG（" + fiU.Length + " 字节）：" + shotU);
+
+                // ---- 收尾：删掉临时用户，别把测试用户留在用户库里 ----
+                UserStore.Remove(probe);
+                Check(!UserStore.Users.Any(u => u.Name == probe), "U15 临时用户已清理（不污染用户库）");
+
+                // ---- 两个弹窗本身也要能构造（XAML 解析 + 默认 Owner 不会抛） ----
+                try
+                {
+                    var d1 = new NoCodeMotion.Views.SwitchUserDialog();
+                    Check(d1 != null, "U16 SwitchUserDialog 构造成功");
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "SwitchUserDialog 构造抛异常：" + ex.GetType().Name + " / " + ex.Message);
+                }
+                try
+                {
+                    var d2 = new NoCodeMotion.Views.UserManagementDialog();
+                    Check(d2 != null, "U17 UserManagementDialog 构造成功");
+                }
+                catch (Exception ex)
+                {
+                    Check(false, "UserManagementDialog 构造抛异常：" + ex.GetType().Name + " / " + ex.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Check(false, "用户切换 / 用户设置验证抛异常：" + ex.GetType().Name + " / " + ex.Message);
             }
 
             Console.WriteLine("\n====================  "

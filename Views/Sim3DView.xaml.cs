@@ -227,6 +227,11 @@ namespace NoCodeMotion.Views
         // ===== 仿真流程播放器（让 3D 机台真正"跑"流程） =====
         private SimFlowPlayer? _simPlayer;
         private readonly Dictionary<string, GeometryModel3D> _cylRodModels = new(StringComparer.OrdinalIgnoreCase);
+
+        // ===== 轴IO标定传感器（按 AxisItem.Io* 绑定生成；行程端点=正/负限位，端点内侧立柱=原点，小方块=使能指示） =====
+        private sealed record AxisIoSensors(GeometryModel3D? Plus, GeometryModel3D? Minus, GeometryModel3D? Origin, GeometryModel3D? Enable);
+        private readonly Dictionary<string, AxisIoSensors> _axisIoSensors = new(StringComparer.OrdinalIgnoreCase);
+        private Material? _ioOffMat, _ioOnMat;   // 灰=无效/未绑定，绿=信号有效
         private readonly Dictionary<string, GeometryModel3D> _camLensModels = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Transform3D> _cylRodOrig = new(StringComparer.OrdinalIgnoreCase);
         private Material? _lensMat, _flashLensMat;
@@ -785,7 +790,63 @@ namespace NoCodeMotion.Views
                 _cylLayout.Add((cylName, cx, cz));
             }
 
+            BuildAxisIoSensors();
             BuildLabels();
+        }
+
+        // 轴IO标定传感器：为每个映射到场景的直线轴，按 AxisItem.Io* 绑定生成——
+        // 行程两端方块 = 正/负限位，负端内侧 12 单位立柱 = 原点，原点旁小方块 = 使能指示；
+        // 未绑定的信号不生成；信号状态每帧在 UpdateAxisIoSensors 刷新（绿=有效，灰=无效）。
+        private void BuildAxisIoSensors()
+        {
+            _axisIoSensors.Clear();
+            if (_machineGroup == null) return;
+            _ioOffMat ??= MakeIoMat(Color.FromRgb(0x94, 0xA3, 0xB8));
+            _ioOnMat ??= MakeIoMat(Color.FromRgb(0x22, 0xC5, 0x55));
+
+            foreach (var a in _linearInfos)
+            {
+                if (a.Scene != 'X' && a.Scene != 'D' && a.Scene != 'U') continue;
+                var item = ProjectStore.Data?.Axes?.FirstOrDefault(x => x != null && string.Equals(x.Name, a.Name, StringComparison.OrdinalIgnoreCase));
+                if (item == null) continue;
+
+                // 各轴行程端点/原点/使能指示的位置（X: 床面前侧导轨端点；D: 床面左侧行程端点；U: 桥架左端竖直行程端点）
+                (Point3D minus, Point3D plus, Point3D origin, Point3D enable) = a.Scene switch
+                {
+                    'X' => (new Point3D(-WorkX - 4, -8, -38), new Point3D(WorkX + 4, -8, -38),
+                            new Point3D(-WorkX + 12, -8, -38), new Point3D(-WorkX + 12, -8, -31)),
+                    'D' => (new Point3D(-60, -8, -WorkZ - 4), new Point3D(-60, -8, WorkZ + 4),
+                            new Point3D(-60, -8, -WorkZ + 12), new Point3D(-53, -8, -WorkZ + 12)),
+                    _ => (new Point3D(-52, BaseY - WorkY - 4, 0), new Point3D(-52, BaseY + WorkY + 4, 0),
+                          new Point3D(-52, BaseY - WorkY + 12, 0), new Point3D(-46, BaseY - WorkY + 12, 0)),
+                };
+
+                GeometryModel3D? gmPlus = HasBinding(item.IoLimitPlus) ? AddIoSensor(_machineGroup, _box, 5, 6, 5, plus) : null;
+                GeometryModel3D? gmMinus = HasBinding(item.IoLimitMinus) ? AddIoSensor(_machineGroup, _box, 5, 6, 5, minus) : null;
+                GeometryModel3D? gmOrigin = HasBinding(item.IoOrigin) ? AddIoSensor(_machineGroup, _cyl, 2.5, 8, 2.5, origin) : null;
+                GeometryModel3D? gmEnable = HasBinding(item.IoEnable) ? AddIoSensor(_machineGroup, _box, 3, 3, 3, enable) : null;
+                if (gmPlus == null && gmMinus == null && gmOrigin == null && gmEnable == null) continue;
+                _axisIoSensors[a.Name] = new AxisIoSensors(gmPlus, gmMinus, gmOrigin, gmEnable);
+            }
+        }
+
+        private static bool HasBinding(string? io) => !string.IsNullOrWhiteSpace(io);
+
+        private static DiffuseMaterial MakeIoMat(Color c)
+        {
+            var m = new DiffuseMaterial(new SolidColorBrush(c));
+            m.Freeze();
+            return m;
+        }
+
+        private GeometryModel3D AddIoSensor(ModelVisual3D parent, MeshGeometry3D mesh, double sx, double sy, double sz, Point3D pos)
+        {
+            var g = new Transform3DGroup();
+            g.Children.Add(new ScaleTransform3D(sx, sy, sz));
+            g.Children.Add(new TranslateTransform3D(pos.X, pos.Y, pos.Z));
+            var gm = new GeometryModel3D(mesh, _ioOffMat!) { Transform = g, BackMaterial = _ioOffMat! };
+            parent.Children.Add(new ModelVisual3D { Content = gm });
+            return gm;
         }
 
         // 龙门结构（随 X 平移）
@@ -961,6 +1022,63 @@ namespace NoCodeMotion.Views
                 var target = flash ? _flashLensMat! : _lensMat!;
                 if (!ReferenceEquals(kv.Value.Material, target)) kv.Value.Material = target;
             }
+        }
+
+        // 每帧刷新轴IO标定传感器的信号状态：绑定的 IO 点位 Value（1=有效）→ 绿，否则灰。
+        // IO 值由硬件桥（接卡时）或流程/脚本（仿真态）写入 IoItem.Value，这里只做只读展示。
+        private void UpdateAxisIoSensors()
+        {
+            if (_axisIoSensors.Count == 0) return;
+            var data = ProjectStore.Data;
+            if (data?.Axes == null) return;
+            var on = _ioOnMat!;
+            var off = _ioOffMat!;
+            foreach (var kv in _axisIoSensors)
+            {
+                var item = data.Axes.FirstOrDefault(x => x != null && string.Equals(x.Name, kv.Key, StringComparison.OrdinalIgnoreCase));
+                if (item == null) continue;
+                SetIoSensor(kv.Value.Plus, FindIoValue(data.Inputs, item.IoLimitPlus), on, off);
+                SetIoSensor(kv.Value.Minus, FindIoValue(data.Inputs, item.IoLimitMinus), on, off);
+                SetIoSensor(kv.Value.Origin, FindIoValue(data.Inputs, item.IoOrigin), on, off);
+                SetIoSensor(kv.Value.Enable, FindIoValue(data.Outputs, item.IoEnable), on, off);
+            }
+        }
+
+        private static int? FindIoValue(System.Collections.ObjectModel.ObservableCollection<IoItem>? list, string? name)
+        {
+            if (list == null || string.IsNullOrWhiteSpace(name)) return null;
+            foreach (var io in list)
+                if (io != null && string.Equals(io.Name, name, StringComparison.OrdinalIgnoreCase))
+                    return io.Value;
+            return null;
+        }
+
+        private static void SetIoSensor(GeometryModel3D? gm, int? value, Material on, Material off)
+        {
+            if (gm == null) return;
+            var target = value == 1 ? on : off;
+            if (!ReferenceEquals(gm.Material, target))
+            {
+                gm.Material = target;
+                gm.BackMaterial = target;
+            }
+        }
+
+        /// <summary>外部（操作员页「生成3D模型」按钮）触发：按当前轴配置 + 标定 IO 重建机台与传感器。</summary>
+        public void RebuildFromAxisIo()
+        {
+            BuildScene();
+            SetStpStatus(_axisIoSensors.Count == 0
+                ? "已生成机台 · 尚未标定轴IO：请点「轴IO标定」为轴绑定 限位/原点/使能 IO"
+                : $"已按轴配置与标定 IO 生成机台 · 传感器 {SummarizeSensors()}");
+        }
+
+        private string SummarizeSensors()
+        {
+            int n = 0;
+            foreach (var v in _axisIoSensors.Values)
+                n += (v.Plus != null ? 1 : 0) + (v.Minus != null ? 1 : 0) + (v.Origin != null ? 1 : 0) + (v.Enable != null ? 1 : 0);
+            return $" {n} 个（行程端点=限位，端点内侧立柱=原点，绿=信号有效）";
         }
 
         // 智能跟随：检测运动最快的轴 → 相机平滑对准它；异常锁定轴优先并红高亮

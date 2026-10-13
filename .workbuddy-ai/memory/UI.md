@@ -45,7 +45,7 @@
 
 ## 五、新建 Apple 弹窗的 Owner（会崩，别照抄）
 - ★ 别照抄 `Owner = Application.Current?.MainWindow;`：① 本窗口若是应用里第一个 `Window`，getter 返回**它自己** → 「不能把 Owner 设为自己」；② Owner 必须是**已显示过**的窗口，否则「无法将 Owner 设置为之前未显示的 Window」（离屏 / 冒烟场景必踩）。
-- `NewProjectDialog` 已改成 `if (owner is not null && !ReferenceEquals(owner, this) && owner.IsVisible) Owner = owner;` —— 另有 10 个弹窗（`ArrayGenDialog` / `ConfirmDialog` / `RenameDialog` …）仍是裸写法，遇到崩先查这里。
+- `NewProjectDialog` 已改成 `if (owner is not null && !ReferenceEquals(owner, this) && owner.IsVisible) Owner = owner;` —— 本轮又把 `SwitchUserDialog` / `UserManagementDialog` 补上；仍有 8 个弹窗（`ArrayGenDialog` / `ConfirmDialog` / `RenameDialog` …）是裸写法，遇到崩先查这里。
 
 ## 六、「工位-对象」约定的用户提示（Request N-samples）
 - `NewProjectDialog` 名称框下方一条提示文字。
@@ -61,3 +61,16 @@
 - 折叠要连**上面那条 `AppleHairline`** 一起包进 `StackPanel`，否则卡片底部会留一条悬空细线。
 - 运行时同一条语义：两个 `CylinderMove` 只在 `!cyl.IsSingleActing` 时才写 `BackupSensor` 那一路输出。
 - 验证：守卫 G29.0–G29.20；冒烟段 T（T13–T16 离屏量两处「缩回输出」的 Visibility，T19/T20 反射验名称库同刷）。
+
+## 八、操作员页：用户切换 / 用户设置（Request H）
+- 用户是真数据：`UserStore`（静态单例，`LocalApplicationData/NoCodeMotion/Users.json`，播种 管理员/操作员）。
+  页面 VM 的 `CurrentUser`/`CurrentUserRole`/`ShowRole` 全部从它读，构造时就 `RefreshUser()`。
+- 「切换用户」→ `SwitchUserDialog`（列全部用户，确定后 `UserStore.SetCurrent` + 落盘）；
+  「用户设置」→ `UserManagementDialog`（新增/重命名/删除/设角色），关闭后必须再 `RefreshUser()`
+  —— 弹窗里可能把当前用户改名或删掉，不同步界面就与现实脱节。
+- 角色与用户名相同时（默认用户就叫「管理员」）别再显示一遍 → `ShowRole` + 本页自己的 `BoolToVis` 收起，
+  **不要为这点事新加 Converter/资源键**。
+- ★ 弹窗 Owner：两个弹窗的构造器原来都是裸 `Owner = Application.Current?.MainWindow;`
+  → 冒烟（离屏、MainWindow 未 Show）**当场抛** `InvalidOperationException: 无法将 Owner 属性设置为之前未显示的 Window`。
+  页面侧再小心设 Owner 也没用（会被构造器覆盖），必须**改构造器本身**。
+- 验证：守卫 G30.0–G30.18；冒烟段 F 实例化 OperatorPage + 段 U（U1–U19）+ 截图 `.smoke/out/operator_user_buttons.png`。

@@ -73,6 +73,12 @@ namespace NoCodeMotion.Models
         private double _jogStep = 10000;             // 点动距离（正负决定方向）
         private double _manualSpeed = 10000;         // 手动速度（点动 / Jog 前下发到卡）
 
+        // 轴IO标定绑定（3D 仿真用）：绑定的 IO 点位名称（对应 IO 页 Name 列），空 = 未绑定
+        private string _ioLimitPlus = string.Empty;   // 正限位（输入IO）
+        private string _ioLimitMinus = string.Empty;  // 负限位（输入IO）
+        private string _ioOrigin = string.Empty;      // 原点开关（输入IO）
+        private string _ioEnable = string.Empty;      // 轴使能（输出IO）
+
         public string AxisType { get => _axisType; set => SetField(ref _axisType, value); }
         public int AxisNo { get => _axisNo; set => SetField(ref _axisNo, value); }
         public bool Enabled { get => _enabled; set => SetField(ref _enabled, value); }
@@ -129,6 +135,12 @@ namespace NoCodeMotion.Models
 
         public double JogStep { get => _jogStep; set => SetField(ref _jogStep, value); }
         public double ManualSpeed { get => _manualSpeed; set => SetField(ref _manualSpeed, value); }
+
+        // 轴IO标定绑定（存 IO 点位的 Name；xlsx 反射导出自动带上这些列）
+        public string IoLimitPlus { get => _ioLimitPlus; set => SetField(ref _ioLimitPlus, value ?? string.Empty); }
+        public string IoLimitMinus { get => _ioLimitMinus; set => SetField(ref _ioLimitMinus, value ?? string.Empty); }
+        public string IoOrigin { get => _ioOrigin; set => SetField(ref _ioOrigin, value ?? string.Empty); }
+        public string IoEnable { get => _ioEnable; set => SetField(ref _ioEnable, value ?? string.Empty); }
     }
 }
 // ◇作者保留所有权利　请勿删除※​⁣​
