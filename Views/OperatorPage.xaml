@@ -400,26 +400,26 @@
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
                             <Ellipse Style="{StaticResource SimRunDot}" Margin="0,0,8,0"/>
                             <TextBlock Text="运行仿真" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                            <RadioButton x:Name="RbSim2D" Content="2D" GroupName="SimMode" IsChecked="True"
+                            <RadioButton x:Name="RbSim2D" Content="2D" GroupName="SimMode"
                                          Style="{StaticResource SimToggleBtn}" Margin="14,0,0,0"
                                          Checked="SimMode_Changed" Unchecked="SimMode_Changed"/>
-                            <RadioButton x:Name="RbSim3D" Content="3D" GroupName="SimMode"
+                            <RadioButton x:Name="RbSim3D" Content="3D" GroupName="SimMode" IsChecked="True"
                                          Style="{StaticResource SimToggleBtn}"
                                          Checked="SimMode_Changed" Unchecked="SimMode_Changed"/>
                         </StackPanel>
                         <TextBlock DockPanel.Dock="Right" Style="{StaticResource SimStatusTextStyle}" VerticalAlignment="Center"/>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                            <Button x:Name="BtnAxisIoCalib" Content="轴IO标定" Style="{StaticResource SimToolBtn}" Visibility="Collapsed"
+                            <Button x:Name="BtnAxisIoCalib" Content="轴IO标定" Style="{StaticResource SimToolBtn}"
                                     ToolTip="为每个轴绑定 正限位/负限位/原点开关（输入IO）与 轴使能（输出IO）。" Click="BtnAxisIoCalib_Click"/>
-                            <Button x:Name="BtnBuildFromIo" Content="生成3D模型" Style="{StaticResource SimToolBtn}" Visibility="Collapsed" Margin="6,0,0,0"
+                            <Button x:Name="BtnBuildFromIo" Content="生成3D模型" Style="{StaticResource SimToolBtn}" Margin="6,0,0,0"
                                     ToolTip="按当前轴配置与标定的轴IO重建 3D 机台（行程端点显示限位/原点传感器，绿=信号有效）。" Click="BtnBuildFromIo_Click"/>
                         </StackPanel>
                     </DockPanel>
                     <Grid>
                         <!-- 2D 俯视运控仿真（默认） -->
-                        <local:Sim2DView x:Name="Sim2DHost"/>
+                        <local:Sim2DView x:Name="Sim2DHost" Visibility="Collapsed"/>
                         <!-- 3D 运行仿真 -->
-                        <local:Sim3DView x:Name="Sim3DHost" Visibility="Collapsed"
+                        <local:Sim3DView x:Name="Sim3DHost"
                                          Points="{Binding OpSimPoints}"
                                          Head="{Binding OpSimHead}"
                                          HeadVisible="{Binding OpSimHeadVisible}"
