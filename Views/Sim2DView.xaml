@@ -1,4 +1,4 @@
-<UserControl x:Class="NoCodeMotion.Views.Sim2DView"
+﻿<UserControl x:Class="NoCodeMotion.Views.Sim2DView"
              x:Name="Root2D"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -20,6 +20,8 @@
                 ClipToBounds="True" Margin="0,0,0,10">
             <Canvas x:Name="Cv" ClipToBounds="True">
                 <Canvas x:Name="CvGrid"/>
+                <!-- 自动生成的布局层：料盘阵列 / 吸嘴方阵 / 轴IO传感器 -->
+                <Canvas x:Name="CvLayout"/>
                 <!-- 软限位行程框 -->
                 <Rectangle x:Name="RcLimit" Stroke="#94A3B8" StrokeThickness="1.2"
                            StrokeDashArray="4 3" Fill="#14000000" RadiusX="6" RadiusY="6"/>
@@ -135,7 +137,9 @@
                         <CheckBox x:Name="CbTrace" Content="轨迹" FontSize="11" IsChecked="True" VerticalAlignment="Center"
                                   Checked="CbTrace_Changed" Unchecked="CbTrace_Changed" Margin="0,0,6,0"
                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <Button Content="清轨迹" FontSize="11" Padding="8,2" MinWidth="0" Cursor="Hand"
+                        <Button Content="生成布局" FontSize="11" Padding="8,2" MinWidth="0" Cursor="Hand"
+                                Background="Transparent" BorderThickness="0" Foreground="{StaticResource AccentBrush}" Margin="0,0,8,0"
+                                Click="BtnGenLayout_Click" ToolTip="按当前工程配置自动生成 2D 布局：料盘阵列 + 真空吸嘴组 + 轴IO限位/原点传感器（与实际轴IO联动）"/><Button Content="清轨迹" FontSize="11" Padding="8,2" MinWidth="0" Cursor="Hand"
                                 Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextSecondaryBrush}"
                                 Click="ClearTrace_Click"/>
                     </StackPanel>

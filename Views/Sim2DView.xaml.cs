@@ -1,4 +1,4 @@
-// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇
+﻿// ◆温启志◆编写◇微信﹕187◆1936◇1399　※保留所有权利请勿删除◇
 // =====================================================================
 // 2D 运控仿真视图（俯视）。配套内核见 Services/Sim2DMotion.cs。
 //
@@ -18,6 +18,9 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using NoCodeMotion.Models;
+using NoCodeMotion.Services.Hardware;
+using System.Linq;
+using System.Text.RegularExpressions;
 using NoCodeMotion.Services;
 
 namespace NoCodeMotion.Views
@@ -33,6 +36,23 @@ namespace NoCodeMotion.Views
         private Sim2DAxis _ax = new() { Name = "X" };
         private Sim2DAxis _ay = new() { Name = "Y" };
         private Sim2DAxis _az = new() { Name = "Z" };
+
+        // ===== 生成布局（按当前工程配置自动生成 2D 仿真，与实际轴IO联动）=====
+        private bool _ioLink;                                  // 生成布局后开启：轮询实际轴位置/IO
+        private readonly List<(Shape El, double Wx, double Wy, double Ww, double Wh)> _layoutRects = new();
+        private readonly List<(Shape El, double Wx, double Wy)> _layoutDots = new();
+        private readonly List<(TextBlock El, double Wx, double Wy)> _layoutTexts = new();
+        private readonly List<(Shape El, double Wx, double Wy, Func<int?> Val)> _ioMarks = new();
+        private readonly List<(Shape El, string Cyl, int Row, int Col)> _nozzleDots = new();
+        private readonly List<(TextBlock El, int Row)> _nozzleLabels = new();
+        private readonly Dictionary<string, AxisStatusSnapshot> _lastSnap = new(StringComparer.OrdinalIgnoreCase);
+        private Rect _layoutBounds = Rect.Empty;
+
+        private static readonly SolidColorBrush IoOnBr = Br("#22C55E");
+        private static readonly SolidColorBrush IoOffBr = Br("#94A3B8");
+        private static readonly SolidColorBrush IoNoneBr = Br("#CBD5E1");
+        private static readonly SolidColorBrush NozzleBr = Br("#3B82F6");
+        private static readonly SolidColorBrush NozzleOnBr = Br("#10B981");
 
         // 世界（mm）→ 画布（px）映射
         private Rect _world = new(-110, -110, 220, 220);
@@ -85,7 +105,12 @@ namespace NoCodeMotion.Views
             _tick++;
             if (_tick % 60 == 0) CheckAxesSignature();     // 约 1s 检查轴配置变化（工程重载/编辑）
             Render();
-            if (_tick % 16 == 0) RefreshChips();            // 约 250ms 刷 IO/气缸/相机
+            if (_tick % 16 == 0)
+            {
+                RefreshChips();                             // 约 250ms 刷 IO/气缸/相机
+                PollRealAxes();                             // 实际轴位置/状态字联动（接卡时）
+                RefreshLayoutIo();                          // 布局传感器/吸嘴颜色
+            }
         }
 
         // ===================== 轴映射 =====================
@@ -261,6 +286,8 @@ namespace NoCodeMotion.Views
             double core = 4 + 8 * zNorm;
             SetRect(ElHeadCore, hx - core / 2, hy - core / 2, core, core);
 
+            RenderLayout();
+
             // 轨迹
             if (_showTrace && (_transformDirty || _motion.Trace.Count != _lastTraceCount))
             {
@@ -289,6 +316,172 @@ namespace NoCodeMotion.Views
             el.Height = h;
         }
 
+        // ===================== 生成布局（按当前工程配置自动生成 2D 仿真） =====================
+
+        /// <summary>「生成布局」按钮：按当前工程配置生成 2D 俯视布局——料盘阵列、真空吸嘴组（随刀头）、
+        /// 轴IO限位/原点传感器；同时开启与实际轴IO的联动（优先取轴IO标定绑定的 IO 点位，
+        /// 未绑定时取控制卡轴状态字 bit1正限位/bit2负限位/bit4原点）。</summary>
+        private void BtnGenLayout_Click(object sender, RoutedEventArgs e)
+        {
+            BuildLayoutFromConfig();
+            _ioLink = true;
+            _worldDirty = true;
+        }
+
+        private void BuildLayoutFromConfig()
+        {
+            CvLayout.Children.Clear();
+            _layoutRects.Clear(); _layoutDots.Clear(); _layoutTexts.Clear();
+            _ioMarks.Clear(); _nozzleDots.Clear(); _nozzleLabels.Clear();
+            _layoutBounds = Rect.Empty;
+            void Include(Rect r) => _layoutBounds = _layoutBounds.IsEmpty ? r : Rect.Union(_layoutBounds, r);
+
+            var data = ProjectStore.Data;
+
+            // 1) 料盘阵列：StartX/StartY 为首格中心，PitchX/PitchY 为格距（与料盘点位一致）
+            if (data?.Trays != null)
+                foreach (var t in data.Trays)
+                {
+                    if (t == null || t.Rows <= 0 || t.Cols <= 0) continue;
+                    double w = (t.Cols - 1) * t.PitchX + t.PitchX;
+                    double h = (t.Rows - 1) * t.PitchY + t.PitchY;
+                    double x0 = t.StartX - t.PitchX / 2, y0 = t.StartY - t.PitchY / 2;
+                    var rect = new Rectangle { RadiusX = 3, RadiusY = 3, Fill = Br("#2264748B"), Stroke = Br("#64748B"), StrokeThickness = 1 };
+                    CvLayout.Children.Add(rect);
+                    _layoutRects.Add((rect, x0, y0, w, h));
+                    Include(new Rect(x0, y0, w, h));
+                    for (int r = 0; r < t.Rows; r++)
+                        for (int c = 0; c < t.Cols; c++)
+                        {
+                            var dot = new Ellipse { Width = 6, Height = 6, Fill = Br("#F59E0B") };
+                            CvLayout.Children.Add(dot);
+                            _layoutDots.Add((dot, t.StartX + c * t.PitchX, t.StartY + r * t.PitchY));
+                        }
+                    var lbl = new TextBlock { Text = t.Name, FontSize = 10, Foreground = Br("#475569") };
+                    CvLayout.Children.Add(lbl);
+                    _layoutTexts.Add((lbl, x0, y0 + h + 2));
+                }
+
+            // 2) 真空吸嘴组：名称含 吸嘴/吸盘 的气缸按前缀分组，方阵挂在刀头上随动（绿=伸出/真空）
+            var nozzles = (data?.Cylinders ?? new System.Collections.ObjectModel.ObservableCollection<CylinderItem>())
+                .Where(c => c != null && (c.Name.Contains("吸嘴") || c.Name.Contains("吸盘"))).ToList();
+            int rowIdx = 0;
+            foreach (var g in nozzles.GroupBy(c => Regex.Replace(c.Name, @"\d+$", "")))
+            {
+                int col = 0;
+                foreach (var c in g.Take(8))
+                {
+                    var sq = new Rectangle { RadiusX = 1, RadiusY = 1, Fill = NozzleBr, Stroke = Br("#FFFFFF"), StrokeThickness = 1, ToolTip = c.Name };
+                    CvLayout.Children.Add(sq);
+                    _nozzleDots.Add((sq, c.Name, rowIdx, col));
+                    col++;
+                }
+                var lbl = new TextBlock { Text = $"{g.Key}×{g.Count()}", FontSize = 10, Foreground = Br("#475569") };
+                CvLayout.Children.Add(lbl);
+                _nozzleLabels.Add((lbl, rowIdx));
+                rowIdx++;
+            }
+
+            // 3) 轴IO传感器：行程端点方块=正/负限位，负端内侧圆点=原点（X 在行程框下边、Y 在左边）
+            AddAxisIoMarks(_ax, _ay.LimitMinus - 16, isX: true);
+            AddAxisIoMarks(_ay, _ax.LimitMinus - 16, isX: false);
+        }
+
+        private void AddAxisIoMarks(Sim2DAxis a, double cross, bool isX)
+        {
+            var item = FindAxisItem(a.Name);
+            double span = a.LimitPlus - a.LimitMinus;
+            double originW = span > 1e-6 ? a.LimitMinus + span * 0.1 : a.LimitMinus;
+
+            void Add(Shape el, double wAlong, string kind, string? bound, Func<bool?> snapBit)
+            {
+                (double wx, double wy) = isX ? (wAlong, cross) : (cross, wAlong);
+                el.ToolTip = $"{a.Name}轴 {kind} · {(string.IsNullOrWhiteSpace(bound) ? "未绑定（控制卡状态字）" : $"IO「{bound}」")}";
+                CvLayout.Children.Add(el);
+                _ioMarks.Add((el, wx, wy, () => ReadAxisIo(item, bound, snapBit)));
+            }
+
+            Add(new Rectangle { Width = 9, Height = 9, RadiusX = 1, RadiusY = 1, Fill = IoNoneBr, Stroke = Br("#64748B"), StrokeThickness = 1 },
+                a.LimitPlus, "正限位", item?.IoLimitPlus, () => _lastSnap.TryGetValue(a.Name, out var s) ? s.Pel : null);
+            Add(new Rectangle { Width = 9, Height = 9, RadiusX = 1, RadiusY = 1, Fill = IoNoneBr, Stroke = Br("#64748B"), StrokeThickness = 1 },
+                a.LimitMinus, "负限位", item?.IoLimitMinus, () => _lastSnap.TryGetValue(a.Name, out var s) ? s.Mel : null);
+            Add(new Ellipse { Width = 9, Height = 9, Fill = IoNoneBr, Stroke = Br("#64748B"), StrokeThickness = 1 },
+                originW, "原点", item?.IoOrigin, () => _lastSnap.TryGetValue(a.Name, out var s) ? s.Org : null);
+        }
+
+        private static int? ReadAxisIo(AxisItem? item, string? bound, Func<bool?> snapBit)
+        {
+            if (item != null && !string.IsNullOrWhiteSpace(bound))
+            {
+                var data = ProjectStore.Data;
+                if (data?.Inputs != null)
+                    foreach (var io in data.Inputs)
+                        if (io != null && string.Equals(io.Name, bound, StringComparison.OrdinalIgnoreCase))
+                            return io.Value;
+                if (data?.Outputs != null)
+                    foreach (var io in data.Outputs)
+                        if (io != null && string.Equals(io.Name, bound, StringComparison.OrdinalIgnoreCase))
+                            return io.Value;
+            }
+            var sb = snapBit();
+            return sb == null ? null : sb == true ? 1 : 0;
+        }
+
+        private static AxisItem? FindAxisItem(string name) =>
+            ProjectStore.Data?.Axes?.FirstOrDefault(x => x != null && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>每帧重定位布局元素（世界坐标 → 屏幕坐标，跟随取景与缩放）。</summary>
+        private void RenderLayout()
+        {
+            foreach (var (el, wx, wy, ww, wh) in _layoutRects)
+                SetRect(el, MapX(wx), MapY(wy + wh), Math.Max(1, ww * _scale), Math.Max(1, wh * _scale));
+            foreach (var (el, wx, wy) in _layoutDots)
+                SetRect(el, MapX(wx) - 3, MapY(wy) - 3, 6, 6);
+            foreach (var (el, wx, wy) in _layoutTexts)
+            { Canvas.SetLeft(el, MapX(wx)); Canvas.SetTop(el, MapY(wy)); }
+            foreach (var (el, wx, wy, _) in _ioMarks)
+                SetRect(el, MapX(wx) - 4.5, MapY(wy) - 4.5, 9, 9);
+
+            // 吸嘴方阵跟随刀头（屏幕像素偏移，4 列网格，多组纵向堆叠）
+            double hx = MapX(_ax.Act), hy = MapY(_ay.Act);
+            foreach (var (el, _, row, col) in _nozzleDots)
+                SetRect(el, hx - 20 + (col % 4) * 10, hy - 34 - row * 26 + (col / 4) * 10, 8, 8);
+            foreach (var (el, row) in _nozzleLabels)
+            { Canvas.SetLeft(el, hx - 20); Canvas.SetTop(el, hy - 46 - row * 26); }
+        }
+
+        /// <summary>约 250ms 刷新布局 IO 颜色：传感器 绿=有效 / 灰=无效；吸嘴 绿=伸出(真空) / 蓝=缩回。</summary>
+        private void RefreshLayoutIo()
+        {
+            foreach (var (el, _, _, val) in _ioMarks)
+            {
+                Brush t = val() switch { 1 => IoOnBr, 0 => IoOffBr, _ => IoNoneBr };
+                if (!ReferenceEquals(el.Fill, t)) el.Fill = t;
+            }
+            foreach (var (el, cyl, _, _) in _nozzleDots)
+            {
+                Brush t = SimRuntime.GetCylinder(cyl) == 1 ? NozzleOnBr : NozzleBr;
+                if (!ReferenceEquals(el.Fill, t)) el.Fill = t;
+            }
+        }
+
+        /// <summary>实际轴位置联动：接卡时轮询 X/Y/Z 轴反馈位置写入 AxisRuntimeState（2D/3D 同步跟随真实轴），
+        /// 并缓存轴状态字供布局传感器显示。点动中的轴跳过（由 2D 内核持有目标）。</summary>
+        private void PollRealAxes()
+        {
+            if (!_ioLink || !HardwareSetup.IsCardReady) return;
+            foreach (var a in new[] { _ax, _ay, _az })
+            {
+                if (a == null || a.JogVel != 0) continue;
+                var item = FindAxisItem(a.Name);
+                if (item == null) continue;
+                AxisStatusSnapshot snap;
+                try { snap = AxisMonitorService.Read(item); } catch { continue; }
+                _lastSnap[a.Name] = snap;
+                if (snap.Connected) AxisRuntimeState.Set(a.Name, snap.Position);
+            }
+        }
+
         private void ComputeWorld(double w, double h)
         {
             double x0 = _ax.LimitMinus, x1 = _ax.LimitPlus;
@@ -297,6 +490,11 @@ namespace NoCodeMotion.Views
             if (!_ay.SoftLimitEnable || y1 - y0 < 1e-6) { y0 = _ay.Act - 60; y1 = _ay.Act + 60; }
             x0 = Math.Min(x0, _ax.Act - 10); x1 = Math.Max(x1, _ax.Act + 10);
             y0 = Math.Min(y0, _ay.Act - 10); y1 = Math.Max(y1, _ay.Act + 10);
+            if (!_layoutBounds.IsEmpty)
+            {
+                x0 = Math.Min(x0, _layoutBounds.Left - 10); x1 = Math.Max(x1, _layoutBounds.Right + 10);
+                y0 = Math.Min(y0, _layoutBounds.Top - 10); y1 = Math.Max(y1, _layoutBounds.Bottom + 10);
+            }
             _world = new Rect(x0, y0, x1 - x0, y1 - y0);
 
             const double margin = 30;
