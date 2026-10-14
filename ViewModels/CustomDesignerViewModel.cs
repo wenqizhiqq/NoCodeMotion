@@ -1,4 +1,4 @@
-﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​
+// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​
 // ◆温​启‎志‌◆‌编‌写‍◇‍微‍信⁠﹕⁠1‌8​7⁠◆‌1‌9‌3‌6‌◇⁣1‌3‌9⁠9⁠　‌※‍保‍留‍所⁣有⁣权⁠利⁠请⁣勿‍删‌除‍◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​
 using System;
@@ -43,6 +43,30 @@ namespace NoCodeMotion.ViewModels
         {
             get => _liveProgress;
             set => SetField(ref _liveProgress, value);
+        }
+
+        private double _liveGaugeAngle = -120;
+        /// <summary>仪表盘指针角度（-120°~+120°，按 Param 量程归一；不落盘）。</summary>
+        public double LiveGaugeAngle
+        {
+            get => _liveGaugeAngle;
+            private set => SetField(ref _liveGaugeAngle, value);
+        }
+
+        private System.Windows.Media.PointCollection _trendPoints = new();
+        /// <summary>趋势图曲线点（按 Param 量程归一到控件大小；不落盘）。</summary>
+        public System.Windows.Media.PointCollection TrendPoints
+        {
+            get => _trendPoints;
+            private set => SetField(ref _trendPoints, value);
+        }
+
+        private System.Windows.Media.ImageSource? _imageSource;
+        /// <summary>图片框显示的图片（Param = 图片文件完整路径；不落盘）。</summary>
+        public System.Windows.Media.ImageSource? ImageSource
+        {
+            get => _imageSource;
+            private set => SetField(ref _imageSource, value);
         }
 
         private string _selectedPage = string.Empty;
@@ -147,6 +171,8 @@ namespace NoCodeMotion.ViewModels
         public DesignerWidgetVM(DesignerWidget model)
         {
             Model = model;
+            if (model.WidgetType == "时钟") LiveText = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            if (model.WidgetType == "图片框") ReloadImage();
             // 分页控件默认停在第一页；Param（页名表）改动 → 刷新页列表并收敛当前页
             if (model.WidgetType == "分页")
             {
@@ -172,11 +198,20 @@ namespace NoCodeMotion.ViewModels
                     }
                 }
 
-                if (e.PropertyName != nameof(DesignerWidget.Param)) return;
-                OnPropertyChanged(nameof(TabPageList));
-                RebuildTabPages();
-                var pages = TabPageList;
-                if (!pages.Contains(_selectedPage)) SelectedPage = pages[0];
+                if (e.PropertyName == nameof(DesignerWidget.Param))
+                {
+                    OnPropertyChanged(nameof(TabPageList));
+                    RebuildTabPages();
+                    var pages = TabPageList;
+                    if (!pages.Contains(_selectedPage)) SelectedPage = pages[0];
+                    if (Model.WidgetType == "趋势图") RebuildTrendPoints();
+                    else if (Model.WidgetType == "图片框") ReloadImage();
+                }
+                else if (Model.WidgetType == "趋势图"
+                         && e.PropertyName is nameof(DesignerWidget.Width) or nameof(DesignerWidget.Height))
+                {
+                    RebuildTrendPoints();
+                }
             };
         }
 
@@ -229,6 +264,72 @@ namespace NoCodeMotion.ViewModels
             foreach (var p in TabPageList)
                 TabPages.Add(new PageTabVM(this, p));
         }
+
+        // ===== 趋势图 / 仪表盘 / 图片框的运行时支持（Live 数据，不落盘） =====
+
+        private const int TrendCapacity = 120;   // 趋势图最多保留 120 个采样点（约 30 秒 @250ms 刷新）
+        private readonly List<double> _trend = new();
+
+        /// <summary>趋势图追加一个采样点（文本不是数字则忽略），并重算曲线。</summary>
+        public void PushTrendPoint(string text)
+        {
+            if (!double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var v)) return;
+            _trend.Add(v);
+            if (_trend.Count > TrendCapacity)
+                _trend.RemoveRange(0, _trend.Count - TrendCapacity);
+            RebuildTrendPoints();
+        }
+
+        /// <summary>按 Param「最小值|最大值」把历史采样映射成控件内的曲线点。</summary>
+        private void RebuildTrendPoints()
+        {
+            var parts = (Model.Param ?? "").Split('|', StringSplitOptions.TrimEntries);
+            double min = parts.Length > 0 && double.TryParse(parts[0], NumberStyles.Any, CultureInfo.InvariantCulture, out var a) ? a : 0;
+            double max = parts.Length > 1 && double.TryParse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture, out var b) ? b : 100;
+            if (max <= min) max = min + 100;
+            double w = Math.Max(8, Model.Width), h = Math.Max(8, Model.Height), pad = 4;
+            var pts = new System.Windows.Media.PointCollection();
+            int n = _trend.Count;
+            for (int i = 0; i < n; i++)
+            {
+                double norm = Math.Clamp((_trend[i] - min) / (max - min), 0, 1);
+                double x = n == 1 ? w / 2 : pad + (w - 2 * pad) * i / (TrendCapacity - 1);
+                pts.Add(new System.Windows.Point(x, pad + (1 - norm) * (h - 2 * pad)));
+            }
+            TrendPoints = pts;
+        }
+
+        /// <summary>仪表盘：按 Param 量程把实时值归一成指针角度（-120°~+120°）。</summary>
+        public void UpdateGauge(string text)
+        {
+            var parts = (Model.Param ?? "").Split('|', StringSplitOptions.TrimEntries);
+            double min = parts.Length > 0 && double.TryParse(parts[0], NumberStyles.Any, CultureInfo.InvariantCulture, out var a) ? a : 0;
+            double max = parts.Length > 1 && double.TryParse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture, out var b) ? b : 100;
+            if (max <= min) max = min + 100;
+            if (!double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var v)) return;
+            LiveGaugeAngle = -120 + 240 * Math.Clamp((v - min) / (max - min), 0, 1);
+        }
+
+        /// <summary>重新加载图片框的图片（Param = 图片文件完整路径；失败则显示占位提示）。</summary>
+        public void ReloadImage()
+        {
+            System.Windows.Media.ImageSource? img = null;
+            var path = Model.Param?.Trim();
+            if (!string.IsNullOrEmpty(path) && File.Exists(path))
+            {
+                try
+                {
+                    var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                    bmp.BeginInit();
+                    bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bmp.UriSource = new Uri(path, UriKind.Absolute);
+                    bmp.EndInit();
+                    img = bmp;
+                }
+                catch { /* 路径无效 / 不是图片文件 → 保持空，显示占位提示 */ }
+            }
+            ImageSource = img;
+        }
     }
 
     /// <summary>分页控件属性面板里的一行页名（TextBox 改名 → 同步 Param 与子控件归属）。</summary>
@@ -267,7 +368,8 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>左侧工具箱可拖出的控件类型。</summary>
         public ObservableCollection<string> ToolboxTypes { get; } = new()
-            { "按钮", "输入框", "显示框", "标签", "分页", "指示灯", "开关", "滑块", "进度条", "下拉框" };
+            { "按钮", "输入框", "显示框", "标签", "分页", "面板", "指示灯", "开关", "复选框",
+              "滑块", "进度条", "仪表盘", "趋势图", "数字显示", "时钟", "图片框", "下拉框" };
 
         /// <summary>按钮可用的动作。</summary>
         public static readonly string[] ButtonActions =
@@ -283,13 +385,13 @@ namespace NoCodeMotion.ViewModels
         /// <summary>指示灯可显示的内容（按状态亮/灭）。</summary>
         public static readonly string[] LampActions = { "无", "显示IO", "显示气缸", "显示变量" };
 
-        /// <summary>开关可执行的动作（点击按「切换」语义执行）。</summary>
+        /// <summary>开关 / 复选框可执行的动作（点击按「切换」语义执行）。</summary>
         public static readonly string[] SwitchActions = { "无", "写输出IO", "气缸", "写变量" };
 
         /// <summary>滑块 / 下拉框的动作（把选值写进变量）。</summary>
         public static readonly string[] ValueInputActions = { "写变量" };
 
-        /// <summary>进度条可显示的内容。</summary>
+        /// <summary>进度条 / 仪表盘 / 趋势图 / 数字显示可显示的内容。</summary>
         public static readonly string[] ProgressActions = { "无", "显示变量", "显示轴位置" };
 
         /// <summary>「显示轴参数」的参数取值。</summary>
@@ -374,10 +476,11 @@ namespace NoCodeMotion.ViewModels
                 if (t == "输入框") return InputActions;
                 if (t == "显示框") return DisplayActions;
                 if (t == "指示灯") return LampActions;
-                if (t == "开关") return SwitchActions;
+                if (t == "开关" || t == "复选框") return SwitchActions;
                 if (t == "滑块" || t == "下拉框") return ValueInputActions;
-                if (t == "进度条") return ProgressActions;
-                if (t == "标签" || t == "分页") return new[] { "无" };   // 标签纯显示、分页是容器，均无动作
+                if (t == "进度条" || t == "仪表盘" || t == "趋势图" || t == "数字显示") return ProgressActions;
+                if (t == "标签" || t == "分页" || t == "时钟" || t == "图片框" || t == "面板")
+                    return new[] { "无" };   // 标签纯显示、分页/面板是容器底板、时钟/图片框纯展示，均无动作
                 return ButtonActions;
             }
         }
@@ -524,6 +627,20 @@ namespace NoCodeMotion.ViewModels
                     m.Action = "显示变量"; m.Param = "0|100"; m.Width = 180; m.Height = 26; break;
                 case "下拉框":
                     m.Action = "写变量"; m.Param = "1|2|3"; m.Width = 150; m.Height = 34; break;
+                case "复选框":
+                    m.Action = "写输出IO"; m.Param = "切换"; m.Width = 110; m.Height = 28; break;
+                case "仪表盘":
+                    m.Action = "显示变量"; m.Param = "0|100"; m.Width = 140; m.Height = 140; break;
+                case "趋势图":
+                    m.Action = "显示变量"; m.Param = "0|100"; m.Width = 260; m.Height = 120; break;
+                case "数字显示":
+                    m.Action = "显示变量"; m.Width = 160; m.Height = 48; break;
+                case "时钟":
+                    m.Action = "无"; m.Width = 190; m.Height = 36; break;
+                case "图片框":
+                    m.Action = "无"; m.Width = 160; m.Height = 120; break;
+                case "面板":
+                    m.Action = "无"; m.Text = $"面板{n}"; m.Width = 300; m.Height = 200; break;
                 case "分页":
                     m.Action = "无"; m.Param = "页1|页2"; m.Width = 420; m.Height = 320; break;
                 default:
@@ -531,9 +648,9 @@ namespace NoCodeMotion.ViewModels
             }
             data.DesignerWidgets.Add(m);
             var vm = new DesignerWidgetVM(m) { Owner = this };
-            if (type == "分页")
+            if (type == "分页" || type == "面板")
             {
-                // 分页是容器：插到最底层（先加入先画在下层），避免盖住已拖入的控件
+                // 分页 / 面板是底板：插到最底层（先加入先画在下层），避免盖住已拖入的控件
                 var idx = data.DesignerWidgets.IndexOf(m);
                 data.DesignerWidgets.Move(idx, 0);
                 Widgets.Insert(0, vm);
@@ -640,8 +757,8 @@ namespace NoCodeMotion.ViewModels
                     {
                         var io = FindIo(m.Target);
                         if (io == null) { Warn($"输出「{m.Target}」不存在，请检查属性面板的目标名。"); return; }
-                        // 开关：始终按当前状态取反（Param 不参与）
-                        int value = m.WidgetType == "开关"
+                        // 开关 / 复选框：始终按当前状态取反（Param 不参与）
+                        int value = m.WidgetType is "开关" or "复选框"
                             ? ((int)bridge.ReadOutput(io) != 0 ? 0 : 1)
                             : m.Param switch
                             {
@@ -658,7 +775,7 @@ namespace NoCodeMotion.ViewModels
                     {
                         var cyl = ProjectStore.Data.Cylinders.FirstOrDefault(c => c.Name == m.Target);
                         if (cyl == null) { Warn($"气缸「{m.Target}」不存在，请检查属性面板的目标名。"); return; }
-                        int state = m.WidgetType == "开关" ? (SimRuntime.GetCylinder(cyl.Name) != 0 ? 0 : 1)
+                        int state = m.WidgetType is "开关" or "复选框" ? (SimRuntime.GetCylinder(cyl.Name) != 0 ? 0 : 1)
                                   : m.Param == "缩回" ? 0
                                   : m.Param == "切换" ? (SimRuntime.GetCylinder(cyl.Name) != 0 ? 0 : 1)
                                   : 1;
@@ -706,9 +823,9 @@ namespace NoCodeMotion.ViewModels
                     {
                         if (string.IsNullOrWhiteSpace(m.Target)) { Warn("请先在属性面板选择要写的变量。"); return; }
                         double v;
-                        if (m.WidgetType == "开关")
+                        if (m.WidgetType is "开关" or "复选框")
                         {
-                            // 开关写变量：Param 形如「开值|关值」，当前等于开值 → 写关值，否则写开值
+                            // 开关 / 复选框写变量：Param 形如「开值|关值」，当前等于开值 → 写关值，否则写开值
                             var parts = (m.Param ?? "").Split('|', StringSplitOptions.TrimEntries);
                             if (!TryNum(parts.Length > 0 ? parts[0] : "1", out double on))
                                 { Warn($"开关「{m.Name}」的开值「{(parts.Length > 0 ? parts[0] : "")}」不是数字。"); return; }
@@ -747,16 +864,20 @@ namespace NoCodeMotion.ViewModels
 
         // ===== 运行时：显示框读回（页面 250ms 定时器调用） =====
 
-        /// <summary>刷新所有实时控件（显示框文本 / 指示灯、开关状态 / 进度条数值；只动 Live* 属性，不碰布局数据）。</summary>
+        /// <summary>刷新所有实时控件（显示框 / 指示灯 / 开关 / 复选框状态、进度条 / 仪表盘数值、趋势图采样、数字显示、时钟；只动 Live* 属性，不碰布局数据）。</summary>
         public void RefreshLive()
         {
             foreach (var vm in Widgets)
             {
                 var t = vm.Model.WidgetType;
-                if (t != "显示框" && t != "指示灯" && t != "开关" && t != "进度条") continue;
+                if (t == "时钟") { vm.LiveText = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"); continue; }
+                if (t != "显示框" && t != "指示灯" && t != "开关" && t != "复选框" && t != "进度条"
+                    && t != "仪表盘" && t != "趋势图" && t != "数字显示") continue;
                 var text = ComputeLive(vm.Model);
                 vm.LiveText = text;
                 if (t == "进度条") vm.LiveProgress = ParseProgress(text, vm.Model.Param);
+                else if (t == "仪表盘") vm.UpdateGauge(text);
+                else if (t == "趋势图") vm.PushTrendPoint(text);
             }
         }
 
@@ -776,8 +897,8 @@ namespace NoCodeMotion.ViewModels
             if (string.IsNullOrWhiteSpace(m.Target)) return m.Action == "无" ? (m.Text ?? "") : "未选目标";
             try
             {
-                // 开关的执行动作映射到对应的读取动作，让外观跟随真实状态（写输出IO→读输出、气缸→读气缸）
-                var action = m.WidgetType == "开关"
+                // 开关 / 复选框的执行动作映射到对应的读取动作，让外观跟随真实状态（写输出IO→读输出、气缸→读气缸）
+                var action = m.WidgetType is "开关" or "复选框"
                     ? m.Action switch { "写输出IO" => "显示IO", "气缸" => "显示气缸", _ => m.Action }
                     : m.Action;
                 switch (action)
@@ -815,9 +936,9 @@ namespace NoCodeMotion.ViewModels
                     }
                     case "显示变量":
                         return SimRuntime.GetVariableResolved(m.Target).ToString("0.###", CultureInfo.InvariantCulture);
-                    case "写变量" when m.WidgetType == "开关":
+                    case "写变量" when m.WidgetType is "开关" or "复选框":
                     {
-                        // 开关的写变量状态：当前值 == Param 的开值 → "1"，否则 "0"（Param 形如「1|0」= 开值|关值）
+                        // 开关 / 复选框的写变量状态：当前值 == Param 的开值 → "1"，否则 "0"（Param 形如「1|0」= 开值|关值）
                         var parts = (m.Param ?? "").Split('|', StringSplitOptions.TrimEntries);
                         double on = parts.Length > 0 && TryNum(parts[0], out var o) ? o : 1;
                         return Math.Abs(SimRuntime.GetVariableResolved(m.Target) - on) < 1e-9 ? "1" : "0";
