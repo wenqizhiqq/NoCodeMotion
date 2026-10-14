@@ -194,6 +194,24 @@ namespace NoCodeMotion.Views
             if (sender is TextBox tb && tb.DataContext is DesignerWidgetVM wvm)
                 VM?.CommitInput(wvm.Model, tb.Text);
         }
+
+        // ===== 运行时：滑块 / 下拉框（选值写进变量） =====
+
+        /// <summary>滑块拖动结束：把滑块值写进绑定的变量。</summary>
+        private void Slider_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Slider s && s.DataContext is DesignerWidgetVM wvm)
+                VM?.CommitInput(wvm.Model, s.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        /// <summary>下拉框选中项变化：把选中值（数字）写进绑定的变量（仅运行模式）。</summary>
+        private void Combo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var vm = VM;
+            if (vm == null || !vm.IsRunMode) return;
+            if (sender is System.Windows.Controls.ComboBox cb && cb.DataContext is DesignerWidgetVM wvm && cb.SelectedItem is string item)
+                vm.CommitInput(wvm.Model, item);
+        }
     }
 
     /// <summary>字符串相等 → Visible（否则 Collapsed）。用于按控件类型切换模板内容。</summary>
@@ -246,6 +264,37 @@ namespace NoCodeMotion.Views
                 && string.Equals(values[0] as string, values[1] as string, StringComparison.Ordinal);
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// Param「最小值|最大值」（如 0|100）→ 数值。ConverterParameter="max" 取最大值（默认 100），否则取最小值（默认 0）。
+    /// 滑块的 Minimum / Maximum 与进度条的量程共用。
+    /// </summary>
+    public class RangeValueConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            var parts = (value as string ?? "").Split('|', StringSplitOptions.TrimEntries);
+            bool wantMax = string.Equals(parameter as string, "max", StringComparison.OrdinalIgnoreCase);
+            string s = wantMax ? (parts.Length > 1 ? parts[1] : "") : (parts.Length > 0 ? parts[0] : "");
+            double fallback = wantMax ? 100 : 0;
+            return double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v)
+                ? v : fallback;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>Param「a|b|c」（下拉框选项）→ string[]；空 Param → 空数组。</summary>
+    public class ParamListConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => (value as string ?? "")
+                .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
             => throw new NotSupportedException();
     }
 }

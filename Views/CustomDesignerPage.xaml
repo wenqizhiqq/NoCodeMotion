@@ -18,6 +18,10 @@
         <local:NullToVisConverter x:Key="NullToVis"/>
         <!-- 页名 == 当前页 → true（分页页头高亮） -->
         <local:StrEqBoolConverter x:Key="StrEqBool"/>
+        <!-- Param「min|max」→ 数值（参数 min / max，滑块与进度条共用） -->
+        <local:RangeValueConverter x:Key="RangeVal"/>
+        <!-- Param「a|b|c」→ 选项数组（下拉框） -->
+        <local:ParamListConverter x:Key="ParamList"/>
 
         <!-- 设计/运行 切换的胶囊按钮 -->
         <Style x:Key="ModePill" TargetType="RadioButton">
@@ -112,7 +116,7 @@
             </StackPanel>
             <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" TextAlignment="Right" FontSize="12"
                        Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"
-                       Text="设计模式：从左侧拖控件进工作区，拖动摆放；选中后右下角小圆点拖大小，Delete 删除。分页控件用「参数」填页名（如 页1|页2|页3），点页头切页；子控件在属性面板选「所属分页/页面」挂进去。运行模式：按钮 / 输入框生效，显示框实时读回。"/>
+                       Text="设计模式：从左侧拖控件进工作区，拖动摆放；选中后右下角小圆点拖大小，Delete 删除。分页控件用「参数」填页名（如 页1|页2|页3），点页头切页；子控件在属性面板选「所属分页/页面」挂进去。运行模式：按钮 / 输入框 / 开关 / 滑块 / 下拉框生效，显示框 / 指示灯 / 进度条实时读回。"/>
         </DockPanel>
 
         <!-- ====== 左侧：工具箱（仅设计模式显示） ====== -->
@@ -276,6 +280,97 @@
                                                                    Foreground="{StaticResource AccentBrush}"/>
                                                     </StackPanel>
                                                 </Border>
+
+                                                <!-- 指示灯：按 LiveText（"1"/"0"）亮 / 灭 -->
+                                                <Grid Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=指示灯}">
+                                                    <Ellipse Margin="10" Stroke="#94A3B8" StrokeThickness="1" ToolTip="{Binding Model.Text}">
+                                                        <Ellipse.Style>
+                                                            <Style TargetType="Ellipse">
+                                                                <Setter Property="Fill" Value="#CBD5E1"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding LiveText}" Value="1">
+                                                                        <Setter Property="Fill" Value="#22C55E"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Ellipse.Style>
+                                                    </Ellipse>
+                                                </Grid>
+
+                                                <!-- 开关：滑轨 + 圆钮，点击按切换语义执行动作；LiveText 驱动开 / 关外观 -->
+                                                <Grid Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=开关}">
+                                                    <Border Margin="4" CornerRadius="10">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#CBD5E1"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding LiveText}" Value="1">
+                                                                        <Setter Property="Background" Value="#22C55E"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <Grid>
+                                                            <Ellipse Width="30" Height="30" Fill="White" Stroke="#94A3B8" StrokeThickness="1"
+                                                                     HorizontalAlignment="Left" Margin="3">
+                                                                <Ellipse.Style>
+                                                                    <Style TargetType="Ellipse">
+                                                                        <Setter Property="HorizontalAlignment" Value="Left"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding LiveText}" Value="1">
+                                                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Ellipse.Style>
+                                                            </Ellipse>
+                                                        </Grid>
+                                                    </Border>
+                                                    <Button Click="WidgetButton_Click" Background="Transparent" BorderThickness="0"
+                                                            IsHitTestVisible="{Binding DataContext.IsRunMode, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                                </Grid>
+
+                                                <!-- 滑块：拖动写变量（Param = 最小值|最大值），拖完提交 -->
+                                                <Grid Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=滑块}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Model.Text}" FontSize="12" Margin="8,0,4,0"
+                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    <Slider Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                            IsHitTestVisible="{Binding DataContext.IsRunMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            Minimum="{Binding Model.Param, Converter={StaticResource RangeVal}, ConverterParameter=min}"
+                                                            Maximum="{Binding Model.Param, Converter={StaticResource RangeVal}, ConverterParameter=max}"
+                                                            Thumb.DragCompleted="Slider_DragCompleted"/>
+                                                </Grid>
+
+                                                <!-- 进度条：按 LiveProgress 显示（Param = 最小值|最大值） -->
+                                                <Grid Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=进度条}">
+                                                    <ProgressBar Margin="8,0" Height="16" VerticalAlignment="Center"
+                                                                 Minimum="{Binding Model.Param, Converter={StaticResource RangeVal}, ConverterParameter=min}"
+                                                                 Maximum="{Binding Model.Param, Converter={StaticResource RangeVal}, ConverterParameter=max}"
+                                                                 Value="{Binding LiveProgress, Mode=OneWay}"/>
+                                                    <TextBlock Text="{Binding LiveText}" FontSize="10" HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center" Margin="0,0,12,0"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                </Grid>
+
+                                                <!-- 下拉框：选中项写进变量（Param = 选项用「|」分隔） -->
+                                                <Grid Visibility="{Binding Model.WidgetType, Converter={StaticResource EqVis}, ConverterParameter=下拉框}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Model.Text}" FontSize="12" Margin="8,0,4,0"
+                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    <ComboBox Grid.Column="1" Margin="0,4,8,4" VerticalContentAlignment="Center" FontSize="13"
+                                                              IsHitTestVisible="{Binding DataContext.IsRunMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                              ItemsSource="{Binding Model.Param, Converter={StaticResource ParamList}}"
+                                                              SelectionChanged="Combo_SelectionChanged"/>
+                                                </Grid>
                                             </Grid>
                                         </Border>
 
@@ -384,7 +479,7 @@
                                 <TextBox Text="{Binding Param, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropBox}"
                                          Visibility="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToVis}, ConverterParameter=inv}"/>
                                 <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
-                                           Text="写输出IO：开 / 关 / 切换；气缸：伸出 / 缩回 / 切换；轴移动(绝对)：目标位置；轴移动(相对)：距离（正负=方向）；写变量：写入数值；显示轴参数：速度 / 加速时间 / 减速时间 / 点动距离 / 手动速度。"/>
+                                   Text="写输出IO：开 / 关 / 切换；气缸：伸出 / 缩回 / 切换；轴移动(绝对)：目标位置；轴移动(相对)：距离（正负=方向）；写变量：写入数值（开关=开值|关值，如 1|0）；显示轴参数：速度 / 加速时间 / 减速时间 / 点动距离 / 手动速度；滑块 / 进度条：最小值|最大值（如 0|100）；下拉框：选项用「|」分隔（如 1|2|3）。"/>
                             </StackPanel>
 
                             <!-- 页面管理（仅分页控件）：重命名 / 删除 / 添加页标签 -->

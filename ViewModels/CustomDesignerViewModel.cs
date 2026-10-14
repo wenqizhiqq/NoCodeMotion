@@ -37,6 +37,14 @@ namespace NoCodeMotion.ViewModels
             set => SetField(ref _liveText, value);
         }
 
+        private double _liveProgress;
+        /// <summary>进度条的实时值（已按 Param 的 min|max 归一夹取；不落盘）。</summary>
+        public double LiveProgress
+        {
+            get => _liveProgress;
+            set => SetField(ref _liveProgress, value);
+        }
+
         private string _selectedPage = string.Empty;
         /// <summary>分页控件当前显示的页名（视图状态，不落盘；默认第一页）。</summary>
         public string SelectedPage
@@ -258,7 +266,8 @@ namespace NoCodeMotion.ViewModels
         public ObservableCollection<DesignerWidgetVM> Widgets { get; } = new();
 
         /// <summary>左侧工具箱可拖出的控件类型。</summary>
-        public ObservableCollection<string> ToolboxTypes { get; } = new() { "按钮", "输入框", "显示框", "标签", "分页" };
+        public ObservableCollection<string> ToolboxTypes { get; } = new()
+            { "按钮", "输入框", "显示框", "标签", "分页", "指示灯", "开关", "滑块", "进度条", "下拉框" };
 
         /// <summary>按钮可用的动作。</summary>
         public static readonly string[] ButtonActions =
@@ -270,6 +279,18 @@ namespace NoCodeMotion.ViewModels
         /// <summary>显示框可显示的内容。</summary>
         public static readonly string[] DisplayActions =
             { "显示IO", "显示气缸", "显示变量", "显示轴位置", "显示轴参数", "无" };
+
+        /// <summary>指示灯可显示的内容（按状态亮/灭）。</summary>
+        public static readonly string[] LampActions = { "无", "显示IO", "显示气缸", "显示变量" };
+
+        /// <summary>开关可执行的动作（点击按「切换」语义执行）。</summary>
+        public static readonly string[] SwitchActions = { "无", "写输出IO", "气缸", "写变量" };
+
+        /// <summary>滑块 / 下拉框的动作（把选值写进变量）。</summary>
+        public static readonly string[] ValueInputActions = { "写变量" };
+
+        /// <summary>进度条可显示的内容。</summary>
+        public static readonly string[] ProgressActions = { "无", "显示变量", "显示轴位置" };
 
         /// <summary>「显示轴参数」的参数取值。</summary>
         public static readonly string[] AxisParamNames =
@@ -352,6 +373,10 @@ namespace NoCodeMotion.ViewModels
                 var t = SelectedWidget?.Model.WidgetType;
                 if (t == "输入框") return InputActions;
                 if (t == "显示框") return DisplayActions;
+                if (t == "指示灯") return LampActions;
+                if (t == "开关") return SwitchActions;
+                if (t == "滑块" || t == "下拉框") return ValueInputActions;
+                if (t == "进度条") return ProgressActions;
                 if (t == "标签" || t == "分页") return new[] { "无" };   // 标签纯显示、分页是容器，均无动作
                 return ButtonActions;
             }
@@ -489,6 +514,16 @@ namespace NoCodeMotion.ViewModels
                     m.Action = "显示变量"; m.Width = 180; m.Height = 40; break;
                 case "标签":
                     m.Action = "无"; m.Text = $"标签{n}"; m.Width = 120; m.Height = 30; break;
+                case "指示灯":
+                    m.Action = "显示IO"; m.Text = $"灯{n}"; m.Width = 60; m.Height = 60; break;
+                case "开关":
+                    m.Action = "写输出IO"; m.Param = "切换"; m.Width = 90; m.Height = 44; break;
+                case "滑块":
+                    m.Action = "写变量"; m.Param = "0|100"; m.Width = 180; m.Height = 36; break;
+                case "进度条":
+                    m.Action = "显示变量"; m.Param = "0|100"; m.Width = 180; m.Height = 26; break;
+                case "下拉框":
+                    m.Action = "写变量"; m.Param = "1|2|3"; m.Width = 150; m.Height = 34; break;
                 case "分页":
                     m.Action = "无"; m.Param = "页1|页2"; m.Width = 420; m.Height = 320; break;
                 default:
@@ -605,12 +640,15 @@ namespace NoCodeMotion.ViewModels
                     {
                         var io = FindIo(m.Target);
                         if (io == null) { Warn($"输出「{m.Target}」不存在，请检查属性面板的目标名。"); return; }
-                        int value = m.Param switch
-                        {
-                            "关" => 0,
-                            "切换" => ((int)bridge.ReadOutput(io) != 0) ? 0 : 1,
-                            _ => 1,
-                        };
+                        // 开关：始终按当前状态取反（Param 不参与）
+                        int value = m.WidgetType == "开关"
+                            ? ((int)bridge.ReadOutput(io) != 0 ? 0 : 1)
+                            : m.Param switch
+                            {
+                                "关" => 0,
+                                "切换" => ((int)bridge.ReadOutput(io) != 0) ? 0 : 1,
+                                _ => 1,
+                            };
                         bridge.WriteOutput(io, value);
                         SimRuntime.SetOutput(io.Name, value);
                         StatusBarService.ReportInfo($"[自定义] 输出「{io.Name}」→ {(value != 0 ? "开" : "关")}");
@@ -620,7 +658,8 @@ namespace NoCodeMotion.ViewModels
                     {
                         var cyl = ProjectStore.Data.Cylinders.FirstOrDefault(c => c.Name == m.Target);
                         if (cyl == null) { Warn($"气缸「{m.Target}」不存在，请检查属性面板的目标名。"); return; }
-                        int state = m.Param == "缩回" ? 0
+                        int state = m.WidgetType == "开关" ? (SimRuntime.GetCylinder(cyl.Name) != 0 ? 0 : 1)
+                                  : m.Param == "缩回" ? 0
                                   : m.Param == "切换" ? (SimRuntime.GetCylinder(cyl.Name) != 0 ? 0 : 1)
                                   : 1;
                         bridge.CylinderMove(cyl, state);
@@ -666,7 +705,17 @@ namespace NoCodeMotion.ViewModels
                     case "写变量":
                     {
                         if (string.IsNullOrWhiteSpace(m.Target)) { Warn("请先在属性面板选择要写的变量。"); return; }
-                        if (!TryNum(m.Param, out double v)) { Warn($"变量「{m.Target}」的写入值「{m.Param}」不是数字。"); return; }
+                        double v;
+                        if (m.WidgetType == "开关")
+                        {
+                            // 开关写变量：Param 形如「开值|关值」，当前等于开值 → 写关值，否则写开值
+                            var parts = (m.Param ?? "").Split('|', StringSplitOptions.TrimEntries);
+                            if (!TryNum(parts.Length > 0 ? parts[0] : "1", out double on))
+                                { Warn($"开关「{m.Name}」的开值「{(parts.Length > 0 ? parts[0] : "")}」不是数字。"); return; }
+                            double off = parts.Length > 1 && TryNum(parts[1], out double o2) ? o2 : 0;
+                            v = Math.Abs(SimRuntime.GetVariableResolved(m.Target) - on) < 1e-9 ? off : on;
+                        }
+                        else if (!TryNum(m.Param, out v)) { Warn($"变量「{m.Target}」的写入值「{m.Param}」不是数字。"); return; }
                         SimRuntime.SetVariable(m.Target, v);
                         StatusBarService.ReportInfo($"[自定义] 变量「{m.Target}」= {v:0.###}");
                         break;
@@ -698,14 +747,28 @@ namespace NoCodeMotion.ViewModels
 
         // ===== 运行时：显示框读回（页面 250ms 定时器调用） =====
 
-        /// <summary>刷新所有显示框的实时文本（只动 LiveText，不碰布局数据）。</summary>
+        /// <summary>刷新所有实时控件（显示框文本 / 指示灯、开关状态 / 进度条数值；只动 Live* 属性，不碰布局数据）。</summary>
         public void RefreshLive()
         {
             foreach (var vm in Widgets)
             {
-                if (vm.Model.WidgetType != "显示框") continue;
-                vm.LiveText = ComputeLive(vm.Model);
+                var t = vm.Model.WidgetType;
+                if (t != "显示框" && t != "指示灯" && t != "开关" && t != "进度条") continue;
+                var text = ComputeLive(vm.Model);
+                vm.LiveText = text;
+                if (t == "进度条") vm.LiveProgress = ParseProgress(text, vm.Model.Param);
             }
+        }
+
+        /// <summary>按 Param 的「最小值|最大值」把实时文本数值夹进进度条范围（默认 0~100）。</summary>
+        private static double ParseProgress(string text, string? param)
+        {
+            if (!TryNum(text, out var v)) return 0;
+            var parts = (param ?? "").Split('|', StringSplitOptions.TrimEntries);
+            double min = parts.Length > 0 && TryNum(parts[0], out var a) ? a : 0;
+            double max = parts.Length > 1 && TryNum(parts[1], out var b) ? b : 100;
+            if (max <= min) max = min + 100;
+            return Math.Clamp(v, min, max);
         }
 
         private string ComputeLive(DesignerWidget m)
@@ -713,7 +776,11 @@ namespace NoCodeMotion.ViewModels
             if (string.IsNullOrWhiteSpace(m.Target)) return m.Action == "无" ? (m.Text ?? "") : "未选目标";
             try
             {
-                switch (m.Action)
+                // 开关的执行动作映射到对应的读取动作，让外观跟随真实状态（写输出IO→读输出、气缸→读气缸）
+                var action = m.WidgetType == "开关"
+                    ? m.Action switch { "写输出IO" => "显示IO", "气缸" => "显示气缸", _ => m.Action }
+                    : m.Action;
+                switch (action)
                 {
                     case "显示IO":
                     {
@@ -722,7 +789,8 @@ namespace NoCodeMotion.ViewModels
                         double v = ProjectStore.Data.Outputs.Contains(io)
                             ? HardwareBridge.Current.ReadOutput(io)
                             : HardwareBridge.Current.ReadInput(io);
-                        return v != 0 ? "高" : "低";
+                        // 显示框给人看的文字；指示灯 / 开关要 "1"/"0" 供样式触发器切换外观
+                        return m.WidgetType == "显示框" ? (v != 0 ? "高" : "低") : (v != 0 ? "1" : "0");
                     }
                     case "显示气缸":
                     {
@@ -730,17 +798,30 @@ namespace NoCodeMotion.ViewModels
                         if (cyl == null) return "未找到";
                         // 优先读真实传感器（配置了伸/缩感应），没有就回放仿真状态
                         var ext = FindIo(cyl.SensorExtend);
+                        bool? extended;
                         if (ext != null)
                         {
-                            if ((int)HardwareBridge.Current.ReadInput(ext) == 1) return "伸出";
-                            var ret = FindIo(cyl.SensorRetract);
-                            if (ret != null && (int)HardwareBridge.Current.ReadInput(ret) == 1) return "缩回";
-                            return "运动中";
+                            if ((int)HardwareBridge.Current.ReadInput(ext) == 1) extended = true;
+                            else
+                            {
+                                var ret = FindIo(cyl.SensorRetract);
+                                extended = ret != null && (int)HardwareBridge.Current.ReadInput(ret) == 1 ? false : (bool?)null;
+                            }
                         }
-                        return SimRuntime.GetCylinder(cyl.Name) != 0 ? "伸出" : "缩回";
+                        else extended = SimRuntime.GetCylinder(cyl.Name) != 0;
+                        if (extended == null) return "运动中";
+                        return m.WidgetType == "显示框" ? (extended == true ? "伸出" : "缩回")
+                                                       : (extended == true ? "1" : "0");
                     }
                     case "显示变量":
                         return SimRuntime.GetVariableResolved(m.Target).ToString("0.###", CultureInfo.InvariantCulture);
+                    case "写变量" when m.WidgetType == "开关":
+                    {
+                        // 开关的写变量状态：当前值 == Param 的开值 → "1"，否则 "0"（Param 形如「1|0」= 开值|关值）
+                        var parts = (m.Param ?? "").Split('|', StringSplitOptions.TrimEntries);
+                        double on = parts.Length > 0 && TryNum(parts[0], out var o) ? o : 1;
+                        return Math.Abs(SimRuntime.GetVariableResolved(m.Target) - on) < 1e-9 ? "1" : "0";
+                    }
                     case "显示轴位置":
                     {
                         var axis = FindAxis(m.Target);
