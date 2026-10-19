@@ -1321,7 +1321,8 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// 连接后从底层硬件真实读取该控制器的轴数量与主板 IO 数量。
         /// <para>轴数走 <see cref="ICard.GetCardTotalAxisNum"/>；IO 数取自卡族实现维护的
         /// <see cref="IIOInPut.InIONums"/> / <see cref="IIOOutPut.OutIONums"/>（硬件卡实际拥有的 IO 数）。</para>
-        /// <para>该控制器未就绪 / 底层未返回有效值时，三个 out 参数均为 0，调用方应回退到配置值。</para>
+        /// <para>卡未就绪时不再直接返回 false：仍按控制器配置解析卡族，给出目录里人工核对过的设计容量；
+        /// 连卡族都匹配不上（且未就绪）时三个 out 均为 0、返回 false，调用方回退到工程配置值。</para>
         /// </summary>
         public bool TryGetRealCounts(string controllerName, out int axisCount, out int inIo, out int outIo)
         {
@@ -1331,30 +1332,35 @@ namespace NoCodeMotion.Services.Hardware.Cards
             {
                 if (!_slots.TryGetValue(controllerName ?? string.Empty, out slot) || slot == null) return false;
             }
-            if (!slot.Ready || slot.Runtime == null) return false;
-
-            try
+            // ① 硬件读数：只有卡已初始化时才问（没连上时问也只会拿到 0，白跑一趟 dll）。
+            if (slot.Ready && slot.Runtime != null)
             {
-                uint total = 0;
-                int r = -1;
-                if (slot.Runtime.Card != null) r = slot.Runtime.Card.GetCardTotalAxisNum(slot.CardNo, ref total);
-                if (r == 0 && total > 0) axisCount = (int)total;
+                try
+                {
+                    uint total = 0;
+                    int r = -1;
+                    if (slot.Runtime.Card != null) r = slot.Runtime.Card.GetCardTotalAxisNum(slot.CardNo, ref total);
+                    if (r == 0 && total > 0) axisCount = (int)total;
+                }
+                catch (Exception ex) { Log($"[卡族] 读取轴总数失败：{ex.Message}"); }
+
+                try { if (slot.Runtime.InIo != null) inIo = slot.Runtime.InIo.InIONums; } catch { /* 部分卡族未维护该字段 */ }
+                try { if (slot.Runtime.OutIo != null) outIo = slot.Runtime.OutIo.OutIONums; } catch { /* 部分卡族未维护该字段 */ }
             }
-            catch (Exception ex) { Log($"[卡族] 读取轴总数失败：{ex.Message}"); }
 
-            try { if (slot.Runtime.InIo != null) inIo = slot.Runtime.InIo.InIONums; } catch { /* 部分卡族未维护该字段 */ }
-            try { if (slot.Runtime.OutIo != null) outIo = slot.Runtime.OutIo.OutIONums; } catch { /* 部分卡族未维护该字段 */ }
-
-            // 卡族标准规格优先：移植卡族的底层 API 经常不回报容量
+            // ② 卡族标准规格兜底：移植卡族的底层 API 经常不回报容量
             //（轴返回 0、IO 返回占位默认值 24），目录里人工核对过的「设计容量」才是可信来源。
             // 仅当该字段在目录中已人工设定（> 0）时覆盖硬件读数；未设定的卡族继续走硬件真实值。
-            if (slot.Family != null)
+            // ★ 这一段必须在「卡没连上」时也执行：新工程还没插卡 / 无卡调试时，
+            //   否则界面只剩一个没有解释的 0，连接后也看不出到底按几根轴生成（用户报的「找不到轴数量」）。
+            var fam = slot.Family ?? ResolveFamily(slot.Config);
+            if (fam != null)
             {
-                if (slot.Family.AxisCount > 0) axisCount = slot.Family.AxisCount;
-                if (slot.Family.InIoCount > 0) inIo = slot.Family.InIoCount;
-                if (slot.Family.OutIoCount > 0) outIo = slot.Family.OutIoCount;
+                if (fam.AxisCount > 0) axisCount = fam.AxisCount;
+                if (fam.InIoCount > 0) inIo = fam.InIoCount;
+                if (fam.OutIoCount > 0) outIo = fam.OutIoCount;
             }
-            return true;
+            return slot.Ready || fam != null;
         }
 
         /// <summary>

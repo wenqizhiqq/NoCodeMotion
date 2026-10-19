@@ -325,7 +325,7 @@ namespace NoCodeMotion.ViewModels
                             + (fam == null ? "。★卡型号未匹配到已移植卡族，轴 / IO 不会真实下发。" : string.Empty)
                             + (ctl.DetectedAxisCount > 0
                                 ? $" 真实检测：轴 {ctl.DetectedAxisCount} / 输入 {ctl.DetectedInIo} / 输出 {ctl.DetectedOutIo}。"
-                                : string.Empty)
+                                : $" 卡未上报轴数（未插卡或未就绪，且卡族目录未登记该型号的设计容量），本次按工程配置的 {ctl.AxisCount} 根轴生成。")
                             + " " + axisMsg + " " + ioMsg;
                         HardwareLog.Write("[控制器] " + ConnectMessage);
                         StatusBarService.SetControllerStatus(onlineNow, ctrls.Count);   // 用后台统计的在线数，不再在 UI 线程读硬件
@@ -596,6 +596,20 @@ namespace NoCodeMotion.ViewModels
             {
                 var info = LtdmcCard.FirstCard;
                 axis = info == null ? 0 : (int)(info.IsBusCard ? info.BusAxes : info.LocalAxes);
+            }
+
+            // 空工程 / 只有雷赛控制器的工程默认装配雷赛封装（HardwareSetup 的既有口径），这条路上
+            // 压根不会去问卡族层；没插卡时 FirstCard 又是 null → 轴数恒为 0。
+            // 所以这里补一次与模式无关的目录查询：该控制器型号命中已移植卡族、且目录里填了设计容量就用它。
+            if (axis == 0)
+            {
+                var fam = WenQiZhiCardBridge.ResolveFamily(ctl);
+                if (fam != null)
+                {
+                    if (fam.AxisCount > 0) axis = fam.AxisCount;
+                    if (inIo == 0) inIo = fam.InIoCount;
+                    if (outIo == 0) outIo = fam.OutIoCount;
+                }
             }
         }
 
