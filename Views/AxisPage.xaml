@@ -7,6 +7,44 @@
              xmlns:beh="clr-namespace:NoCodeMotion.Behaviors"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
+    <UserControl.Resources>
+        <!-- ★ 轴页专属「密集」样式：分组卡片不再等宽、值不再拉到右边缘对齐，行高与内边距收紧。
+             共享样式（AppleRow / AppleTextField …）保持原样，其它页面不受影响。 -->
+        <Style x:Key="DenseHeader" TargetType="TextBlock" BasedOn="{StaticResource AppleSectionHeader}">
+            <Setter Property="Margin" Value="10,5,10,1"/>
+        </Style>
+        <Style x:Key="DenseRow" TargetType="DockPanel" BasedOn="{StaticResource AppleRow}">
+            <!-- LastChildFill=True：值占满标签剩下的位置，配合下面的左对齐让值紧跟标签。 -->
+            <Setter Property="LastChildFill" Value="True"/>
+            <Setter Property="Margin" Value="10,0"/>
+            <Setter Property="MinHeight" Value="26"/>
+        </Style>
+        <Style x:Key="DenseLabel" TargetType="TextBlock" BasedOn="{StaticResource AppleLabel}">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+        <Style x:Key="DenseField" TargetType="TextBox" BasedOn="{StaticResource AppleTextField}">
+            <Setter Property="Width" Value="72"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="TextAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="0,3"/>
+        </Style>
+        <Style x:Key="DenseCombo" TargetType="ComboBox" BasedOn="{StaticResource CellComboStyle}">
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+        </Style>
+        <Style x:Key="DenseToggle" TargetType="CheckBox" BasedOn="{StaticResource AppleToggle}">
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+        </Style>
+        <Style x:Key="DenseValue" TargetType="TextBlock" BasedOn="{StaticResource AppleReadOnlyValue}">
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="TextAlignment" Value="Left"/>
+        </Style>
+        <Style x:Key="DenseHairline" TargetType="Rectangle" BasedOn="{StaticResource AppleHairline}">
+            <Setter Property="Margin" Value="10,0"/>
+        </Style>
+    </UserControl.Resources>
+
+
     <local:EditorPage EmptyHint="还没有轴，请点击左上角的「添加」按钮新增一条轴。">
         <local:EditorPage.Detail>
             <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}">
@@ -33,29 +71,29 @@
                                PrecautionText="名称里第一个「-」之前的文字会成为下拉框的分组前缀：同类名称超过 20 个时，下拉框自动折叠成「一级分类 → 右侧二级菜单」的级联。改名后请确认没有流程 / 点位仍在引用旧名。"/>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <!-- 4 列紧凑容器：WrapPanel 保证每张卡只有自身内容那么高（不拉齐高度，避免大片空白） -->
-                    <WrapPanel Orientation="Horizontal" Margin="12,0,12,8" ItemWidth="240">
+                    <WrapPanel Orientation="Horizontal" Margin="10,0,10,8">
                         <!-- ============ 基本信息 ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="基本信息"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Style="{StaticResource DenseHeader}" Text="基本信息"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="名称"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Width="130" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="轴类型"/>
-                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource AppleReadOnlyValue}" Text="{Binding SelectedItem.AxisType, Mode=OneWay}" ToolTip="只读：轴类型跟着所属控制器的「总线类型」走。要改请到「控制器」页改该控制器的总线类型（该卡的轴会一起换类型）。"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="轴类型"/>
+                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource DenseValue}" Text="{Binding SelectedItem.AxisType, Mode=OneWay}" ToolTip="只读：轴类型跟着所属控制器的「总线类型」走。要改请到「控制器」页改该控制器的总线类型（该卡的轴会一起换类型）。"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="轴号"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.AxisNo}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="轴号"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.AxisNo}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="单位"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.Unit}" SelectedValuePath="Content">
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="单位"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.Unit}" SelectedValuePath="Content">
                                         <ComboBoxItem Content="mm"/>
                                         <ComboBoxItem Content="°"/>
                                         <ComboBoxItem Content="脉冲"/>
@@ -63,10 +101,10 @@
                                         <ComboBoxItem Content="自定义"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="控制器"/>
-                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource AppleReadOnlyValue}" Text="{Binding SelectedItem.Controller, Mode=OneWay}" ToolTip="只读：轴的归属在「控制器」页决定 —— 连接控制器 / 生成轴点位时按本卡轴数建轴并绑定；本页新增的轴默认归到第一个控制器。"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="控制器"/>
+                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource DenseValue}" Text="{Binding SelectedItem.Controller, Mode=OneWay}" ToolTip="只读：轴的归属在「控制器」页决定 —— 连接控制器 / 生成轴点位时按本卡轴数建轴并绑定；本页新增的轴默认归到第一个控制器。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -74,59 +112,59 @@
                         <!-- ============ 运动参数 ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="运动参数"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="脉冲当量"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.PulsePerUnit}"
+                                <TextBlock Style="{StaticResource DenseHeader}" Text="运动参数"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="脉冲当量"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.PulsePerUnit}"
                                              ToolTip="脉冲当量：走 1 个单位要发多少个脉冲（pulse/unit），按机械实际算 = 每转脉冲数 ÷ 丝杠导程。&#10;★ 填 0 会被卡拒绝运动指令（Jog / 设零点报错误码），默认 1000（0.001 单位/脉冲）。"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.StartVel}"
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="起始速度"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.StartVel}"
                                              ToolTip="起始速度（单位/秒）：梯形曲线的起跳速度，默认 100。填 0 等于让轴从静止硬起步，步进机容易失步。"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="运行速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Speed}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="运行速度"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.Speed}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="停止速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.StopVel}"
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="停止速度"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.StopVel}"
                                              ToolTip="停止速度（单位/秒）：减速段的收尾速度，默认与起始速度一致（100），厂商示例同口径。"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="加速时间"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Accel}"
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="加速时间"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.Accel}"
                                              ToolTip="加速时间（秒）：从起始速度加速到额定速度所需的时间，不是加速度值。常用 0.1~0.5 秒。"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="减速时间"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Decel}"
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="减速时间"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.Decel}"
                                              ToolTip="减速时间（秒）：从额定速度减速到停止所需的时间，不是减速度值。常用 0.1~0.5 秒。"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="加加速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Jerk}"
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="加加速度"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.Jerk}"
                                              ToolTip="加加速度：S 曲线的平滑量。「速度类型 = 梯形」时 0 才是准确值；要用 S 型才填大于 0。"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="速度类型"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.SpeedCurve}" SelectedValuePath="Content" ToolTip="梯形（T 型）或 S 型加减速；对应卡层的速度类型参数">
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="速度类型"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.SpeedCurve}" SelectedValuePath="Content" ToolTip="梯形（T 型）或 S 型加减速；对应卡层的速度类型参数">
                                         <ComboBoxItem Content="梯形"/>
                                         <ComboBoxItem Content="S型"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="S段"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.SPara}" ToolTip="S 段时间（单位：秒，范围 0~0.5）：仅「速度类型 = S型」时生效；梯形下保持 0。"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="S段"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.SPara}" ToolTip="S 段时间（单位：秒，范围 0~0.5）：仅「速度类型 = S型」时生效；梯形下保持 0。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -134,10 +172,10 @@
                         <!-- ============ 回零参数 ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="回零参数"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="回零方式"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.HomeMode}" SelectedValuePath="Content">
+                                <TextBlock Style="{StaticResource DenseHeader}" Text="回零参数"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="回零方式"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.HomeMode}" SelectedValuePath="Content">
                                         <ComboBoxItem Content="原点开关+限位"/>
                                         <ComboBoxItem Content="仅正限位"/>
                                         <ComboBoxItem Content="仅负限位"/>
@@ -148,33 +186,33 @@
                                         <ComboBoxItem Content="索引回零"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="回零方向"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.HomeDir}" SelectedValuePath="Content" ToolTip="回零时先朝哪个方向找原点 / 限位">
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="回零方向"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.HomeDir}" SelectedValuePath="Content" ToolTip="回零时先朝哪个方向找原点 / 限位">
                                         <ComboBoxItem Content="负向"/>
                                         <ComboBoxItem Content="正向"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="回零速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.HomeSpeed}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="回零速度"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.HomeSpeed}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="爬行速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.CreepSpeed}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="爬行速度"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.CreepSpeed}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="原点偏移"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.HomeOffset}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="原点偏移"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.HomeOffset}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="回零超时(ms)"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.HomeTimeoutMs}" ToolTip="0 = 不判断回零超时"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="回零超时(ms)"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.HomeTimeoutMs}" ToolTip="0 = 不判断回零超时"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -182,33 +220,33 @@
                         <!-- ============ 限位与保护 ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="限位与保护"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="软限位使能"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.SoftLimitEnable}" ToolTip="开启后软正 / 负限位值才会下发到卡并生效"/>
+                                <TextBlock Style="{StaticResource DenseHeader}" Text="限位与保护"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="软限位使能"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.SoftLimitEnable}" ToolTip="开启后软正 / 负限位值才会下发到卡并生效"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="软正限位"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.PosLimitPlus}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="软正限位"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.PosLimitPlus}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="软负限位"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.PosLimitMinus}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="软负限位"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.PosLimitMinus}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="限位电平"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.LimitLevel}" SelectedValuePath="Content" ToolTip="正 / 负限位信号的有效电平">
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="限位电平"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.LimitLevel}" SelectedValuePath="Content" ToolTip="正 / 负限位信号的有效电平">
                                         <ComboBoxItem Content="低电平"/>
                                         <ComboBoxItem Content="高电平"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="到位误差"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.InPosError}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="到位误差"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.InPosError}"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -216,80 +254,80 @@
                         <!-- ============ 电平与编码器 ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="电平与编码器"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="使能电平"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.EnableLevel}" SelectedValuePath="Content">
+                                <TextBlock Style="{StaticResource DenseHeader}" Text="电平与编码器"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="使能电平"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.EnableLevel}" SelectedValuePath="Content">
                                         <ComboBoxItem Content="高电平"/>
                                         <ComboBoxItem Content="低电平"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="方向电平"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.DirLevel}" SelectedValuePath="Content">
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="方向电平"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.DirLevel}" SelectedValuePath="Content">
                                         <ComboBoxItem Content="正向"/>
                                         <ComboBoxItem Content="负向"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="报警电平"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.AlarmLevel}" SelectedValuePath="Content">
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="报警电平"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.AlarmLevel}" SelectedValuePath="Content">
                                         <ComboBoxItem Content="高电平"/>
                                         <ComboBoxItem Content="低电平"/>
                                         <ComboBoxItem Content="无"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="报警使能"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.AlarmEnable}" ToolTip="开启后伺服报警信号才会被卡识别并停轴"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="报警使能"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AlarmEnable}" ToolTip="开启后伺服报警信号才会被卡识别并停轴"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="原点电平"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.OriginLevel}" SelectedValuePath="Content">
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="原点电平"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.OriginLevel}" SelectedValuePath="Content">
                                         <ComboBoxItem Content="低电平"/>
                                         <ComboBoxItem Content="高电平"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="原点停止模式"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.OriginStopMode}" SelectedValuePath="Content">
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="原点停止模式"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.OriginStopMode}" SelectedValuePath="Content">
                                         <ComboBoxItem Content="减速停止"/>
                                         <ComboBoxItem Content="急停"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="编码器类型"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.EncoderType}" SelectedValuePath="Content">
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="编码器类型"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.EncoderType}" SelectedValuePath="Content">
                                         <ComboBoxItem Content="无"/>
                                         <ComboBoxItem Content="增量式"/>
                                         <ComboBoxItem Content="绝对式"/>
                                     </ComboBox>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="编码器分辨率"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.EncoderRes}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="编码器分辨率"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.EncoderRes}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="编码器使能"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.EncoderEnable}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="编码器使能"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.EncoderEnable}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="编码器误差"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.EncoderDeviation}" ToolTip="指令位置 − 编码器位置 超过该值应报警"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="编码器误差"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.EncoderDeviation}" ToolTip="指令位置 − 编码器位置 超过该值应报警"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="急停减速"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.EStopDecel}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="急停减速"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.EStopDecel}"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -297,21 +335,21 @@
                         <!-- ============ 轴权限 ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="轴权限"
+                                <TextBlock Style="{StaticResource DenseHeader}" Text="轴权限"
                                            ToolTip="只门控「轴控制」里的手动按钮；流程 / 点位 / Lua 的运行指令不受影响。"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="允许手动操作"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.AllowManual}" ToolTip="关闭后「轴控制」里的 点动 / Jog / 停止 按钮变灰"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="允许手动操作"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AllowManual}" ToolTip="关闭后「轴控制」里的 点动 / Jog / 停止 按钮变灰"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="允许回零"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.AllowHome}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="允许回零"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AllowHome}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="允许设零点"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.AllowSetZero}"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="允许设零点"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AllowSetZero}"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -319,90 +357,90 @@
                         <!-- ============ 轴状态（只读，针对左侧当前选中的轴） ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="轴状态"
+                                <TextBlock Style="{StaticResource DenseHeader}" Text="轴状态"
                                            ToolTip="状态全部来自底层真实读数（位置=指令位置，编码器=反馈位置）；读不到的项显示「—」，不编造。"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="选中轴"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="选中轴"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding Monitor.Name}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="控制器"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="控制器"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" VerticalAlignment="Center"
                                                Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding Monitor.ControllerText}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="连接"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="连接"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" VerticalAlignment="Center"
                                                Foreground="{StaticResource TextMutedBrush}" Text="{Binding Monitor.StatusText}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="正极限"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="正极限"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.PelText}" Foreground="{Binding Monitor.PelColor}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="负极限"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="负极限"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.MelText}" Foreground="{Binding Monitor.MelColor}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="原点"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="原点"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.OrgText}" Foreground="{Binding Monitor.OrgColor}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="急停"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="急停"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.EmgText}" Foreground="{Binding Monitor.EmgColor}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="报警"
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="报警"
                                                ToolTip="有轴状态字的卡族：取状态字 bit0。没有状态字的卡族读不到，显示「—」，请改看下面「报警码」。"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.AlarmText}" Foreground="{Binding Monitor.AlarmColor}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="报警码"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="报警码"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" VerticalAlignment="Center" FontFamily="Consolas"
                                                Text="{Binding Monitor.AlarmCodeText}" Foreground="{Binding Monitor.AlarmCodeColor}"
                                                ToolTip="底层 GetCardAxisAlarmState 的原始返回值，原样显示不翻译（各卡族语义不同：有的是报警状态 0/1，有的是错误码）。非 0 时若轴不动，请按卡手册清报警。"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="使能"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="使能"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.EnabledText}" Foreground="{Binding Monitor.EnabledColor}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="运动中"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="运动中"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.MovingText}" Foreground="{Binding Monitor.MovingColor}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="位置"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="位置"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.PosText}" Foreground="{Binding Monitor.PosColor}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="编码器"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="编码器"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" VerticalAlignment="Center"
                                                Text="{Binding Monitor.EncText}" Foreground="{Binding Monitor.PosColor}"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="状态字"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="状态字"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12" FontFamily="Consolas" VerticalAlignment="Center"
                                                Text="{Binding Monitor.IoWordText}" Foreground="{StaticResource TextMutedBrush}"
                                                ToolTip="{Binding IoWordHint}"/>
@@ -413,21 +451,21 @@
                         <!-- ============ 轴控制（针对左侧当前选中的轴，真实下发） ============ -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="轴控制"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="点动距离"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"                                             Text="{Binding Monitor.JogStep, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBlock Style="{StaticResource DenseHeader}" Text="轴控制"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="点动距离"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding Monitor.JogStep, UpdateSourceTrigger=PropertyChanged}"
                                              ToolTip="点动 / Jog 每步距离（单位同该轴「单位」）"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="手动速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"                                             Text="{Binding Monitor.ManualSpeed, UpdateSourceTrigger=PropertyChanged}"
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="手动速度"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding Monitor.ManualSpeed, UpdateSourceTrigger=PropertyChanged}"
                                              ToolTip="点动 / Jog 的速度；自动运行与点位移动仍按该轴「运行速度」"/>
                                 </DockPanel>
-                                <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="轴权限"/>
+                                <Rectangle Style="{StaticResource DenseHairline}"/>
+                                <DockPanel Style="{StaticResource DenseRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="轴权限"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                Foreground="{StaticResource TextMutedBrush}" Text="{Binding Monitor.PermissionText}"/>
                                 </DockPanel>
