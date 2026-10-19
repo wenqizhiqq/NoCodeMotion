@@ -1,6 +1,7 @@
 ﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ◆温‏启⁣志‏◆⁠编‍写⁠◇‏微‎信‍﹕​1‍8‎7‍◆‎1‌9⁠3⁠6‏◇⁠1​3‌9‏9‏　⁣※‏保‎留‏所‍有⁣权‌利​请⁣勿‌删‌除‎◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -9,18 +10,39 @@ namespace NoCodeMotion.Models
     /// <summary>轴配置（运动控制参数较全）</summary>
     public class AxisItem : EditorItemBase
     {
+        /// <summary>运动参数默认值：脉冲当量 1000 pulse/unit（0.001 unit/脉冲），起始 / 停止速度各 100 unit/s。
+        /// <para>★ 当量为什么不能留 0：卡族指令全是 unit 版，卡内靠「指令位置比率」= 当量做 unit↔脉冲 换算，
+        /// 当量为 0 时卡直接拒绝 Jog / 设零点（现场表现为 8194 / 20480 这种看不懂的错误码）。</para>
+        /// <para>★ 起始 / 停止速度取 100 是厂商示例口径（dmc_set_profile_unit(card, ax, 100, v, tacc, tdec, 100)）；
+        /// 填 0 等于让梯形曲线从静止硬起步，步进机会失步。</para></summary>
+        public const double DefaultPulsePerUnit = 1000;
+        public const double DefaultStartVel = 100;
+        public const double DefaultStopVel = 100;
+
+        /// <summary>轴类型候选（与控制器页「总线类型」共用同一批字面量）。</summary>
+        public static readonly string[] AxisTypeOptions = { "脉冲", "总线", "EtherCAT", "CANopen", "模拟量", "虚拟轴" };
+
+        /// <summary>由控制器的「总线类型」推导轴类型：认不出的总线一律按「总线」处理（雷赛层 IsBusAxis 也是这个口径）。</summary>
+        public static string AxisTypeOf(string busType)
+        {
+            if (string.IsNullOrWhiteSpace(busType)) return "脉冲";
+            string b = busType.Trim();
+            return Array.IndexOf(AxisTypeOptions, b) >= 0 ? b : "总线";
+        }
+
         // 基本信息
+        // 轴类型在「轴」页只读：由所属控制器的「总线类型」推导（见 AxisTypeOf），这里只保留兜底默认值。
         private string _axisType = "脉冲";           // 脉冲 / 总线 / EtherCAT / CANopen / 模拟量 / 虚拟轴
         private int _axisNo;
         private bool _enabled = true;
         private string _unit = "mm";                 // mm / ° / 脉冲 / um / 自定义
 
         // 运动参数
-        private double _pulsePerUnit;                // 脉冲当量（每单位脉冲数）
+        private double _pulsePerUnit = DefaultPulsePerUnit;   // 脉冲当量（每单位脉冲数）
         private double _speed = 10000;               // 运行速度（默认 10000；载入老工程时由 ProjectData.MigrateAxisDefaults 写回）
         private double _accel = 0.2;                 // 加速时间（秒，从起始速度到额定速度所需时间；非加速度值）
         private double _decel = 0.2;                 // 减速时间（秒，同上）
-        private double _jerk;                        // 加加速度
+        private double _jerk;                        // 加加速度：速度类型=梯形 时 0 才是准确值（>0 是给 S 曲线用的平滑）
 
         // 回零参数
         private string _homeMode = "原点开关+限位";  // 原点开关+限位 / 仅正限位 / 仅负限位 / 编码器Z相 / 当前位置设零 / 负向限位回零 / 正向限位回零 / 索引回零
@@ -43,10 +65,10 @@ namespace NoCodeMotion.Models
 
         // ── 以下为「与底层控制卡参数对齐」补齐的字段（对应卡层 CAxisParameter / MotionParamModel / HomeParameModel）──
         // 运动参数
-        private double _startVel;                    // 起始速度（卡层 StartVel / MinVel）
-        private double _stopVel;                     // 停止速度（卡层 StopVel）
+        private double _startVel = DefaultStartVel;          // 起始速度（卡层 StartVel / MinVel）
+        private double _stopVel = DefaultStopVel;            // 停止速度（卡层 StopVel）
         private string _speedCurve = "梯形";         // 速度类型：梯形 / S型（卡层 JK）
-        private double _sPara;                       // S 段（0~1，卡层 SPara，仅 S 型有效）
+        private double _sPara;                       // S 段（卡层 SPara：单位是秒、范围 0~0.5；速度类型=梯形 时为 0）
 
         // 回零
         private string _homeDir = "负向";            // 回零方向：负向 / 正向（卡层 HomeDir）

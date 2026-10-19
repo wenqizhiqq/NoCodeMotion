@@ -116,6 +116,10 @@ namespace NoCodeMotion.Models
         /// <summary>新默认值：加速 / 减速时间 0.2 秒（0→额定速度的斜坡时长）。</summary>
         public const double DefaultAxisAccel = 0.2;
 
+        /// <summary>老工程里「脉冲当量 / 起始速度 / 停止速度」的默认值全是 0：当量为 0 时卡会拒绝 unit 指令
+        /// （Jog 8194 / 设零点 20480），起始速度 0 会让梯形曲线从静止硬起步而失步。</summary>
+        private const double LegacyAxisZero = 0;
+
         /// <summary>
         /// 把轴的速度类参数迁移到新默认值（一次性、幂等）。
         /// <para>速度三项 → 10000；加减速 → 0.2 秒（语义由「加速度值」改为「加速时间(秒)」）。</para>
@@ -135,6 +139,10 @@ namespace NoCodeMotion.Models
                 // 只动「还等于旧默认值」的轴；用户若已把加减速设成别的数，说明他有自己的意图，保留。
                 if (a.Accel == LegacyAxisAccel) a.Accel = DefaultAxisAccel;
                 if (a.Decel == LegacyAxisAccel) a.Decel = DefaultAxisAccel;
+                // 运动参数里「没填过」的 0 换成能直接用的默认值（填过的不动）。
+                if (a.PulsePerUnit == LegacyAxisZero) a.PulsePerUnit = AxisItem.DefaultPulsePerUnit;
+                if (a.StartVel == LegacyAxisZero) a.StartVel = AxisItem.DefaultStartVel;
+                if (a.StopVel == LegacyAxisZero) a.StopVel = AxisItem.DefaultStopVel;
             }
         }
 

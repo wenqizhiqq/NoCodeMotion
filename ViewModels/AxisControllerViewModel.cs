@@ -493,7 +493,7 @@ namespace NoCodeMotion.ViewModels
                 while (data.Axes.Any(a => a != null && a.Controller == tag && a.AxisNo == no)) no++;
                 string name = $"轴{no}";
                 for (int k = 2; data.Axes.Any(a => a != null && a.Name == name); k++) name = $"轴{no}_{k}";
-                data.Axes.Add(MakeAxis(tag, name, no));
+                data.Axes.Add(MakeAxis(ctl, name, no));
                 added++;
             }
 
@@ -502,14 +502,33 @@ namespace NoCodeMotion.ViewModels
             return $"本卡轴数已按 {count} 调整（新增 {added} / 删除 {removed}），原有轴的名称与参数未改动。";
         }
 
-        /// <summary>造一根轴：名称与轴号由调用方给定（轴号 = 卡上的轴号，从 0 起）。</summary>
-        private static AxisItem MakeAxis(string controller, string name, int axisNo) => new AxisItem
+        /// <summary>造一根轴：名称与轴号由调用方给定（轴号 = 卡上的轴号，从 0 起）；
+        /// 轴类型取本控制器的「总线类型」（轴页的轴类型只读，这里是写入点之一）。</summary>
+        private static AxisItem MakeAxis(AxisControllerItem ctl, string name, int axisNo) => new AxisItem
         {
             Name = name,
-            Controller = controller,   // 自动绑定到本控制卡
+            Controller = ctl.Name,     // 自动绑定到本控制卡
             AxisNo = axisNo,
+            AxisType = AxisItem.AxisTypeOf(ctl.BusType),
             Enabled = true,
         };
+
+        /// <summary>把某控制器名下所有轴的「轴类型」同步成该控制器的总线类型（轴页只读，故由此处代写）。</summary>
+        private static void SyncAxisTypes(AxisControllerItem ctl)
+        {
+            var data = ProjectStore.Data;
+            if (data == null || ctl == null) return;
+            string want = AxisItem.AxisTypeOf(ctl.BusType);
+            bool touched = false;
+            foreach (var a in data.Axes)
+            {
+                if (a == null || a.Controller != ctl.Name) continue;
+                if (a.AxisType == want) continue;
+                a.AxisType = want;
+                touched = true;
+            }
+            if (touched) ProjectStore.ScheduleSave();
+        }
 
         /// <summary>断开：关闭该控制卡的硬件连接，回到离线。</summary>
         public ICommand DisconnectCommand => new RelayCommand(_ => Disconnect());
@@ -742,6 +761,11 @@ namespace NoCodeMotion.ViewModels
                     && !CardTypeOptions.Contains(SelectedItem.CardType))
                     SelectedItem.CardType = string.Empty;
             }
+
+            // ★ 总线类型变了 → 本卡的轴「轴类型」一起跟着改。
+            //   轴页的「轴类型」是只读的（它由卡决定），这里就是它唯一的联动入口，否则换过总线类型后没法再纠正。
+            if (e.PropertyName == nameof(AxisControllerItem.BusType) && sender is AxisControllerItem busCtl)
+                SyncAxisTypes(busCtl);
 
             // 卡型号变了 → 刷新「扩展 IO / 连接」门控（未选型号时禁用扩展IO与连接）。
             if (e.PropertyName == nameof(AxisControllerItem.CardType))

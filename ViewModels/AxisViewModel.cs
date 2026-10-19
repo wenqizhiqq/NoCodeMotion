@@ -141,8 +141,30 @@ namespace NoCodeMotion.ViewModels
         private void OnDetectedCountsChanged(object? sender, EventArgs e)
             => OnPropertyChanged(nameof(DetectedAxisCount));
 
-        // ★ 手工新增的轴名称也从 0 起（轴0、轴1…），与「轴号从 0 开始」保持同一套约定。
-        protected override AxisItem CreateNewItem() => new AxisItem { Name = $"轴{Counter}" };
+        /// <summary>
+        /// 手工新增一根轴。★「轴类型」「控制器」在轴页是只读的，所以这里就得把它们定下来：
+        /// 归属取工程里的第一个控制器，轴类型跟着该控制器的总线类型走，轴号 = 本卡未占用的最小号（从 0 起）。
+        /// 一个控制器都没有时退回老行为（只给名字，归属留空，等用户在「控制器」页生成轴点位）。
+        /// </summary>
+        protected override AxisItem CreateNewItem()
+        {
+            var data = ProjectStore.Data;
+            var ctl = data?.Controllers?.FirstOrDefault(c => c != null);
+            if (data == null || ctl == null) return new AxisItem { Name = $"轴{Counter}" };
+
+            int no = 0;
+            while (data.Axes.Any(a => a != null && a.Controller == ctl.Name && a.AxisNo == no)) no++;
+            string name = $"轴{no}";
+            for (int k = 2; data.Axes.Any(a => a != null && a.Name == name); k++) name = $"轴{no}_{k}";
+
+            return new AxisItem
+            {
+                Name = name,
+                Controller = ctl.Name,
+                AxisType = AxisItem.AxisTypeOf(ctl.BusType),
+                AxisNo = no,
+            };
+        }
 
         /// <summary>配置页改值实时下发设备：速度变化下发到卡，使能/电平变化重新使能轴。</summary>
         protected override void PushItem(AxisItem item, string? propertyName)

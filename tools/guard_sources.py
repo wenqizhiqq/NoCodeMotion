@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 r"""源码文本回归守卫 —— 伺服使能极性 / Jog 失败提示 / 加减速语义 / 暂停停止守卫 / 多开退出 / 图形生成 / IO 虚拟化。
 
 为什么单独一个脚本：C# 冒烟程序从 %TEMP% 启动，读 D:\ 下的源码会被沙箱替换成无效内容
@@ -231,12 +231,17 @@ if avm is None:
     check("G7.7 找到 AxisControllerViewModel.cs", False)
 else:
     check("G7.7 找到 AxisControllerViewModel.cs", True)
-    check("G7.8 轴自动生成：名称「轴0..轴N-1」= 轴号（MakeAxis(tag,s,s)）",
-          "data.Axes.Add(MakeAxis(tag, s, s));" in avm)
-    check("G7.8b 轴生成循环从 0 起（for s=0; s<count）",
-          "for (int s = 0; s < count; s++)" in avm)
-    check("G7.9 IO 自动生成：主板位号从 0 起（MakeIo(..., 0, s)）",
-          'data.Inputs.Add(MakeIo(tag, "输入", nIn++, 0, s));' in avm)
+    # ★ 2026-10-19 起：连接控制器改成「只按本卡调数量、不改名称与参数」，
+    #   生成器不再是 for s=0..count 的整体重建，而是「找未占用的最小轴号」补位（仍 0 基）。
+    check("G7.8 轴自动生成：名称「轴<轴号>」= 轴号（MakeAxis(ctl, name, no)）",
+          "data.Axes.Add(MakeAxis(ctl, name, no));" in avm
+          and 'string name = $"轴{no}";' in avm)
+    check("G7.8b 轴号从 0 起找未占用的最小号（int no = 0; while (...AxisNo == no) no++;）",
+          "int no = 0;" in avm
+          and "while (data.Axes.Any(a => a != null && a.Controller == tag && a.AxisNo == no)) no++;" in avm)
+    check("G7.9 IO 自动生成：主板位号从 0 起（inSlots.Add((0, s))）",
+          "for (int s = 0; s < System.Math.Max(ctl.InIoCount, 0); s++) inSlots.Add((0, s));" in avm
+          and 'AdjustIoSlots(data.Inputs, tag, inSlots, "输入");' in avm)
     check("G7.10 不再有 1 基的 MakeAxis(tag, s, s - 1)",
           "MakeAxis(tag, s, s - 1)" not in avm)
 

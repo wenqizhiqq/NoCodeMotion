@@ -4,7 +4,6 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:NoCodeMotion.Views"
-             xmlns:svc="clr-namespace:NoCodeMotion.Services"
              xmlns:beh="clr-namespace:NoCodeMotion.Behaviors"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
@@ -46,14 +45,7 @@
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="轴类型"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" SelectedValue="{Binding SelectedItem.AxisType}" SelectedValuePath="Content">
-                                        <ComboBoxItem Content="脉冲"/>
-                                        <ComboBoxItem Content="总线"/>
-                                        <ComboBoxItem Content="EtherCAT"/>
-                                        <ComboBoxItem Content="CANopen"/>
-                                        <ComboBoxItem Content="模拟量"/>
-                                        <ComboBoxItem Content="虚拟轴"/>
-                                    </ComboBox>
+                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource AppleReadOnlyValue}" Text="{Binding SelectedItem.AxisType, Mode=OneWay}" ToolTip="只读：轴类型跟着所属控制器的「总线类型」走。要改请到「控制器」页改该控制器的总线类型（该卡的轴会一起换类型）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -74,7 +66,7 @@
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="控制器"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" MinWidth="0" ItemsSource="{x:Static svc:Catalog.ControllerNames}" SelectedItem="{Binding SelectedItem.Controller, UpdateSourceTrigger=PropertyChanged}" ToolTip="该轴所属的控制器（在「控制器」页面添加）"/>
+                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource AppleReadOnlyValue}" Text="{Binding SelectedItem.Controller, Mode=OneWay}" ToolTip="只读：轴的归属在「控制器」页决定 —— 连接控制器 / 生成轴点位时按本卡轴数建轴并绑定；本页新增的轴默认归到第一个控制器。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -85,12 +77,14 @@
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="运动参数"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="脉冲当量"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.PulsePerUnit}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.PulsePerUnit}"
+                                             ToolTip="脉冲当量：走 1 个单位要发多少个脉冲（pulse/unit），按机械实际算 = 每转脉冲数 ÷ 丝杠导程。&#10;★ 填 0 会被卡拒绝运动指令（Jog / 设零点报错误码），默认 1000（0.001 单位/脉冲）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.StartVel}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.StartVel}"
+                                             ToolTip="起始速度（单位/秒）：梯形曲线的起跳速度，默认 100。填 0 等于让轴从静止硬起步，步进机容易失步。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -100,7 +94,8 @@
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="停止速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.StopVel}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.StopVel}"
+                                             ToolTip="停止速度（单位/秒）：减速段的收尾速度，默认与起始速度一致（100），厂商示例同口径。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -117,7 +112,8 @@
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="加加速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Jerk}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.Jerk}"
+                                             ToolTip="加加速度：S 曲线的平滑量。「速度类型 = 梯形」时 0 才是准确值；要用 S 型才填大于 0。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -130,7 +126,7 @@
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="S段"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.SPara}" ToolTip="0~1，仅「速度类型 = S型」时有效"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" MinWidth="0" Text="{Binding SelectedItem.SPara}" ToolTip="S 段时间（单位：秒，范围 0~0.5）：仅「速度类型 = S型」时生效；梯形下保持 0。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
