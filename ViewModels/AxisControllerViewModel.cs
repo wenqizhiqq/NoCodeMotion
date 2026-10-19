@@ -41,7 +41,19 @@ namespace NoCodeMotion.ViewModels
             else UpdateStatusBar();
         }
 
-        protected override AxisControllerItem CreateNewItem() => new AxisControllerItem { Kind = "控制卡", Name = $"控制卡{Counter + 1}" };
+        /// <summary>新增控制卡的默认配置：模拟卡 + VirtualMotionCard（32 轴 / 脉冲 / PCI）。
+        /// 新建工程还没有实物卡时，按这个默认值就能直接连上仿真卡写流程、生成轴，不必手填每一项。</summary>
+        protected override AxisControllerItem CreateNewItem() => new AxisControllerItem
+        {
+            Kind = "控制卡",
+            Name = $"控制卡{Counter + 1}",
+            Vendor = "模拟卡",
+            BusType = "脉冲",
+            CardType = "VirtualMotionCard",
+            CardNo = 0,
+            AxisCount = 32,
+            Connection = "PCI",
+        };
 
         /// <summary>添加一张控制卡（品牌 / 总线类型 / 卡型号都在详情里用下拉框选择）。</summary>
         public ICommand AddCardCommand => new RelayCommand(_ => AddCard());
