@@ -373,8 +373,10 @@ namespace NoCodeMotion.ViewModels
         }
 
         /// <summary>
-        /// 按控制卡的 IO 配置自动生成 IO 点：主板（模块=0）+ 各扩展模块（模块号=第几个模块，从 1 起）。
-        /// <para>连接时先<b>全局清空</b>工程里所有 IO 点，再只重建本控制卡的（避免旧 / 手工 / 其它卡的点残留叠加）。</para>
+        /// 按控制卡的 IO 配置调整<b>本卡</b>的 IO 点（主板 + 各扩展模块）：只改数量，不改名称与参数。
+        /// <para>按「模块号 + 位号」逐槽位比对：槽位仍在的原样保留（名称、功能、电平都不动），
+        /// 槽位消失（数量变小 / 扩展模块被删）才删除，缺的槽位补默认名「输入N / 输出N」；
+        /// 其它控制器的 IO 点不参与。</para>
         /// </summary>
         private static string GenerateIoPoints(AxisControllerItem ctl)
         {
@@ -383,22 +385,14 @@ namespace NoCodeMotion.ViewModels
 
             string tag = ctl.Name;
 
-            // 全局清空：连接时把工程里所有 IO 点先清空，再只重建本控制卡的（避免旧 / 手工 / 其它卡的点残留叠加）
-            data.Inputs.Clear();
-            data.Outputs.Clear();
+            // 目标槽位：主板（模块=0）位号 0..N-1，再按扩展模块实例逐个展开（模块号=从站号、位号从 0 起）。
+            // ★ 位号必须从 0 开始：底层取位号是「模块 × 每模块位数 + 位号」（见 WenQiZhiCardBridge.MainBoardBit），
+            //   从 1 开始会让每个点错位一位、最后一个点还超到卡上不存在的位号。
+            var inSlots = new List<(int module, int seq)>();
+            var outSlots = new List<(int module, int seq)>();
+            for (int s = 0; s < System.Math.Max(ctl.InIoCount, 0); s++) inSlots.Add((0, s));
+            for (int s = 0; s < System.Math.Max(ctl.OutIoCount, 0); s++) outSlots.Add((0, s));
 
-            int nIn = 0, nOut = 0;
-
-            // 主板 IO：模块=0，位号 0..N-1；名称「输入0..输入(N-1)」——名称里的数就是位号，不再差 1。
-            // ★ 「位号」就是卡上的 IO 位号，**必须从 0 开始**：底层取位号是
-            //   「模块 × 每模块位数 + 位号」（见 WenQiZhiCardBridge.MainBoardBit / LeadshineHardwareBridge.BitNo），
-            //   以前从 1 开始生成 → 每个点都错位一位（输入1 打到位号 1），最后一个点还会超到 位号 N（卡上不存在）。
-            for (int s = 0; s < System.Math.Max(ctl.InIoCount, 0); s++)
-                data.Inputs.Add(MakeIo(tag, "输入", nIn++, 0, s));
-            for (int s = 0; s < System.Math.Max(ctl.OutIoCount, 0); s++)
-                data.Outputs.Add(MakeIo(tag, "输出", nOut++, 0, s));
-
-            // 扩展模块 IO：模块号从 1 起，按「数量」逐个模块实例展开（与卡族扩展IO寻址一致：模块=从站号、序号=位号）
             int moduleOrdinal = 0;
             foreach (var m in ctl.ExpansionModules)
             {
@@ -406,13 +400,13 @@ namespace NoCodeMotion.ViewModels
                 for (int u = 0; u < units; u++)
                 {
                     moduleOrdinal++;
-                    // 扩展模块的位号同样从 0 开始（和从站自身的位号一致）
-                    for (int s = 0; s < System.Math.Max(m.InIo, 0); s++)
-                        data.Inputs.Add(MakeIo(tag, "输入", nIn++, moduleOrdinal, s));
-                    for (int s = 0; s < System.Math.Max(m.OutIo, 0); s++)
-                        data.Outputs.Add(MakeIo(tag, "输出", nOut++, moduleOrdinal, s));
+                    for (int s = 0; s < System.Math.Max(m.InIo, 0); s++) inSlots.Add((moduleOrdinal, s));
+                    for (int s = 0; s < System.Math.Max(m.OutIo, 0); s++) outSlots.Add((moduleOrdinal, s));
                 }
             }
+
+            int addedIn = AdjustIoSlots(data.Inputs, tag, inSlots, "输入");
+            int addedOut = AdjustIoSlots(data.Outputs, tag, outSlots, "输出");
 
             // ★ 三个名称库必须一起刷新：气缸页 4 个下拉绑的是按方向拆分的
             //   OutIoNames（伸出输出 / 缩回输出）与 InIoNames（伸出感应 / 缩回感应），
@@ -422,7 +416,38 @@ namespace NoCodeMotion.ViewModels
             Catalog.SetIoOut(data.Outputs.Select(x => x.Name));
             Catalog.SetIo(data.Inputs.Select(x => x.Name).Concat(data.Outputs.Select(x => x.Name)));
             ProjectStore.ScheduleSave();
-            return $"已按配置自动生成 IO 点：输入 {nIn} / 输出 {nOut}（控制器「{tag}」）。";
+            return $"本卡 IO 已按 输入 {inSlots.Count} / 输出 {outSlots.Count} 调整"
+                + $"（新增 {addedIn + addedOut}、保留 {inSlots.Count + outSlots.Count - addedIn - addedOut}），"
+                + "原有 IO 的名称与功能未改动。";
+        }
+
+        /// <summary>
+        /// 把一个方向的 IO 点调到目标槽位集合（按「模块号 + 位号」比对，只动本控制器的点）：
+        /// 槽位仍存在的保留不动、同槽位重复的只留第一个，槽位消失的删除，缺的补默认名。返回新增个数。
+        /// </summary>
+        private static int AdjustIoSlots(System.Collections.ObjectModel.ObservableCollection<IoItem> list, string controller,
+                                         List<(int module, int seq)> slots, string prefix)
+        {
+            var want = new HashSet<(int, int)>(slots);
+            var seen = new HashSet<(int, int)>();
+            foreach (var io in list.Where(x => x != null && x.Controller == controller).ToList())
+                if (!want.Contains((io.ModuleNo, io.Sequence)) || !seen.Add((io.ModuleNo, io.Sequence)))
+                    list.Remove(io);
+
+            int nextIndex = list.Count(x => x != null && x.Controller == controller);
+            int added = 0;
+            foreach (var (module, seq) in slots)
+            {
+                if (list.Any(x => x != null && x.Controller == controller && x.ModuleNo == module && x.Sequence == seq)) continue;
+                string name = $"{prefix}{nextIndex}";
+                for (int k = 2; list.Any(x => x != null && x.Name == name); k++) name = $"{prefix}{nextIndex}_{k}";
+                var item = MakeIo(controller, prefix, nextIndex, module, seq);
+                item.Name = name;
+                list.Add(item);
+                nextIndex++;
+                added++;
+            }
+            return added;
         }
 
         private static IoItem MakeIo(string controller, string prefix, int index, int moduleNo, int seq) => new IoItem
@@ -436,8 +461,11 @@ namespace NoCodeMotion.ViewModels
         };
 
         /// <summary>
-        /// 按控制卡的真实 / 配置轴数自动生成轴：连接时先<b>全局清空</b>工程里所有轴，再只重建本控制卡的。
+        /// 按控制卡的真实 / 配置轴数调整<b>本卡</b>的轴：只改数量，不改名称与参数。
         /// <para>数量优先取底层真实检测到的轴数（连接后从卡读到），为 0 时回退到配置轴数（AxisCount）。</para>
+        /// <para>多了就从轴号最大的尾部删，少了就补当前未占用的最小轴号（默认名「轴N」，与轴号同号）；
+        /// 已存在的轴（含用户改过的名称、脉冲当量、速度、限位等）原样保留，其它控制器的轴也不动 ——
+        /// 早先的「全局清空重建」会把改名和别的卡一起抹掉。</para>
         /// </summary>
         private static string GenerateAxisPoints(AxisControllerItem ctl)
         {
@@ -445,28 +473,39 @@ namespace NoCodeMotion.ViewModels
             if (data == null) return "（工程未加载，未生成轴）";
 
             string tag = ctl.Name;
-            // 全局清空：连接时把工程里所有轴先清空，再只重建本控制卡的
-            data.Axes.Clear();
-
             int count = ctl.DetectedAxisCount > 0 ? ctl.DetectedAxisCount : System.Math.Max(ctl.AxisCount, 0);
-            int n = 0;
-            // ★ 「轴号」= 卡上的轴号，**必须从 0 开始**（卡轴号一般是 0~N-1）；
-            //   并且**名称也用同一个号**（轴0、轴1、轴2…），名称里的数 = 轴号，不再差 1。
-            //   以前名称从 1 起、轴号从 1 起 → 每根轴都错位一根、最后一根越界（8 轴卡生成出「轴号 8」）。
-            for (int s = 0; s < count; s++)
+            var mine = data.Axes.Where(a => a != null && a.Controller == tag).ToList();
+
+            // 多了：从轴号最大的尾部删（轴号相同则删表里靠后的）
+            int removed = 0;
+            var drop = mine.OrderByDescending(a => a.AxisNo).ThenByDescending(a => data.Axes.IndexOf(a)).ToList();
+            for (int i = 0; i < drop.Count && mine.Count - removed > count; i++)
             {
-                data.Axes.Add(MakeAxis(tag, s, s));   // 名称「轴0..轴(N-1)」/ 轴号 0..N-1（同名同号）
-                n++;
+                data.Axes.Remove(drop[i]);
+                removed++;
+            }
+
+            // 少了：补未占用的最小轴号；名字已被占用时加序号后缀，避免与其它卡的轴重名
+            int added = 0;
+            for (int i = mine.Count - removed; i < count; i++)
+            {
+                int no = 0;
+                while (data.Axes.Any(a => a != null && a.Controller == tag && a.AxisNo == no)) no++;
+                string name = $"轴{no}";
+                for (int k = 2; data.Axes.Any(a => a != null && a.Name == name); k++) name = $"轴{no}_{k}";
+                data.Axes.Add(MakeAxis(tag, name, no));
+                added++;
             }
 
             Catalog.SetAxis(data.Axes.Select(x => x.Name));
             ProjectStore.ScheduleSave();
-            return $"已按底层自动生成轴：{n}（控制器「{tag}」）。";
+            return $"本卡轴数已按 {count} 调整（新增 {added} / 删除 {removed}），原有轴的名称与参数未改动。";
         }
 
-        private static AxisItem MakeAxis(string controller, int index, int axisNo) => new AxisItem
+        /// <summary>造一根轴：名称与轴号由调用方给定（轴号 = 卡上的轴号，从 0 起）。</summary>
+        private static AxisItem MakeAxis(string controller, string name, int axisNo) => new AxisItem
         {
-            Name = $"轴{index}",
+            Name = name,
             Controller = controller,   // 自动绑定到本控制卡
             AxisNo = axisNo,
             Enabled = true,

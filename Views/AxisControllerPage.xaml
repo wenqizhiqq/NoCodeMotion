@@ -244,6 +244,9 @@
                                 <Button Style="{StaticResource TtPillGrayBtn}" Content="断开" ToolTip="关闭该控制卡连接" Command="{Binding DisconnectCommand}"/>
                             </StackPanel>
                         </DockPanel>
+                        <!-- 连接的影响范围说明：只调数量、不改名称，免得用户以为连接会冲掉已配好的轴 / IO -->
+                        <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,4" TextWrapping="Wrap"
+                                   Text="连接控制器只按底层 / 配置调整本卡轴与 IO 的数量（多了从尾部删、少了补默认名）；已有轴 / IO 的名称、功能、电平与运动参数不会被改，其它控制器的点也不动。"/>
                         <!-- 连接进度条：点击「连接」后台执行期间显示，避免界面卡死且无反馈 -->
                 <Border Visibility="{Binding IsConnecting, Converter={StaticResource BoolToVis}}" Margin="16,4,16,6">
                     <StackPanel Orientation="Vertical">
