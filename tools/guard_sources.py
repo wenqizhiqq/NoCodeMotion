@@ -1644,7 +1644,10 @@ else:
     check("G28.24 SECS 会话日志接到同一出口（后台线程的收发，页面 / Lua 要看得到）",
           "if (ch is SecsCommChannel secs) secs.Log = Log;" in _c28)
     check("G28.25 通道指纹含 SECS 角色 / DeviceID（改了要重建通道，不能复用旧连接）",
-          '+ $"|{cfg.SecsRole}|{cfg.SecsDeviceId}";' in _c28)
+          '+ $"|{cfg.SecsRole}|{cfg.SecsDeviceId}"' in _c28)
+    # 管道 / 共享内存 / 本机文件 / Web 这几类的参数改了同样必须换通道实例（否则改完还是旧连接行为）
+    check("G28.25b 通道指纹含本机互联与接口类参数（管道角色 / 共享区大小 / 写入方式 / 请求方式 / Content-Type）",
+          '+ $"|{cfg.PipeRole}|{cfg.ShmSizeKb}|{cfg.FileWriteMode}|{cfg.WebMethod}|{cfg.WebContentType}";' in _c28)
 
 # ---- 模型参数 ----
 if _ci28 is None:

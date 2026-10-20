@@ -10,6 +10,7 @@ namespace NoCodeMotion.Models
     public class CommItem : EditorItemBase
     {
         private string _commType = "串口";          // 串口 / 网口TCP / 网口UDP / ModbusTCP / ModbusRTU / 相机网口 / SECS(HSMS) / 西门子S7 / 三菱MC
+                                                   //  / 管道 / 共享内存 / 共享文件夹 / 本机文件 / Web
         private string _portOrIp = "COM1";
         private int _baudOrPort = 9600;
         private int _dataBits = 8;
@@ -63,6 +64,28 @@ namespace NoCodeMotion.Models
 
         /// <summary>S1F2 / S1F14 里回的机型 MDLN。</summary>
         public string SecsMdln { get => _secsMdln; set => SetField(ref _secsMdln, value); }
+
+        // ---- 本机互联与接口类通道（管道 / 共享内存 / 共享文件夹 / 本机文件 / Web）专用参数 ----
+        private string _pipeRole = "服务端";            // 管道：服务端 = 本机监听等对方连；客户端 = 主动连对方
+        private int _shmSizeKb = 64;                    // 共享内存：单条环形队列大小（KB）
+        private string _fileWriteMode = "覆盖";         // 本机文件：发送时覆盖整个文件 / 追加到末尾
+        private string _webMethod = "POST";             // Web：请求方式 GET / POST / PUT
+        private string _webContentType = "text/plain";  // Web：请求体 Content-Type
+
+        /// <summary>管道角色：「服务端」在本机监听等对方连入，「客户端」主动去连对方。两端必须一端一个。</summary>
+        public string PipeRole { get => _pipeRole; set => SetField(ref _pipeRole, value); }
+
+        /// <summary>共享内存单条队列大小（KB）：两端要填一致，一条消息不能超过这个大小。</summary>
+        public int ShmSizeKb { get => _shmSizeKb; set => SetField(ref _shmSizeKb, value); }
+
+        /// <summary>本机文件写入方式：「覆盖」每次重写整个文件，「追加」往文件末尾续写。</summary>
+        public string FileWriteMode { get => _fileWriteMode; set => SetField(ref _fileWriteMode, value); }
+
+        /// <summary>Web 请求方式：POST / PUT 带正文，GET 不带正文（正文非空时按 ?data=… 附上）。</summary>
+        public string WebMethod { get => _webMethod; set => SetField(ref _webMethod, value); }
+
+        /// <summary>Web 请求体的 Content-Type（如 text/plain、application/json）。</summary>
+        public string WebContentType { get => _webContentType; set => SetField(ref _webContentType, value); }
 
         /// <summary>S1F2 / S1F14 里回的软件版本 SOFTREV。</summary>
         public string SecsSoftRev { get => _secsSoftRev; set => SetField(ref _secsSoftRev, value); }

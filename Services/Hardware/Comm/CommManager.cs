@@ -20,6 +20,11 @@ namespace NoCodeMotion.Services.Hardware.Comm
     ///   ModbusRTU         → ModbusCommChannel（串口）
     ///   ModbusTCP         → ModbusCommChannel（网口）
     ///   SECS(HSMS)        → SecsCommChannel（半导体 SECS/GEM：SEMI E37 会话 + E5 报文）
+    ///   管道              → PipeCommChannel（本机命名管道，两端一进一出）
+    ///   共享内存          → SharedMemoryCommChannel（本机命名内存映射区，两条环形队列）
+    ///   共享文件夹        → DropFolderCommChannel（目录投递：out\ 发、in\ 收，可指网络共享）
+    ///   本机文件          → LocalFileCommChannel（一个磁盘文件当收发口）
+    ///   Web               → HttpCommChannel（HTTP/HTTPS：POST/PUT 发、GET 收）
     ///   西门子S7 / 三菱MC → 暂未内置专用协议，给出中文提示（可后续扩展）
     /// </summary>
     public sealed class CommManager : IDisposable
@@ -54,6 +59,7 @@ namespace NoCodeMotion.Services.Hardware.Comm
         {
             var ch = GetOrCreate(cfg);
             if (ch is SecsCommChannel secs) return secs.SendAndReply(data);
+            if (ch is HttpCommChannel http) return http.SendAndReply(data);   // Web：把响应正文回给页面/Lua
             ch.Send(data);
             return null;
         }
@@ -100,7 +106,9 @@ namespace NoCodeMotion.Services.Hardware.Comm
 
         private static string ChannelKey(CommItem cfg) =>
             $"{cfg.Name}|{cfg.CommType}|{cfg.PortOrIp}|{cfg.BaudOrPort}|{cfg.DataBits}|{cfg.Parity}|{cfg.StopBits}"
-            + $"|{cfg.SecsRole}|{cfg.SecsDeviceId}";
+            + $"|{cfg.SecsRole}|{cfg.SecsDeviceId}"
+            // 新参数的改动必须换通道实例，否则改了「管道角色 / 共享区大小 / 写入方式 / 请求方式」还沿用旧通道
+            + $"|{cfg.PipeRole}|{cfg.ShmSizeKb}|{cfg.FileWriteMode}|{cfg.WebMethod}|{cfg.WebContentType}";
 
         private static ICommChannel Create(CommItem cfg)
         {
@@ -110,6 +118,20 @@ namespace NoCodeMotion.Services.Hardware.Comm
             //   落到最后会被默认分支当成普通 TcpCommChannel（不报错，但完全没有 SECS 语义）。
             if (Contains(type, "SECS", "HSMS", "E37", "E5"))
                 return new SecsCommChannel(cfg);
+
+            // ★ 本机互联 / 接口类通道：必须在「串口 / TCP 默认分支」之前判断。
+            //   放到后面会被默认分支当成 TcpCommChannel —— 不报错，但完全没有管道 / 共享内存 / HTTP 语义。
+            //   「共享文件夹」也要排在「本机文件」之前：两个词都含「文件」，先匹配「文件夹」才不会串台。
+            if (Contains(type, "管道", "Pipe", "NamedPipe"))
+                return new PipeCommChannel(cfg);
+            if (Contains(type, "共享内存", "SharedMemory", "MMF", "内存"))
+                return new SharedMemoryCommChannel(cfg);
+            if (Contains(type, "文件夹", "目录", "投递", "Drop", "SharedFolder"))
+                return new DropFolderCommChannel(cfg);
+            if (Contains(type, "本机文件", "本地文件", "磁盘", "LocalFile", "File"))
+                return new LocalFileCommChannel(cfg);
+            if (Contains(type, "Web", "HTTP", "URL", "REST", "接口"))
+                return new HttpCommChannel(cfg);
 
             if (Contains(type, "ModbusRTU", "Modbus RTU", "MODBUSRTU"))
                 return new ModbusCommChannel(cfg, isTcp: false);

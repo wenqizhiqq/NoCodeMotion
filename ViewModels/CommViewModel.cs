@@ -28,7 +28,22 @@ namespace NoCodeMotion.ViewModels
     {
         // ---------- 药丸选择器数据源（绑定到字符串型模型字段）----------
         public string[] CommTypeOptions { get; } =
-            { "串口", "网口TCP", "网口UDP", "ModbusTCP", "ModbusRTU", "相机网口", "SECS(HSMS)", "GPIB", "西门子S7", "三菱MC" };
+        {
+            "串口", "网口TCP", "网口UDP", "ModbusTCP", "ModbusRTU", "相机网口", "SECS(HSMS)", "GPIB", "西门子S7", "三菱MC",
+            "管道", "共享内存", "共享文件夹", "本机文件", "Web",
+        };
+
+        /// <summary>管道角色：服务端在本机监听，客户端主动连。</summary>
+        public string[] PipeRoleOptions { get; } = { "服务端", "客户端" };
+
+        /// <summary>本机文件发送方式。</summary>
+        public string[] FileWriteModeOptions { get; } = { "覆盖", "追加" };
+
+        /// <summary>Web 请求方式。</summary>
+        public string[] WebMethodOptions { get; } = { "POST", "GET", "PUT" };
+
+        /// <summary>Web 请求体类型（够常用的三种）。</summary>
+        public string[] WebContentTypeOptions { get; } = { "text/plain", "application/json", "application/x-www-form-urlencoded" };
 
         /// <summary>HSMS 角色：被动 = 设备端监听，主动 = 主机端连对方。</summary>
         public string[] SecsRoleOptions { get; } = { "被动", "主动" };
@@ -352,9 +367,26 @@ namespace NoCodeMotion.ViewModels
                     else if (secs.IsConnected) Log("  · TCP 已连接，等待对方 Select…");
                     else if (secs.IsListening) Log($"  · 正在监听 0.0.0.0:{secs.BoundPort}，等对方连入…");
                 }
-                else
+                else switch (ch)
                 {
-                    Log("  ✓ 连接已打开。");
+                    case PipeCommChannel pipe:
+                        Log($"  ✓ 管道已就绪：本端角色「{item.PipeRole}」，管道名「{item.PortOrIp}」");
+                        break;
+                    case SharedMemoryCommChannel shm:
+                        Log($"  ✓ 共享内存已就绪：{item.PortOrIp}（单条队列 {shm.Capacity / 1024} KB）");
+                        break;
+                    case DropFolderCommChannel drop:
+                        Log($"  ✓ 投递目录已就绪：发出 {drop.OutDir} ｜ 接收 {drop.InDir}");
+                        break;
+                    case LocalFileCommChannel file:
+                        Log($"  ✓ 文件通道已就绪：{file.FullPath}（发送方式：{item.FileWriteMode}）");
+                        break;
+                    case HttpCommChannel http:
+                        Log($"  ✓ Web 通道已就绪：{item.WebMethod} {item.PortOrIp}");
+                        break;
+                    default:
+                        Log("  ✓ 连接已打开。");
+                        break;
                 }
             }
             catch (Exception ex)

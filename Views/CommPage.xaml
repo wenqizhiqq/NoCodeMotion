@@ -66,6 +66,52 @@
                                 <TextBox Text="{Binding SelectedItem.BaudOrPort}" Style="{StaticResource AppleNumField}"/>
                             </StackPanel>
                         </Border>
+                        <!-- ↓↓↓ 本机互联 / 接口类通道（管道、共享内存、共享文件夹、本机文件、Web）的参数 -->
+                        <Border Style="{StaticResource AppleChip}" MinWidth="300"
+                                Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='管道|共享内存|共享文件夹|本机文件|Web'}">
+                            <StackPanel>
+                                <TextBlock Text="地址（管道名 / 共享区名 / 目录 / 文件 / URL）" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBox Text="{Binding SelectedItem.PortOrIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}" MinWidth="280"
+                                         ToolTip="管道：管道名（两端填同一个，如 ncm1，写 \\.\pipe\ncm1 也认）&#10;共享内存：共享区名（两端一致；两端的「通道名」必须不同）&#10;共享文件夹：根目录，程序自动用 out\ 发、in\ 收；填网络共享路径即跨机器&#10;本机文件：文件完整路径（相对路径按程序运行目录解析）&#10;Web：完整 URL，如 http://127.0.0.1:8080/api/io"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='管道'}">
+                            <StackPanel>
+                                <TextBlock Text="管道角色" Style="{StaticResource AppleChipLabel}"/>
+                                <ListBox ItemsSource="{Binding PipeRoleOptions}" SelectedItem="{Binding SelectedItem.PipeRole}" Style="{StaticResource ApplePillList}"
+                                         ToolTip="一端选「服务端」（先启动、在本机监听），另一端选「客户端」（主动连）。两端都填服务端或都填客户端连不上。"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='共享内存'}">
+                            <StackPanel>
+                                <TextBlock Text="共享区大小(KB)" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBox Text="{Binding SelectedItem.ShmSizeKb}" Style="{StaticResource AppleNumField}"
+                                         ToolTip="单条队列的字节容量（默认 64KB）。两端要填一致；单条消息不能超过它。"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='本机文件'}">
+                            <StackPanel>
+                                <TextBlock Text="写入方式" Style="{StaticResource AppleChipLabel}"/>
+                                <ListBox ItemsSource="{Binding FileWriteModeOptions}" SelectedItem="{Binding SelectedItem.FileWriteMode}" Style="{StaticResource ApplePillList}"
+                                         ToolTip="「覆盖」每次发送重写整个文件；「追加」往末尾续写。接收只在文件被外部改动后返回一次内容。"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='Web'}">
+                            <StackPanel>
+                                <TextBlock Text="请求方式" Style="{StaticResource AppleChipLabel}"/>
+                                <ListBox ItemsSource="{Binding WebMethodOptions}" SelectedItem="{Binding SelectedItem.WebMethod}" Style="{StaticResource ApplePillList}"
+                                         ToolTip="POST / PUT 带正文发送；GET 不带正文（正文非空时按 ?data=… 追加到 URL）。「接收」一律发 GET 取响应正文。"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='Web'}">
+                            <StackPanel>
+                                <TextBlock Text="Content-Type" Style="{StaticResource AppleChipLabel}"/>
+                                <ComboBox ItemsSource="{Binding WebContentTypeOptions}" MinWidth="200" HorizontalAlignment="Left"
+                                          SelectedItem="{Binding SelectedItem.WebContentType}"
+                                          ToolTip="请求体的 Content-Type。发 JSON 就选 application/json。"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- ↑↑↑ 本机互联 / 接口类通道参数 -->
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
                                 <TextBlock Text="数据位" Style="{StaticResource AppleChipLabel}"/>
