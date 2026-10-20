@@ -459,11 +459,17 @@ namespace NoCodeMotion.ViewModels
                         onStep?.Invoke(index, name, $"Lua 行 {line}");
                         FlowRunStore.SetStep(flow, $"Lua 行 {line}");
                         FlowRunStore.SetProgress(flow, line: line);   // 供脚本页定时器轮询刷新行号高亮
+                        // ★ 外部循环的每行耗时也推到 Store——编辑器自己的循环直接看本页 _session，
+                        // 但外部循环用独立后台会话，必须把快照跨线程塞进 Store，编辑器轮询才能显示。
+                        FlowRunStore.SetLineTimes(flow, session.GetLineTimesSnapshot());
                     };
                     session.Ended += info =>
                     {
                         lastEnded = info;
                         if (info.IsError) log?.Invoke($"[Lua:{name}] 运行错误（行 {info.ErrorLine}）：{info.Message}", LogLevel.Error);
+                        // ★ 最近一轮总耗时 + 最终耗时快照，供编辑器轮询刷新
+                        FlowRunStore.SetRoundElapsed(flow, info.ElapsedMs);
+                        FlowRunStore.SetLineTimes(flow, session.GetLineTimesSnapshot());
                         ended.Set();
                     };
                     // 循环运行不逐轮刷日志（原来每轮一条，循环时淹没输出面板）：第 1 轮 + 每 100 轮一条

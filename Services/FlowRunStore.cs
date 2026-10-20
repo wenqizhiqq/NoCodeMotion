@@ -22,6 +22,9 @@ namespace NoCodeMotion.Services
             public int StepIndex = -1;          // 表格/视觉：当前步骤下标（-1 = 无）
             public int Line = 0;                // Lua：当前执行行（0 = 无）
             public string NodeId = string.Empty;// 节点图：当前节点 Id（空 = 无）
+            // —— Lua 外部循环的耗时（编辑器自己的循环直接看本页 _session）——
+            public double RoundElapsedMs;       // 最近一轮脚本总耗时（LuaDebugSession.Ended.ElapsedMs）
+            public Dictionary<int, double>? LineTimes;  // 每行累计耗时快照（行号→ms）
         }
 
         private static readonly ConcurrentDictionary<FlowItem, Entry> _map = new();
@@ -60,6 +63,33 @@ namespace NoCodeMotion.Services
         {
             if (flow != null && _map.TryGetValue(flow, out var e)) return (e.StepIndex, e.Line, e.NodeId);
             return (-1, 0, string.Empty);
+        }
+
+        // —— Lua 外部循环耗时：RoundElapsed + LineTimes（编辑器轮询刷新左边栏）——
+
+        /// <summary>写入最近一轮 Lua 脚本的总耗时（外部循环/单次均调用）。</summary>
+        public static void SetRoundElapsed(FlowItem flow, double ms)
+        {
+            if (flow == null) return;
+            _map.GetOrAdd(flow, _ => new Entry()).RoundElapsedMs = ms;
+        }
+
+        /// <summary>写入 Lua DebugSession.GetLineTimesSnapshot() 返回的每行耗时快照（外部循环在 LineStepped 里调；
+        /// 内部是快照拷贝，不会把后台会话的引用暴露出去）。</summary>
+        public static void SetLineTimes(FlowItem flow, System.Collections.Generic.IReadOnlyDictionary<int, double>? snapshot)
+        {
+            if (flow == null) return;
+            // 防御性拷贝：防止 MoonSharp 返回的字典在后台线程被复用/替换
+            _map.GetOrAdd(flow, _ => new Entry()).LineTimes = snapshot == null
+                ? null
+                : new Dictionary<int, double>(snapshot);
+        }
+
+        /// <summary>读 Lua 外部循环耗时快照（UI 定时器调用；无则 (0, null)）。</summary>
+        public static (double RoundElapsedMs, Dictionary<int, double>? LineTimes) GetLineTimes(FlowItem flow)
+        {
+            if (flow != null && _map.TryGetValue(flow, out var e)) return (e.RoundElapsedMs, e.LineTimes);
+            return (0, null);
         }
 
         // —— 节点图：节点 Id → 步骤结果（只读给页面定时器刷新节点卡片用）——

@@ -121,8 +121,14 @@ namespace NoCodeMotion.Views
             _lineTimeTimer.Tick += (s, e) =>
             {
                 // 运行（含暂停）期间持续把每行耗时快照推给左侧边栏，做到运行中也实时显示
-                if (_session != null && _session.IsBusy)
-                    _lineTimeMargin.SetLineTimes(_session.GetLineTimesSnapshot());
+                if (_session == null || !_session.IsBusy) return;
+                var snap = _session.GetLineTimesSnapshot();
+                // ★ 空快照一律不刷：循环运行的下一轮刚起来时，新会话还没有任何测量，
+                //   拿空快照刷边栏会把上一轮刚测出来的每行耗时抹掉，而下一轮的第一次有效刷新
+                //   最快也要 100ms 之后 —— 现场表现就是「运行一次看得到每行耗时，循环运行看不到」。
+                //   跳过空快照：边栏保持上一轮的数据，等本轮真测到行再刷新。
+                if (snap.Count == 0) return;
+                _lineTimeMargin.SetLineTimes(snap);
             };
 
             // 循环运行：一轮结束后延时 50ms 再开下一轮（原 200ms；保留输出面板内容，不清屏）
@@ -1064,6 +1070,10 @@ namespace NoCodeMotion.Views
                 if (_session != null && _session.IsBusy) return;    // 本页自己的会话在跑：它自己会跳行
                 if (_uiState != SessionState.Running) SetSessionState(SessionState.Running);
                 if (line > 0) HighlightLine(line);
+                // ★ 外部循环的每行耗时从 FlowRunStore 拉（后台会话推过来的快照）
+                var (_, times) = FlowRunStore.GetLineTimes(item);
+                if (times != null && times.Count > 0)
+                    _lineTimeMargin.SetLineTimes(times);
             }
             catch { /* 轮询异常绝不外抛（定时器回调里抛异常会打断后续 Tick） */ }
         }
