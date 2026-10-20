@@ -7,8 +7,10 @@
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="800">
 
     <!--
-        项目管理页：左侧工程列表 + 右侧详情（工程信息 / 备注 / 需求 / AI 生成）。
-        AI 往返流程：填备注与需求 →【复制需求】→ 粘贴到 AI → AI 返回 JSON →【粘贴生成】→ 自动生成配置与流程。
+        项目管理页：左侧工程列表 + 右侧详情（工程信息 / 备注 / 需求 / AI 往返）。
+        两条 AI 路线：
+          ① JSON 往返：填备注与需求 →【复制需求】→ 粘贴到 AI → AI 返回 JSON →【粘贴生成】→ 自动生成配置与流程。
+          ② 文件往返：【复制路径与说明】→ AI 直接改这个 xlsx → 软件检测到文件变化后弹窗问「载入文件 / 还原文件 / 稍后」。
     -->
     <Grid Background="{StaticResource CanvasBrush}">
         <Grid.RowDefinitions>
@@ -139,10 +141,10 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- AI 生成：复制需求 / 粘贴生成 -->
+                    <!-- AI 生成（JSON 往返）：复制需求 / 粘贴生成 -->
                     <Border Style="{StaticResource AppleGroupCard}">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="AI 生成工程"/>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="AI 生成工程（JSON 往返）"/>
                             <TextBlock Margin="12,2,12,8" FontSize="12" TextWrapping="Wrap"
                                        Foreground="{StaticResource TextSecondaryBrush}"
                                        Text="填好备注和需求 →「复制需求」→ 粘给 AI（豆包等）→ 复制 AI 返回的 JSON →「粘贴生成」。会自动生成轴/IO/气缸/相机/运控流程/脚本流程/视觉流程等配置。"/>
@@ -154,6 +156,35 @@
                                         Command="{Binding PasteGenerateCommand}"
                                         ToolTip="读取剪贴板里的 AI 返回 JSON，生成轴/IO/气缸/相机/运控+脚本+视觉流程等配置"/>
                             </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- AI 直接改工程文件（文件级往返）：复制路径与说明 → agent 改 xlsx → 软件弹窗确认载入/还原 -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="AI 直接改工程文件（改 xlsx）"/>
+                            <TextBlock Margin="12,2,12,8" FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Text="① 双击左列工程，把它设为「当前工程」——文件变化只跟当前工程；&#10;② 点【复制路径与说明】，整段粘给 AI / agent（说明里已写好这个 xlsx 的结构约定和改动红线）；&#10;③ 它直接改这个文件并保存，软件检测到变化后弹窗问你：&#10;　「载入文件」= 用文件里的新配置刷新软件；&#10;　「还原文件」= 用软件里现在的配置把文件盖回去（外部改动作废）；&#10;　「稍后」= 两边都不动，文件再变会再问一次；&#10;④ 期间别在软件里改配置：软件一改动就自动写盘，会盖掉 AI 的修改。"/>
+                            <Border Margin="12,0,12,8" Padding="8,6" CornerRadius="6" Background="{StaticResource HoverBrush}">
+                                <TextBlock Text="{Binding SelectedFilePath}" FontSize="11.5" FontFamily="Consolas"
+                                           TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}"
+                                           ToolTip="要交给 AI 的文件；路径也可选中后自己 Ctrl+C"/>
+                            </Border>
+                            <StackPanel Orientation="Horizontal" Margin="12,0,12,12">
+                                <Button Content="复制路径与说明" Style="{StaticResource TtBaseBtn}" MinWidth="130"
+                                        Command="{Binding CopyPathCommand}"
+                                        ToolTip="复制：工程文件绝对路径 + xlsx 结构约定与改动红线（给 AI 的操作说明）"/>
+                                <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" FontSize="12"
+                                           Foreground="{StaticResource TextMutedBrush}" Text="改完不用回软件点保存。"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 操作结果（两条 AI 往返路线共用这一条状态） -->
+                    <Border Style="{StaticResource AppleGroupCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="操作结果"/>
                             <Border Margin="12,0,12,12" Padding="10,8" CornerRadius="6"
                                     Background="{StaticResource AccentSoftBrush}">
                                 <TextBlock Text="{Binding StatusMessage, TargetNullValue=—}"

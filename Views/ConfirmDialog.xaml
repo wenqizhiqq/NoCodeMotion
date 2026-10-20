@@ -16,11 +16,16 @@
                     <TextBlock x:Name="TitleText" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
-            <!-- 消息正文 -->
-            <TextBlock x:Name="MessageText" Padding="24,20,24,8" FontSize="14" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" LineHeight="22"/>
-            <!-- 按钮区：右对齐，次要+主操作 -->
+            <!-- 消息正文：外部改动确认这类框要塞一整份「改了哪些表」的清单，所以限高 + 出滚动条，
+                 短消息不受影响（SizeToContent 会按内容长，超过 300 才开始滚） -->
+            <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto" Padding="24,20,24,8">
+                <TextBlock x:Name="MessageText" FontSize="14" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" LineHeight="22"/>
+            </ScrollViewer>
+            <!-- 按钮区：右对齐，次要 + 备选主操作 + 主操作（备选按钮默认收起，由构造函数的 altText 打开） -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,12,16,16">
                 <Button x:Name="CancelButton" Content="取消" Style="{StaticResource TtGrayBtn}" Click="CancelButton_Click" IsCancel="True"/>
+                <Button x:Name="AltButton" Content="备选" Style="{StaticResource TtPillOrangeBtn}" Margin="8,0,0,0"
+                        Click="AltButton_Click" Visibility="Collapsed"/>
                 <Button x:Name="ConfirmButton" Content="是" Style="{StaticResource TtBaseBtn}" Margin="8,0,0,0" Click="ConfirmButton_Click" IsDefault="True"/>
             </StackPanel>
         </StackPanel>

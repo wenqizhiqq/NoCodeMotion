@@ -249,6 +249,10 @@ namespace NoCodeMotion
                 LoadingService.Report(Math.Min(++done, LoadingService.ProgressMax), "正在进入主界面…");
                 await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
                 NavigateTo("Flow");
+
+                // ④ 工程文件「外部改动自动载入」：放在启动流程最后开，
+                //    免得启动期间的读盘 / 首次保存被当成外部改动（watcher 自己也会屏蔽软件写盘）。
+                ProjectFileWatcher.Start();
             }
             catch (System.Exception ex)
             {

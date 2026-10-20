@@ -28,6 +28,7 @@ namespace NoCodeMotion.ViewModels
                 {
                     LoadDetailFor(value);
                     OnPropertyChanged(nameof(CanEditDetail));
+                    OnPropertyChanged(nameof(SelectedFilePath));
                 }
             }
         }
@@ -38,6 +39,9 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>有选中工程时才允许编辑备注/需求。</summary>
         public bool CanEditDetail => SelectedEntry != null;
+
+        /// <summary>选中工程的 xlsx 绝对路径（「AI 直接改工程文件」卡片里显示，让人确认要交给 AI 的是哪个文件）。</summary>
+        public string SelectedFilePath => SelectedEntry == null ? "（先在左边选中一个工程）" : ProjectManager.FilePathOf(SelectedEntry.Name);
 
         private string _detailRemark = "";
         /// <summary>右侧详情的备注（编辑后点【保存备注】写回工程文件）。</summary>
@@ -76,6 +80,7 @@ namespace NoCodeMotion.ViewModels
         public ICommand SaveRemarkCommand => new RelayCommand(_ => SaveRemark(), _ => SelectedEntry != null);
         public ICommand SaveRequirementsCommand => new RelayCommand(_ => SaveRequirements(), _ => SelectedEntry != null);
         public ICommand CopyPromptCommand => new RelayCommand(_ => CopyPrompt(), _ => SelectedEntry != null);
+        public ICommand CopyPathCommand => new RelayCommand(_ => CopyPath(), _ => SelectedEntry != null);
         public ICommand PasteGenerateCommand => new RelayCommand(async _ => { await PasteGenerate(); });
 
         public ProjectManagerViewModel()
@@ -134,6 +139,33 @@ namespace NoCodeMotion.ViewModels
             catch (System.Exception ex)
             {
                 StatusMessage = "复制失败：" + ex.Message;
+            }
+        }
+
+        /// <summary>
+        /// 【复制路径与说明】把「工程文件绝对路径 + 给 AI 的操作说明」一起放进剪贴板：
+        /// 粘给 agent，它就能直接改这个 xlsx；改完由 <see cref="ProjectFileWatcher"/> 发现变化并弹窗问用户要不要载入。
+        /// <para>★ 只有<b>当前打开的工程</b>会被跟踪 —— 复制别的工程时提示先双击打开，免得用户以为改了没反应。</para>
+        /// </summary>
+        private void CopyPath()
+        {
+            if (SelectedEntry == null) return;
+            var name = SelectedEntry.Name;
+            try
+            {
+                var path = ProjectManager.FilePathOf(name);
+                Clipboard.SetText(AiProjectExchange.BuildFileGuide(name, path));
+                bool isCurrent = string.Equals(ProjectManager.CurrentName, name, StringComparison.OrdinalIgnoreCase);
+                StatusMessage = (isCurrent
+                    ? $"已复制工程「{name}」的文件路径 + 操作说明，直接整段粘给 AI 即可。它改完保存，软件会弹窗问你要不要载入。"
+                    : $"已复制工程「{name}」的文件路径 + 操作说明。★ 但它不是当前打开的工程（当前是「{ProjectManager.CurrentName ?? "无"}」），"
+                      + "文件变化只跟当前工程 —— 要先双击打开它。")
+                    + "\n文件：" + path;
+                StatusBarService.ReportInfo($"已复制工程文件路径与说明：{name}.xlsx");
+            }
+            catch (System.Exception ex)
+            {
+                StatusMessage = "复制失败（剪贴板被占用可重试一次）：" + ex.Message;
             }
         }
 

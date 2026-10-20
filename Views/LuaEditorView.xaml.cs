@@ -61,6 +61,7 @@ namespace NoCodeMotion.Views
         // ---------- 循环运行：脚本跑完自动重跑，直到用户点「停止」 ----------
         private bool _loopRun;
         private int _loopCount;
+        private double _loopTotalMs;      // 循环运行的累计耗时（算平均一轮多少毫秒）
         // 一轮结束到下一轮开始之间的短延时：防止空脚本 / 瞬间完成的脚本把 UI 线程转满
         private readonly DispatcherTimer _loopRestartTimer;
         /// <summary>外部运行（操作员「启动」/ 流程页运行）进度轮询定时器：100ms 读共享态的行号/状态刷行高亮。
@@ -814,6 +815,7 @@ namespace NoCodeMotion.Views
             {
                 _log.Clear();
                 _loopCount = 0;
+                _loopTotalMs = 0;
                 AppendLog($"▶ 开始运行{(breakAtEntry ? "（停在第一条语句）" : "")}", LogKind.Info);
             }
             else
@@ -978,6 +980,8 @@ namespace NoCodeMotion.Views
                     _errorLineRenderer.Line = info.ErrorLine;
                     Editor.ScrollToLine(info.ErrorLine);
                 }
+                // 脚本页的输出面板只有停在这一页才看得见；底部状态栏走到哪页都在，报错同步一份过去。
+                try { StatusBarService.ReportException("脚本报错（行 " + info.ErrorLine + "）：" + info.Message); } catch { }
             }
             else if (info.Terminated)
             {
@@ -1011,9 +1015,11 @@ namespace NoCodeMotion.Views
             if (_loopRun && !info.IsError && !info.Terminated)
             {
                 _loopCount++;
+                _loopTotalMs += info.ElapsedMs;
                 // 循环运行不逐轮刷日志（原来每轮一条，循环时淹没输出面板）：第 1 轮 + 每 100 轮一条
                 if (_loopCount == 1 || _loopCount % 100 == 0)
-                    AppendLog($"↻ 循环运行：已完成 {_loopCount} 轮，即将开始下一轮（点「停止」退出）", LogKind.Info);
+                    AppendLog($"↻ 循环运行：已完成 {_loopCount} 轮 · 本轮 {info.ElapsedMs} ms · "
+                              + $"平均 {_loopTotalMs / _loopCount:0.#} ms，即将开始下一轮（点「停止」退出）", LogKind.Info);
                 SetSessionState(SessionState.Running);
                 _loopRestartTimer.Start();
             }

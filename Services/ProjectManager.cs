@@ -58,6 +58,12 @@ namespace NoCodeMotion.Services
 
         private static string FileFor(string name) => Path.Combine(RootDir, name + ".xlsx");
 
+        /// <summary>
+        /// 工程文件的<b>绝对</b>路径。<c>RootDir</c> 是相对 exe 工作目录的，
+        /// 而「把路径交给 AI / agent 去改这个文件」要的是能直接打开的完整路径，所以在这里取全路径。
+        /// </summary>
+        public static string FilePathOf(string name) => Path.GetFullPath(FileFor(name));
+
         public static bool Exists(string name) => File.Exists(FileFor(name));
 
         /// <summary>记录「最后打开的工程」名称的文件路径（位于 exe 输出目录）。</summary>
@@ -315,8 +321,51 @@ namespace NoCodeMotion.Services
                 // 写出 xlsx（分页 sheet + 「项目管理」信息表），用户可直接用 Excel 打开查看/编辑
                 XlsxProjectStore.ConfigureRoot(RootDir);
                 XlsxProjectStore.SaveProject(data, name);
+                // ★ 全工程唯一的写盘出口：写完把新时间戳报给 watcher，
+                //   否则「改一个值 → 防抖写盘 → 被判成外部改动 → 自动重载」会自循环。
+                ProjectFileWatcher.NoteSelfWrite(name);
             }
             catch { }
+        }
+
+        /// <summary>
+        /// 把当前工程的 xlsx 解析到<b>临时</b> ProjectData（不碰内存），供「外部改动确认」弹窗先算出改了什么。
+        /// <para>★ 与 <see cref="OpenProject"/> 的关键区别：那里读失败会退化成<b>空工程</b>并原地载入，
+        /// 对手工点「打开」是合理的兜底，但自动重载若照做，外部工具一次写坏文件就把用户全部配置清空了。
+        /// 所以这里只解析、只回错误或回一份干净数据，动不动内存由调用方决定。</para>
+        /// </summary>
+        public static async Task<(ProjectData? Data, string? Error)> ReadProjectFromDiskAsync(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return (null, null);
+            if (!File.Exists(FileFor(name)))
+                return (null, $"工程文件已不存在：{FilePathOf(name)}（软件里的配置保持不变）");
+
+            try
+            {
+                var data = new ProjectData();
+                XlsxProjectStore.ConfigureRoot(RootDir);
+                // 解析 + 比对都在后台线程：大工程（几百个料盘格子 / 上百步骤）读一遍是几百毫秒级的事，
+                // 放 UI 线程会让弹窗出现前整个人机卡一下。
+                await Task.Run(() =>
+                {
+                    XlsxProjectStore.OpenProject(data, name);      // 抛 = 文件被占用 / 只写了一半 / 格式坏了
+                    data.EnsurePointTables();
+                });
+                return (data, null);
+            }
+            catch (Exception ex)
+            {
+                return (null, $"工程文件读不了，已保留软件里的配置（未清空）：{ex.Message}");
+            }
+        }
+
+        /// <summary>把 <see cref="ReadProjectFromDiskAsync"/> 读到的数据原地应用到内存（用户点了「载入文件」之后才调）。
+        /// 返回给状态栏看的成功文案（带各类数量，让人确认改动真吃进来了）。</summary>
+        public static string ApplyProjectFromDisk(ProjectData data)
+        {
+            LoadInto(data);
+            return $"已载入文件里的新配置：轴 {data.Axes.Count} / 输入 {data.Inputs.Count} / "
+                   + $"输出 {data.Outputs.Count} / 气缸 {data.Cylinders.Count} / 流程 {data.Flows.Count}。";
         }
 
         /// <summary>把 src 内容原地复制到 ProjectStore.Data（保留集合实例），同步名称库后通知界面重建。</summary>

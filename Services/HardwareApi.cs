@@ -67,16 +67,31 @@ namespace NoCodeMotion.Services
 
         private static string Show(string name) => string.IsNullOrWhiteSpace(name) ? "（空名称）" : name;
 
-        /// <summary>输出一条「提示」（橙色，同一内容只提示一次），不抛异常。</summary>
-        private void Warn(string message)
+        /// <summary>输出一条「提示」（橙色，同一内容只提示一次），不抛异常。返回 false = 这条已经提示过。</summary>
+        private bool Warn(string message)
         {
             string text = "[提示] " + message;
             lock (_warned)
             {
-                if (!_warned.Add(text)) return;
+                if (!_warned.Add(text)) return false;
             }
             if (_warn != null) _warn(text);
             else _log?.Invoke(text);
+            return true;
+        }
+
+        /// <summary>
+        /// 设备类失败（通讯超时 / 断线 / PLC 没开 Modbus 服务）：除了脚本页输出的橙色提示，
+        /// 再往底部状态栏报一条红字 —— 现场操作员不一定开着脚本页，但状态栏一直在。
+        /// <para>★ 仍按本文件的约定「提示 + 跳过本次调用」，不抛异常：宿主函数里 throw
+        /// ScriptRuntimeException 会穿过 MoonSharp 的外部栈帧，在 VS 里弹「用户未处理的异常」，
+        /// 用户看到的是 .NET 异常栈而不是一句人话（见本文件「名称解析」一节的历史说明）。</para>
+        /// <para>去重同 Warn：循环运行的流程每毫秒一轮，同一句失败刷第二次只是刷屏。</para>
+        /// </summary>
+        private void WarnDevice(string message)
+        {
+            if (!Warn(message)) return;
+            try { StatusBarService.ReportException(message); } catch { /* 状态栏不可用就算了 */ }
         }
 
         /// <summary>取硬件桥；未就绪时给出中文提示并返回 null。</summary>
@@ -252,14 +267,23 @@ namespace NoCodeMotion.Services
         {
             var c = FindComm(name); var br = Bridge();
             if (c == null || br == null) return;
-            br.CommSend(c, data ?? string.Empty);
+            // 桥接层发送失败会 throw（它按「让脚本中止」设计），这里兜住改成提示 + 跳过：
+            // 通讯掉线是现场最常见的一类故障，不该变成调试器里的未处理异常窗。
+            try { br.CommSend(c, data ?? string.Empty); }
+            catch (Exception ex) { WarnDevice($"通讯「{Show(name)}」发送失败：{ex.Message}"); }
         }
 
         public string CommRecv(string name)
         {
             var c = FindComm(name); var br = Bridge();
             if (c == null || br == null) return string.Empty;
-            return br.CommRecv(c);
+            // 收不到就返回空串（与「名称没配好返回空串」同一套约定）：脚本里 if s == "" 就能判断没收到。
+            try { return br.CommRecv(c); }
+            catch (Exception ex)
+            {
+                WarnDevice($"通讯「{Show(name)}」接收失败：{ex.Message}");
+                return string.Empty;
+            }
         }
 
         // ===================== 料盘 =====================
@@ -501,8 +525,11 @@ namespace NoCodeMotion.Services
         /// <summary>
         /// 脚本内延时（毫秒）。在后台线程休眠，便于让出运行节奏。
         /// <para>★ 分段可中断：每 ≤50ms 查一次运行控制（<c>_ctrl</c>）。
-        /// 「暂停」→ 在这里挂着等「继续」（暂停时间不计入本次延时）；「停止 / 急停」→ 抛出
-        /// <c>ScriptTerminatedException</c> 风格的 <c>ScriptRuntimeException</c>，脚本立即结束等待。</para>
+        /// 「暂停」→ 在这里挂着等「继续」（暂停时间不计入本次延时）；「停止 / 急停」→ 抛
+        /// <c>ScriptTerminatedException</c>（与调试钩子中断脚本用的是同一个类型），脚本立即结束等待。</para>
+        /// <para>★ 为什么不是 ScriptRuntimeException：用户点「停止」是正常操作，不是脚本报错。
+        /// 抛 RuntimeException 会被会话当成错误结束 → 输出面板红字、状态栏报异常、流程状态置 Exception、
+        /// 调试器还会弹「用户未处理的异常」；换成终止异常后走的是「■ 脚本已被停止」这条正常收尾分支。</para>
         /// <para>为什么要这么做：MoonSharp 的暂停钩子只在「每条指令」处回调，Delay 内部是一个整体 ——
         /// 不分段的话，按暂停/停止都得等这段延时走完才生效（现场体感就是「按了没反应」）。</para>
         /// </summary>
@@ -518,15 +545,15 @@ namespace NoCodeMotion.Services
             var fResume = t.GetField("ResumeEvent");
             while (remain > 0)
             {
-                if (fEStop != null && fEStop.GetValue(ctrl) is bool es && es) throw new ScriptRuntimeException("已急停：延时被中断。");
-                if (fStop != null && fStop.GetValue(ctrl) is bool st && st) throw new ScriptRuntimeException("已停止：延时被中断。");
+                if (fEStop != null && fEStop.GetValue(ctrl) is bool es && es) throw new ScriptTerminatedException();
+                if (fStop != null && fStop.GetValue(ctrl) is bool st && st) throw new ScriptTerminatedException();
                 if (fPause != null && fPause.GetValue(ctrl) is bool pz && pz)
                 {
                     // 暂停：阻塞等「继续」（不计入 remain），恢复后重查停止
                     var ev = fResume?.GetValue(ctrl) as System.Threading.WaitHandle;
                     if (ev != null) { try { ev.WaitOne(); } catch { } }
-                    if (fEStop != null && fEStop.GetValue(ctrl) is bool es2 && es2) throw new ScriptRuntimeException("已急停：延时被中断。");
-                    if (fStop != null && fStop.GetValue(ctrl) is bool st2 && st2) throw new ScriptRuntimeException("已停止：延时被中断。");
+                    if (fEStop != null && fEStop.GetValue(ctrl) is bool es2 && es2) throw new ScriptTerminatedException();
+                    if (fStop != null && fStop.GetValue(ctrl) is bool st2 && st2) throw new ScriptTerminatedException();
                 }
                 int slice = Math.Min(50, remain);
                 Thread.Sleep(slice);

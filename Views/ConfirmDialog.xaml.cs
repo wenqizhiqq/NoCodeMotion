@@ -11,13 +11,30 @@ namespace NoCodeMotion.Views
     /// </summary>
     public partial class ConfirmDialog : Window
     {
-        public ConfirmDialog(string title, string message, string confirmText = "是")
+        /// <summary>点了第三颗「备选」按钮才为 true；没传 altText 时恒为 false。</summary>
+        public bool AltChose { get; private set; }
+
+        /// <param name="altText">第三颗按钮（橙色）的文字；留空 = 不显示，保持原来的「取消 / 主操作」两颗。</param>
+        public ConfirmDialog(string title, string message, string confirmText = "是", string? altText = null)
         {
             InitializeComponent();
             TitleText.Text = title;
             MessageText.Text = message;
             ConfirmButton.Content = confirmText;
+            if (!string.IsNullOrEmpty(altText))
+            {
+                AltButton.Content = altText;
+                AltButton.Visibility = Visibility.Visible;
+            }
             Owner = Application.Current?.MainWindow;
+        }
+
+        private void AltButton_Click(object sender, RoutedEventArgs e)
+        {
+            AltChose = true;
+            // 备选不等于「确定」，所以 DialogResult 仍给 false，由调用方读 AltChose 分流。
+            DialogResult = false;
+            Close();
         }
 
         private void ConfirmButton_Click(object sender, RoutedEventArgs e)

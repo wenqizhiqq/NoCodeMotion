@@ -109,6 +109,49 @@ namespace NoCodeMotion.Services
             return sb.ToString();
         }
 
+        /// <summary>
+        /// 「直接改工程文件」这条路线给 AI / agent 的操作说明：路径 + xlsx 结构约定 + 改动红线。
+        /// <para>与 <see cref="BuildPrompt"/> 的区别：那条是让 AI 吐 JSON 回来由软件生成；
+        /// 这条是让 AI 拿文件路径 + openpyxl 一类的库，直接在原表上改，软件这边检测到变化后问用户要不要载入。</para>
+        /// <para>说明里刻意指向「项目管理」页里那整段说明书（软件每次保存都会重建它），
+        /// 免得在剪贴板里再抄一份表结构，抄漏了反而误导 AI。</para>
+        /// </summary>
+        public static string BuildFileGuide(string projectName, string path)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("【请直接修改这个工程文件（不要新建文件、不要改文件名和扩展名）】");
+            sb.AppendLine("工程名称：" + projectName);
+            sb.AppendLine("文件绝对路径：");
+            sb.AppendLine(path);
+            sb.AppendLine();
+            sb.AppendLine("■ 这是什么文件");
+            sb.AppendLine("无代码运控软件「" + projectName + "」的唯一存储：一个 xlsx，13 个工作表，"
+                          + "顺序与软件顶部菜单一致：项目管理 / 控制器 / 轴 / IO / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 标定 / 变量 / 流程 / 自定义。");
+            sb.AppendLine("每个表第 1 行是列名，列名 = 软件里的字段名（轴表是英文 AxisNo / PulsePerUnit 这类，流程表是中文 逻辑 / 功能 / 属性 / 设值 这类）。");
+            sb.AppendLine();
+            sb.AppendLine("■ 动手前先读这段");
+            sb.AppendLine("「项目管理」表下半段就是本文件的完整说明书（文件结构总览 / 行类型约定 / 编辑提示 / 枚举取值参考 / 各合并页列清单），"
+                          + "软件每次保存都会重建它，以它为准。");
+            sb.AppendLine();
+            sb.AppendLine("■ 硬规则（违反会导致软件读不回来或错位）");
+            sb.AppendLine("1. 不要改列名、不要增删列、不要调列顺序；行可以增删。");
+            sb.AppendLine("2. 不要动「类型」「父项名称」这两列的取值：合并页（点位表 / 料盘 / 流程 / 控制器的扩展模块）靠它们认父行与子行。");
+            sb.AppendLine("3. 父块之间的全空行保留，别删（软件按空行分块，导入时也会跳过空行）。");
+            sb.AppendLine("4. 名称是主键：轴名 / IO名 / 气缸名 / 流程名 / 点位表名 / 变量名 全工程唯一，不要重名。");
+            sb.AppendLine("5. 跨表引用必须已存在：轴.控制器 = 控制器表的某个名称；流程步骤里引用的轴名 / IO名 / 气缸名 / 点位表名，"
+                          + "必须能在对应表里找到；找不到软件里那个下拉就是空的、流程跑起来会报「未找到」。");
+            sb.AppendLine("6. 轴号在同一控制器内从 0 开始且不可重复（8 轴卡是 0~7）；IO 的 模块号 + 位号 同样从 0 开始。");
+            sb.AppendLine("7. 布尔列写 是/否 或 True/False 都认；数字直接写数字，不要带单位；日期写 2026-10-19 17:00:00。");
+            sb.AppendLine("8. 单元格一律普通文本/数字即可，不要放公式、图片、批注、合并单元格。");
+            sb.AppendLine();
+            sb.AppendLine("■ 改完怎么生效");
+            sb.AppendLine("1. 用 openpyxl 之类的库正常 save 覆盖同一个路径即可（保持 .xlsx 格式）。");
+            sb.AppendLine("2. 保存后软件会检测到文件变化并弹窗，用户在软件里选「载入文件」即生效 —— 你不需要、也不要替用户点。");
+            sb.AppendLine("3. 改文件期间请让用户别在软件里改配置：软件一改动就防抖写盘，会把你的修改盖掉。");
+            sb.AppendLine("4. 别一次改十几个表：小步改、每步说明改了什么，方便用户在软件里核对。");
+            return sb.ToString();
+        }
+
         /// <summary>中文 JSON 契约模板（提示词用；解析器同时兼容英文键名）。</summary>
         private const string SchemaText = """
 {

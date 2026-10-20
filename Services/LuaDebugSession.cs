@@ -201,7 +201,10 @@ namespace NoCodeMotion.Services
             State = SessionState.Running;
             _running = true;
 
-            _worker = new Thread(() => Execute(code, breakAtEntry))
+            // ★ 走 ExecuteSafely 而不是直接 Execute：后台线程里冒出来的异常不会被
+            //   DispatcherUnhandledException / TaskScheduler 兜住，进程会直接崩；
+            //   而且它会在 VS 里弹「用户未处理的异常」，用户看到的是异常栈而不是一句提示。
+            _worker = new Thread(() => ExecuteSafely(code, breakAtEntry))
             {
                 IsBackground = true,
                 Name = "LuaScriptThread"
@@ -218,6 +221,24 @@ namespace NoCodeMotion.Services
         /// 用 object 而非 FlowRunControl：避免 Services 反向依赖 ViewModels。
         /// </summary>
         public object RunControl { get; set; }
+
+        /// <summary>Lua 线程的最外层：Execute 内部已经把脚本错误 / 停止 / 宿主异常都收口成 info，
+        /// 这里只兜「连那套收口都没接住的」（比如 finally 里某个订阅者炸了），并显示到状态栏。</summary>
+        private void ExecuteSafely(string code, bool breakAtEntry)
+        {
+            try
+            {
+                Execute(code, breakAtEntry);
+            }
+            catch (Exception ex)
+            {
+                _running = false;
+                State = SessionState.Idle;
+                EnqueueLog("✖ 脚本线程异常：" + ex.Message, LogKind.Error);
+                FlushLogBatchImmediate();
+                try { StatusBarService.ReportException("脚本线程异常：" + ex.Message); } catch { /* 状态栏不可用就算了 */ }
+            }
+        }
 
         private void Execute(string code, bool breakAtEntry)
         {
@@ -318,7 +339,13 @@ namespace NoCodeMotion.Services
                 // 保证用户能在输出面板看到最后一段 print 的真实内容，不会有"运行结束但输出空一段"的奇怪感觉。
                 FlushLogBatchImmediate();
 
-                Ended?.Invoke(info);
+                // 订阅者（流程运行器 / 脚本页）里抛出来的异常不能算在脚本头上：
+                // 它发生在 finally 里，会把已经收好的结果连带整个 Lua 线程一起炸掉。
+                try { Ended?.Invoke(info); }
+                catch (Exception ex)
+                {
+                    try { StatusBarService.ReportException("脚本结束回调异常：" + ex.Message); } catch { /* 状态栏不可用就算了 */ }
+                }
             }
         }
 

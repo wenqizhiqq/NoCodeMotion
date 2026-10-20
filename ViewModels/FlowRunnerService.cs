@@ -435,6 +435,7 @@ namespace NoCodeMotion.ViewModels
             //   页面用 100ms 轮询定时器（PollExternalRun）+ LuaRunMonitor 广播刷行号与状态。
             // loop=true 持续循环直到停止/急停；loop=false（复位流程 / 运行一次）只跑一轮。
             // 用户在脚本页点「停止」→ 编辑器置 EditorStopRequested（本页无会话但共享态显示在跑）→ 这里消费为停止。
+            double luaLoopTotalMs = 0;      // 循环运行的累计耗时，用来算「平均一轮多少毫秒」
             while ((loop || luaRound == 0) && !ctrl.StopRequested && !LuaEditorView.EditorStopRequested && !ctrl.EStopRequested)
             {
                 if (LuaEditorView.EditorStopRequested) { ctrl.StopRequested = true; LuaEditorView.EditorStopRequested = false; }
@@ -517,11 +518,22 @@ namespace NoCodeMotion.ViewModels
                 finally { LuaRunMonitor.ReportEnded(flow); }
                 if (ctrl.EStopRequested) { log?.Invoke($"流程「{name}」已急停。", LogLevel.Warn); break; }
                 if (ctrl.StopRequested) { log?.Invoke($"流程「{name}」已停止。", LogLevel.Warn); break; }
+                // ★ 循环运行的耗时：成功轮次按「第 1 轮 + 每 100 轮」报一次（每轮一条会淹没输出面板），
+                //   原来这里只报「开始连续运行」、跑起来之后再也看不到一轮多少毫秒。
+                if (lastEnded != null && !lastEnded.IsError && !lastEnded.Terminated)
+                {
+                    luaLoopTotalMs += lastEnded.ElapsedMs;
+                    if (luaRound == 1 || luaRound % 100 == 0)
+                        log?.Invoke($"流程「{name}」Lua 循环：已完成 {luaRound} 轮 · 本轮 {lastEnded.ElapsedMs} ms · "
+                                    + $"平均 {luaLoopTotalMs / Math.Max(1, luaRound):0.#} ms", LogLevel.Info);
+                }
                 // 错误结束 → 跳出循环，状态置 Exception，不再重试（早前实现刷屏根因）
                 if (lastEnded != null && lastEnded.IsError)
                 {
                     SetStatus(flow, FlowStatus.Exception);
                     log?.Invoke($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message} — 已停止重试，请修正脚本后重新启动。", LogLevel.Error);
+                    // 流程在后台线程跑，报错只进流程日志的话，界面上只剩一个红色状态；同步一份到状态栏说清楚为什么停。
+                    try { StatusBarService.ReportException($"流程「{name}」脚本报错（行 {lastEnded.ErrorLine}）：{lastEnded.Message}"); } catch { }
                     break;
                 }
                 // 正常结束一轮 → 轮间隔 1ms 再起下一轮（while 循环只需 1ms 让出 CPU）
