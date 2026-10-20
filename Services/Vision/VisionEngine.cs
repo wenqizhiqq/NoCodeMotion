@@ -865,7 +865,8 @@ namespace NoCodeMotion.Services.Vision
         private static Cv.Mat RunPreprocess(VisualFlowStep s, Cv.Mat cur,
             List<(double X, double Y, string Tag)> featurePts, VisionReport report, IProgress<string>? progress)
         {
-            string op = (s.PreOp ?? "").Trim();
+            // 下拉里给的是白话名（分成黑白两块…），这里换回引擎认的算子名；报告仍显示用户选的那个
+            string op = FlowVocab.ToInternalPreOp(s.PreOp);
             if (op.Length == 0 || op == "无")
             {
                 report.Results.Add(new VisionStepResult { StepName = s.Name, Type = "图像预处理", Ok = true, Summary = "无操作" });
@@ -885,7 +886,7 @@ namespace NoCodeMotion.Services.Vision
                             var g = new Cv.Mat(); Cv.Cv2.CvtColor(cur, g, Cv.ColorConversionCodes.BGRA2GRAY);
                             var o = new Cv.Mat(); Cv.Cv2.CvtColor(g, o, Cv.ColorConversionCodes.GRAY2BGRA);
                             g.Dispose(); cur.Dispose();
-                            return FinalizePre(o, s, "灰度化", report, progress);
+                            return FinalizePre(o, s, s.PreOp, report, progress);
                         }
                     case "二值化":
                         {
@@ -893,7 +894,7 @@ namespace NoCodeMotion.Services.Vision
                             var t = new Cv.Mat(); Cv.Cv2.Threshold(g, t, thr, 255, Cv.ThresholdTypes.Binary);
                             var o = new Cv.Mat(); Cv.Cv2.CvtColor(t, o, Cv.ColorConversionCodes.GRAY2BGRA);
                             g.Dispose(); t.Dispose(); cur.Dispose();
-                            return FinalizePre(o, s, "二值化", report, progress);
+                            return FinalizePre(o, s, s.PreOp, report, progress);
                         }
                     case "高斯平滑":
                         {
@@ -901,7 +902,7 @@ namespace NoCodeMotion.Services.Vision
                             var b = new Cv.Mat(); Cv.Cv2.GaussianBlur(g, b, new Cv.Size(k1, k1), 0);
                             var o = new Cv.Mat(); Cv.Cv2.CvtColor(b, o, Cv.ColorConversionCodes.GRAY2BGRA);
                             g.Dispose(); b.Dispose(); cur.Dispose();
-                            return FinalizePre(o, s, "高斯平滑", report, progress);
+                            return FinalizePre(o, s, s.PreOp, report, progress);
                         }
                     case "中值滤波":
                         {
@@ -909,7 +910,7 @@ namespace NoCodeMotion.Services.Vision
                             var b = new Cv.Mat(); Cv.Cv2.MedianBlur(g, b, k1);
                             var o = new Cv.Mat(); Cv.Cv2.CvtColor(b, o, Cv.ColorConversionCodes.GRAY2BGRA);
                             g.Dispose(); b.Dispose(); cur.Dispose();
-                            return FinalizePre(o, s, "中值滤波", report, progress);
+                            return FinalizePre(o, s, s.PreOp, report, progress);
                         }
                     case "腐蚀":
                         {
@@ -918,7 +919,7 @@ namespace NoCodeMotion.Services.Vision
                             var b = new Cv.Mat(); Cv.Cv2.Erode(g, b, kernel);
                             var o = new Cv.Mat(); Cv.Cv2.CvtColor(b, o, Cv.ColorConversionCodes.GRAY2BGRA);
                             g.Dispose(); kernel.Dispose(); b.Dispose(); cur.Dispose();
-                            return FinalizePre(o, s, "腐蚀", report, progress);
+                            return FinalizePre(o, s, s.PreOp, report, progress);
                         }
                     case "膨胀":
                         {
@@ -927,7 +928,7 @@ namespace NoCodeMotion.Services.Vision
                             var b = new Cv.Mat(); Cv.Cv2.Dilate(g, b, kernel);
                             var o = new Cv.Mat(); Cv.Cv2.CvtColor(b, o, Cv.ColorConversionCodes.GRAY2BGRA);
                             g.Dispose(); kernel.Dispose(); b.Dispose(); cur.Dispose();
-                            return FinalizePre(o, s, "膨胀", report, progress);
+                            return FinalizePre(o, s, s.PreOp, report, progress);
                         }
                     case "开运算":
                         {
@@ -937,7 +938,7 @@ namespace NoCodeMotion.Services.Vision
                             var d = new Cv.Mat(); Cv.Cv2.Dilate(e, d, kernel);
                             var o = new Cv.Mat(); Cv.Cv2.CvtColor(d, o, Cv.ColorConversionCodes.GRAY2BGRA);
                             g.Dispose(); kernel.Dispose(); e.Dispose(); d.Dispose(); cur.Dispose();
-                            return FinalizePre(o, s, "开运算", report, progress);
+                            return FinalizePre(o, s, s.PreOp, report, progress);
                         }
                     case "闭运算":
                         {
@@ -947,7 +948,7 @@ namespace NoCodeMotion.Services.Vision
                             var e = new Cv.Mat(); Cv.Cv2.Erode(d, e, kernel);
                             var o = new Cv.Mat(); Cv.Cv2.CvtColor(e, o, Cv.ColorConversionCodes.GRAY2BGRA);
                             g.Dispose(); kernel.Dispose(); d.Dispose(); e.Dispose(); cur.Dispose();
-                            return FinalizePre(o, s, "闭运算", report, progress);
+                            return FinalizePre(o, s, s.PreOp, report, progress);
                         }
                     case "Sobel边缘":
                         {
@@ -956,7 +957,7 @@ namespace NoCodeMotion.Services.Vision
                             var abs = new Cv.Mat(); Cv.Cv2.ConvertScaleAbs(sx, abs);
                             var o = new Cv.Mat(); Cv.Cv2.CvtColor(abs, o, Cv.ColorConversionCodes.GRAY2BGRA);
                             g.Dispose(); sx.Dispose(); abs.Dispose(); cur.Dispose();
-                            return FinalizePre(o, s, "Sobel边缘", report, progress);
+                            return FinalizePre(o, s, s.PreOp, report, progress);
                         }
                     case "直方图均衡":
                         {
@@ -964,7 +965,7 @@ namespace NoCodeMotion.Services.Vision
                             var eq = new Cv.Mat(); Cv.Cv2.EqualizeHist(g, eq);
                             var o = new Cv.Mat(); Cv.Cv2.CvtColor(eq, o, Cv.ColorConversionCodes.GRAY2BGRA);
                             g.Dispose(); eq.Dispose(); cur.Dispose();
-                            return FinalizePre(o, s, "直方图均衡", report, progress);
+                            return FinalizePre(o, s, s.PreOp, report, progress);
                         }
                     case "ROI裁剪":
                         {
@@ -994,7 +995,7 @@ namespace NoCodeMotion.Services.Vision
                             else if (op == "图像与") Cv.Cv2.BitwiseAnd(cur, b2, r);
                             else Cv.Cv2.BitwiseOr(cur, b2, r);
                             b2.Dispose(); cur.Dispose();
-                            return FinalizePre(r, s, op, report, progress);
+                            return FinalizePre(r, s, s.PreOp, report, progress);
                         }
                     default:
                         AddFail(report, s, $"未知预处理操作：{op}");

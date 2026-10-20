@@ -1150,7 +1150,7 @@ namespace NoCodeMotion.Services
 
             sb.AppendLine("【硬性要求】");
             sb.AppendLine("1. 所有名称（轴名、IO 名、气缸名、点位表名、变量名、相机名）必须用上面【本工程已配置的名称】里的原文，不要用英文、不要造新名字。");
-            sb.AppendLine("2. 「功能」只能用：" + string.Join(" / ", LegalFunctions) + "。");
+            sb.AppendLine("2. 「功能」只能用：" + string.Join(" / ", FlowVocab.FunctionChoices) + "。");
             sb.AppendLine("3. 「逻辑」只能用：" + string.Join(" / ", LegalLogic) + "；普通步骤写 \"就\"。");
             sb.AppendLine("4. 「超时」只能用：" + string.Join(" / ", LegalTimeout) + "；不确定就写 \"空\"。");
             sb.AppendLine("5. 只输出 JSON，不要任何解释文字，不要 ```json 代码块标记。");
@@ -1685,6 +1685,10 @@ namespace NoCodeMotion.Services
                     FillSteps(f, e);
                     break;
             }
+
+            // AI 可能照旧写内部名（输出IO / modbus / 绝对移动），这里统一换成界面上的白话名，
+            // 否则「功能」下拉会选中一个候选里没有的值，显示成空白、看着像内容丢了。
+            FlowVocab.MigrateFlow(f);
         }
 
         /// <summary>运控流程：把「步骤」写进 f.Steps。</summary>
@@ -1847,12 +1851,18 @@ namespace NoCodeMotion.Services
 
         // ---------------- 3.4 取值归一化 / 辅助 ----------------
 
-        /// <summary>把 AI 的自由文本夹到合法取值里；不在列表内就用默认值。</summary>
+        /// <summary>
+        /// 把 AI 的自由文本夹到合法取值里；不在列表内就用默认值。
+        /// ★ 先过一遍 FlowVocab：AI 可能照旧写内部名（输出IO / modbus），也可能照提示词写白话名
+        ///   （输出信号 / 外部通讯），两种都要认——否则会被判「不合法」并悄悄退回默认值。
+        /// </summary>
         private static string ClampTo(string? v, string[] legal, string def)
         {
             if (string.IsNullOrWhiteSpace(v)) return def;
             var s = v.Trim();
             foreach (var l in legal) if (l == s) return l;
+            string viaVocab = FlowVocab.ToInternalFunction(s);
+            foreach (var l in legal) if (l == viaVocab) return l;
             // 英文/近义词的粗略兜底
             foreach (var l in legal) if (s.Contains(l) || l.Contains(s)) return l;
             return def;
@@ -1878,7 +1888,12 @@ namespace NoCodeMotion.Services
         {
             var legal = LegalOperations.TryGetValue(func, out var o) ? o : GeneralOperations;
             if (!string.IsNullOrWhiteSpace(given))
+            {
                 foreach (var l in legal) if (l == given.Trim()) return l;
+                // 白话运算名（走到位置 / 打开 / 设为…）先换回内部名再比，别让 AI 的好容易写对被打回默认
+                string viaVocab = FlowVocab.ToInternalOperation(given, func);
+                foreach (var l in legal) if (l == viaVocab) return l;
+            }
             return DefaultOperation(func, prop);
         }
 

@@ -1208,7 +1208,9 @@ namespace NoCodeMotion.ViewModels
 
         private void ExecuteLeaf(FlowStep s)
         {
-            string func = (s.Function ?? "").Trim();
+            // ★ 界面上存的是白话名（输出信号 / 外部通讯 / 走到位置…），引擎各处仍按内部名 switch，
+            //   所以只在这里翻译一次；认不出的名字原样返回（老工程的自定义写法、英文写法照旧可用）。
+            string func = FlowVocab.ToInternalFunction(s.Function);
             string name = s.Name ?? "";
             string setv = Sub(s.SetValue);
             try
@@ -1222,7 +1224,7 @@ namespace NoCodeMotion.ViewModels
                     case "IO输出":
                     case "输入IO":
                     case "输出IO":
-                        ExecIo(name, setv, s.Operation ?? "");
+                        ExecIo(name, setv, FlowVocab.ToInternalOperation(s.Operation, func));
                         break;
                     case "气缸":
                         ExecCylinder(s, name, setv);
@@ -1306,7 +1308,7 @@ namespace NoCodeMotion.ViewModels
         {
             var ax = HardwareResolver.ResolveAxis(name);
             if (ax == null) { _log?.Invoke($"找不到轴：{name}", LogLevel.Error); return; }
-            string op = (s.Operation ?? "").Trim();
+            string op = FlowVocab.ToInternalOperation(s.Operation, "轴");
             string prop = (s.Property ?? "").Trim();
 
             // 属性 = 速度：这是「设速度」而非移动，设置值即速度值（单位/秒）。
@@ -1356,7 +1358,7 @@ namespace NoCodeMotion.ViewModels
         {
             var cy = HardwareResolver.ResolveCylinder(name);
             if (cy == null) { _log?.Invoke($"找不到气缸：{name}", LogLevel.Error); return; }
-            string op = (s.Operation ?? "").Trim();
+            string op = FlowVocab.ToInternalOperation(s.Operation, "气缸");
             var sv = (setv ?? "").Trim();
             if (op == "复位" || op == "reset" || op == "归位" || sv == "复位" || sv == "reset" || sv == "归位")
                 _bridge?.CylinderReset(cy);
@@ -1424,7 +1426,7 @@ namespace NoCodeMotion.ViewModels
             }
             double cur = GetVarNum(name);
             double val = double.TryParse(setv, out var v) ? v : 0;
-            string op = (s.Operation ?? "").Trim();
+            string op = FlowVocab.ToInternalOperation(s.Operation, "变量");
             double res = cur;
             switch (op)
             {
@@ -1473,7 +1475,8 @@ namespace NoCodeMotion.ViewModels
 
         private bool EvalCondition(FlowStep s)
         {
-            string left = Sub(s.Property), right = Sub(s.SetValue), op = (s.Operation ?? "").Trim();
+            string left = Sub(s.Property), right = Sub(s.SetValue),
+                   op = FlowVocab.ToInternalOperation(s.Operation, s.Function);
             bool ln = double.TryParse(left, out var l), rn = double.TryParse(right, out var r);
             switch (op)
             {

@@ -26,32 +26,32 @@
             <sys:String>结束</sys:String>
             <sys:String>注释</sys:String>
         </x:Array>
+        <!-- 「功能」列候选：白话名。存进工程的就是这些词，引擎侧由 FlowVocab 翻成内部名再执行。 -->
         <x:Array x:Key="FunctionOptions" Type="sys:String">
             <sys:String>轴</sys:String>
-            <sys:String>输入IO</sys:String>
-            <sys:String>输出IO</sys:String>
+            <sys:String>输入信号</sys:String>
+            <sys:String>输出信号</sys:String>
             <sys:String>气缸</sys:String>
             <sys:String>点位</sys:String>
-            <sys:String>modbus</sys:String>
+            <sys:String>外部通讯</sys:String>
             <sys:String>变量</sys:String>
-            <sys:String>系统</sys:String>
+            <sys:String>系统状态</sys:String>
             <sys:String>相机</sys:String>
-            <sys:String>延时</sys:String>
+            <sys:String>等待</sys:String>
         </x:Array>
         <x:Array x:Key="OperationOptions" Type="sys:String">
-            <sys:String>修改</sys:String>
-            <sys:String>修改为</sys:String>
-            <sys:String>加</sys:String>
-            <sys:String>减</sys:String>
-            <sys:String>乘</sys:String>
-            <sys:String>除</sys:String>
+            <sys:String>设为</sys:String>
+            <sys:String>加上</sys:String>
+            <sys:String>减去</sys:String>
+            <sys:String>乘以</sys:String>
+            <sys:String>除以</sys:String>
             <sys:String>等于</sys:String>
             <sys:String>大于</sys:String>
             <sys:String>小于</sys:String>
             <sys:String>大于等于</sys:String>
             <sys:String>小于等于</sys:String>
-            <sys:String>取模</sys:String>
-            <sys:String>取反</sys:String>
+            <sys:String>求余数</sys:String>
+            <sys:String>真假互换</sys:String>
             <sys:String>与</sys:String>
             <sys:String>或</sys:String>
             <sys:String>是否等于</sys:String>

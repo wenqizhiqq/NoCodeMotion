@@ -816,37 +816,38 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>
         /// 把内置模板步骤里的「API 动作名」（MoveAxisAbs / WriteOutput / ReadInput / Wait / CylinderMove /
-        /// CylinderReset / HomeAxis / WaitAxisStop / CommSend）归一成流程页「功能/属性/运算」下拉里的中文词，
-        /// 并把旧功能值 "IO" 按属性拆成「输入IO / 输出IO」——否则新建工程的步骤在这几列会显示空白。
+        /// CylinderReset / HomeAxis / WaitAxisStop / CommSend）归一成流程页「功能/属性/运算」下拉里的白话词
+        /// （输出信号 / 走到位置 / 设为…，词表见 FlowVocab），
+        /// 并把旧功能值 "IO" 按属性拆成「输入信号 / 输出信号」——否则新建工程的步骤在这几列会显示空白。
         /// </summary>
         private static void NormalizeTemplateStep(FlowStep s)
         {
             switch ((s.Operation ?? string.Empty).Trim())
             {
                 case "HomeAxis":
-                    s.Function = "轴"; s.Property = "位置"; s.Operation = "回零"; s.SetValue = ""; break;
+                    s.Function = "轴"; s.Property = "位置"; s.Operation = "回原点"; s.SetValue = ""; break;
                 case "WaitAxisStop":
                     s.Function = "轴"; s.Property = "已回零"; s.Operation = "等于";
                     if (string.IsNullOrWhiteSpace(s.SetValue)) s.SetValue = "1";
                     break;
                 case "MoveAxisAbs":
-                    s.Function = "轴"; s.Property = "位置"; s.Operation = "绝对移动"; break;
+                    s.Function = "轴"; s.Property = "位置"; s.Operation = "走到位置"; break;
                 case "WriteOutput":
-                    s.Function = "输出IO"; s.Property = "输出状态"; s.Operation = "修改为"; break;
+                    s.Function = "输出信号"; s.Property = "输出状态"; s.Operation = "设为"; break;
                 case "ReadInput":
-                    s.Function = "输入IO"; s.Property = "输入状态"; s.Operation = "等于"; break;
+                    s.Function = "输入信号"; s.Property = "输入状态"; s.Operation = "等于"; break;
                 case "Wait":
-                    s.Function = "输入IO"; s.Property = "脉冲状态"; s.Operation = "等于"; break;
+                    s.Function = "输入信号"; s.Property = "脉冲状态"; s.Operation = "等于"; break;
                 case "CylinderMove":
                     s.Function = "气缸"; s.Property = "电磁阀"; s.Operation = "伸出"; break;
                 case "CylinderReset":
                     s.Function = "气缸"; s.Property = "电磁阀"; s.Operation = "复位"; break;
                 case "CommSend":
-                    s.Function = "modbus"; s.Property = "寄存器值"; s.Operation = "修改为"; break;
+                    s.Function = "外部通讯"; s.Property = "寄存器值"; s.Operation = "设为"; break;
                 default:
-                    // 非 API 动作名：只把旧功能值 "IO" 按属性拆成 输入IO / 输出IO
-                    if (s.Function == "IO")
-                        s.Function = s.Property == "输出状态" ? "输出IO" : "输入IO";
+                    // 非 API 动作名：只把旧功能值 "IO" 按属性拆成 输入信号 / 输出信号
+                    if (FlowVocab.ToInternalFunction(s.Function) == "IO")
+                        s.Function = s.Property == "输出状态" ? "输出信号" : "输入信号";
                     break;
             }
         }
@@ -1020,10 +1021,11 @@ namespace NoCodeMotion.ViewModels
             // 变量步骤：按「运算」列对变量当前值做**真实运算**并写回工程变量表，
             // 再把新值回填 ActualValue。加/减/乘/除/取模/取反/修改为 全部生效；
             // 比较类（大于/小于/等于…）只做逻辑判定、不改值。
-            if (step.Function == "变量" && !string.IsNullOrWhiteSpace(step.Name))
+            if (FlowVocab.ToInternalFunction(step.Function) == "变量" && !string.IsNullOrWhiteSpace(step.Name))
             {
                 string cur = GetVariableValue(step.Name);
-                string newVal = ApplyVarOperation((step.Operation ?? string.Empty).Trim(), cur, step.SetValue ?? string.Empty);
+                string newVal = ApplyVarOperation(FlowVocab.ToInternalOperation(step.Operation, "变量"),
+                                                  cur, step.SetValue ?? string.Empty);
                 if (newVal != null) SetVariableValue(step.Name, newVal);
                 step.ActualValue = GetVariableValue(step.Name);
             }
@@ -1243,14 +1245,14 @@ namespace NoCodeMotion.ViewModels
             var bridge = HardwareBridge.Current;
             try
             {
-                switch (step.Function)
+                switch (FlowVocab.ToInternalFunction(step.Function))
                 {
                     case "轴":
                     {
                         var axis = HardwareResolver.ResolveAxis(step.Name);
                         if (axis == null) { bridge.Log($"找不到轴：{step.Name}"); break; }
                         string prop = (step.Property ?? string.Empty).Trim();
-                        string aop = (step.Operation ?? string.Empty).Trim();
+                        string aop = FlowVocab.ToInternalOperation(step.Operation, "轴");
                         double val = ParseNum(step.SetValue, 0);
                         if (prop == "速度" || prop == "Speed") bridge.SetAxisSpeed(axis, val);
                         else if (aop == "回零" || prop == "回零" || prop == "Home" || prop == "原点") bridge.HomeAxis(axis);
@@ -1399,12 +1401,12 @@ namespace NoCodeMotion.ViewModels
 
         private bool EvalCondition(FlowStep s)
         {
-            string left = (s.Function == "变量") ? GetVariableValue(s.Name) : s.ActualValue;
+            string left = (FlowVocab.ToInternalFunction(s.Function) == "变量") ? GetVariableValue(s.Name) : s.ActualValue;
             string right = s.SetValue;
             if (string.IsNullOrWhiteSpace(left)) return false;
             bool okL = double.TryParse(left, out double lnum);
             bool okR = double.TryParse(right, out double rnum);
-            switch (s.Operation)
+            switch (FlowVocab.ToInternalOperation(s.Operation, s.Function))
             {
                 case "大于": return okL && okR && lnum > rnum;
                 case "小于": return okL && okR && lnum < rnum;
@@ -1503,7 +1505,7 @@ namespace NoCodeMotion.ViewModels
         /// </summary>
         private string ReadActualValue(FlowStep step, IHardwareBridge bridge)
         {
-            string fn = (step.Function ?? string.Empty).Trim();
+            string fn = FlowVocab.ToInternalFunction(step.Function);
             string prop = (step.Property ?? string.Empty).Trim();
             string name = step.Name ?? string.Empty;
             string setv = step.SetValue ?? string.Empty;

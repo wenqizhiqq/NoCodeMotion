@@ -16,7 +16,8 @@ namespace NoCodeMotion.Views
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            return value switch
+            // 界面存的是白话功能名，先归一成内部名再查名称库
+            return FlowVocab.ToInternalFunction(value?.ToString()) switch
             {
                 "轴" => Catalog.AxisNames,
                 "输入IO" => Catalog.InIoNames,

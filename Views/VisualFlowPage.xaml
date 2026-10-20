@@ -70,21 +70,21 @@
         <!-- 图像预处理操作名（ComboBox 数据源） -->
         <x:Array x:Key="PreOps" Type="sys:String">
             <sys:String>无</sys:String>
-            <sys:String>灰度化</sys:String>
-            <sys:String>二值化</sys:String>
-            <sys:String>高斯平滑</sys:String>
-            <sys:String>中值滤波</sys:String>
-            <sys:String>腐蚀</sys:String>
-            <sys:String>膨胀</sys:String>
-            <sys:String>开运算</sys:String>
-            <sys:String>闭运算</sys:String>
-            <sys:String>Sobel边缘</sys:String>
-            <sys:String>直方图均衡</sys:String>
-            <sys:String>ROI裁剪</sys:String>
-            <sys:String>图像加</sys:String>
-            <sys:String>图像减</sys:String>
-            <sys:String>图像与</sys:String>
-            <sys:String>图像或</sys:String>
+            <sys:String>变黑白图</sys:String>
+            <sys:String>分成黑白两块</sys:String>
+            <sys:String>抹掉细碎噪点</sys:String>
+            <sys:String>去掉麻点噪点</sys:String>
+            <sys:String>白色变瘦</sys:String>
+            <sys:String>白色变胖</sys:String>
+            <sys:String>去掉小白点</sys:String>
+            <sys:String>补上小黑洞</sys:String>
+            <sys:String>只留边缘线</sys:String>
+            <sys:String>暗处拉亮</sys:String>
+            <sys:String>只留框住的那块</sys:String>
+            <sys:String>两张图相加</sys:String>
+            <sys:String>两张图相减</sys:String>
+            <sys:String>两张图都有的留</sys:String>
+            <sys:String>两张图合起来</sys:String>
         </x:Array>
 
         <!-- 旧 VisualStepGroupCard 样式（含 SelectedStep.StepType DataTrigger）已废弃——

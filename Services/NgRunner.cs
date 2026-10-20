@@ -26,6 +26,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NoCodeMotion.Models;
 using NoCodeMotion.Models.NodeGraph;
+using NoCodeMotion.Services;
 using NoCodeMotion.Services.Vision;
 
 namespace NoCodeMotion.Services;
@@ -624,7 +625,8 @@ public sealed class NgRunner
 
             case NgKind.Compute: {
                 string name = GetProp(node, "变量", "");
-                string op = GetProp(node, "运算", "");
+                string opShown = GetProp(node, "运算", "");
+                string op = FlowVocab.ToInternalOperation(opShown, "变量");   // 白话名 → 引擎词
                 if (!string.IsNullOrWhiteSpace(op))
                 {
                     // 结构化运算：变量「当前值」op「值」后写回（取反 忽略值）。
@@ -642,7 +644,7 @@ public sealed class NgRunner
                         _ => cur
                     };
                     _setVar(name, r);
-                    _lastNodeSummary = $"{name} {op} {GetProp(node, "值", "0")} → {r:0.###}";
+                    _lastNodeSummary = $"{name} {opShown} {GetProp(node, "值", "0")} → {r:0.###}";
                 }
                 else
                 {

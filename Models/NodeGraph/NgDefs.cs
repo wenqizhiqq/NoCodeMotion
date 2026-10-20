@@ -83,7 +83,7 @@ public static class NgNodeDefinitions
         // ============ 视觉 ============
         [NgKind.CamCapture] = new()
         {
-            Kind = NgKind.CamCapture, Title = "图像采集", Domain = NgDomain.Vision, Color = "#10B981",
+            Kind = NgKind.CamCapture, Title = "拍一张照", Domain = NgDomain.Vision, Color = "#10B981",
             Props = new[]
             {
                 new NgPropDef { Name = "图像源", Default = "相机", Options = "相机|文件|文件夹" },
@@ -96,7 +96,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.TemplateMatch] = new()
         {
-            Kind = NgKind.TemplateMatch, Title = "模板匹配", Domain = NgDomain.Vision, Color = "#34C759",
+            Kind = NgKind.TemplateMatch, Title = "图上找图案", Domain = NgDomain.Vision, Color = "#34C759",
             Props = new[]
             {
                 new NgPropDef { Name = "模板路径", Default = "" },
@@ -110,7 +110,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.DefectDetect] = new()
         {
-            Kind = NgKind.DefectDetect, Title = "缺陷检测", Domain = NgDomain.Vision, Color = "#22C55E",
+            Kind = NgKind.DefectDetect, Title = "找缺陷", Domain = NgDomain.Vision, Color = "#22C55E",
             Props = new[]
             {
                 new NgPropDef { Name = "检测模式", Default = "阈值面积", Options = "阈值面积|边缘轮廓" },
@@ -125,7 +125,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.Measure] = new()
         {
-            Kind = NgKind.Measure, Title = "测量", Domain = NgDomain.Vision, Color = "#16A34A",
+            Kind = NgKind.Measure, Title = "量尺寸", Domain = NgDomain.Vision, Color = "#16A34A",
             Props = new[]
             {
                 new NgPropDef { Name = "测量项", Default = "距离", Options = "距离|直径" },
@@ -138,7 +138,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.Align] = new()
         {
-            Kind = NgKind.Align, Title = "对位", Domain = NgDomain.Vision, Color = "#059669",
+            Kind = NgKind.Align, Title = "对准位置", Domain = NgDomain.Vision, Color = "#059669",
             Props = new[]
             {
                 new NgPropDef { Name = "基准X", Default = "0" },
@@ -151,7 +151,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.Calib] = new()
         {
-            Kind = NgKind.Calib, Title = "标定", Domain = NgDomain.Vision, Color = "#047857",
+            Kind = NgKind.Calib, Title = "标定对应关系", Domain = NgDomain.Vision, Color = "#047857",
             Props = new[]
             {
                 new NgPropDef { Name = "标定板", Default = "棋盘格", Options = "棋盘格|圆点" },
@@ -168,7 +168,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.MoveAxis] = new()
         {
-            Kind = NgKind.MoveAxis, Title = "轴运动", Domain = NgDomain.Motion, Color = "#4A89DC",
+            Kind = NgKind.MoveAxis, Title = "电机走位", Domain = NgDomain.Motion, Color = "#4A89DC",
             Props = new[]
             {
                 new NgPropDef { Name = "轴", Default = "X" },
@@ -180,7 +180,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.Home] = new()
         {
-            Kind = NgKind.Home, Title = "回零", Domain = NgDomain.Motion, Color = "#5D9CEC",
+            Kind = NgKind.Home, Title = "回原点", Domain = NgDomain.Motion, Color = "#5D9CEC",
             Props = new[]
             {
                 new NgPropDef { Name = "轴", Default = "X" },
@@ -190,12 +190,12 @@ public static class NgNodeDefinitions
         },
         [NgKind.Delay] = new()
         {
-            Kind = NgKind.Delay, Title = "延时", Domain = NgDomain.Motion, Color = "#F6BB42",
+            Kind = NgKind.Delay, Title = "按时间等待", Domain = NgDomain.Motion, Color = "#F6BB42",
             Props = new[] { new NgPropDef { Name = "时间ms", Default = "500" } }
         },
         [NgKind.WaitInput] = new()
         {
-            Kind = NgKind.WaitInput, Title = "等待输入", Domain = NgDomain.Motion, Color = "#8CC152",
+            Kind = NgKind.WaitInput, Title = "等输入信号", Domain = NgDomain.Motion, Color = "#8CC152",
             Props = new[]
             {
                 new NgPropDef { Name = "信号", Default = "IN0" },
@@ -205,14 +205,14 @@ public static class NgNodeDefinitions
         },
         [NgKind.Decision] = new()
         {
-            Kind = NgKind.Decision, Title = "条件分支", Domain = NgDomain.Motion, Color = "#E9573F",
+            Kind = NgKind.Decision, Title = "按条件分岔", Domain = NgDomain.Motion, Color = "#E9573F",
             // 多分支：条件1..条件8 + 否则（旧图的 True/False 端口在 NgRunner 里做了兼容回退）
             Outputs = new[] { "条件1", "条件2", "条件3", "条件4", "条件5", "条件6", "条件7", "条件8", "否则" },
             Props = BuildDecisionProps()
         },
         [NgKind.Loop] = new()
         {
-            Kind = NgKind.Loop, Title = "循环", Domain = NgDomain.Motion, Color = "#967ADC",
+            Kind = NgKind.Loop, Title = "重复几次", Domain = NgDomain.Motion, Color = "#967ADC",
             Outputs = new[] { "Body", "Exit" },
             Props = new[] { new NgPropDef { Name = "次数", Default = "3" } }
         },
@@ -225,7 +225,7 @@ public static class NgNodeDefinitions
         // —— 运控扩展（物理动作 / 信号）——
         [NgKind.WaitAxis] = new()
         {
-            Kind = NgKind.WaitAxis, Title = "等待轴到位", Domain = NgDomain.Motion, Color = "#48CFAD",
+            Kind = NgKind.WaitAxis, Title = "等电机停稳", Domain = NgDomain.Motion, Color = "#48CFAD",
             Props = new[] { new NgPropDef { Name = "轴", Default = "X" } }
         },
         [NgKind.Cylinder] = new()
@@ -239,7 +239,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.PointGo] = new()
         {
-            Kind = NgKind.PointGo, Title = "点位移动", Domain = NgDomain.Motion, Color = "#4FC1E9",
+            Kind = NgKind.PointGo, Title = "走到点位", Domain = NgDomain.Motion, Color = "#4FC1E9",
             Props = new[]
             {
                 new NgPropDef { Name = "点位表", Default = "取放工位" },
@@ -248,7 +248,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.IoWrite] = new()
         {
-            Kind = NgKind.IoWrite, Title = "写输出", Domain = NgDomain.Motion, Color = "#A0D468",
+            Kind = NgKind.IoWrite, Title = "打开/关闭输出", Domain = NgDomain.Motion, Color = "#A0D468",
             Props = new[]
             {
                 new NgPropDef { Name = "输出", Default = "光源" },
@@ -259,7 +259,7 @@ public static class NgNodeDefinitions
         // ============ 通讯 ============
         [NgKind.ModbusSend] = new()
         {
-            Kind = NgKind.ModbusSend, Title = "Modbus发送", Domain = NgDomain.Comm, Color = "#AF52DE",
+            Kind = NgKind.ModbusSend, Title = "发消息（外部通讯）", Domain = NgDomain.Comm, Color = "#AF52DE",
             Props = new[]
             {
                 new NgPropDef { Name = "通讯", Default = "通讯1" },
@@ -268,7 +268,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.ModbusRecv] = new()
         {
-            Kind = NgKind.ModbusRecv, Title = "Modbus接收", Domain = NgDomain.Comm, Color = "#B06BE0",
+            Kind = NgKind.ModbusRecv, Title = "收消息（外部通讯）", Domain = NgDomain.Comm, Color = "#B06BE0",
             Props = new[]
             {
                 new NgPropDef { Name = "通讯", Default = "通讯1" },
@@ -277,7 +277,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.TcpSend] = new()
         {
-            Kind = NgKind.TcpSend, Title = "TCP发送", Domain = NgDomain.Comm, Color = "#9B51E0",
+            Kind = NgKind.TcpSend, Title = "发消息（网口）", Domain = NgDomain.Comm, Color = "#9B51E0",
             Props = new[]
             {
                 new NgPropDef { Name = "端点", Default = "192.168.1.10:8000" },
@@ -286,7 +286,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.McuWrite] = new()
         {
-            Kind = NgKind.McuWrite, Title = "下位机写", Domain = NgDomain.Comm, Color = "#8E44AD",
+            Kind = NgKind.McuWrite, Title = "写下位机寄存器", Domain = NgDomain.Comm, Color = "#8E44AD",
             Props = new[]
             {
                 new NgPropDef { Name = "设备", Default = "MCU1" },
@@ -297,7 +297,7 @@ public static class NgNodeDefinitions
         // ============ 逻辑 / 变量 ============
         [NgKind.VarSet] = new()
         {
-            Kind = NgKind.VarSet, Title = "设置变量", Domain = NgDomain.Logic, Color = "#ED5565",
+            Kind = NgKind.VarSet, Title = "把值存进变量", Domain = NgDomain.Logic, Color = "#ED5565",
             Props = new[]
             {
                 new NgPropDef { Name = "变量", Default = "计数" },
@@ -306,13 +306,13 @@ public static class NgNodeDefinitions
         },
         [NgKind.Compute] = new()
         {
-            Kind = NgKind.Compute, Title = "运算", Domain = NgDomain.Logic, Color = "#DA4453",
+            Kind = NgKind.Compute, Title = "算一下", Domain = NgDomain.Logic, Color = "#DA4453",
             // 结构化运算：下拉选「运算」(加/减/乘/除/取模/取反) + 自由文本「值」(可为数字或其它变量名/表达式)。
             // 例：变量=计数，运算=加，值=1 → 计数 当前值 + 1。彻底避免「+1 被当成设置为 1」的歧义。
             Props = new[]
             {
                 new NgPropDef { Name = "变量", Default = "结果" },
-                new NgPropDef { Name = "运算", Default = "加", Options = "加|减|乘|除|取模|取反" },
+                new NgPropDef { Name = "运算", Default = "加上", Options = "加上|减去|乘以|除以|求余数|真假互换" },
                 new NgPropDef { Name = "值", Default = "1" },
             }
         },
@@ -320,7 +320,7 @@ public static class NgNodeDefinitions
         // —— 并行控制 ——
         [NgKind.ParallelFork] = new()
         {
-            Kind = NgKind.ParallelFork, Title = "并行分支", Domain = NgDomain.Logic, Color = "#FF9500",
+            Kind = NgKind.ParallelFork, Title = "同时做几件事", Domain = NgDomain.Logic, Color = "#FF9500",
             Outputs = new[] { "Branch1", "Branch2", "Branch3", "Branch4", "Branch5", "Branch6", "Branch7", "Branch8" },
             Props = new[]
             {
@@ -329,7 +329,7 @@ public static class NgNodeDefinitions
         },
         [NgKind.ParallelJoin] = new()
         {
-            Kind = NgKind.ParallelJoin, Title = "并行汇聚", Domain = NgDomain.Logic, Color = "#FF9500",
+            Kind = NgKind.ParallelJoin, Title = "等几件事都做完", Domain = NgDomain.Logic, Color = "#FF9500",
             Props = new[]
             {
                 new NgPropDef { Name = "分支数", Default = "4", Options = "2|3|4|5|6|7|8" }
@@ -350,7 +350,7 @@ public static class NgNodeDefinitions
         };
         for (int i = 1; i <= 8; i++)
         {
-            list.Add(new NgPropDef { Name = $"条件{i}类型", Default = "变量", Options = "轴位置|轴速度|输入IO|输出IO|变量" });
+            list.Add(new NgPropDef { Name = $"条件{i}类型", Default = "变量", Options = "轴位置|轴速度|输入信号|输出信号|变量" });
             list.Add(new NgPropDef { Name = $"条件{i}名称", Default = "" });
             list.Add(new NgPropDef { Name = $"条件{i}比较", Default = "等于", Options = "等于|不等于|大于|大于等于|小于|小于等于" });
             list.Add(new NgPropDef { Name = $"条件{i}值", Default = "0" });

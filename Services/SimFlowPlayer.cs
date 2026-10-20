@@ -13,6 +13,7 @@ using System.Linq;
 using System.Windows.Threading;
 using NoCodeMotion.Models;
 using NoCodeMotion.Models.NodeGraph;
+using NoCodeMotion.Services;
 
 namespace NoCodeMotion.Services
 {
@@ -207,10 +208,11 @@ namespace NoCodeMotion.Services
 
             foreach (var s in flow.Steps)
             {
-                string func = (s.Function ?? "").Trim();
+                // 界面存白话名，引擎按内部名 switch → 边界翻译一次（见 FlowVocab）
+                string func = FlowVocab.ToInternalFunction(s.Function);
                 if (string.IsNullOrEmpty(func)) continue;     // 纯逻辑行（如果/否则/结束）跳过
                 string name = s.Name ?? "";
-                string op = (s.Operation ?? "").Trim();
+                string op = FlowVocab.ToInternalOperation(s.Operation, s.Function);
                 string setv = (s.SetValue ?? "").Trim();
 
                 switch (func)
@@ -255,7 +257,9 @@ namespace NoCodeMotion.Services
                         // 按「运算」列组表达式：加/减/乘/除/取模 在运行时以「(变量名) op (设置值)」
                         // 对当前变量值实时求值（表达式求值器支持引用变量名）；修改为/其它 → 直接设置值。
                         // 取反近似为 1-(当前值)（布尔 0↔1 精确，其它值视为逻辑取反的近似）。
-                        string vop = (s.Operation ?? string.Empty).Trim();
+                        // 变量步：运算也要先归一（白话「设为」= 内部「修改为」），否则会被当成非赋值走算式
+                        string vopShown = (s.Operation ?? string.Empty).Trim();
+                        string vop = FlowVocab.ToInternalOperation(vopShown, "变量");
                         bool isSet = string.IsNullOrEmpty(vop) || vop == "修改为" || vop == "修改";
                         // 不再把变量名拼进表达式（变量名里的「-」会被表达式分词成减号导致误算）；
                         // 改为记录 运算类型 与 操作数表达式，Apply 时按变量名精确取值后再运算。
@@ -268,7 +272,7 @@ namespace NoCodeMotion.Services
                             DurationMs = 250,
                             Label = isSet
                                 ? $"变量 {name} = {setv}"
-                                : $"变量 {name} {vop} {setv}"
+                                : $"变量 {name} {vopShown} {setv}"
                         });
                         break;
                     }
@@ -413,7 +417,7 @@ namespace NoCodeMotion.Services
                 case NgKind.Compute:
                     {
                         string varName = P("变量");
-                        string op = P("运算");
+                        string op = FlowVocab.ToInternalOperation(P("运算"), "变量");
                         double v;
                         if (!string.IsNullOrWhiteSpace(op))
                         {
@@ -523,7 +527,7 @@ namespace NoCodeMotion.Services
                 AxisName = axis,
                 AxisTarget = target,
                 DurationMs = dur,
-                Label = $"轴 {axis} → {target:0.##}{(op == "home" || op == "回零" || op == "归零" ? " (回零)" : "")}"
+                Label = $"轴 {axis} → {target:0.##}{(op == "home" || op == "回零" || op == "归零" ? " (回原点)" : "")}"
             };
         }
 

@@ -59,7 +59,8 @@ namespace NoCodeMotion.Services
         {
             value = 0;
             shown = "";
-            string type = Prop(n, $"条件{branch}类型");
+            // 下拉里存的是白话名（输入信号 / 输出信号），这里换回引擎 switch 认的词
+            string type = FlowVocab.ToInternalFunction(Prop(n, $"条件{branch}类型"));
             string name = Prop(n, $"条件{branch}名称");
             if (string.IsNullOrWhiteSpace(name)) return false;
             var bridge = HardwareBridge.Current;

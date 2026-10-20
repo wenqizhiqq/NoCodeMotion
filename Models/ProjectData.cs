@@ -95,6 +95,10 @@ namespace NoCodeMotion.Models
             PointAxes.Clear();
 
             MigrateAxisDefaults();
+
+            // 流程词汇迁移：老工程里存的「输出IO / modbus / 绝对移动 / 二值化」等一律刷成界面上的
+            // 白话名（引擎侧靠 FlowVocab 在读取边界翻译，所以这里刷不刷都能跑，刷了 xlsx 才对得上界面）。
+            Services.FlowVocab.Migrate(this);
         }
 
         /// <summary>老工程里轴「运行速度 / 点动距离(寸动) / 手动速度」的默认值（100 / 1 / 20）。

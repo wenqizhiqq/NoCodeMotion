@@ -5,11 +5,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Windows.Data;
+using NoCodeMotion.Services;
 
 namespace NoCodeMotion.Views
 {
     /// <summary>
-    /// 流程「运算」列下拉项随「功能 + 属性」联动（比旧版只看功能更精确）：
+    /// 流程「运算」列下拉项随「功能 + 属性」联动（比旧版只看功能更精确）。
+    /// ★ 下拉里给的是白话名（走到位置 / 回原点 / 打开…，统一取自 FlowVocab），
+    ///   进来的「功能」先归一成内部名再查表 —— 老工程里存的「输出IO / modbus」也认。
     ///   轴 + 位置/编码器位置 → 绝对移动 / 相对移动 / 回零 / 停止（运动指令）
     ///   轴 + 速度/扭矩/电流/加速度 → 修改为 / 加 / 减 / 乘 / 除 / 取模（设参）
     ///   轴 + 已回零         → 等于 / 大于 / 小于 / 大于等于 / 小于等于 / 取反（状态判读）
@@ -25,24 +28,19 @@ namespace NoCodeMotion.Views
     /// </summary>
     public class FunctionToOperationsConverter : IMultiValueConverter
     {
-        // ---- 动作类 ----
-        private static readonly string[] MoveOps = { "绝对移动", "相对移动", "回零", "停止" };
-        private static readonly string[] SetOps = { "修改为", "加", "减", "乘", "除", "取模" };
-        private static readonly string[] IoWriteOps = { "修改为", "置位", "复位" };
-        private static readonly string[] CylOps = { "伸出", "缩回", "复位" };
-
-        // ---- 比较类（用于如果/否则如果 分支判定）----
-        private static readonly string[] CondOps =
-            { "等于", "大于", "小于", "大于等于", "小于等于", "取反" };
-        private static readonly string[] VarNumOps =
-            { "修改为", "加", "减", "乘", "除", "取模", "取反",
-              "等于", "大于", "小于", "大于等于", "小于等于" };
-        private static readonly string[] VarStrOps = { "修改为", "等于", "大于", "小于" };
-        private static readonly string[] VarBoolOps = { "修改为", "取反", "等于" };
+        // 候选词全部来自 FlowVocab（界面 / 引擎翻译共用一张表，不会两处各写一份对不上）
+        private static readonly string[] MoveOps = FlowVocab.MoveOps;
+        private static readonly string[] SetOps = FlowVocab.SetOps;
+        private static readonly string[] IoWriteOps = FlowVocab.IoWriteOps;
+        private static readonly string[] CylOps = FlowVocab.CylOps;
+        private static readonly string[] CondOps = FlowVocab.CondOps;
+        private static readonly string[] VarNumOps = FlowVocab.VarNumOps;
+        private static readonly string[] VarStrOps = FlowVocab.VarStrOps;
+        private static readonly string[] VarBoolOps = FlowVocab.VarBoolOps;
 
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            string func = values.Length > 0 ? (values[0]?.ToString() ?? "") : "";
+            string func = values.Length > 0 ? FlowVocab.ToInternalFunction(values[0]?.ToString()) : "";
             string prop = values.Length > 1 ? (values[1]?.ToString() ?? "") : "";
             return OpsFor(func, prop);
         }

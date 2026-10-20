@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Windows.Data;
+using NoCodeMotion.Services;
 
 namespace NoCodeMotion.Views
 {
@@ -34,7 +35,8 @@ namespace NoCodeMotion.Views
         };
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-            => Map.TryGetValue(value?.ToString() ?? string.Empty, out var list)
+            // 界面存的是白话功能名（输出信号 / 外部通讯…），先归一成内部名再查这张表
+            => Map.TryGetValue(FlowVocab.ToInternalFunction(value?.ToString()), out var list)
                 ? list
                 : new List<string> { "速度" };
 

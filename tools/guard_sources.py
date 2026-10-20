@@ -9,6 +9,7 @@ r"""源码文本回归守卫 —— 伺服使能极性 / Jog 失败提示 / 加�
     C:/Users/admin/.workbuddy-ai/binaries/python/versions/3.13.12/python.exe -u tools/guard_sources.py
 """
 import os
+import re
 import sys
 
 ROOT = os.getcwd()
@@ -1978,6 +1979,92 @@ check("G31.9 删除支持整组（按 id 集合连着连线一起删）",
 check("G31.10 右下角小字提示存在且不挡鼠标（画布按键分工就靠它告诉用户）",
       "中键按住拖拽平移" in _pgx and "左键在空白处框选" in _pgx
       and _pgx.count('IsHitTestVisible="False"') >= 2)
+
+# ---------------------------------------------------------------------
+# G32  流程算子白话名：界面存显示名，引擎认内部名，只在边界翻译一次
+# ---------------------------------------------------------------------
+# 需求：流程里的算子/功能/运算名称要让没经验的人看得懂（绝对移动→走到位置、
+#       二值化→分成黑白两块、modbus→外部通讯…），且老工程打开自动转换、旧写法继续能跑。
+# ★ 这里守的是「改名改一半」的静默失效：
+#   下拉换了词但执行处没归一 → 步骤静默走 default 分支（不报错，只是不动）；
+#   归一表被后写的同显示名覆盖 → 「设为」翻成「修改」；
+#   气缸的「复位」被统一翻成「关闭」→ 界面显示错、语义也错。
+_fv = (read(r"Services\FlowVocab.cs") or "").replace("\r\n", "\n")
+if not _fv:
+    check("G32 找到 FlowVocab.cs", False, r"Services\FlowVocab.cs 缺失")
+else:
+    check("G32.1 词表三张（功能 / 运算 / 视觉算子）都在，且候选数组也在这里（唯一来源）",
+          all(k in _fv for k in ("FunctionTable", "OperationTable", "PreOpTable",
+                                 "FunctionChoices", "MoveOps", "IoWriteOps", "CylOps", "PreOpChoices")))
+    check("G32.2 「复位」按上下文分流：气缸保持复位、输出点显示关闭（早返回，不再查表）",
+          'if (string.Equals(s, "复位", StringComparison.Ordinal)) return IsCylinder(f) ? "复位" : "关闭";' in _fv)
+    check("G32.3 显示名→内部名 取表里第一个（防「设为」被后面的「修改」盖掉）",
+          "if (!d.ContainsKey(display)) d[display] = internalName;" in _fv)
+    check("G32.4 迁移按单个流程复用（Migrate 走 MigrateFlow，AI 生成与打开工程同一条路）",
+          "touched += MigrateFlow(flow);" in _fv and "public static int MigrateFlow(FlowItem? flow)" in _fv)
+
+    # 执行边界：谁读 Function / Operation / PreOp，谁就必须先过词表
+    _bnd = {
+        r"ViewModels\FlowRunnerService.cs": "FlowVocab.ToInternalFunction(s.Function)",
+        r"Services\SimFlowPlayer.cs": "FlowVocab.ToInternalFunction(s.Function)",
+        r"ViewModels\FlowViewModel.cs": "FlowVocab.ToInternalFunction(step.Function)",
+        r"Services\Vision\VisionEngine.cs": "FlowVocab.ToInternalPreOp(s.PreOp)",
+        r"Services\NgRunner.cs": "FlowVocab.ToInternalOperation(opShown",
+        r"Services\NgConditionEvaluator.cs": "FlowVocab.ToInternalFunction(Prop(n",
+    }
+    for _rel, _call in _bnd.items():
+        _src = (read(_rel) or "").replace("\r\n", "\n")
+        check("G32.5 [%s] 读用户存的名字处过了词表" % _rel.split("\\")[-1],
+              _call in _src, "缺 " + _call)
+
+    # 视觉报告要显示用户挑的那个名字，不是内部算子名
+    _ve = (read(r"Services\Vision\VisionEngine.cs") or "").replace("\r\n", "\n")
+    check("G32.6 视觉报告里的算子名用界面显示的那个（FinalizePre 传 s.PreOp）",
+          "FinalizePre(o, s, s.PreOp, report, progress)" in _ve
+          and 'FinalizePre(o, s, "二值化"' not in _ve)
+
+    # 下拉候选与词表对齐：两处各写一份迟早对不上（下拉出现候选里没有的选中值 = 显示空白）
+    def _csharp_array(name):
+        i = _fv.find("string[] " + name)
+        if i < 0: return []
+        j = _fv.find(";", i)
+        body = _fv[_fv.find("{", i):j]
+        return [x for x in re.findall(r'"([^"]+)"', body)]
+
+    _fx = (read(r"Views\FlowPage.xaml") or "").replace("\r\n", "\n")
+    _i = _fx.find('x:Key="FunctionOptions"')
+    _xaml_funcs = re.findall(r"<sys:String>([^<]+)</sys:String>",
+                             _fx[_i:_fx.find("</x:Array>", _i)]) if _i >= 0 else []
+    check("G32.7 流程页「功能」候选 = FlowVocab.FunctionChoices（一处改两处生效）",
+          _xaml_funcs == _csharp_array("FunctionChoices"),
+          "xaml=" + ",".join(_xaml_funcs) + " | vocab=" + ",".join(_csharp_array("FunctionChoices")))
+
+    _vfx = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+    _j = _vfx.find('x:Key="PreOps"')
+    _xaml_pre = re.findall(r"<sys:String>([^<]+)</sys:String>",
+                           _vfx[_j:_vfx.find("</x:Array>", _j)]) if _j >= 0 else []
+    _voc_pre = _csharp_array("PreOpChoices")
+    check("G32.8 视觉页算子候选全部来自词表（不允许出现词表外的算子名）",
+          _xaml_pre and all(x in _voc_pre for x in _xaml_pre),
+          "越界: " + ",".join(x for x in _xaml_pre if x not in _voc_pre))
+
+    # 旧内部名不许再出现在候选里（否则等于没改）
+    _stale = [w for w in ("modbus", "绝对移动", "相对移动", "置位", "取模", "二值化", "Sobel边缘", "ROI裁剪")
+              if w in _xaml_funcs or w in _xaml_pre]
+    check("G32.9 下拉候选里没有残留的内部术语", not _stale, "残留: " + ",".join(_stale))
+
+    # 两条入口都要迁移：打开工程 + AI 粘贴生成
+    check("G32.10 打开工程会迁移老存值（ProjectData 载入路径调 FlowVocab.Migrate）",
+          "Services.FlowVocab.Migrate(this);" in (read(r"Models\ProjectData.cs") or ""))
+    check("G32.11 AI 粘贴生成后也迁移（否则下拉会出现候选里没有的选中值，显示成空白）",
+          "FlowVocab.MigrateFlow(f);" in (read(r"Services\AiProjectExchange.cs") or ""))
+
+    # 给 AI 的提示词要报白话名（AI 照旧写内部名也认，见 ClampTo 的词表容错）
+    _ai = (read(r"Services\AiProjectExchange.cs") or "").replace("\r\n", "\n")
+    check("G32.12 提示词里的「功能」候选取自词表，不另写一份",
+          'string.Join(" / ", FlowVocab.FunctionChoices)' in _ai)
+    check("G32.13 AI 写的旧内部名也会被认（ClampTo / ClampOperation 先过词表再判合法）",
+          "FlowVocab.ToInternalFunction(s)" in _ai and "FlowVocab.ToInternalOperation(given, func)" in _ai)
 
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
