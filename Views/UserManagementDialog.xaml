@@ -53,7 +53,7 @@
             </DockPanel>
 
             <TextBlock x:Name="Hint" Margin="18,2,18,4" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"
-                       Text="至少保留 1 个用户，且不能删除当前登录用户。"/>
+                       Text="最少要留 1 个人，而且不能把当前正在登录的这个人删掉。"/>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,10,16,16">
                 <Button x:Name="CloseButton" Content="关闭" Style="{StaticResource TtBaseBtn}" Click="CloseButton_Click" IsDefault="True" IsCancel="True"/>

@@ -208,7 +208,7 @@
                                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <TextBlock Text="相机预览" Foreground="#71717A" FontSize="14"
                                                        HorizontalAlignment="Center"/>
-                                            <TextBlock Text="点「搜索设备」找到相机后，连接或拍照即显示画面"
+                                            <TextBlock Text="先点【搜索设备】找到相机，再点【连接】或【拍照】，画面就会出现在这里"
                                                        Foreground="#52525B" FontSize="11" Margin="0,4,0,0"
                                                        HorizontalAlignment="Center"/>
                                         </StackPanel>
@@ -249,7 +249,7 @@
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button Style="{StaticResource TtPillGrayBtn}" Margin="0,0,8,0"
                                             Command="{Binding SearchDevicesCommand}"
-                                            ToolTip="按海康 MVS 枚举在线相机，并更新左侧列表（顺序与枚举一致）。">
+                                            ToolTip="用相机厂商的驱动（海康 MVS）找一遍在线相机，把它们列到左边">
                                         <StackPanel Orientation="Horizontal">
                                             <Path Data="{StaticResource RefreshIcon}" Width="14" Height="14"
                                                   Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"
@@ -259,7 +259,7 @@
                                     </Button>
                                     <Button Style="{StaticResource TtPillBlueBtn}" Margin="0,0,8,0"
                                             Command="{Binding ApplyCommonParamsCommand}"
-                                            IsEnabled="{Binding HasSelection}" ToolTip="一键应用常用拍摄参数：曝光 10ms / 增益 1.0 / 连续触发。">
+                                            IsEnabled="{Binding HasSelection}" ToolTip="一次把常用的拍摄参数填好：曝光 10 毫秒、增益 1.0、连续触发。先想看清画面就用这个，再按现场微调。">
                                         <StackPanel Orientation="Horizontal">
                                             <Path Data="{StaticResource CheckIcon}" Width="14" Height="14"
                                                   Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"

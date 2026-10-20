@@ -152,6 +152,8 @@ namespace NoCodeMotion
             }
 
             _selectedNav = btn ?? FindNavButton(key);
+            ShowPageGuide(key);
+
             if (_selectedNav != null)
             {
                 _selectedNav.Background = (System.Windows.Media.Brush)FindResource("NavActiveBrush");
@@ -174,6 +176,22 @@ namespace NoCodeMotion
                 LoadingBar.Maximum = LoadingService.ProgressMax;
                 LoadingBar.Value = Math.Min(LoadingService.Progress, LoadingService.ProgressMax);
             }
+        }
+
+        /// <summary>
+        /// 底部「本页怎么用」说明栏：按页签取白话文案。没配文案的页签直接隐藏，不留空白条。
+        /// </summary>
+        private void ShowPageGuide(string key)
+        {
+            var g = PageGuideCatalog.For(key);
+            if (g == null)
+            {
+                PageGuide.Visibility = System.Windows.Visibility.Collapsed;
+                return;
+            }
+            PageGuide.OperationText = g.Operation;
+            PageGuide.PrecautionText = g.Precaution;
+            PageGuide.Visibility = System.Windows.Visibility.Visible;
         }
 
         /// <summary>导航键对应的中文页签名，用于预初始化提示文案。</summary>

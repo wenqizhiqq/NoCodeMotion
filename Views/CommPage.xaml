@@ -38,31 +38,31 @@
                         <!-- 通用 -->
                         <Border Style="{StaticResource AppleChip}">
                             <StackPanel>
-                                <TextBlock Text="名称" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="名称" Style="{StaticResource AppleChipLabel}" ToolTip="这条通讯的名字；流程和脚本就是用这个名字找到这条通道的"/>
                                 <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="串口号" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="串口号" Style="{StaticResource AppleChipLabel}" ToolTip="串口线在电脑上占的口，例如 COM3（插上设备后在「设备管理器」里能看到）"/>
                                 <TextBox Text="{Binding SelectedItem.PortOrIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口|SECS(HSMS)|西门子S7|三菱MC'}">
                             <StackPanel>
-                                <TextBlock Text="端口 / IP" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="端口 / IP" Style="{StaticResource AppleChipLabel}" ToolTip="要连的那台设备的 IP，例如 192.168.1.10。两台电脑要在同一个网段，ping 得通才连得上"/>
                                 <TextBox Text="{Binding SelectedItem.PortOrIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="波特率" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="波特率" Style="{StaticResource AppleChipLabel}" ToolTip="串口跑多快，必须和设备那一端设得一模一样（常用 9600 或 115200）。不一样收到的全是乱码"/>
                                 <TextBox Text="{Binding SelectedItem.BaudOrPort}" Style="{StaticResource AppleNumField}"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口|SECS(HSMS)|西门子S7|三菱MC'}">
                             <StackPanel>
-                                <TextBlock Text="端口号" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="端口号" Style="{StaticResource AppleChipLabel}" ToolTip="对方设备上开着的那个端口号，例如 Modbus 常用 502"/>
                                 <TextBox Text="{Binding SelectedItem.BaudOrPort}" Style="{StaticResource AppleNumField}"/>
                             </StackPanel>
                         </Border>
@@ -70,37 +70,37 @@
                         <Border Style="{StaticResource AppleChip}" MinWidth="300"
                                 Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='管道|共享内存|共享文件夹|本机文件|Web'}">
                             <StackPanel>
-                                <TextBlock Text="地址（管道名 / 共享区名 / 目录 / 文件 / URL）" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="地址（管道名 / 共享区名 / 文件夹 / 文件 / 网址，看你选的类型）" Style="{StaticResource AppleChipLabel}"/>
                                 <TextBox Text="{Binding SelectedItem.PortOrIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}" MinWidth="280"
-                                         ToolTip="管道：管道名（两端填同一个，如 ncm1，写 \\.\pipe\ncm1 也认）&#10;共享内存：共享区名（两端一致；两端的「通道名」必须不同）&#10;共享文件夹：根目录，程序自动用 out\ 发、in\ 收；填网络共享路径即跨机器&#10;本机文件：文件完整路径（相对路径按程序运行目录解析）&#10;Web：完整 URL，如 http://127.0.0.1:8080/api/io"/>
+                                         ToolTip="管道：两端填同一个管道名，例如 ncm1（写成 \\.\pipe\ncm1 也认）&#10;共享内存：两端填同一个共享区名，但两端的「通道名」不能一样&#10;共享文件夹：填一个根目录就行，软件自己往 out\ 写、从 in\ 读；填网络共享路径就能跨电脑&#10;本机文件：填文件完整路径（只写相对路径时，按软件运行目录去找）&#10;Web：填完整网址，例如 http://127.0.0.1:8080/api/io"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='管道'}">
                             <StackPanel>
                                 <TextBlock Text="管道角色" Style="{StaticResource AppleChipLabel}"/>
                                 <ListBox ItemsSource="{Binding PipeRoleOptions}" SelectedItem="{Binding SelectedItem.PipeRole}" Style="{StaticResource ApplePillList}"
-                                         ToolTip="一端选「服务端」（先启动、在本机监听），另一端选「客户端」（主动连）。两端都填服务端或都填客户端连不上。"/>
+                                         ToolTip="先启动的那一端选「服务端」（在本机等别人连），后连的那一端选「客户端」（主动去连）。两端选成一样肯定连不上。"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='共享内存'}">
                             <StackPanel>
                                 <TextBlock Text="共享区大小(KB)" Style="{StaticResource AppleChipLabel}"/>
                                 <TextBox Text="{Binding SelectedItem.ShmSizeKb}" Style="{StaticResource AppleNumField}"
-                                         ToolTip="单条队列的字节容量（默认 64KB）。两端要填一致；单条消息不能超过它。"/>
+                                         ToolTip="这块共享区能存多少字节（默认 64KB）。两端要填成一样；一条消息比它大就发不出去。"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='本机文件'}">
                             <StackPanel>
                                 <TextBlock Text="写入方式" Style="{StaticResource AppleChipLabel}"/>
                                 <ListBox ItemsSource="{Binding FileWriteModeOptions}" SelectedItem="{Binding SelectedItem.FileWriteMode}" Style="{StaticResource ApplePillList}"
-                                         ToolTip="「覆盖」每次发送重写整个文件；「追加」往末尾续写。接收只在文件被外部改动后返回一次内容。"/>
+                                         ToolTip="「覆盖」= 每次发送把整个文件重写一遍；「追加」= 接在文件末尾继续写。接收只有在这个文件被外面的程序改动之后，才返回一次新内容。"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='Web'}">
                             <StackPanel>
                                 <TextBlock Text="请求方式" Style="{StaticResource AppleChipLabel}"/>
                                 <ListBox ItemsSource="{Binding WebMethodOptions}" SelectedItem="{Binding SelectedItem.WebMethod}" Style="{StaticResource ApplePillList}"
-                                         ToolTip="POST / PUT 带正文发送；GET 不带正文（正文非空时按 ?data=… 追加到 URL）。「接收」一律发 GET 取响应正文。"/>
+                                         ToolTip="POST / PUT = 把发送框里的内容当正文发过去；GET = 不带正文（发送框里有内容时，会拼到网址后面变成 ?data=…）。【接收】固定发一次 GET，把对方回的内容显示出来。"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='Web'}">
@@ -108,46 +108,46 @@
                                 <TextBlock Text="Content-Type" Style="{StaticResource AppleChipLabel}"/>
                                 <ComboBox ItemsSource="{Binding WebContentTypeOptions}" MinWidth="200" HorizontalAlignment="Left"
                                           SelectedItem="{Binding SelectedItem.WebContentType}"
-                                          ToolTip="请求体的 Content-Type。发 JSON 就选 application/json。"/>
+                                          ToolTip="发出去的内容算哪种格式。发 JSON 选 application/json，发普通文字选 text/plain。"/>
                             </StackPanel>
                         </Border>
                         <!-- ↑↑↑ 本机互联 / 接口类通道参数 -->
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="数据位" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="数据位" Style="{StaticResource AppleChipLabel}" ToolTip="一个字节里有几位数据，一般设 8；要和对端一致"/>
                                 <ComboBox ItemsSource="{Binding DataBitsOptions}" MinWidth="90" HorizontalAlignment="Left"
                                           SelectedValue="{Binding SelectedItem.DataBits, TargetNullValue=8}" SelectedValuePath="."/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="校验位" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="校验位" Style="{StaticResource AppleChipLabel}" ToolTip="怎么检查传输出错，最常见选「无」；要和对端一致，不一致会收不到正确内容"/>
                                 <ComboBox ItemsSource="{Binding ParityOptions}" MinWidth="90" HorizontalAlignment="Left"
                                           SelectedValue="{Binding SelectedItem.Parity}" SelectedValuePath="."/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="停止位" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="停止位" Style="{StaticResource AppleChipLabel}" ToolTip="一帧结束的标志，一般 1；要和对端一致"/>
                                 <ComboBox ItemsSource="{Binding StopBitsOptions}" MinWidth="90" HorizontalAlignment="Left"
                                           SelectedValue="{Binding SelectedItem.StopBits}" SelectedValuePath="."/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="流控" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="流控" Style="{StaticResource AppleChipLabel}" ToolTip="来不及处理时让对方先别发。没接握手线就选「无」"/>
                                 <ListBox ItemsSource="{Binding FlowControlOptions}" SelectedItem="{Binding FlowControl}" Style="{StaticResource ApplePillList}"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='ModbusTCP|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="从站地址" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="从站地址" Style="{StaticResource AppleChipLabel}" ToolTip="这台设备在 Modbus 上的编号；一根线上挂了好几台时，每台都要不一样"/>
                                 <TextBox Text="{Binding SlaveAddress, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='ModbusTCP|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="字节序" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="字节序" Style="{StaticResource AppleChipLabel}" ToolTip="设备把两个字节的前后顺序怎么排。读上来的数莫名其妙时，换一种排法试试"/>
                                 <ListBox ItemsSource="{Binding EndianOptions}" SelectedItem="{Binding Endian}" Style="{StaticResource ApplePillList}"/>
                             </StackPanel>
                         </Border>
@@ -171,7 +171,7 @@
                         </Border>
                         <Border Style="{StaticResource AppleChip}">
                             <StackPanel>
-                                <TextBlock Text="超时" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="超时" Style="{StaticResource AppleChipLabel}" ToolTip="等多长时间没回应就算这次失败（毫秒）。设备反应慢就把它调大一点"/>
                                 <DockPanel LastChildFill="False">
                                     <TextBox DockPanel.Dock="Right" Text="{Binding SelectedItem.TimeoutMs}" Style="{StaticResource AppleNumField}"/>
                                     <TextBlock DockPanel.Dock="Right" Text="ms" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
@@ -180,7 +180,7 @@
                         </Border>
                         <Border Style="{StaticResource AppleChip}">
                             <StackPanel>
-                                <TextBlock Text="重试次数" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="重试次数" Style="{StaticResource AppleChipLabel}" ToolTip="失败以后自动再试几次；填 0 = 试一次就算了"/>
                                 <DockPanel LastChildFill="False">
                                     <TextBox DockPanel.Dock="Right" Text="{Binding RetryCount}" Style="{StaticResource AppleNumField}"/>
                                     <TextBlock DockPanel.Dock="Right" Text="次" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
@@ -189,7 +189,7 @@
                         </Border>
                         <Border Style="{StaticResource AppleChip}">
                             <StackPanel>
-                                <TextBlock Text="轮询间隔" Style="{StaticResource AppleChipLabel}"/>
+                                <TextBlock Text="轮询间隔" Style="{StaticResource AppleChipLabel}" ToolTip="自动反复读的时候，两次之间隔多少毫秒"/>
                                 <DockPanel LastChildFill="False">
                                     <TextBox DockPanel.Dock="Right" Text="{Binding PollIntervalMs}" Style="{StaticResource AppleNumField}"/>
                                     <TextBlock DockPanel.Dock="Right" Text="ms" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,6,0"/>
@@ -198,19 +198,19 @@
                         </Border>
                         <Border Style="{StaticResource AppleChip}">
                             <DockPanel LastChildFill="False">
-                                <TextBlock DockPanel.Dock="Left" Text="自动重连" Style="{StaticResource AppleLabel}"/>
+                                <TextBlock DockPanel.Dock="Left" Text="自动重连" Style="{StaticResource AppleLabel}" ToolTip="断线后软件自己再连一次，不用你手动点"/>
                                 <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding AutoReconnect}"/>
                             </DockPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}">
                             <DockPanel LastChildFill="False">
-                                <TextBlock DockPanel.Dock="Left" Text="详细日志" Style="{StaticResource AppleLabel}"/>
+                                <TextBlock DockPanel.Dock="Left" Text="详细日志" Style="{StaticResource AppleLabel}" ToolTip="把每一次收发的内容都记进日志；排查问题时打开，平时可以关掉少刷屏"/>
                                 <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding VerboseLog}"/>
                             </DockPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}">
                             <DockPanel LastChildFill="False">
-                                <TextBlock DockPanel.Dock="Left" Text="保活心跳" Style="{StaticResource AppleLabel}"/>
+                                <TextBlock DockPanel.Dock="Left" Text="保活心跳" Style="{StaticResource AppleLabel}" ToolTip="定时发一小段内容，防止链路被悄悄断开（有些交换机几分钟不发消息就会断）"/>
                                 <CheckBox DockPanel.Dock="Right" Style="{StaticResource AppleToggle}" IsChecked="{Binding KeepAlive}"/>
                             </DockPanel>
                         </Border>
@@ -220,7 +220,7 @@
                     <Border Style="{StaticResource AppleGroupCard}" Padding="12,10"
                             Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='SECS(HSMS)'}">
                         <StackPanel>
-                            <TextBlock Text="SECS / HSMS 参数（SEMI E37 会话 + E5 报文）" Style="{StaticResource AppleSectionHeader}"/>
+                            <TextBlock Text="SECS / HSMS 参数（半导体设备用的那套通讯）" Style="{StaticResource AppleSectionHeader}"/>
                             <WrapPanel Margin="0,0,0,4">
                                 <Border Style="{StaticResource AppleChip}">
                                     <StackPanel>
@@ -313,7 +313,7 @@
                                           SelectedItem="{Binding SelectedSecsPreset, UpdateSourceTrigger=PropertyChanged}"
                                           BorderThickness="1" BorderBrush="{StaticResource LineBrush}"
                                           Background="{StaticResource SurfaceBrush}" VerticalAlignment="Center" Padding="6"
-                                          ToolTip="SML（SECS Message Language）常用报文，点「载入」填入发送框后可编辑再发。"/>
+                                          ToolTip="这里列了常用的 SECS 报文。点【载入】填进发送框，改完再发。"/>
                             </DockPanel>
                         </StackPanel>
                     </Border>
@@ -333,23 +333,23 @@
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,6">
                                     <TextBlock Text="启用仿真" Style="{StaticResource AppleLabel}" Margin="0,0,6,0"/>
                                     <CheckBox Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.SimEnabled}"
-                                              ToolTip="开 = 本条通讯走仿真。&#10;真对端类型（管道 / 共享内存 / 共享文件夹 / 本机文件 / 网口TCP / UDP / ModbusTCP / Web / SECS）：软件在本机真的起一个「对方」，本端仍走真实通道。&#10;回环类型（串口 / ModbusRTU / GPIB / 西门子S7 / 三菱MC）：本机起不了另一端，改为接管本通道，一次硬件都不碰。"/>
+                                              ToolTip="打开 = 这条通讯不碰真硬件，由软件自己假扮「对方」。&#10;能在本机真起一个对方的类型（管道 / 共享内存 / 共享文件夹 / 本机文件 / 网口TCP / UDP / ModbusTCP / Web / SECS）：你这一端照常走真实通道，只是对面换成了软件自带的模拟器。&#10;本机开不出另一端的类型（串口 / ModbusRTU / GPIB / 西门子S7 / 三菱MC）：改成由软件直接顶替这条通道，你发什么它立刻回什么，一个硬件都不碰。"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,6">
                                     <TextBlock Text="应答模式" Style="{StaticResource AppleLabel}" Margin="0,0,6,0"/>
                                     <ListBox ItemsSource="{Binding SimModeOptions}" SelectedItem="{Binding SelectedItem.SimMode}"
                                              Style="{StaticResource ApplePillList}"
-                                             ToolTip="回显 = 本端发什么对端回什么；按规则 = 用下面规则表；静默 = 只记录不回话。"/>
+                                             ToolTip="回显 = 你发什么它就回什么；按规则 = 照下面的规则表回；静默 = 只把收到的记下来，不回话。"/>
                                 </StackPanel>
                                 <Button Content="启动仿真" Style="{StaticResource AppleBtnSecondary}" Margin="0,0,6,6"
                                         Command="{Binding StartSimCommand}"
-                                        ToolTip="按当前配置起对端（监听端口 / 反向通道 / 回环接管）。失败会在下方日志里说清原因。"/>
+                                        ToolTip="按上面填的配置把「对方」启动起来。启动失败会在下面的记录里写清楚是为什么。"/>
                                 <Button Content="停止仿真" Style="{StaticResource AppleBtnSecondary}" Margin="0,0,6,6"
                                         Command="{Binding StopSimCommand}"
-                                        ToolTip="停对端并把通道换回实机连接。"/>
+                                        ToolTip="把「对方」关掉，这条通道换回连真设备。"/>
                             </WrapPanel>
 
-                            <TextBlock Text="应答规则（一行一条：条件=&gt;应答；条件前加 * 表示「包含」；条件留空 = 兜底；应答里 {msg} = 收到的原文）"
+                            <TextBlock Text="应答规则（一行一条，写成 条件=&gt;怎么回；条件前面加 * = 只要收到的内容里包含它就命中；条件留空 = 前面都不匹配时才用这条；应答里写 {msg} = 把收到的原文原样回给你）"
                                        Style="{StaticResource AppleLabel}" FontSize="11.5" Margin="12,0,12,2"
                                        Foreground="{StaticResource TextMutedBrush}"/>
                             <TextBox Margin="12,0,12,8" MinHeight="56" MaxHeight="120" AcceptsReturn="True" TextWrapping="NoWrap"
@@ -357,12 +357,12 @@
                                      BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
                                      Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextPrimaryBrush}"
                                      Text="{Binding SelectedItem.SimRules, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="示例：&#10;启动=&gt;已收到&#10;*温度=&gt;25.6&#10;=&gt;OK"/>
+                                     ToolTip="举个例子：&#10;启动=&gt;已收到　（收到「启动」就回「已收到」）&#10;*温度=&gt;25.6　（只要收到的里面带「温度」两个字，就回 25.6）&#10;=&gt;OK　（前面都对不上时，统一回 OK）"/>
 
                             <DockPanel Margin="12,0,12,8" LastChildFill="True">
                                 <Button DockPanel.Dock="Right" Content="注入给本端" Style="{StaticResource AppleBtnSecondary}" Margin="8,0,0,0"
                                         Command="{Binding InjectSimCommand}"
-                                        ToolTip="把这段内容当成「对方发来的」—— 本端下一次「接收」就会拿到它。&#10;Modbus 从站的注入格式：40001=123（保持寄存器）/ 00001=1（线圈）/ 30001=7（输入寄存器）。"/>
+                                        ToolTip="点【注入】= 假装「对方」主动给你发了一条：本端下一次点【接收】拿到的就是这段内容。&#10;Modbus 从站要按 地址=值 来写：40001=123（保持寄存器）、00001=1（线圈）、30001=7（输入寄存器）。"/>
                                 <TextBox Text="{Binding SimInjectText, UpdateSourceTrigger=PropertyChanged}"
                                          Padding="8,6" FontSize="12" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
                                          Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextPrimaryBrush}"/>
@@ -417,7 +417,7 @@
                                 <Button Style="{StaticResource AppleBtn}" Command="{Binding TestConnectionCommand}">
                                     <StackPanel Orientation="Horizontal">
                                         <Path Data="{StaticResource SignalIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                                        <TextBlock Text="测试连接" VerticalAlignment="Center"/>
+                                        <TextBlock Text="测试连接" VerticalAlignment="Center" ToolTip="先试连一下，看通不通、顺便量一下延迟"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource AppleBtn}" Command="{Binding OpenCommand}">
@@ -446,7 +446,7 @@
                                 </Button>
                                 <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding SecsSelectCommand}"
                                         Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='SECS(HSMS)'}"
-                                        ToolTip="主动发一条 Select.req 建立 HSMS 会话（被动模式等对方发）。">
+                                        ToolTip="主动发一条「建立会话」的消息，把链路握上手（选「被动」时这一步由对方做，不用点）。">
                                     <StackPanel Orientation="Horizontal">
                                         <Path Data="{StaticResource LinkIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                         <TextBlock Text="建立会话" VerticalAlignment="Center"/>
@@ -454,7 +454,7 @@
                                 </Button>
                                 <Button Style="{StaticResource AppleBtnSecondary}" Command="{Binding SecsLinktestCommand}"
                                         Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='SECS(HSMS)'}"
-                                        ToolTip="发一条 Linktest.req 探活，确认对方还在。">
+                                        ToolTip="发一条心跳问一句「你还在吗」，确认链路没有断。">
                                     <StackPanel Orientation="Horizontal">
                                         <Path Data="{StaticResource SignalIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                         <TextBlock Text="探活" VerticalAlignment="Center"/>
@@ -475,7 +475,7 @@
                                           SelectedItem="{Binding SelectedPreset, UpdateSourceTrigger=PropertyChanged}"
                                           BorderThickness="1" BorderBrush="{StaticResource LineBrush}"
                                           Background="{StaticResource SurfaceBrush}" VerticalAlignment="Center" Padding="6"
-                                          ToolTip="选中常用报文模板，点「应用预设」填入发送框后再编辑发送。"/>
+                                          ToolTip="挑一个常用的指令模板，点【应用预设】填进发送框，改完再发。"/>
                             </DockPanel>
 
                             <DockPanel LastChildFill="True" Margin="0,0,0,8">

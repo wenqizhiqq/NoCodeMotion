@@ -240,9 +240,9 @@
                         </StackPanel>
                     </Border>
                     <Button Content="切换用户" Style="{StaticResource TtBaseBtn}" Click="SwitchUser_Click"
-                            ToolTip="打开用户列表，切换当前登录用户（真实用户库，切换结果写入 Users.json）。"/>
+                            ToolTip="打开名单换一个人登录；换人之后，产量和异常就记在新那个人名下"/>
                     <Button Content="用户设置" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0" Click="UserSettings_Click"
-                            ToolTip="新增 / 重命名 / 删除用户，并设置角色（管理员 / 操作员）。"/>
+                            ToolTip="添加 / 改名 / 删除用户，并决定他是「管理员」还是「操作员」"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -269,28 +269,28 @@
                     <WrapPanel Orientation="Horizontal">
                         <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
                             <StackPanel>
-                                <TextBlock Text="累计产量" Style="{StaticResource KpiTitle}"/>
+                                <TextBlock Text="累计产量" Style="{StaticResource KpiTitle}" ToolTip="从上一次【复位】到现在一共做完了多少件"/>
                                 <TextBlock Text="{Binding TotalCount}" Style="{StaticResource KpiValue}"/>
                                 <TextBlock Text="件" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
                             <StackPanel>
-                                <TextBlock Text="良率" Style="{StaticResource KpiTitle}"/>
+                                <TextBlock Text="良率" Style="{StaticResource KpiTitle}" ToolTip="合格品占的比例 = 合格数 ÷ 总数；低于 90% 卡片会变红"/>
                                 <TextBlock Text="{Binding Yield, StringFormat={}{0:F1}%}" Style="{StaticResource KpiValue}"/>
                                 <TextBlock Text="目标 ≥ 98%" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
                             <StackPanel>
-                                <TextBlock Text="节拍" Style="{StaticResource KpiTitle}"/>
+                                <TextBlock Text="节拍" Style="{StaticResource KpiTitle}" ToolTip="平均做一件要多少秒（按最近 10 件算）"/>
                                 <TextBlock Text="{Binding CycleTime, StringFormat={}{0:F1}s}" Style="{StaticResource KpiValue}"/>
                                 <TextBlock Text="秒 / 件" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource CardBorderStyle}" Padding="14" MinWidth="150" Margin="0,0,12,0">
                             <StackPanel>
-                                <TextBlock Text="运行时长" Style="{StaticResource KpiTitle}"/>
+                                <TextBlock Text="运行时长" Style="{StaticResource KpiTitle}" ToolTip="这次从【启动】到现在一共跑了多久（暂停的时间不算）"/>
                                 <TextBlock Text="{Binding RunElapsedText}" Style="{StaticResource KpiValue}"/>
                                 <TextBlock Text="mm:ss" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
                             </StackPanel>
@@ -302,19 +302,19 @@
                         <StackPanel>
                             <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12.5" Margin="0,0,0,8"/>
                             <WrapPanel VerticalAlignment="Center">
-                                <Button Command="{Binding RunCommand}" Style="{StaticResource TtBaseBtn}" Content="{Binding RunButtonText}" ToolTip="启动运行（自动模式连续运行 / 手动模式单步）；运行中暂停后变「继续」。" IsEnabled="{Binding CanStart}"/>
-                                <Button Command="{Binding PauseCommand}" Style="{StaticResource TtGrayBtn}" Content="暂停" ToolTip="暂停运行（运动到位后挂起，点「继续」恢复）。" Margin="8,0,0,0" IsEnabled="{Binding CanPause}"/>
-                                <Button Command="{Binding StopCommand}" Style="{StaticResource TtGrayBtn}" Content="停止" ToolTip="停止运行。" Margin="8,0,0,0" IsEnabled="{Binding CanStop}"/>
-                                <Button Command="{Binding ManualCommand}" Style="{StaticResource ModeManualBtnStyle}" Content="手动" ToolTip="手动模式：每按一次启动前进一个点位。" Margin="8,0,0,0"/>
-                                <Button Command="{Binding AutoCommand}" Style="{StaticResource ModeAutoBtnStyle}" Content="自动" ToolTip="自动模式：连续顺序运行。" Margin="8,0,0,0"/>
-                                <Button Command="{Binding EStopCommand}" Style="{StaticResource TtDeleteBtn}" Content="急停" ToolTip="紧急切断所有运动。" Margin="8,0,0,0" IsEnabled="{Binding CanEStop}"/>
-                                <Button Command="{Binding ResetCommand}" Style="{StaticResource TtWarnBtn}" Content="复位" ToolTip="复位产量/图表并解除急停。" Margin="8,0,0,0"/>
+                                <Button Command="{Binding RunCommand}" Style="{StaticResource TtBaseBtn}" Content="{Binding RunButtonText}" ToolTip="开始生产。自动模式 = 一个点位接一个点位自己走；手动模式 = 每按一次只走一个点位。中途暂停后，这颗按钮就变成【继续】" IsEnabled="{Binding CanStart}"/>
+                                <Button Command="{Binding PauseCommand}" Style="{StaticResource TtGrayBtn}" Content="暂停" ToolTip="先停一下：等手上这个动作做完再停住，不会停在半路；按【继续】接着跑" Margin="8,0,0,0" IsEnabled="{Binding CanPause}"/>
+                                <Button Command="{Binding StopCommand}" Style="{StaticResource TtGrayBtn}" Content="停止" ToolTip="结束这一轮运行（已经做出来的产量不会被清掉）" Margin="8,0,0,0" IsEnabled="{Binding CanStop}"/>
+                                <Button Command="{Binding ManualCommand}" Style="{StaticResource ModeManualBtnStyle}" Content="手动" ToolTip="手动模式：每按一次【启动】只走一个点位。第一次试跑、或者要看清每一步时用这个" Margin="8,0,0,0"/>
+                                <Button Command="{Binding AutoCommand}" Style="{StaticResource ModeAutoBtnStyle}" Content="自动" ToolTip="自动模式：点位连着自动一个个走完" Margin="8,0,0,0"/>
+                                <Button Command="{Binding EStopCommand}" Style="{StaticResource TtDeleteBtn}" Content="急停" ToolTip="急停：马上切断所有动作。拍下之后要先解除急停、再按【复位】，才能重新【启动】" Margin="8,0,0,0" IsEnabled="{Binding CanEStop}"/>
+                                <Button Command="{Binding ResetCommand}" Style="{StaticResource TtWarnBtn}" Content="复位" ToolTip="复位：解除急停、把产量和图表清零，让机器回到可以重新【启动】的状态" Margin="8,0,0,0"/>
                             </WrapPanel>
                         </StackPanel>
                     </Border>
 
                     <!-- 折线图 -->
-                    <TextBlock Text="生产趋势（良率% / 节拍s）" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
+                    <TextBlock Text="生产趋势（合格的比例 / 每件几秒）" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,16,0,8"/>
                     <Border Style="{StaticResource CardBorderStyle}" Padding="12" Height="272">
                         <StackPanel>
                             <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
@@ -348,10 +348,10 @@
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                             <Button DockPanel.Dock="Right" Content="清空" Style="{StaticResource TtPillRedBtn}"
                                     Command="{Binding ClearLogCommand}" MinWidth="0" Padding="12,3"
-                                    ToolTip="清空异常日志（只清除本面板显示，不影响运行）"/>
+                                    ToolTip="把下面的异常列表清干净（只清屏幕上的显示，日志文件里的记录还在，也不影响正在跑的流程）"/>
                             <Button DockPanel.Dock="Right" Content="导出" Style="{StaticResource TtPillBlueBtn}"
                                     Command="{Binding ExportLogCommand}" MinWidth="0" Padding="12,3" Margin="0,0,8,0"
-                                    ToolTip="将当前异常/警告导出为 Logs/异常日志_时间戳.txt 文本文件，便于归档与上报"/>
+                                    ToolTip="把这些异常存成一个文本文件（放在软件目录的 Logs 文件夹里），方便发给维护的人看"/>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
                                 <TextBlock Text="异常 " FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding ErrorCount}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center"/>
@@ -410,9 +410,9 @@
                         <TextBlock DockPanel.Dock="Right" Style="{StaticResource SimStatusTextStyle}" VerticalAlignment="Center"/>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
                             <Button x:Name="BtnAxisIoCalib" Content="轴IO标定" Style="{StaticResource SimToolBtn}"
-                                    ToolTip="为每个轴绑定 正限位/负限位/原点开关（输入IO）与 轴使能（输出IO）。" Click="BtnAxisIoCalib_Click"/>
+                                    ToolTip="告诉软件每根轴的 正限位 / 负限位 / 原点开关 各接在哪个输入点上、使能接在哪个输出点上" Click="BtnAxisIoCalib_Click"/>
                             <Button x:Name="BtnBuildFromIo" Content="生成3D模型" Style="{StaticResource SimToolBtn}" Margin="6,0,0,0"
-                                    ToolTip="按当前轴配置与标定的轴IO重建 3D 机台（行程端点显示限位/原点传感器，绿=信号有效）。" Click="BtnBuildFromIo_Click"/>
+                                    ToolTip="按现在的轴配置和刚才标好的点，重新搭一台 3D 机台；行程两端会画出限位 / 原点传感器，绿色 = 这个信号现在有" Click="BtnBuildFromIo_Click"/>
                         </StackPanel>
                     </DockPanel>
                     <Grid>

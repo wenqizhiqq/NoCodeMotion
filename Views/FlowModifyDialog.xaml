@@ -26,9 +26,9 @@
                 <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="8" Padding="10">
                     <StackPanel>
                         <RadioButton x:Name="MainRadio" Content="主流程" GroupName="RoleGroup" FontSize="13" Margin="0,2,0,2"/>
-                        <TextBlock Text="操作员点击「启动」后循环运行此流程，直到点「停止」。" FontSize="11" Foreground="#94A3B8" Margin="22,0,0,6"/>
+                        <TextBlock Text="选「主流程」：操作员在「操作员」页点【启动】后，这一段会一遍接一遍一直跑，直到点【停止】。" FontSize="11" Foreground="#94A3B8" Margin="22,0,0,6"/>
                         <RadioButton x:Name="ResetRadio" Content="复位流程" GroupName="RoleGroup" FontSize="13" Margin="0,2,0,2"/>
-                        <TextBlock Text="操作员点击「复位」后运行；等待全部复位流程运行结束后才继续。" FontSize="11" Foreground="#94A3B8" Margin="22,0,0,2"/>
+                        <TextBlock Text="选「复位」：操作员点【复位】时跑这一段；所有复位流程都跑完了，才允许重新开始生产。" FontSize="11" Foreground="#94A3B8" Margin="22,0,0,2"/>
                     </StackPanel>
                 </Border>
             </StackPanel>

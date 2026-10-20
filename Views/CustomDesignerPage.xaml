@@ -108,15 +108,15 @@
                         Command="{Binding ClearAllCommand}" Cursor="Hand"
                         Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}"/>
                 <Button Content="导入" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0"
-                        Command="{Binding ImportCommand}" Cursor="Hand" ToolTip="从 JSON 文件导入控件布局（替换当前画布）"
+                        Command="{Binding ImportCommand}" Cursor="Hand" ToolTip="用之前存下来的 JSON 文件恢复布局（会把现在画布上的东西全部换掉）"
                         Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}"/>
                 <Button Content="导出" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0"
-                        Command="{Binding ExportCommand}" Cursor="Hand" ToolTip="把当前画布全部控件导出为 JSON 文件"
+                        Command="{Binding ExportCommand}" Cursor="Hand" ToolTip="把画布上这套布局存成一个 JSON 文件，留着备份或换到别的机台"
                         Visibility="{Binding IsDesign, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
             <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" TextAlignment="Right" FontSize="12"
                        Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"
-                       Text="设计模式：从左侧拖控件进工作区，拖动摆放；选中后右下角小圆点拖大小，Delete 删除。分页控件用「参数」填页名（如 页1|页2|页3），点页头切页；子控件在属性面板选「所属分页/页面」挂进去；面板是纯装饰底板（先拖面板，再拖其它控件盖上去）。运行模式：按钮 / 输入框 / 开关 / 复选框 / 滑块 / 下拉框生效，显示框 / 指示灯 / 进度条 / 仪表盘 / 趋势图 / 数字显示 / 时钟 / 图片框实时读回。"/>
+                       Text="【设计模式】摆界面：从左边【工具箱】把控件拖到中间，按住拖动摆位置；选中后拖右下角的小圆点改大小；按 Delete 删掉。&#10;【运行模式】给操作员用：按钮 / 输入框 / 开关 / 复选框 / 滑块 / 下拉框 可以按可以填；指示灯 / 进度条 / 仪表盘 / 趋势图 / 数字显示 / 时钟 / 图片框 只负责显示机器现在的状态。&#10;要做好几屏：拖一个「分页」控件，在它的「参数」里写页名，用竖线隔开（例如 页1|页2|页3），点页头就能切页。「面板」只是一块装饰底板：先放面板，再把别的控件盖上去。"/>
         </DockPanel>
 
         <!-- ====== 左侧：工具箱（仅设计模式显示） ====== -->
@@ -454,7 +454,7 @@
                                                         Background="#F1F5F9" CornerRadius="7" BorderBrush="#E2E8F0" BorderThickness="1">
                                                     <Grid>
                                                         <Image Source="{Binding ImageSource}" Stretch="Uniform" Margin="4"/>
-                                                        <TextBlock Text="参数里填图片文件路径" FontSize="10"
+                                                        <TextBlock Text="在这里填图片的完整路径，例如 D:\pics\logo.png" FontSize="10"
                                                                    Foreground="{StaticResource TextMutedBrush}"
                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                    Visibility="{Binding ImageSource, Converter={StaticResource NullToVis}, ConverterParameter=inv}"/>
@@ -547,18 +547,18 @@
                                 <TextBlock Text="所属分页（空 = 主画布）" Style="{StaticResource PropLabel}"/>
                                 <ComboBox ItemsSource="{Binding DataContext.TabOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                           SelectedItem="{Binding TabName}" Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"
-                                          ToolTip="选一个「分页」控件后，该控件随其页头切页显隐"/>
+                                          ToolTip="选一个「分页」控件：选了之后，这个控件就跟着那一页的页头一起显示或藏起来"/>
                                 <TextBlock Text="所属页面" Style="{StaticResource PropLabel}"/>
                                 <ComboBox ItemsSource="{Binding DataContext.TabPageOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                           SelectedItem="{Binding PageName}" Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"
-                                          ToolTip="该控件在所选分页的哪一页显示（留空 = 每页都显示）"/>
+                                          ToolTip="这个控件在那一分页的第几页里显示；留空 = 每一页都显示"/>
                             </StackPanel>
 
                             <TextBlock Text="动作" Style="{StaticResource PropLabel}"/>
                             <ComboBox ItemsSource="{Binding DataContext.ActionOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                       SelectedItem="{Binding Action}" Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"/>
 
-                            <TextBlock Text="目标（IO / 气缸 / 变量 / 轴名）" Style="{StaticResource PropLabel}"/>
+                            <TextBlock Text="目标（要操作的那个 IO / 气缸 / 变量 / 轴的名字）" Style="{StaticResource PropLabel}"/>
                             <ComboBox IsEditable="True" Style="{StaticResource CellComboStyle}" Margin="0,4,0,0"
                                       ItemsSource="{Binding DataContext.TargetOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                       Text="{Binding Target, UpdateSourceTrigger=PropertyChanged}"/>
@@ -574,7 +574,7 @@
                                 <TextBox Text="{Binding Param, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropBox}"
                                          Visibility="{Binding DataContext.ParamOptions, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource NullToVis}, ConverterParameter=inv}"/>
                                 <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
-                                   Text="写输出IO：开 / 关 / 切换；气缸：伸出 / 缩回 / 切换；轴移动(绝对)：目标位置；轴移动(相对)：距离（正负=方向）；写变量：写入数值（开关 / 复选框=开值|关值，如 1|0）；显示轴参数：速度 / 加速时间 / 减速时间 / 点动距离 / 手动速度；滑块 / 进度条 / 仪表盘 / 趋势图：最小值|最大值（如 0|100）；下拉框：选项用「|」分隔（如 1|2|3）；图片框：图片文件完整路径（如 D:\pics\logo.png）。"/>
+                                   Text="按你选的「动作」告诉它具体怎么动：&#10;· 输出IO / 气缸：填 开 / 关 / 切换（气缸是 伸出 / 缩回 / 切换）&#10;· 轴移动(绝对)：填要走去的位置；轴移动(相对)：填走多远，正负代表方向&#10;· 写变量：填要写进去的数；开关 / 复选框写成 开值|关值，例如 1|0&#10;· 滑块 / 进度条 / 仪表盘 / 趋势图：填 最小值|最大值，例如 0|100&#10;· 下拉框：选项用竖线隔开，例如 低速|中速|高速&#10;· 图片框：填图片的完整路径，例如 D:\pics\logo.png"/>
                             </StackPanel>
 
                             <!-- 页面管理（仅分页控件）：重命名 / 删除 / 添加页标签 -->
@@ -592,7 +592,7 @@
                                                 <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropBox}" Margin="0"/>
                                                 <Button Grid.Column="2" Content="删" Style="{StaticResource TtGrayBtn}" Margin="0" Height="28" MinWidth="36" Padding="8,0" Cursor="Hand"
                                                         Command="{Binding DataContext.SelectedWidget.DeletePageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}" ToolTip="删除该页（挂在该页上的控件改为每页都显示）"/>
+                                                        CommandParameter="{Binding}" ToolTip="删掉这一页（原来挂在它上面的控件会变成每一页都显示）"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -600,7 +600,7 @@
                                 <Button Content="添加页面" Style="{StaticResource TtGrayBtn}" Margin="0,8,0,0" Cursor="Hand"
                                         Command="{Binding DataContext.SelectedWidget.AddPageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                                 <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
-                                           Text="把其它控件拖进本分页的内容区（页头以下），松手即挂到当前页；拖回主画布则解除归属。"/>
+                                           Text="往这一页放东西：把控件拖到页头下面的区域，松手就归到当前这一页；拖回外面的主画布就是不归任何页。"/>
                             </StackPanel>
 
                             <Button Content="删除此控件" Style="{StaticResource TtGrayBtn}" Margin="0,16,0,0" Cursor="Hand"

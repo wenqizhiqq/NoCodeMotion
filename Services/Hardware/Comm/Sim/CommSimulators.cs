@@ -109,8 +109,8 @@ namespace NoCodeMotion.Services.Hardware.Comm.Sim
 
         public override string Endpoint => $"本机监听 0.0.0.0:{Port}（本端连 {Cfg.PortOrIp}:{Port}）";
 
-        public override string Note => "对端只是「收到就回」，不含设备私有协议语义（如相机命令集）；"
-                                       + "需要固定应答就把模式改成「按规则」并配好规则。";
+        public override string Note => "这个「对方」只会收到什么就回什么，不懂设备自己的那套私有命令（比如相机命令集）；"
+                                       + "想让它固定回某一句，把上面的模式改成「按规则」，再写好规则就行。";
 
         public override void Start()
         {
@@ -216,8 +216,8 @@ namespace NoCodeMotion.Services.Hardware.Comm.Sim
 
         public override string Endpoint => $"本机监听 UDP :{Port}（本端发到 {Cfg.PortOrIp}:{Port}）";
 
-        public override string Note => "UDP 不保证到达，仿真对端只回「最近发来那一包」给对应端点；"
-                                       + "本端从没发过时无法主动注入。";
+        public override string Note => "UDP 本来就不保证一定送到，这个「对方」只把最近收到的那一包回给你；"
+                                       + "你这边一次都没发过的时候，它没法主动塞内容给你。";
 
         public override void Start()
         {
@@ -312,8 +312,8 @@ namespace NoCodeMotion.Services.Hardware.Comm.Sim
 
         public override string Endpoint => $"本机 HTTP 服务 http://127.0.0.1:{Port}/（本端 URL 填它）";
 
-        public override string Note => "只实现「200 + 正文」这一条最常用路径，不分路由、不管鉴权；"
-                                       + "要按接口回不同内容就用「按规则」匹配 METHOD+路径。";
+        public override string Note => "这个「对方」只做最常用的那一种回应：回 200 加一段内容，不认网址路由、也不查账号密码；"
+                                       + "想让不同的请求回不同的内容，就用「按规则」去匹配请求方式和网址。";
 
         public override void Start()
         {
@@ -436,8 +436,8 @@ namespace NoCodeMotion.Services.Hardware.Comm.Sim
 
         public override string Endpoint => $"回环接管本端（{Cfg.CommType}：{Cfg.PortOrIp}），不碰任何硬件";
 
-        public override string Note => "本端所有发送只记日志、不落到串口 / 设备；「接收」拿的是按规则产生或手工注入的内容。"
-                                       + "关掉仿真即恢复真实通道。";
+        public override string Note => "开着仿真时，你发出去的东西只记进日志，不会真的打到串口或设备上；点【接收】拿到的是按规则生成的、或者你手工注入的内容。"
+                                       + "把仿真关掉就换回连真设备。";
 
         public override bool TakesOverLocalChannel => true;
 

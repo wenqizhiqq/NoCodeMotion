@@ -471,10 +471,10 @@ else:
           and 'Text="减速时间"' in g12_xaml
           and 'Text="加速度"' not in g12_xaml
           and 'Text="减速度"' not in g12_xaml)
-    check("G12.12 轴页两个字段带了说明 ToolTip（写明单位是秒、常用 0.1~0.5）",
+    check("G12.12 轴页两个字段带了说明 ToolTip（写明是时间、常用 0.1~0.5）",
           g12_xaml is not None
           and "ToolTip" in g12_xaml
-          and "常用 0.1~0.5 秒" in g12_xaml)
+          and "常用 0.1~0.5" in g12_xaml)
 
 # ---------------------------------------------------------------------
 section("G13  暂停/停止守卫：静态 WaitGuard + 反射绑定 + OperationCanceledException 上抛（Request B）")
@@ -983,22 +983,53 @@ if _tpl is not None:
 # ---- 命名约定提示：新建工程弹窗 + 轴/IO/气缸/变量 四页 ----
 _np = read(r"Views\NewProjectDialog.xaml")
 if _np is not None:
-    check("G22.8 新建工程弹窗提示了「工位-对象」命名约定与分组前缀规则",
-          "工位-对象" in _np and "第一个「-」之前的文字就是下拉框的分组前缀" in _np)
+    check("G22.8 新建工程弹窗提示了「工位-对象」命名约定与分组规则",
+          "工位-对象" in _np and "会自动变成下拉框里的分组标题" in _np)
 
-for _rel, _tag in [(r"Views\AxisPage.xaml", "轴"),
-                   (r"Views\IoPage.xaml", "IO"),
-                   (r"Views\CylinderPage.xaml", "气缸"),
-                   (r"Views\VariablePage.xaml", "变量")]:
-    _pg = read(_rel)
-    if _pg is None:
-        check(f"G22.9 [{_tag}] 页面存在并挂了命名约定提示栏", False, "文件缺失")
-        continue
-    _x = _pg.replace("\r\n", "\n")
-    check(f"G22.9 [{_tag}] 页挂了 PageHintBar 命名约定提示（操作 + 注意两行都在）",
-          "<local:PageHintBar" in _x
-          and "OperationText=" in _x and "PrecautionText=" in _x
-          and "工位-对象" in _x and "分组前缀" in _x)
+# ★ 文案通俗化后：轴 / IO / 气缸 / 变量 四页各自的 PageHintBar 已合并成主窗口底部的
+#   「本页怎么用」说明栏，文案集中在 Services\PageGuideCatalog.cs（一处改全站生效）。
+#   这里守的是「合并之后没丢东西」：
+#     G22.9a 主窗口确实挂了说明栏（在页面区和状态栏之间）；
+#     G22.9b 切页会刷新它；
+#     G22.9c 15 个页签一个都不能漏（漏了那页就是空白条）；
+#     G22.9d 「工位-对象」命名约定还在；
+#     G22.9e 说明里不许出现内部实现名（用户看不懂，也没法照着操作）。
+_mw = (read(r"MainWindow.xaml") or "").replace("\r\n", "\n")
+_mc = (read(r"MainWindow.xaml.cs") or "").replace("\r\n", "\n")
+check("G22.9a 主窗口底部挂了「本页怎么用」说明栏（页面区与状态栏之间）",
+      '<views:PageHintBar Grid.Row="2" x:Name="PageGuide"' in _mw
+      and '<views:StatusBarView Grid.Row="3"/>' in _mw)
+check("G22.9b 切页时刷新说明栏（Navigate 收尾调 ShowPageGuide，文案取 PageGuideCatalog）",
+      "ShowPageGuide(key);" in _mc and "PageGuideCatalog.For(key)" in _mc)
+
+_pgc = read(r"Services\PageGuideCatalog.cs")
+if _pgc is None:
+    check("G22.9 页签白话说明表存在", False, r"Services\PageGuideCatalog.cs 缺失")
+else:
+    _g = _pgc.replace("\r\n", "\n")
+
+    def _guide_block(key):
+        """切出 ["key"] = new Guide { ... } 这一段（到下一个条目或表尾）。"""
+        mark = '["%s"] = new Guide' % key
+        i = _g.find(mark)
+        if i < 0:
+            return ""
+        nxt = _g.find('"] = new Guide', i + len(mark))
+        end = _g.find("};", i) if nxt < 0 else nxt - 1
+        return _g[i:end]
+
+    _nav_keys = ["ProjectManager", "AxisController", "Axis", "Io", "Cylinder", "Point",
+                 "Comm", "Tray", "Camera", "Variable", "Flow", "Engineer", "Custom",
+                 "Operator", "Manual"]
+    _miss = [k for k in _nav_keys if not _guide_block(k)]
+    check("G22.9c 主窗口 15 个页签全都有白话说明（漏一页 = 那页底部空白条）",
+          not _miss, "缺: " + ",".join(_miss))
+    for _key, _tag in [("Axis", "轴"), ("Io", "IO"), ("Cylinder", "气缸"), ("Variable", "变量")]:
+        check("G22.9d [%s] 页说明仍写了「工位-对象」命名约定" % _tag,
+              "工位-对象" in _guide_block(_key))
+    check("G22.9e 说明文案里不许出现内部实现名（类名 / 协议标准号，用户看不懂）",
+          all(w not in _g for w in ("WenQiZhiCardBridge", "CardFamilyCatalog", "HardwareBridge",
+                                    "GetCardAxisAlarmState", "SEMI E37", "ProjectStore")))
 
 # ---- 仿真变量步骤：变量名里的「-」必须按名精确取值，不能拼进表达式 ----
 _sf = read(r"Services\SimFlowPlayer.cs")
@@ -1699,7 +1730,7 @@ else:
     check("G28.33 ★ 端口/IP 芯片的 ConverterParameter 必须含 SECS(HSMS)（转换器是精确匹配，漏了永远不显示）",
           "SECS(HSMS)" in _param28, "实际参数=%r" % _param28)
     check("G28.34 SECS 参数卡 + 建立会话 / 探活 / 接收 按钮 + 会话状态回显",
-          'Text="SECS / HSMS 参数（SEMI E37 会话 + E5 报文）"' in _x28
+          'Text="SECS / HSMS 参数（半导体设备用的那套通讯）"' in _x28
           and 'Text="建立会话"' in _x28
           and 'Text="探活"' in _x28
           and 'Text="接收"' in _x28

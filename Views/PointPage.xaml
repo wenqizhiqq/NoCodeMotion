@@ -13,56 +13,56 @@
         <!-- ===== 8 个轴列头模板：在 HeaderTemplate 内用 RelativeSource 找 DataGrid，
              再取 AxisStates[i].AxisName + 后缀（位置/速度）；空轴名回退"未选轴" ===== -->
         <DataTemplate x:Key="H0Pos">
-            <TextBlock TextAlignment="Center" ToolTip="第 1 个所选轴的目标位置；上方选轴后此处显示轴名。">
+            <TextBlock TextAlignment="Center" ToolTip="第 1 根被选中的轴，走到这个点要去的位置；上面选好轴以后，这里直接显示轴名。">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
                     <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[0].AxisName"/>
                     <Binding Source="位置"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H0Spd">
-            <TextBlock TextAlignment="Center" ToolTip="第 1 个所选轴的目标速度。">
+            <TextBlock TextAlignment="Center" ToolTip="第 1 根轴走到这个位置时跑多快（单位/秒）。">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
                     <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[0].AxisName"/>
                     <Binding Source="速度"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H1Pos">
-            <TextBlock TextAlignment="Center" ToolTip="第 2 个所选轴的目标位置；上方选轴后此处显示轴名。">
+            <TextBlock TextAlignment="Center" ToolTip="第 2 根被选中的轴，走到这个点要去的位置；上面选好轴以后，这里直接显示轴名。">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
                     <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[1].AxisName"/>
                     <Binding Source="位置"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H1Spd">
-            <TextBlock TextAlignment="Center" ToolTip="第 2 个所选轴的目标速度。">
+            <TextBlock TextAlignment="Center" ToolTip="第 2 根轴走到这个位置时跑多快（单位/秒）。">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
                     <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[1].AxisName"/>
                     <Binding Source="速度"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H2Pos">
-            <TextBlock TextAlignment="Center" ToolTip="第 3 个所选轴的目标位置；上方选轴后此处显示轴名。">
+            <TextBlock TextAlignment="Center" ToolTip="第 3 根被选中的轴，走到这个点要去的位置；上面选好轴以后，这里直接显示轴名。">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
                     <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[2].AxisName"/>
                     <Binding Source="位置"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H2Spd">
-            <TextBlock TextAlignment="Center" ToolTip="第 3 个所选轴的目标速度。">
+            <TextBlock TextAlignment="Center" ToolTip="第 3 根轴走到这个位置时跑多快（单位/秒）。">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
                     <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[2].AxisName"/>
                     <Binding Source="速度"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H3Pos">
-            <TextBlock TextAlignment="Center" ToolTip="第 4 个所选轴的目标位置；上方选轴后此处显示轴名。">
+            <TextBlock TextAlignment="Center" ToolTip="第 4 根被选中的轴，走到这个点要去的位置；上面选好轴以后，这里直接显示轴名。">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
                     <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[3].AxisName"/>
                     <Binding Source="位置"/></MultiBinding></TextBlock.Text>
             </TextBlock>
         </DataTemplate>
         <DataTemplate x:Key="H3Spd">
-            <TextBlock TextAlignment="Center" ToolTip="第 4 个所选轴的目标速度。">
+            <TextBlock TextAlignment="Center" ToolTip="第 4 根轴走到这个位置时跑多快（单位/秒）。">
                 <TextBlock.Text><MultiBinding Converter="{StaticResource AxisHeaderMulti}">
                     <Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" Path="DataContext.AxisStates[3].AxisName"/>
                     <Binding Source="速度"/></MultiBinding></TextBlock.Text>
@@ -116,15 +116,15 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="12,14,12,10">
                     <TextBlock Text="点位表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="一个点位表即一个工位，各自保存 4 轴与点位数据；点条目切换。"
+                    <TextBlock Text="一个点位表 = 一个工位，里面存这个工位用的 4 根轴和所有点位；点左边不同的表就是换工位。"
                                FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                 </StackPanel>
 
                 <UniformGrid DockPanel.Dock="Top" Columns="2" Margin="8,0,8,10">
                     <Button Command="{Binding AddCommand}" Style="{StaticResource TtPillBlueBtn}" Content="新增工位"
-                            ToolTip="新增一个点位表（工位），默认带 1 行点位。"/>
+                            ToolTip="新建一个点位表 = 新建一个工位，里面先给你留一行空点位"/>
                     <Button Command="{Binding DeleteCommand}" Style="{StaticResource TtPillRedBtn}" Content="删除工位"
-                            ToolTip="删除当前选中的工位，删除前会弹窗确认。"/>
+                            ToolTip="删掉左边选中的这个工位，它下面的点位会一起删；删之前会弹窗问你"/>
                 </UniformGrid>
 
                 <TextBlock DockPanel.Dock="Bottom" Text="{Binding Items.Count, StringFormat=共 {0} 个工位}"
@@ -159,7 +159,7 @@
             <!-- 空状态：一个工位都没有时的提示 -->
             <TextBlock Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
                        FontSize="13" Foreground="{StaticResource TextMutedBrush}"
-                       Text="左侧还没有点位表。点「新增工位」创建第一个工位。">
+                       Text="左边还没有点位表：点上面的【新增工位】建第一个工位。">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -199,20 +199,20 @@
                             <TextBlock Text="{Binding SelectedItem.Name}" FontSize="20" FontWeight="SemiBold"
                                        Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock Text="当前工位的 4 个轴与逐行点位数据；切换左侧工位即切换此处内容。"
+                        <TextBlock Text="这里是当前工位用的 4 根轴和一行行点位；换左边的工位，下面的内容就跟着换成那个工位的。"
                                    FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                         <DockPanel LastChildFill="False" Margin="0,10,0,0">
                             <TextBlock DockPanel.Dock="Left" Text="工位名称" VerticalAlignment="Center" Margin="0,0,8,0"
                                        Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
                             <TextBox DockPanel.Dock="Left" Width="200" Height="30" VerticalContentAlignment="Center"
                                      Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="修改当前工位的名称，左侧列表会同步更新。"/>
+                                     ToolTip="改这个工位的名字，左边列表会跟着一起变"/>
                         </DockPanel>
                     </StackPanel>
 
                     <!-- ===== 轴控制 ===== -->
                     <TextBlock Text="轴控制" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,4"/>
-                    <TextBlock Text="为 4 个槽位各选一个轴，进行使能 / 回原 / 寸动 / JOG。选择仅作用于当前工位。"
+                    <TextBlock Text="给这个工位挑 4 根轴（1~4 号位置），下面的 使能 / 回零 / 点动 / Jog 就是操作这 4 根轴；只影响当前工位。"
                                FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                     <ItemsControl ItemsSource="{Binding AxisStates}" ItemTemplate="{StaticResource AxisCardTemplate}">
@@ -239,49 +239,49 @@
 
                     <!-- ===== 点位列表 ===== -->
                     <TextBlock Text="点位列表" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,10,0,4"/>
-                    <TextBlock Text="每行一个点位：名称 + 4 轴目标位置 + 4 轴目标速度（列头显示轴名）。行末「移动」移到该点位，「保存」存回当前位置。"
+                    <TextBlock Text="一行就是一个点位：名字 + 4 根轴各自去的位置和速度（表头就是轴名）。行末【移动】= 让轴走到这一行；【保存】= 把轴此刻的位置存进这一行。"
                                FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                     <!-- 工具栏：添加 / 删除点位（作用于当前工位） -->
                     <Border Style="{StaticResource ToolbarStyle}" Margin="0,0,0,8">
                         <StackPanel Orientation="Horizontal">
-                            <Button Command="{Binding AddPointCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="在当前工位下新增一行点位。">
+                            <Button Command="{Binding AddPointCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="在当前工位加一行空点位：把轴手动开到想要的位置，再点这一行末尾【保存】，坐标就自动填进来了">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource AddIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                     <TextBlock Text="添加点位" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-                            <Button Command="{Binding ImportDxfCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="从 DXF 图形文件导入几何生成点位行：轴1/轴2 ← DXF X/Y，轴3/轴4 留 0，采样步长 5mm。追加到当前工位末尾。">
+                            <Button Command="{Binding ImportDxfCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="导入一张 CAD 图（DXF 文件），把图里的轮廓每 5 毫米取一个点变成点位：X 给轴1、Y 给轴2，轴3/轴4 留 0，加在当前工位的最后面">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource ImportIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                     <TextBlock Text="导入DXF" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-                            <Button Command="{Binding GenerateArrayCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="按行×列与间距批量生成网格点位：X 随列递增、Y 随行递增。">
+                            <Button Command="{Binding GenerateArrayCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="按「几行几列 + 每格间距」一次排出一片点位：横向一列列加、纵向一行行加">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource TableIconGeometry}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                     <TextBlock Text="生成阵列" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-                            <Button Command="{Binding ImageGenPointsCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="打开「图像生成点位」：可导入一张底图，在图上单击描点或画折线，按框尺寸与起点映射成机器坐标（轴1←X、轴2←Y）后追加到当前工位。">
+                            <Button Command="{Binding ImageGenPointsCommand}" Style="{StaticResource TtPillBlueBtn}" ToolTip="打开「图像生成点位」：放一张底图，直接在图上点几下描出位置，软件按你框好的尺寸和起点换算成机器坐标（X 给轴1、Y 给轴2），加到当前工位">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource CameraIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                     <TextBlock Text="图像生成点位" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-                            <Button Command="{Binding ExportCsvCommand}" Style="{StaticResource TtPillGrayBtn}" ToolTip="将当前工位的全部点位导出为 CSV 文件（UTF-8 带 BOM，列头为轴名）。">
+                            <Button Command="{Binding ExportCsvCommand}" Style="{StaticResource TtPillGrayBtn}" ToolTip="把当前工位的所有点位存成一个 CSV 表格文件，Excel 能直接打开（表头就是轴名）">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource SaveIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                     <TextBlock Text="导出CSV" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-                            <Button Command="{Binding DeletePointCommand}" Style="{StaticResource TtPillRedBtn}" ToolTip="删除表格中选中的那一行点位。">
+                            <Button Command="{Binding DeletePointCommand}" Style="{StaticResource TtPillRedBtn}" ToolTip="删掉表格里选中的那一行点位">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource DeleteIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                     <TextBlock Text="删除点位" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-                            <Button Command="{Binding CompileCommand}" Style="{StaticResource TtPillGrayBtn}" ToolTip="编译当前工位的时序标记与同步组，检测同周期 / 分辨率 / 资源争用冲突。">
+                            <Button Command="{Binding CompileCommand}" Style="{StaticResource TtPillGrayBtn}" ToolTip="检查当前工位的时序标记和同步组配的合不合理：有没有挤在同一个周期、精度不够、两个动作抢同一个资源；检查结果列在下方">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource CheckIcon}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                                     <TextBlock Text="编译时序" VerticalAlignment="Center"/>
@@ -416,13 +416,13 @@
                                     <TextBlock DockPanel.Dock="Left" Text="移动条件" FontSize="13" FontWeight="SemiBold"
                                                Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                     <Border DockPanel.Dock="Right" Background="{StaticResource AccentSoftBrush}" CornerRadius="8"
-                                            Padding="7,2" VerticalAlignment="Center" ToolTip="当前条件列表所属的点位">
+                                            Padding="7,2" VerticalAlignment="Center" ToolTip="这一组「移动条件」是给哪个点位用的">
                                         <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentDarkBrush}"
                                                    MaxWidth="150" TextTrimming="CharacterEllipsis"
                                                    Text="{Binding SelectedPoint.Name, TargetNullValue=未选择点位, FallbackValue=未选择点位}"/>
                                     </Border>
                                 </DockPanel>
-                                <TextBlock Text="已填名称的行必须全部满足，才允许移动到该点位；名称留空的行不参与判断。"
+                                <TextBlock Text="只要这一行填了名字，就必须先满足条件才允许走到这个点；名字留空的行不检查，直接放行。"
                                            FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             </StackPanel>
 
@@ -448,14 +448,14 @@
                                         <DataGridTemplateColumn.Header>
                                             <StackPanel Margin="1,2">
                                                 <TextBlock Text="使用" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="勾选才判断" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                                <TextBlock Text="勾上才检查" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                                             </StackPanel>
                                         </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <CheckBox IsChecked="{Binding IsUsed, UpdateSourceTrigger=PropertyChanged}"
                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                          ToolTip="勾选 = 本行参与移动前判断；取消勾选 = 忽略本行"/>
+                                                          ToolTip="勾上 = 走到这个点之前要先检查这一条；不勾 = 这一条先不算"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
@@ -466,7 +466,7 @@
                                         <DataGridTemplateColumn.Header>
                                             <StackPanel Margin="1,2">
                                                 <TextBlock Text="类型" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="IO/气缸/轴等" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                                <TextBlock Text="要比哪一类" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                                             </StackPanel>
                                         </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
@@ -474,7 +474,7 @@
                                                 <ComboBox ItemsSource="{x:Static svc:ConditionKinds.All}"
                                                           SelectedItem="{Binding Kind, UpdateSourceTrigger=PropertyChanged}"
                                                           Margin="2,0" BorderThickness="0" Background="Transparent"
-                                                          ToolTip="条件类型；切换后「名称 / 比较 / 期望值」的可选项会跟着变"/>
+                                                          ToolTip="这一条要比什么东西（IO / 气缸 / 轴 / 变量…）；换了类型，后面「名称 / 比较 / 期望值」能选的东西会跟着变"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
@@ -484,7 +484,7 @@
                                         <DataGridTemplateColumn.Header>
                                             <StackPanel Margin="1,2">
                                                 <TextBlock Text="名称" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="目标对象" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                                <TextBlock Text="具体哪一个" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                                             </StackPanel>
                                         </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
@@ -501,7 +501,7 @@
                                         <DataGridTemplateColumn.Header>
                                             <StackPanel Margin="1,2">
                                                 <TextBlock Text="比较" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="==/!=等" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                                <TextBlock Text="等于 / 不等于 / 大于…" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                                             </StackPanel>
                                         </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
@@ -519,7 +519,7 @@
                                         <DataGridTemplateColumn.Header>
                                             <StackPanel Margin="1,2">
                                                 <TextBlock Text="期望值" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="要满足的状态" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                                <TextBlock Text="希望它是什么，如 1 = 有信号" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                                             </StackPanel>
                                         </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
@@ -564,7 +564,7 @@
                                         <DataGridTemplateColumn.Header>
                                             <StackPanel Margin="1,2">
                                                 <TextBlock Text="实际值" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="设备当前值" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                                                <TextBlock Text="机器现在的值" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                                             </StackPanel>
                                         </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
@@ -572,7 +572,7 @@
                                                 <TextBlock Text="{Binding ActualValue}"
                                                            Margin="6,0" VerticalAlignment="Center"
                                                            TextTrimming="CharacterEllipsis" FontWeight="SemiBold"
-                                                           ToolTip="设备当前实际状态（只读）；绿色=满足该条件，红色=不满足">
+                                                           ToolTip="机器现在的真实值（这里看，不能改）：绿色 = 这一条已经满足，红色 = 还没满足">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
@@ -670,19 +670,19 @@
 
                     <!-- 控制条（始终可见） -->
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
-                        <Button Command="{Binding SimPlayCommand}" Style="{StaticResource TtPillBlueBtn}" Width="34" Height="34" MinWidth="0" Padding="0" ToolTip="仿真：按点位顺序演示轨迹动画">
+                        <Button Command="{Binding SimPlayCommand}" Style="{StaticResource TtPillBlueBtn}" Width="34" Height="34" MinWidth="0" Padding="0" ToolTip="不发动真机，只在画面上按点位顺序演示一遍走的轨迹">
                             <Path Data="{StaticResource PlayIcon}" Width="14" Height="14" Stretch="Uniform"
                                   Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                         </Button>
-                        <Button Command="{Binding SimStopCommand}" Style="{StaticResource TtPillGrayBtn}" Width="34" Height="34" MinWidth="0" Padding="0" ToolTip="停止仿真">
+                        <Button Command="{Binding SimStopCommand}" Style="{StaticResource TtPillGrayBtn}" Width="34" Height="34" MinWidth="0" Padding="0" ToolTip="停止仿真动画">
                             <Path Data="{StaticResource StopIcon}" Width="12" Height="12" Stretch="Uniform"
                                   Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                         </Button>
-                        <Button Command="{Binding SimResetCommand}" Style="{StaticResource TtPillGrayBtn}" Width="34" Height="34" MinWidth="0" Padding="0" ToolTip="回到起点">
+                        <Button Command="{Binding SimResetCommand}" Style="{StaticResource TtPillGrayBtn}" Width="34" Height="34" MinWidth="0" Padding="0" ToolTip="把演示退回到第一个点">
                             <Path Data="{StaticResource RefreshIcon}" Width="14" Height="14" Stretch="Uniform"
                                   Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                         </Button>
-                        <Button Command="{Binding SimLoopCommand}" Width="34" Height="34" MinWidth="0" Padding="0" Margin="4,0" ToolTip="循环播放">
+                        <Button Command="{Binding SimLoopCommand}" Width="34" Height="34" MinWidth="0" Padding="0" Margin="4,0" ToolTip="一遍走完自动再来一遍">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource TtPillGrayBtn}">
                                     <Style.Triggers>

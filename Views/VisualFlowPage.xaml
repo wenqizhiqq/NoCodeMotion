@@ -138,7 +138,7 @@
                     </Button>
                     <Button Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
                             Style="{StaticResource ToolButtonStyle}" Margin="8,0,0,0"
-                            ToolTip="运行一次：依次跑该视觉流程的全部启用步骤（含图像采集/预处理/模板匹配/缺陷/测量/通讯等）；匹配步骤会用右侧已框选的 ROI 模板去搜索全图并把绿框/红框画到结果图上。">
+                            ToolTip="【运行一次】= 把这个视觉流程里勾了「启用」的步骤从头跑到尾（拍照 → 处理图像 → 找模板 / 找缺陷 / 测量 → 发通讯）。&#10;找模板那一步会拿你在右边框选好的样子去整张图里找：找到了画绿框，没找到画红框。">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource PlayIcon}" Width="15" Height="15" Stretch="Uniform"
                                   Margin="0,0,5,0" VerticalAlignment="Center"
@@ -148,7 +148,7 @@
                     </Button>
                     <Button Command="{Binding LoopRunCommand}" IsEnabled="{Binding CanLoopRun}"
                             Style="{StaticResource ToolButtonStyle}" Margin="6,0,0,0"
-                            ToolTip="循环运行：反复执行整个视觉流程，直到再点一次（按钮变为「停止循环」）。">
+                            ToolTip="【循环运行】= 一遍接一遍一直跑，再点一次就停下来（按钮会变成「停止循环」）">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="↻" Foreground="#0E7490" FontSize="14" FontWeight="Bold"
                                        VerticalAlignment="Center" Margin="0,0,5,0"/>
@@ -212,7 +212,7 @@
                                     </TextBlock>
                                     <CheckBox Grid.Column="3" IsChecked="{Binding Breakpoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              ToolTip="断点：后台运行到此步暂停，点「运行/继续」恢复"/>
+                                              ToolTip="点一下打上断点：跑到这一步会停住，点【运行 / 继续】再接着走"/>
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -239,7 +239,7 @@
                         <TextBlock Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center"
                                    Margin="0,9,14,2" FontSize="11" IsHitTestVisible="False"
                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                   Text="滚轮缩放 · 中键拖拽平移 · 双击复位 · 左键拖拽框选"/>
+                                   Text="滚轮放大缩小 · 按住中间键拖动画面 · 双击回到原始大小 · 按住左键拖出一个框选区域"/>
                         <!-- 图像占满整个 740px Border；左键拖拽画框，中键拖拽平移，滚轮缩放 -->
                         <!-- ClipToBounds 必须在外层 Border 上：缩放/平移后的内容靠它裁剪，否则图会溢出到相邻列。
                              UIElement.Clip 在 RenderTransform **之前**生效，挡不住缩放后的子元素。 -->
@@ -247,7 +247,7 @@
                                 ClipToBounds="True">
                             <Grid x:Name="ImageHost" Background="Transparent" Cursor="Cross"
                                   beh:ZoomPanBehavior.IsEnabled="True"
-                                  ToolTip="滚轮缩放　中键拖拽平移　双击复位　左键拖拽框选"
+                                  ToolTip="滚轮放大缩小　按住中间键拖动画面　双击回到原始大小　按住左键拖框选区域"
                                   MouseDown="ImageHost_MouseDown" MouseMove="ImageHost_MouseMove"
                                   MouseUp="ImageHost_MouseUp">
                                 <Image x:Name="ResultImageView" Source="{Binding ResultImage}" Stretch="Uniform"/>
@@ -512,14 +512,14 @@
                                           IsEditable="True" IsReadOnly="False"
                                           ItemsSource="{Binding CameraNames}"
                                           Text="{Binding SelectedStep.CameraId, UpdateSourceTrigger=PropertyChanged}"
-                                          ToolTip="从工程相机里选，或直接填相机编号（0/1/…）"/>
+                                          ToolTip="从「相机」页选一台，或者直接填编号（0、1、…）"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsFolderSource, Converter={StaticResource BoolToVis}}"/>
                                 <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsFolderSource, Converter={StaticResource BoolToVis}}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="文件夹"/>
                                     <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
                                         Style="{StaticResource ToolButtonStyle}"
-                                        ToolTip="选择图像文件夹"
+                                        ToolTip="挑一个装着图片的文件夹，批量用里面的图"
                                         Command="{Binding BrowsePathCommand}" CommandParameter="FolderPath"/>
                                     <TextBox Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.FolderPath, UpdateSourceTrigger=PropertyChanged}"/>
@@ -529,7 +529,7 @@
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="文件路径"/>
                                     <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
                                         Style="{StaticResource ToolButtonStyle}"
-                                        ToolTip="选择图像文件"
+                                        ToolTip="挑一张图片文件"
                                         Command="{Binding BrowsePathCommand}" CommandParameter="SavePath"/>
                                     <TextBox Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.SavePath, UpdateSourceTrigger=PropertyChanged}"/>
@@ -556,7 +556,7 @@
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像预处理参数"/>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"
-                                       Text="参数 1 / 2 用法依操作不同：二值化=阈值（0~255）；平滑/形态学=核大小（奇数，默认 3）；Sobel=忽略参数；ROI裁剪、图像加减与或使用下方专用字段。"/>
+                                       Text="这两个数字代表什么，看你上面选的是哪个操作：&#10;· 二值化 = 明暗的分界线（0~255）；&#10;· 平滑 / 形态学 = 影响的范围大小，要填奇数，一般用 3；&#10;· Sobel 找边缘 = 这两个不用填；&#10;· 裁剪、两张图做加减与或 = 用下面专门给它们准备的栏位。"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="操作"/>
                                     <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
@@ -573,7 +573,7 @@
                                                     Value="{Binding SelectedStep.PreParam2}"/>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="ROI (x,y,w,h)"/>
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="框选区域 ROI (x,y,w,h)" ToolTip="要处理的方块区域：x,y 是左上角在图上的位置，w,h 是它的宽和高（都是像素）。也可以在右边那张图上直接按住左键拖一个框，不用手填"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.PreRoi, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DockPanel>
@@ -582,7 +582,7 @@
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="第二张图"/>
                                     <Button DockPanel.Dock="Right" Content="浏览" Padding="8,2" Margin="8,0,0,0"
                                         Style="{StaticResource ToolButtonStyle}"
-                                        ToolTip="选择第二张图像（图像加减与或）"
+                                        ToolTip="再挑一张图，用来和第一张做加减 / 与 / 或"
                                         Command="{Binding BrowsePathCommand}" CommandParameter="PreImage2Path"/>
                                     <TextBox Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.PreImage2Path, UpdateSourceTrigger=PropertyChanged}"/>
@@ -608,7 +608,7 @@
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="模板"/>
                                     <Button DockPanel.Dock="Right" Content="确定模板" Padding="12,4" Margin="8,0,0,0"
                                             Style="{StaticResource ToolButtonStyle}"
-                                            ToolTip="把右侧已框选的区域裁剪为模板图像，保存到 Templates/ 目录并在下方预览"
+                                            ToolTip="把右边框选出来的那块抠成一张模板图，存到 Templates 文件夹里，下面可以预览"
                                             Command="{Binding ConfirmTemplateCommand}"/>
                                 </DockPanel>
                                 <!-- 模板预览：优先显示已裁剪并保存的模板图（TEMPLATE 已确定时），
@@ -626,7 +626,7 @@
                                                 </PriorityBinding>
                                             </Image.Source>
                                         </Image>
-                                        <TextBlock Text="请先在右侧图像上拖拽鼠标框选模板区域" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        <TextBlock Text="先在右边那张图上，按住左键拖出一个框，框住你要让机器认的样子" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    Foreground="#71717A" FontSize="11" IsHitTestVisible="False">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
@@ -651,7 +651,7 @@
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="模板区域"/>
                                     <Button DockPanel.Dock="Right" Content="清除" Padding="8,2" Margin="8,0,0,0"
                                             Style="{StaticResource TtPillRedBtn}"
-                                            ToolTip="清除已框选的模板区域"
+                                            ToolTip="把刚才框选的样子清掉，重新框"
                                             Command="{Binding ClearTemplateRoiCommand}"/>
                                     <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
@@ -744,7 +744,7 @@
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="字符识别参数"/>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"
-                                       Text="用系统自带 OCR 离线识别文字。在右侧结果图上拖拽鼠标框选要识别的区域（不框选则识别整张图）；识别结果与「期望文本」比对，一致则本步 OK。中文需目标机已安装中文 OCR 语言包。"/>
+                                       Text="用 Windows 自带的文字识别读图里的字（不用联网）。在右边结果图上按住左键拖框，框出要读的位置；不框就是整张图都读。&#10;读出来的字和下面「期望文本」一模一样，这一步就算通过。&#10;要认中文，得先在这台电脑上装好中文的 OCR 语言包。"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="语言"/>
                                     <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
@@ -775,7 +775,7 @@
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="识别区域"/>
                                     <Button DockPanel.Dock="Right" Content="清除" Padding="8,2" Margin="8,0,0,0"
                                             Style="{StaticResource TtPillRedBtn}"
-                                            ToolTip="清除已框选的识别区域（回到整图识别）"
+                                            ToolTip="把框选的读字区域清掉，恢复成整张图都读"
                                             Command="{Binding ClearOcrRoiCommand}"/>
                                     <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
@@ -791,7 +791,7 @@
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="标定参数"/>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"
-                                       Text="程序自动走点标定：9 点 XY 铺成 3×3 网格，每点取图找标记质心，最小二乘拟合「像素 → 机台 mm」仿射（得出像素当量与 X/Y 方向角）；旋转按步距绕旋转轴走 5 个角度，圆拟合求旋转中心。结果存进工程「标定」表并导出为变量（标定_像素当量 等），模板匹配随后即可输出机台真实位置。注意：标记要放在视野里，旋转标定时标记须偏离旋转中心，否则半径过小会判失败。"/>
+                                       Text="标定的时候软件会自己走一遍：先把 9 个点排成 3×3 的格子，每个点拍一张图、找到标记的中心，算出「图上的 1 像素 = 机台的多少毫米」和 X / Y 的方向；做旋转标定时再按你定的步距转 5 个角度，算出旋转中心在哪。&#10;算完的结果存进工程的「标定」表，同时导出成变量（例如 标定_像素当量），之后模板匹配就能直接报出机台上的真实位置。&#10;两个要注意：标记要一直待在视野里；做旋转标定时标记不能正好压在旋转中心上，要偏出去一些，不然半径太小会算失败。"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="标定方式"/>
                                     <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
@@ -805,7 +805,7 @@
                                           MinWidth="150" IsEditable="True" IsReadOnly="False"
                                           ItemsSource="{Binding CameraNames}"
                                           Text="{Binding SelectedStep.CameraId, UpdateSourceTrigger=PropertyChanged}"
-                                          ToolTip="标定结果按相机名存放：从工程相机里选，或直接填相机编号（0/1/…）"/>
+                                          ToolTip="标定结果是按相机分别存的：从「相机」页选一台，或者直接填编号（0、1、…）"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -814,7 +814,7 @@
                                           MinWidth="150" IsEditable="True" IsReadOnly="False"
                                           ItemsSource="{Binding CalibAxisNames}"
                                           Text="{Binding SelectedStep.CalibXAxis, UpdateSourceTrigger=PropertyChanged}"
-                                          ToolTip="9 点标定的 X 轴（工程轴名，如「上料-轴1」）"/>
+                                          ToolTip="走 X 方向的那根轴，填「轴」页里的名字，例如 上料-轴1"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -823,7 +823,7 @@
                                           MinWidth="150" IsEditable="True" IsReadOnly="False"
                                           ItemsSource="{Binding CalibAxisNames}"
                                           Text="{Binding SelectedStep.CalibYAxis, UpdateSourceTrigger=PropertyChanged}"
-                                          ToolTip="9 点标定的 Y 轴（工程轴名）"/>
+                                          ToolTip="走 Y 方向的那根轴，填「轴」页里的名字"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -832,7 +832,7 @@
                                           MinWidth="150" IsEditable="True" IsReadOnly="False"
                                           ItemsSource="{Binding CalibAxisNames}"
                                           Text="{Binding SelectedStep.CalibRotAxis, UpdateSourceTrigger=PropertyChanged}"
-                                          ToolTip="旋转标定的旋转轴（工程轴名）"/>
+                                          ToolTip="做旋转标定时要转的那根轴，填「轴」页里的名字"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <local:NumericSliderRow Label="9 点间距" Unit="mm"
@@ -873,7 +873,7 @@
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="开始标定"/>
                                     <Button DockPanel.Dock="Right" Content="运行本步" Padding="10,3"
                                             Style="{StaticResource TtPillGreenBtn}"
-                                            ToolTip="只运行到本步骤：程序会驱动真实轴走 9+5 个点，请先确认机台安全"
+                                            ToolTip="【只跑到这一步】= 让真机走 9 + 5 个点来完成标定。按之前先确认机台周围没人、没有东西挡着。"
                                             Command="{Binding RunStepCommand}"
                                             CommandParameter="{Binding SelectedStep}"/>
                                 </DockPanel>

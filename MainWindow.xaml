@@ -14,99 +14,100 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 顶部导航栏 -->
         <Border Grid.Row="0" Style="{StaticResource NavBarStyle}">
             <StackPanel Orientation="Horizontal" x:Name="NavPanel">
-                <Button Tag="ProjectManager" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="ProjectManager" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="管工程文件：新建、打开、改名、删除，还有「让 AI 直接改配置」">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource ProjectManagerIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconProjectManagerBrush}"/>
                         <TextBlock Text="项目管理" VerticalAlignment="Center"/>
                     </StackPanel>
             </Button>
-            <Button Tag="AxisController" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+            <Button Tag="AxisController" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="连控制卡：选品牌型号和接线方式，连上之后轴和 IO 的数量就按真机来">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource ControllerIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconControllerBrush}"/>
                         <TextBlock Text="控制器" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Axis" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Axis" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="配电机：一根轴一页设置，速度、加减速、回零、限位都在这里">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource AxisIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconAxisBrush}"/>
                         <TextBlock Text="轴" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Io" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Io" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="配输入输出：输入是传感器给软件的信号，输出是软件去驱动的东西">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource IoIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconIoBrush}"/>
                         <TextBlock Text="IO" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Cylinder" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Cylinder" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="配气缸：把两路输出和到位感应绑好，就能伸出 / 缩回">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource CylinderIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconCylinderBrush}"/>
                         <TextBlock Text="气缸" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Point" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Point" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="记位置：一个表就是一个工位，把要去的点一行行存下来">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource PointIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconPointBrush}"/>
                         <TextBlock Text="点位表" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Comm" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Comm" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="跟外部设备说话：串口、网口、Modbus、管道、Web……没有真设备也能开仿真对端练">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource CommIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconCommBrush}"/>
                         <TextBlock Text="通讯" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Tray" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Tray" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="排料盘：填行列数和间距，一次算好每个格子的位置">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource TrayIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconTrayBrush}"/>
                         <TextBlock Text="料盘" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Camera" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Camera" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="接相机：搜索设备、连上看画面、调曝光，给视觉步骤用">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource CameraIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconCameraBrush}"/>
                         <TextBlock Text="相机" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Variable" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Variable" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="存数：产量、计数、允许 / 禁止这类值，流程里读写">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource VariableIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconVariableBrush}"/>
                         <TextBlock Text="变量" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Flow" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Flow" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="搭动作顺序：加一步、判断、循环，先【运行一次】再【循环运行】">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource FlowIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconFlowBrush}"/>
                         <TextBlock Text="流程" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Engineer" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Engineer" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="手动试机台：选工位后直接动轴、点 IO、点气缸、走点位">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource EngineerIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconEngineerBrush}"/>
                         <TextBlock Text="工程师" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Custom" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="自定义页面：可视化设计器（拖控件摆布局，配置 IO / 气缸 / 变量 / 轴动作）">
+                <Button Tag="Custom" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="自己做一块操作屏：拖按钮和指示灯，绑上 IO / 气缸 / 变量给现场用">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource CustomIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconCustomBrush}"/>
                         <TextBlock Text="自定义" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Operator" Click="Nav_Click" Style="{StaticResource NavButtonStyle}">
+                <Button Tag="Operator" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="生产界面：启动 / 暂停 / 停止 / 复位，看产量和异常">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource OperatorIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconOperatorBrush}"/>
                         <TextBlock Text="操作员" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Manual" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="查看使用说明书">
+                <Button Tag="Manual" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="打开这份说明书（左边选身份：新手入门 / 操作员 / 工程师 / 维护 / 管理员）">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource InfoIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource AccentBrush}"/>
-                        <TextBlock Text="说明书" VerticalAlignment="Center"/>
+                        <TextBlock Text="说明书" VerticalAlignment="Center" ToolTip="第一次用先看「新手入门」；忘了怎么操作随时回来查"/>
                     </StackPanel>
                 </Button>
             </StackPanel>
@@ -115,11 +116,14 @@
         <!-- 页面内容区 -->
         <ContentControl Grid.Row="1" x:Name="PageHost"/>
 
+        <!-- 本页怎么用：随页签切换的白话说明栏（文案来自 PageGuideCatalog）。 -->
+        <views:PageHintBar Grid.Row="2" x:Name="PageGuide" Visibility="Collapsed"/>
+
         <!-- 底部状态栏 -->
-        <views:StatusBarView Grid.Row="2"/>
+        <views:StatusBarView Grid.Row="3"/>
 
         <!-- 加载进度遮罩：切换/加载页面、打开/新建工程时显示（不确定进度条 + 提示） -->
-        <Grid x:Name="LoadingOverlay" Grid.RowSpan="4" Visibility="Collapsed"
+        <Grid x:Name="LoadingOverlay" Grid.RowSpan="5" Visibility="Collapsed"
               Background="#66000000" Panel.ZIndex="999">
             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="20"
                     Padding="32,26" HorizontalAlignment="Center" VerticalAlignment="Center"

@@ -49,7 +49,7 @@
                     FontSize="11" MinWidth="0" Padding="10,3" Click="BtnClearStp_Click"/>
             <Separator Width="1" Margin="6,4" Background="#CBD5E1"/>
             <ComboBox x:Name="CmbFlow" Width="118" FontSize="11" Margin="0,0,6,0"
-                      ToolTip="选择要运行的流程（默认主流程）" DisplayMemberPath="Name"/>
+                      ToolTip="挑一个要演示的流程；不挑就是主流程" DisplayMemberPath="Name"/>
             <Button x:Name="BtnRun" Content="运行" Style="{StaticResource TtPillGreenBtn}"
                     FontSize="11" MinWidth="0" Padding="10,3" Margin="0,0,4,0" Click="BtnRun_Click"/>
             <Button x:Name="BtnPause" Content="暂停" Style="{StaticResource TtPillOrangeBtn}"
@@ -63,10 +63,10 @@
                    HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="6,0,0,22"
                    TextWrapping="Wrap" MaxWidth="320" IsHitTestVisible="False"/>
 
-        <TextBlock x:Name="EmptyHint" Text="该工位暂无点位，无法仿真"
+        <TextBlock x:Name="EmptyHint" Text="这个工位还没有点位，演示不了：先去「点位表」加几个点"
                    FontSize="12" Foreground="#94A3B8" HorizontalAlignment="Center"
                    VerticalAlignment="Center" Visibility="Collapsed"/>
-        <TextBlock x:Name="TxtInteractHint" Text="点击工件可拖拽 · 空白拖拽旋转 · 滚轮缩放 · 可导入 DWG/DXF"
+        <TextBlock x:Name="TxtInteractHint" Text="按住工件可以拖动 · 在空白处拖是转视角 · 滚轮缩放 · 可以导入 DWG / DXF 图纸"
                    FontSize="10" Foreground="#2563EB" HorizontalAlignment="Right"
                    VerticalAlignment="Bottom" Margin="6" IsHitTestVisible="False"/>
 

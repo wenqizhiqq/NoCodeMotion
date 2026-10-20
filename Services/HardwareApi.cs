@@ -314,7 +314,7 @@ namespace NoCodeMotion.Services
             }
             var t = ProjectStore.Data.PointTables.FirstOrDefault(x => x.Name == name);
             if (t == null)
-                Warn($"未找到点位表「{name}」：请到「点位」页添加同名点位表。本条指令已跳过。");
+                Warn($"未找到点位表「{name}」：请到「点位表」页添加同名点位表。本条指令已跳过。");
             return t;
         }
 
@@ -339,7 +339,7 @@ namespace NoCodeMotion.Services
                 var p = t.Points.FirstOrDefault(x => x.Name == pn);
                 if (p == null)
                 {
-                    Warn($"点位表「{t.Name}」里没有点位「{pn}」：请到「点位」页添加该点位。本条指令已跳过。");
+                    Warn($"点位表「{t.Name}」里没有点位「{pn}」：请到「点位表」页添加该点位。本条指令已跳过。");
                     return false;
                 }
                 table = t; point = p;
@@ -409,7 +409,7 @@ namespace NoCodeMotion.Services
             string axisName = table.AxisNames.Count > idx ? table.AxisNames[idx] : string.Empty;
             if (string.IsNullOrWhiteSpace(axisName))
             {
-                Warn($"点位表「{table.Name}」第 {slot} 个轴槽还没有配轴：请先到「点位」页给该槽选一个轴。本条指令已跳过。");
+                Warn($"点位表「{table.Name}」第 {slot} 个轴槽还没有配轴：请先到「点位表」页给该槽选一个轴。本条指令已跳过。");
                 return 0;
             }
 

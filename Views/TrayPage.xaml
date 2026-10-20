@@ -62,37 +62,37 @@
                                 <StackPanel DockPanel.Dock="Top">
                                     <TextBlock Style="{StaticResource AppleSectionHeader}" Text="料盘参数"/>
                                     <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称"/>
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称" ToolTip="这个料盘叫什么；流程里按这个名字来取第几格"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
                                     <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="行数"/>
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="行数" ToolTip="上下方向有几排格子"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingRows, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
                                     <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="列数"/>
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="列数" ToolTip="左右方向有几列格子"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingCols, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
                                     <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始X"/>
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始X" ToolTip="左下角那一格，X 轴要走到哪儿（毫米）。先把轴手动开到那一格，再照抄这个数最准"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingStartX, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
                                     <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始Y"/>
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始Y" ToolTip="左下角那一格，Y 轴要走到哪儿（毫米）"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingStartY, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
                                     <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距X"/>
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距X" ToolTip="往右挪一列，X 要走多少毫米（负号就是往反方向挪）"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingPitchX, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
                                     <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距Y"/>
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距Y" ToolTip="往上挪一行，Y 要走多少毫米（负号就是往反方向挪）"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingPitchY, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
                                 </StackPanel>
@@ -105,12 +105,12 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0" Content="放弃修改"
+                                        <Button Grid.Column="0" Content="放弃修改" ToolTip="不要刚才改的参数了，回到上一次生成好的结果"
                                                 Command="{Binding ResetPendingCommand}"
                                                 IsEnabled="{Binding SelectedItem.HasPendingChanges}"
                                                 Style="{StaticResource TtPillGrayBtn}"
                                                 Margin="0,0,8,0"/>
-                                        <Button Grid.Column="1" Content="应用参数生成点位"
+                                        <Button Grid.Column="1" Content="应用参数生成点位" ToolTip="按上面填的行数、列数、起点和间距，把每一格的坐标一次全算出来（改了参数必须再点一次才生效）"
                                                 Command="{Binding ApplyCommand}"
                                                 IsEnabled="{Binding SelectedItem.HasPendingChanges}"
                                                 Style="{StaticResource TtPillBlueBtn}"/>
@@ -122,7 +122,7 @@
                         <!-- ============ 二维料盘 ============ -->
                         <Border Grid.Column="1" Style="{StaticResource AppleGroupCard}">
                             <DockPanel LastChildFill="True">
-                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource AppleSectionHeader}" Text="二维料盘（点击单元格切换 有料/空）"/>
+                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource AppleSectionHeader}" Text="料盘长这样（点某一格，就在 有料 / 空 之间切换）"/>
 
                                 <!-- 图例 -->
                                 <StackPanel Orientation="Horizontal" Margin="12,4,12,8" DockPanel.Dock="Top">

@@ -29,7 +29,7 @@
                         <TextBlock Text="添加控制卡" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Command="{Binding AutoDetectCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="重新连接控制卡并自动登记检测到的硬件">
+                <Button Command="{Binding AutoDetectCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="把所有控制卡重新连一遍，并自动登记这轮检测到的硬件（换了卡、加了扩展模块之后点这个）">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource ControllerIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                         <TextBlock Text="自动识别硬件" VerticalAlignment="Center"/>
@@ -75,37 +75,37 @@
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="品牌"/>
                             <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                       ItemsSource="{x:Static svc:Catalog.VendorNames}"
-                                      SelectedItem="{Binding SelectedItem.Vendor, UpdateSourceTrigger=PropertyChanged}"/>
+                                      SelectedItem="{Binding SelectedItem.Vendor, UpdateSourceTrigger=PropertyChanged}" ToolTip="控制卡是哪个厂家出的；选错厂家会连不上"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="总线类型"/>
                             <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                       ItemsSource="{x:Static svc:Catalog.BusTypeNames}"
-                                      SelectedItem="{Binding SelectedItem.BusType, UpdateSourceTrigger=PropertyChanged}"/>
+                                      SelectedItem="{Binding SelectedItem.BusType, UpdateSourceTrigger=PropertyChanged}" ToolTip="这张卡和电脑怎么通信（插卡 / 网线 / 串口 / EtherCAT）。它还决定这张卡上的轴是什么轴类型"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="卡型号"/>
                             <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
-                                      ToolTip="候选按上面已选的「品牌 + 总线类型」自动过滤（来自底层 CardFamilyCatalog）"
+                                      ToolTip="这里的候选会跟着上面的「品牌 + 总线类型」自动筛选：先把品牌和接线方式选对，再来挑型号"
                                       ItemsSource="{Binding CardTypeOptions}"
                                       SelectedItem="{Binding SelectedItem.CardType, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="卡号"/>
-                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.CardNo}"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.CardNo}" ToolTip="同一台电脑上这是第几张卡，从 0 开始，要和实际编号对上"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="轴数量"/>
-                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.AxisCount}"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.AxisCount}" ToolTip="这张卡准备带几根轴。点了【连接】之后，会被卡真正报上来的数覆盖"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="连接方式"/>
-                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.Connection}" SelectedValuePath="Content">
+                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.Connection}" SelectedValuePath="Content" ToolTip="卡和电脑怎么连：PCI = 插在电脑槽位里；网口 = 网线，还要填卡的 IP；COM = 串口线；EtherCAT = 工业以太网">
                                 <ComboBoxItem Content="PCI"/>
                                 <ComboBoxItem Content="网口"/>
                                 <ComboBoxItem Content="COM"/>
@@ -125,10 +125,10 @@
                     <StackPanel>
                         <TextBlock Style="{StaticResource AppleSectionHeader}" Text="扩展 IO 模块"/>
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
-                                   Text="先填控制卡主板自带的 IO 数，再逐个添加 CAN / EtherCAT 扩展模块（选型号自动带出 IO / 轴数）；输入 / 输出 / 轴数量自动汇总到「数量汇总」。"/>
+                                   Text="先填这张卡主板自己带的 IO 点数，再往下逐个加 CAN / EtherCAT 扩展模块（选好型号后，模块自带的 IO 数和轴数会自动填进来）；加完之后「数量汇总」自动帮你算总数。"/>
                         <!-- 未选卡型号时的提示（流程：选卡型号 → 选扩展IO → 再连接） -->
                         <TextBlock Margin="16,0,16,6" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource WarningBrush}"
-                                   Text="请先在上方「基本信息」选择「卡型号」，再配置扩展 IO（主板 IO 数 / 挂接模块）。">
+                                   Text="先在上方「基本信息」里选好「卡型号」，这一栏才会让你配扩展 IO（主板 IO 数、挂哪些模块）。">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -145,16 +145,16 @@
                         <StackPanel IsEnabled="{Binding CanConfigureExpansion}">
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="主板输入IO数"/>
-                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.InIoCount, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.InIoCount, UpdateSourceTrigger=PropertyChanged}" ToolTip="卡主板上接了多少个输入点（传感器那一路）"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="主板输出IO数"/>
-                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.OutIoCount, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.OutIoCount, UpdateSourceTrigger=PropertyChanged}" ToolTip="卡主板上接了多少个输出点（气缸阀、指示灯那一路）"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
 
-                        <TextBlock Style="{StaticResource SubLabel}" Margin="16,8,16,0" Text="已挂扩展模块（型号 / 数量 / 单模块输入 / 单模块输出 / 单模块轴数）"/>
+                        <TextBlock Style="{StaticResource SubLabel}" Margin="16,8,16,0" Text="已经挂上的扩展模块（型号 / 挂几个 / 每个几个输入 / 每个几个输出 / 每个带几根轴）"/>
                         <ItemsControl ItemsSource="{Binding SelectedItem.ExpansionModules}" Margin="16,4,16,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -191,9 +191,9 @@
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" Style="{StaticResource SubLabel}" Text="模块型号"/>
                                                 <TextBlock Grid.Column="1" Style="{StaticResource SubLabel}" Text="数量" HorizontalAlignment="Right"/>
-                                                <TextBlock Grid.Column="2" Style="{StaticResource SubLabel}" Text="单入" HorizontalAlignment="Right"/>
-                                                <TextBlock Grid.Column="3" Style="{StaticResource SubLabel}" Text="单出" HorizontalAlignment="Right"/>
-                                                <TextBlock Grid.Column="4" Style="{StaticResource SubLabel}" Text="单轴" HorizontalAlignment="Right"/>
+                                                <TextBlock Grid.Column="2" Style="{StaticResource SubLabel}" Text="单入" HorizontalAlignment="Right" ToolTip="这一种模块自带几个输入点"/>
+                                                <TextBlock Grid.Column="3" Style="{StaticResource SubLabel}" Text="单出" HorizontalAlignment="Right" ToolTip="这一种模块自带几个输出点"/>
+                                                <TextBlock Grid.Column="4" Style="{StaticResource SubLabel}" Text="单轴" HorizontalAlignment="Right" ToolTip="这一种模块能多带几根轴"/>
                                             </Grid>
                                         </StackPanel>
                                     </Border>
@@ -240,13 +240,13 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Style="{StaticResource TtPillGreenBtn}" Content="连接控制器" Margin="0,0,4,0" IsEnabled="{Binding CanConnect}" ToolTip="获取卡参数并连接该控制卡（后台连接，弹窗显示进度）" Command="{Binding ConnectControllerCommand}"/>
-                                <Button Style="{StaticResource TtPillGrayBtn}" Content="断开" ToolTip="关闭该控制卡连接" Command="{Binding DisconnectCommand}"/>
+                                <Button Style="{StaticResource TtPillGreenBtn}" Content="连接控制器" Margin="0,0,4,0" IsEnabled="{Binding CanConnect}" ToolTip="连上这张卡，顺便问它要真实的轴数和 IO 数（在后台连，会弹一个进度窗）" Command="{Binding ConnectControllerCommand}"/>
+                                <Button Style="{StaticResource TtPillGrayBtn}" Content="断开" ToolTip="断开这张卡的连接（不影响别的卡）" Command="{Binding DisconnectCommand}"/>
                             </StackPanel>
                         </DockPanel>
                         <!-- 连接的影响范围说明：只调数量、不改名称，免得用户以为连接会冲掉已配好的轴 / IO -->
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,4" TextWrapping="Wrap"
-                                   Text="连接控制器只按底层 / 配置调整本卡轴与 IO 的数量（多了从尾部删、少了补默认名）；已有轴 / IO 的名称、功能、电平与运动参数不会被改，其它控制器的点也不动。"/>
+                                   Text="点【连接】只会按这张卡的真实情况调整数量：多了就从末尾删掉，少了就补上默认名字。你已经改好的轴名、IO 名、功能、电平和运动参数都不会被动，别的卡上的点也不动。"/>
                         <!-- 连接进度条：点击「连接」后台执行期间显示，避免界面卡死且无反馈 -->
                 <Border Visibility="{Binding IsConnecting, Converter={StaticResource BoolToVis}}" Margin="16,4,16,6">
                     <StackPanel Orientation="Vertical">
@@ -265,9 +265,9 @@
                 <!-- ============ 底层连接总览（真实状态，来自 WenQiZhiCardBridge.ControllerStatus） ============ -->
                 <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,0,10">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource AppleSectionHeader}" Text="底层连接总览（真实状态）"/>
+                        <TextBlock Style="{StaticResource AppleSectionHeader}" Text="连接总览（真机状态）"/>
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
-                                   Text="下列状态直接来自底层 WenQiZhiCardBridge：每张已初始化的控制卡真实就绪情况。点「连接 / 断开」后自动刷新。"/>
+                                   Text="下面显示每一张已经初始化过的控制卡此刻的真实就绪情况；点【连接】或【断开】之后会自动刷新。"/>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <ItemsControl ItemsSource="{Binding ConnectionStatusLines}" Margin="16,6,16,8">
                             <ItemsControl.ItemTemplate>
@@ -286,7 +286,7 @@
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate>
-                                                        <TextBlock Style="{StaticResource SubLabel}" Text="暂无已连接的控制器（点「连接」后这里会显示底层真实状态）。"/>
+                                                        <TextBlock Style="{StaticResource SubLabel}" Text="还没有连上的控制器（在上面点【连接】之后，这里就会显示真机的真实状态）。"/>
                                                     </ControlTemplate>
                                                 </Setter.Value>
                                             </Setter>
@@ -321,15 +321,15 @@
                                        Foreground="{StaticResource AccentBrush}" Text="{Binding TotalAxis}"/>
                         </DockPanel>
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,2,16,12" TextWrapping="Wrap"
-                                   Text="输入 / 输出 IO 总数 = 主板 IO + Σ(模块数量 × 单模块 IO)；轴总数 = 卡自身轴数 + Σ(模块数量 × 单模块附加轴数)。"/>
+                                   Text="输入 / 输出 IO 总数 = 主板上的点数 +（每种模块的点数 × 挂了几个）；轴总数 = 卡本身的轴数 +（每种模块带的轴数 × 挂了几个）。"/>
                     </StackPanel>
                 </Border>
                 <!-- ============ 连接后真实检测（来自底层硬件） ============ -->
                 <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,0,10">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource AppleSectionHeader}" Text="连接后真实检测（来自底层硬件）"/>
+                        <TextBlock Style="{StaticResource AppleSectionHeader}" Text="连上之后卡实际报出来的数"/>
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,0,16,6" TextWrapping="Wrap"
-                                   Text="点「连接」后从控制卡真实读到的轴数与 IO 数（覆盖上面的配置汇总；0 表示尚未连接或卡未上报）。"/>
+                                   Text="点【连接】之后从卡真正读到的轴数和 IO 数 —— 以这里为准，会盖掉上面按配置算出来的数；显示 0 = 还没连上或卡没报数。"/>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="真实轴数"/>

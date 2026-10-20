@@ -60,15 +60,12 @@
                         <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap">
                             <Run Text="已连接控制卡真实检测到的轴数量："/>
                             <Run Text="{Binding DetectedAxisCount, Mode=OneWay}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
-                            <Run Text="（连接后自动获取，来自底层硬件；0 表示尚未连接或卡未上报）"/>
+                            <Run Text="（连上控制卡后软件自动读到的真实数量；显示 0 = 还没连上，或卡没报数）"/>
                         </TextBlock>
                     </DockPanel>
                 </Border>
 
             <!-- 「-」命名约定提示（与新建工程弹窗一致） -->
-            <local:PageHintBar DockPanel.Dock="Bottom"
-                               OperationText="命名建议写成「工位-对象」，例如 上料-轴1 / 搬运-轴2 / 下料-轴3。"
-                               PrecautionText="名称里第一个「-」之前的文字会成为下拉框的分组前缀：同类名称超过 20 个时，下拉框自动折叠成「一级分类 → 右侧二级菜单」的级联。改名后请确认没有流程 / 点位仍在引用旧名。"/>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <!-- 4 列紧凑容器：WrapPanel 保证每张卡只有自身内容那么高（不拉齐高度，避免大片空白） -->
                     <WrapPanel Orientation="Horizontal" Margin="10,0,10,8">
@@ -83,17 +80,17 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="轴类型"/>
-                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource DenseValue}" Text="{Binding SelectedItem.AxisType, Mode=OneWay}" ToolTip="只读：轴类型跟着所属控制器的「总线类型」走。要改请到「控制器」页改该控制器的总线类型（该卡的轴会一起换类型）。"/>
+                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource DenseValue}" Text="{Binding SelectedItem.AxisType, Mode=OneWay}" ToolTip="这里改不了：轴的类型由它所在控制卡的接线方式决定。要改请到「控制器」页改那张卡的总线类型，同一张卡上的轴会一起变。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="轴号"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.AxisNo}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.AxisNo}" ToolTip="这张卡上的第几路脉冲 / 轴编号，要和卡的实际接线一致。对调了就会动错轴。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="单位"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.Unit}" SelectedValuePath="Content">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.Unit}" SelectedValuePath="Content" ToolTip="这根轴的位置用什么单位计（毫米 / 度 / 脉冲 …）。它只影响显示和填写，真正走多远由「脉冲当量」决定。">
                                         <ComboBoxItem Content="mm"/>
                                         <ComboBoxItem Content="°"/>
                                         <ComboBoxItem Content="脉冲"/>
@@ -104,7 +101,7 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="控制器"/>
-                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource DenseValue}" Text="{Binding SelectedItem.Controller, Mode=OneWay}" ToolTip="只读：轴的归属在「控制器」页决定 —— 连接控制器 / 生成轴点位时按本卡轴数建轴并绑定；本页新增的轴默认归到第一个控制器。"/>
+                                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource DenseValue}" Text="{Binding SelectedItem.Controller, Mode=OneWay}" ToolTip="这里改不了：轴属于哪张卡，是在「控制器」页连接时按这张卡的轴数自动绑好的；在本页新加的轴默认归到第一个控制器。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -116,47 +113,47 @@
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="脉冲当量"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.PulsePerUnit}"
-                                             ToolTip="脉冲当量：走 1 个单位要发多少个脉冲（pulse/unit），按机械实际算 = 每转脉冲数 ÷ 丝杠导程。&#10;★ 填 0 会被卡拒绝运动指令（Jog / 设零点报错误码），默认 1000（0.001 单位/脉冲）。"/>
+                                             ToolTip="脉冲当量：电机发多少个脉冲，机器真正走 1 个单位（1mm / 1°）。算法 = 每转脉冲数 ÷ 丝杠导程。&#10;不知道填多少就先留 1000（等于一个脉冲走 0.001 单位），能动起来再按实际微调。&#10;★ 填 0 会被卡直接拒绝所有动作（点动、回零都报错）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="起始速度"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.StartVel}"
-                                             ToolTip="起始速度（单位/秒）：梯形曲线的起跳速度，默认 100。填 0 等于让轴从静止硬起步，步进机容易失步。"/>
+                                             ToolTip="起始速度（单位/秒）：轴刚起步那一下的速度，默认 100。&#10;填 0 = 从静止硬拽，步进电机容易丢步，位置就会越走越偏。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="运行速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.Speed}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.Speed}" ToolTip="运行速度（单位/秒）：自动运行、走点位时这根轴跑多快。先用小速度（比如 100）试走，确认没问题再加快。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="停止速度"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.StopVel}"
-                                             ToolTip="停止速度（单位/秒）：减速段的收尾速度，默认与起始速度一致（100），厂商示例同口径。"/>
+                                             ToolTip="停止速度（单位/秒）：轴快停下时最后一段的速度，默认和起始速度一样（100）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="加速时间"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.Accel}"
-                                             ToolTip="加速时间（秒）：从起始速度加速到额定速度所需的时间，不是加速度值。常用 0.1~0.5 秒。"/>
+                                             ToolTip="加速时间（秒）：从起始速度加到运行速度要几秒 —— 填的是时间，不是加速度。不知道就填 0.2（常用 0.1~0.5）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="减速时间"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.Decel}"
-                                             ToolTip="减速时间（秒）：从额定速度减速到停止所需的时间，不是减速度值。常用 0.1~0.5 秒。"/>
+                                             ToolTip="减速时间（秒）：从运行速度降到停住要几秒 —— 填的是时间，不是减速度。不知道就填 0.2（常用 0.1~0.5）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="加加速度"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.Jerk}"
-                                             ToolTip="加加速度：S 曲线的平滑量。「速度类型 = 梯形」时 0 才是准确值；要用 S 型才填大于 0。"/>
+                                             ToolTip="加加速度：走 S 型曲线时的圆滑程度。速度类型选「梯形」时这里必须是 0；只有选「S型」才填大于 0。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="速度类型"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.SpeedCurve}" SelectedValuePath="Content" ToolTip="梯形（T 型）或 S 型加减速；对应卡层的速度类型参数">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.SpeedCurve}" SelectedValuePath="Content" ToolTip="梯形 = 加速、匀速、减速（绝大多数机台用这个）；S型 = 加减速更圆滑，适合怕冲击、怕晃的机构。">
                                         <ComboBoxItem Content="梯形"/>
                                         <ComboBoxItem Content="S型"/>
                                     </ComboBox>
@@ -164,7 +161,7 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="S段"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.SPara}" ToolTip="S 段时间（单位：秒，范围 0~0.5）：仅「速度类型 = S型」时生效；梯形下保持 0。"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.SPara}" ToolTip="S 型过渡时间（秒，0~0.5）：只有速度类型选「S型」才起作用；选「梯形」时保持 0。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -175,7 +172,7 @@
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="回零参数"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="回零方式"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.HomeMode}" SelectedValuePath="Content">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.HomeMode}" SelectedValuePath="Content" ToolTip="用什么信号来确定 0 点：常用的「原点开关+限位」= 先撞限位，再找原点开关，最可靠；「当前位置设零」= 不动就把现在当 0 点。">
                                         <ComboBoxItem Content="原点开关+限位"/>
                                         <ComboBoxItem Content="仅正限位"/>
                                         <ComboBoxItem Content="仅负限位"/>
@@ -189,7 +186,7 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="回零方向"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.HomeDir}" SelectedValuePath="Content" ToolTip="回零时先朝哪个方向找原点 / 限位">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.HomeDir}" SelectedValuePath="Content" ToolTip="回零时先往哪个方向去找原点开关 / 限位；撞到之后软件会自动退回来，把原点找准。">
                                         <ComboBoxItem Content="负向"/>
                                         <ComboBoxItem Content="正向"/>
                                     </ComboBox>
@@ -197,22 +194,22 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="回零速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.HomeSpeed}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.HomeSpeed}" ToolTip="回零时快找的速度（单位/秒）。往原点方向跑多快；机构行程长可以大一些。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="爬行速度"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.CreepSpeed}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.CreepSpeed}" ToolTip="回零时慢找的速度（单位/秒）：撞到开关之后换成这个速度一点点挪，越慢找得越准。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="原点偏移"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.HomeOffset}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.HomeOffset}" ToolTip="找到原点以后再往正方向挪这么远才算 0 点（用来避开开关本身、留出吸嘴距离）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="回零超时(ms)"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.HomeTimeoutMs}" ToolTip="0 = 不判断回零超时"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.HomeTimeoutMs}" ToolTip="回零最多等多少毫秒：到时间还没找到原点就报超时。填 0 = 一直等，不会报超时。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -223,22 +220,22 @@
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="限位与保护"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="软限位使能"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.SoftLimitEnable}" ToolTip="开启后软正 / 负限位值才会下发到卡并生效"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.SoftLimitEnable}" ToolTip="勾上之后，下面填的「软正限位 / 软负限位」才会真的传给卡起作用；不勾等于不设软限位。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="软正限位"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.PosLimitPlus}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.PosLimitPlus}" ToolTip="软件规定的正方向最远能到哪儿（单位同「单位」）。超过就不许走，比装限位开关便宜，但不能代替真正的限位。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="软负限位"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.PosLimitMinus}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.PosLimitMinus}" ToolTip="软件规定的负方向最远能到哪儿（填负数）。勾了「软限位使能」才起作用。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="限位电平"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.LimitLevel}" SelectedValuePath="Content" ToolTip="正 / 负限位信号的有效电平">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.LimitLevel}" SelectedValuePath="Content" ToolTip="限位开关被压到的时候，输出的是高电平还是低电平。按实际接线选，选错会一直通或一直没反应。">
                                         <ComboBoxItem Content="低电平"/>
                                         <ComboBoxItem Content="高电平"/>
                                     </ComboBox>
@@ -246,7 +243,7 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="到位误差"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.InPosError}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.InPosError}" ToolTip="走到目标位置后，差多少以内就算「到位了」（单位同「单位」）。填太小会一直等不到到位信号，填太大会没停准就下一步。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -257,7 +254,7 @@
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="电平与编码器"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="使能电平"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.EnableLevel}" SelectedValuePath="Content">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.EnableLevel}" SelectedValuePath="Content" ToolTip="驱动器要收到高电平还是低电平才肯上使能。按驱动器的接线图选。">
                                         <ComboBoxItem Content="高电平"/>
                                         <ComboBoxItem Content="低电平"/>
                                     </ComboBox>
@@ -265,7 +262,7 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="方向电平"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.DirLevel}" SelectedValuePath="Content">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.DirLevel}" SelectedValuePath="Content" ToolTip="正方向信号的电平。选反了会出现「点 + 实际往 − 走」，也可以在这里改回来。">
                                         <ComboBoxItem Content="正向"/>
                                         <ComboBoxItem Content="负向"/>
                                     </ComboBox>
@@ -273,7 +270,7 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="报警电平"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.AlarmLevel}" SelectedValuePath="Content">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.AlarmLevel}" SelectedValuePath="Content" ToolTip="驱动器报警信号的有效电平；没接报警线就选「无」。">
                                         <ComboBoxItem Content="高电平"/>
                                         <ComboBoxItem Content="低电平"/>
                                         <ComboBoxItem Content="无"/>
@@ -282,12 +279,12 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="报警使能"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AlarmEnable}" ToolTip="开启后伺服报警信号才会被卡识别并停轴"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AlarmEnable}" ToolTip="勾上之后，驱动器报故障时卡会识别到，并马上把这根轴停下来。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="原点电平"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.OriginLevel}" SelectedValuePath="Content">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.OriginLevel}" SelectedValuePath="Content" ToolTip="原点开关被压到时输出的是高电平还是低电平，按实际接线选。">
                                         <ComboBoxItem Content="低电平"/>
                                         <ComboBoxItem Content="高电平"/>
                                     </ComboBox>
@@ -295,7 +292,7 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="原点停止模式"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.OriginStopMode}" SelectedValuePath="Content">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.OriginStopMode}" SelectedValuePath="Content" ToolTip="撞到原点开关后怎么停：「减速停止」温和、位置准；「急停」马上停但会有冲击。">
                                         <ComboBoxItem Content="减速停止"/>
                                         <ComboBoxItem Content="急停"/>
                                     </ComboBox>
@@ -303,7 +300,7 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="编码器类型"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.EncoderType}" SelectedValuePath="Content">
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.EncoderType}" SelectedValuePath="Content" ToolTip="电机上有没有编码器、是哪一种。「无」= 不读实际位置，只看软件要求的位置。">
                                         <ComboBoxItem Content="无"/>
                                         <ComboBoxItem Content="增量式"/>
                                         <ComboBoxItem Content="绝对式"/>
@@ -312,22 +309,22 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="编码器分辨率"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.EncoderRes}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.EncoderRes}" ToolTip="编码器每转输出多少个脉冲（看电机手册）。填错了下面「编码器」读数就不对。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="编码器使能"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.EncoderEnable}"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.EncoderEnable}" ToolTip="勾上之后软件才会去读编码器的实际位置（用来发现和指令位置差了多少）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="编码器误差"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.EncoderDeviation}" ToolTip="指令位置 − 编码器位置 超过该值应报警"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.EncoderDeviation}" ToolTip="软件要求走到的位置，和编码器实际测到的位置，相差超过这个数就报警（用来看联轴器打滑、机构被卡住）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="急停减速"/>
-                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.EStopDecel}"/>
+                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding SelectedItem.EStopDecel}" ToolTip="拍下急停时用的减速度：数字越大停得越急。太大容易把工件甩出去，太小则停不住。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -336,20 +333,20 @@
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="轴权限"
-                                           ToolTip="只门控「轴控制」里的手动按钮；流程 / 点位 / Lua 的运行指令不受影响。"/>
+                                           ToolTip="这里的开关只管「轴控制」里的手动按钮能不能按；流程、点位、脚本里的自动运行不受影响。"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="允许手动操作"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AllowManual}" ToolTip="关闭后「轴控制」里的 点动 / Jog / 停止 按钮变灰"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AllowManual}" ToolTip="取消勾选后，「轴控制」里的 使能 / 点动 / Jog 按钮全部变灰按不动，防止别人误碰。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="允许回零"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AllowHome}"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AllowHome}" ToolTip="取消勾选后，「轴控制」里的【回零】按钮变灰（别人不能偷偷回零）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="允许设零点"/>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AllowSetZero}"/>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource DenseToggle}" IsChecked="{Binding SelectedItem.AllowSetZero}" ToolTip="取消勾选后，【设零点】按钮变灰。设零点会把所有点位重新算基准，一般只让工程师做。"/>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
@@ -358,7 +355,7 @@
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="轴状态"
-                                           ToolTip="状态全部来自底层真实读数（位置=指令位置，编码器=反馈位置）；读不到的项显示「—」，不编造。"/>
+                                           ToolTip="这一栏全是真机读回来的数：位置 = 软件要求到的位置，编码器 = 实际测到的位置。读不到的显示「—」，软件不会编一个数给你看。"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="选中轴"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
@@ -403,7 +400,7 @@
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="报警"
-                                               ToolTip="有轴状态字的卡族：取状态字 bit0。没有状态字的卡族读不到，显示「—」，请改看下面「报警码」。"/>
+                                               ToolTip="这根轴现在有没有报警。有的卡能直接读到；读不到的显示「—」，请改看下面的「报警码」。"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                                Text="{Binding Monitor.AlarmText}" Foreground="{Binding Monitor.AlarmColor}"/>
                                 </DockPanel>
@@ -412,7 +409,7 @@
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="报警码"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12.5" VerticalAlignment="Center" FontFamily="Consolas"
                                                Text="{Binding Monitor.AlarmCodeText}" Foreground="{Binding Monitor.AlarmCodeColor}"
-                                               ToolTip="底层 GetCardAxisAlarmState 的原始返回值，原样显示不翻译（各卡族语义不同：有的是报警状态 0/1，有的是错误码）。非 0 时若轴不动，请按卡手册清报警。"/>
+                                               ToolTip="卡返回的原始报警编号，软件不翻译（不同卡含义不一样：有的用 0/1 表示有没有报警，有的是具体故障码）。&#10;只要不是 0 而轴又不动，先按这张卡的手册清一次报警。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
@@ -440,7 +437,7 @@
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="状态字"/>
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="状态字" ToolTip="卡里表示这根轴状态的那一串原始数字（每一位代表一件事：有没有使能、撞没撞限位、动没动）。看不懂没关系，看上面几行的中文就够了"/>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12" FontFamily="Consolas" VerticalAlignment="Center"
                                                Text="{Binding Monitor.IoWordText}" Foreground="{StaticResource TextMutedBrush}"
                                                ToolTip="{Binding IoWordHint}"/>
@@ -455,13 +452,13 @@
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="点动距离"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding Monitor.JogStep, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="点动 / Jog 每步距离（单位同该轴「单位」）"/>
+                                             ToolTip="【点动 + / −】每按一次走多远（单位和上面「单位」一致）。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="手动速度"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource DenseField}" Text="{Binding Monitor.ManualSpeed, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="点动 / Jog 的速度；自动运行与点位移动仍按该轴「运行速度」"/>
+                                             ToolTip="手动点动 / Jog 时用的速度。自动运行和点位移动不看这里，仍然用上面的「运行速度」。"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource DenseHairline}"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
@@ -473,35 +470,35 @@
                                 <StackPanel Margin="10,8,10,12">
                                     <UniformGrid Columns="2" Margin="0,0,0,6">
                                         <Button Content="使能" Style="{StaticResource TtPillBlueBtn}" Margin="0,0,3,0"
-                                                Command="{Binding Monitor.EnableCommand}" ToolTip="给该轴使能（上伺服）。未使能的轴收下指令也不会动。"/>
+                                                Command="{Binding Monitor.EnableCommand}" ToolTip="给这根轴通上使能（上伺服）。没上使能的轴，你发什么动作它都不动。"/>
                                         <Button Content="不使能" Style="{StaticResource TtPillGrayBtn}" Margin="3,0,0,0"
-                                                Command="{Binding Monitor.DisableCommand}" ToolTip="撤销该轴使能（下伺服）。总线轴走卡层「轴失能」；脉冲卡由驱动器侧断使能信号，可能不生效。"/>
+                                                Command="{Binding Monitor.DisableCommand}" ToolTip="断开这根轴的使能（下伺服），之后可以用手搬动。网口 / 总线轴直接生效；脉冲卡要看驱动器那头有没有断使能信号，可能不生效。"/>
                                     </UniformGrid>
                                     <UniformGrid Columns="1" Margin="0,0,0,6">
                                         <Button Content="停止" Style="{StaticResource TtPillRedBtn}"
-                                                Command="{Binding Monitor.StopCommand}" ToolTip="减速停止该轴（Jog 也用它停）"/>
+                                                Command="{Binding Monitor.StopCommand}" ToolTip="让这根轴减速停下来（按住 Jog 松开时也是它停）。"/>
                                     </UniformGrid>
                                     <UniformGrid Columns="2" Margin="0,0,0,6">
                                         <Button Content="点动 −" Style="{StaticResource TtPillOrangeBtn}" Margin="0,0,3,0"
-                                                Command="{Binding Monitor.InchMinusCommand}" ToolTip="按「点动距离」反向走一步"/>
+                                                Command="{Binding Monitor.InchMinusCommand}" ToolTip="按上面「点动距离」往负方向走一格。"/>
                                         <Button Content="点动 +" Style="{StaticResource TtPillBlueBtn}" Margin="3,0,0,0"
-                                                Command="{Binding Monitor.InchPlusCommand}" ToolTip="按「点动距离」正向走一步"/>
+                                                Command="{Binding Monitor.InchPlusCommand}" ToolTip="按上面「点动距离」往正方向走一格。"/>
                                     </UniformGrid>
                                     <UniformGrid Columns="2" Margin="0,0,0,6">
                                         <Button Content="Jog −" Style="{StaticResource TtPillOrangeBtn}" Margin="0,0,3,0"
                                                 beh:JogHoldBehavior.StartCommand="{Binding Monitor.JogMinusStartCommand}"
                                                 beh:JogHoldBehavior.StopCommand="{Binding Monitor.JogStopCommand}"
-                                                ToolTip="按住不放才连续反向运动，松开即停。只点一下只会走一瞬 —— 要按「点动距离」走一步请用「点动 −」。"/>
+                                                ToolTip="按住不放才一直往负方向走，一松手就停。只点一下只会动一瞬 —— 想老老实实走一格请用【点动 −】。"/>
                                         <Button Content="Jog +" Style="{StaticResource TtPillBlueBtn}" Margin="3,0,0,0"
                                                 beh:JogHoldBehavior.StartCommand="{Binding Monitor.JogPlusStartCommand}"
                                                 beh:JogHoldBehavior.StopCommand="{Binding Monitor.JogStopCommand}"
-                                                ToolTip="按住不放才连续正向运动，松开即停。只点一下只会走一瞬 —— 要按「点动距离」走一步请用「点动 +」。"/>
+                                                ToolTip="按住不放才一直往正方向走，一松手就停。只点一下只会动一瞬 —— 想老老实实走一格请用【点动 +】。"/>
                                     </UniformGrid>
                                     <UniformGrid Columns="2">
                                         <Button Content="回零" Style="{StaticResource TtPillGrayBtn}" Margin="0,0,3,0"
-                                                Command="{Binding Monitor.HomeCommand}" ToolTip="按该轴回零参数执行回零（后台执行，完成/超时后提示）"/>
+                                                Command="{Binding Monitor.HomeCommand}" ToolTip="按本页「回零参数」的设法定位原点。在后台跑，成功或超时会在下面提示。"/>
                                         <Button Content="设零点" Style="{StaticResource TtPillGreenBtn}" Margin="3,0,0,0"
-                                                Command="{Binding Monitor.SetZeroCommand}" ToolTip="把该轴当前指令位置置为 0"/>
+                                                Command="{Binding Monitor.SetZeroCommand}" ToolTip="把这根轴现在的位置直接当成 0 点（轴不动）。&#10;注意：改过零点之后，所有点位都是相对这个新零点算的，必要时得重新保存点位。"/>
                                     </UniformGrid>
                                 </StackPanel>
                             </StackPanel>

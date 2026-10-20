@@ -154,20 +154,16 @@
             <DockPanel>
                 <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                 <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap">
-                    <Run Text="已连接控制卡真实检测到的 IO 数量：输入 "/>
+                    <Run Text="连上的控制卡实际报出来的 IO 数量：输入 "/>
                     <Run Text="{Binding DetectedInIo, Mode=OneWay}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
                     <Run Text=" / 输出 "/>
                     <Run Text="{Binding DetectedOutIo, Mode=OneWay}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
-                    <Run Text="（连接后自动获取，来自底层硬件；0 表示尚未连接或卡未上报）"/>
+                    <Run Text="（连上控制卡后软件自动读到的真实数量；显示 0 = 还没连上，或卡没报数）"/>
                 </TextBlock>
             </DockPanel>
         </Border>
 
         <!-- 「-」命名约定提示（与新建工程弹窗一致） -->
-        <local:PageHintBar Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0"
-                           OperationText="命名建议写成「工位-对象」，例如 上料-入1 / 上料-出1 / 下料-入3。"
-                           PrecautionText="名称里第一个「-」之前的文字会成为下拉框的分组前缀：同类名称超过 20 个时，下拉框自动折叠成「一级分类 → 右侧二级菜单」的级联。改名后请确认没有流程 / 点位仍在引用旧名。"/>
-
         <!-- ============== 输入 IO 面板 ============== -->
         <DockPanel Grid.Column="0" Grid.Row="1" Margin="0,0,4,0">
             <StackPanel DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">

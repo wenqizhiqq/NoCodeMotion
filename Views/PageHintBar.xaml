@@ -16,7 +16,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="操作：" FontSize="11.5" FontWeight="SemiBold"
+                <TextBlock Grid.Column="0" Text="怎么做：" FontSize="11.5" FontWeight="SemiBold"
                            Foreground="#64748B" VerticalAlignment="Top" Margin="0,0,4,0"/>
                 <TextBlock Grid.Column="1" Text="{Binding OperationText, RelativeSource={RelativeSource AncestorType=local:PageHintBar}}"
                            TextWrapping="Wrap" FontSize="11.5" LineHeight="17"
@@ -27,7 +27,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="注意：" FontSize="11.5" FontWeight="SemiBold"
+                <TextBlock Grid.Column="0" Text="容易踩的坑：" FontSize="11.5" FontWeight="SemiBold"
                            Foreground="#DC2626" VerticalAlignment="Top" Margin="0,0,4,0"/>
                 <TextBlock Grid.Column="1" Text="{Binding PrecautionText, RelativeSource={RelativeSource AncestorType=local:PageHintBar}}"
                            TextWrapping="Wrap" FontSize="11.5" LineHeight="17"

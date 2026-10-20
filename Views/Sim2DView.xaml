@@ -70,7 +70,7 @@
                             bhv:JogHoldBehavior.StartParameter="X-"
                             bhv:JogHoldBehavior.StopCommand="{Binding JogStopCmd, ElementName=Root2D}"/>
                     <Button Grid.Row="1" Grid.Column="1" Content="回零" Style="{StaticResource TtGrayBtn}" FontSize="12" Padding="0"
-                            Click="Home_Click" ToolTip="所有轴回零（目标位置=0）"/>
+                            Click="Home_Click" ToolTip="把所有轴都回零（仿真里位置归到 0）"/>
                     <Button Grid.Row="1" Grid.Column="2" Content="X＋" Style="{StaticResource TtGrayBtn}" FontSize="12" Padding="0"
                             bhv:JogHoldBehavior.StartCommand="{Binding JogStartCmd, ElementName=Root2D}"
                             bhv:JogHoldBehavior.StartParameter="X+"
@@ -93,7 +93,7 @@
                             bhv:JogHoldBehavior.StopCommand="{Binding JogStopCmd, ElementName=Root2D}"/>
                     <Button Content="停止" Width="46" Height="24" FontSize="11" Padding="0" Cursor="Hand"
                             Background="{StaticResource DangerBrush}" Foreground="White" BorderThickness="0"
-                            Click="Stop_Click" ToolTip="停止点动并冻结当前位置"/>
+                            Click="Stop_Click" ToolTip="让正在动的轴停下，并把现在的位置冻住"/>
                 </StackPanel>
 
                 <!-- 读数 + 倍率 + 轨迹 -->
@@ -132,14 +132,14 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="倍率" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                         <Slider x:Name="SlScale" Minimum="1" Maximum="100" Value="10" Width="110" VerticalAlignment="Center"
-                                ValueChanged="SlScale_ValueChanged" ToolTip="仿真速度倍率：作用于额定速度与点动速度"/>
+                                ValueChanged="SlScale_ValueChanged" ToolTip="画面演示跑多快：只改仿真的速度，不会影响真机"/>
                         <TextBlock x:Name="TbScale" Text="10%" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="6,0,12,0" MinWidth="34"/>
                         <CheckBox x:Name="CbTrace" Content="轨迹" FontSize="11" IsChecked="True" VerticalAlignment="Center"
                                   Checked="CbTrace_Changed" Unchecked="CbTrace_Changed" Margin="0,0,6,0"
                                   Foreground="{StaticResource TextSecondaryBrush}"/>
                         <Button Content="生成布局" FontSize="11" Padding="8,2" MinWidth="0" Cursor="Hand"
                                 Background="Transparent" BorderThickness="0" Foreground="{StaticResource AccentBrush}" Margin="0,0,8,0"
-                                Click="BtnGenLayout_Click" ToolTip="按当前工程配置自动生成 2D 布局：料盘阵列 + 真空吸嘴组 + 轴IO限位/原点传感器（与实际轴IO联动）"/><Button Content="清轨迹" FontSize="11" Padding="8,2" MinWidth="0" Cursor="Hand"
+                                Click="BtnGenLayout_Click" ToolTip="按你现在工程里的配置自动画一张 2D 布局：料盘格子、吸嘴，还有每根轴两端的限位 / 原点传感器（跟着真实 IO 信号一起变）"/><Button Content="清轨迹" FontSize="11" Padding="8,2" MinWidth="0" Cursor="Hand"
                                 Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextSecondaryBrush}"
                                 Click="ClearTrace_Click"/>
                     </StackPanel>

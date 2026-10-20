@@ -42,7 +42,7 @@ namespace NoCodeMotion.Services.Hardware.Comm.Sim
 
         public override string Endpoint => $"本机 Modbus 从站 0.0.0.0:{Port}（站号 {Station}），本端连 {Cfg.PortOrIp}:{Port}";
 
-        public override string Note => "数据区在内存：线圈 / 离散输入 / 保持寄存器 / 输入寄存器各 2048 点，初值全 0。"
+        public override string Note => "数据全放在内存里：线圈、离散输入、保持寄存器、输入寄存器各 2048 个位置，一开始都是 0。"
                                        + "本端写进去的值能立刻读回；「离散输入 / 输入寄存器」是只读区，要造初值就手工注入或改本端写入。";
 
         /// <summary>仿真的从站地址：借用「数据位」字段（Modbus 类型下它没有串口含义）。</summary>

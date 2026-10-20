@@ -25,37 +25,37 @@
                 <Button Command="{Binding NewCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                        <TextBlock Text="新建" VerticalAlignment="Center"/>
+                        <TextBlock Text="新建" VerticalAlignment="Center" ToolTip="建一个新工程：先挑模板（示例机台 / 空白），再起个名字"/>
                     </StackPanel>
                 </Button>
                 <Button Command="{Binding OpenCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource FolderIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                        <TextBlock Text="打开" VerticalAlignment="Center"/>
+                        <TextBlock Text="打开" VerticalAlignment="Center" ToolTip="打开列表里选中的工程；也可以直接双击它"/>
                     </StackPanel>
                 </Button>
                 <Button Command="{Binding SaveCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource SaveIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                        <TextBlock Text="保存" VerticalAlignment="Center"/>
+                        <TextBlock Text="保存" VerticalAlignment="Center" ToolTip="立刻把当前配置写进文件（平时改完会自动存，一般不用点它）"/>
                     </StackPanel>
                 </Button>
                 <Button Command="{Binding DeleteCommand}" Style="{StaticResource TtDeleteBtn}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                        <TextBlock Text="删除" VerticalAlignment="Center"/>
+                        <TextBlock Text="删除" VerticalAlignment="Center" ToolTip="删掉选中的那个工程文件（删了就找不回来了）"/>
                     </StackPanel>
                 </Button>
                 <Button Command="{Binding RenameCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource RenameIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                        <TextBlock Text="重命名" VerticalAlignment="Center"/>
+                        <TextBlock Text="重命名" VerticalAlignment="Center" ToolTip="给当前工程换个名字"/>
                     </StackPanel>
                 </Button>
                 <Button Command="{Binding RefreshCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource RefreshIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                        <TextBlock Text="刷新" VerticalAlignment="Center"/>
+                        <TextBlock Text="刷新" VerticalAlignment="Center" ToolTip="重新看一遍工程文件夹（在外面新建或删过文件之后用）"/>
                     </StackPanel>
                 </Button>
                 <TextBlock Text="{Binding Projects.Count, StringFormat=共 {0} 个工程}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="{StaticResource TextSecondaryBrush}"/>
@@ -122,21 +122,21 @@
                     <!-- AI 直接改工程文件（文件级往返）：复制路径与说明 → agent 改 xlsx → 软件弹窗确认载入/还原 -->
                     <Border Style="{StaticResource AppleGroupCard}">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="AI 直接改工程文件（改 xlsx）"/>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="让 AI 直接改配置文件（不用在软件里一项项点）"/>
                             <TextBlock Margin="12,2,12,8" FontSize="12" TextWrapping="Wrap"
                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                       Text="① 双击左列工程，把它设为「当前工程」——文件变化只跟当前工程；&#10;② 点【复制路径与说明】，整段粘给 AI / agent（说明里已写好这个 xlsx 的结构约定和改动红线）；&#10;③ 它直接改这个文件并保存，软件检测到变化后弹窗问你：&#10;　「载入文件」= 用文件里的新配置刷新软件；&#10;　「还原文件」= 用软件里现在的配置把文件盖回去（外部改动作废）；&#10;　「稍后」= 两边都不动，文件再变会再问一次；&#10;④ 期间别在软件里改配置：软件一改动就自动写盘，会盖掉 AI 的修改。"/>
+                                       Text="第一步：双击左边列表里的工程，把它设成「当前工程」（软件只盯着这一个文件）；&#10;第二步：点【复制路径与说明】，把整段话原样贴给 AI 或 agent —— 里面已经写好这个表格怎么读、哪些地方不能乱改；&#10;第三步：让 AI 直接改这个文件并保存。软件发现文件变了会弹窗问你三件事：&#10;　【载入文件】= 用文件里改好的新配置刷新软件；&#10;　【还原文件】= 不认外面的改动，用软件里现在的配置把文件盖回去；&#10;　【稍后】= 两边都不动，文件再变一次还会再问你；&#10;第四步：这期间别在软件里改配置 —— 软件一改动就自动写进文件，会把 AI 刚改的东西盖掉。"/>
                             <Border Margin="12,0,12,8" Padding="8,6" CornerRadius="6" Background="{StaticResource HoverBrush}">
                                 <TextBlock Text="{Binding SelectedFilePath}" FontSize="11.5" FontFamily="Consolas"
                                            TextWrapping="Wrap" Foreground="{StaticResource TextPrimaryBrush}"
-                                           ToolTip="要交给 AI 的文件；路径也可选中后自己 Ctrl+C"/>
+                                           ToolTip="要交给 AI 去改的就是这个文件；路径也可以自己选中复制"/>
                             </Border>
                             <StackPanel Orientation="Horizontal" Margin="12,0,12,12">
                                 <Button Content="复制路径与说明" Style="{StaticResource TtBaseBtn}" MinWidth="130"
                                         Command="{Binding CopyPathCommand}"
-                                        ToolTip="复制：工程文件绝对路径 + xlsx 结构约定与改动红线（给 AI 的操作说明）"/>
+                                        ToolTip="复制出去的是一整段「给 AI 的话」：文件在哪、这个表格每列是什么意思、哪些地方不能乱改"/>
                                 <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" FontSize="12"
-                                           Foreground="{StaticResource TextMutedBrush}" Text="改完不用回软件点保存。"/>
+                                           Foreground="{StaticResource TextMutedBrush}" Text="AI 改完存盘就行，不用回软件点保存 —— 软件会自己发现。"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

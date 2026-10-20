@@ -396,7 +396,7 @@ namespace NoCodeMotion.Views
             void Add(Shape el, double wAlong, string kind, string? bound, Func<bool?> snapBit)
             {
                 (double wx, double wy) = isX ? (wAlong, cross) : (cross, wAlong);
-                el.ToolTip = $"{a.Name}轴 {kind} · {(string.IsNullOrWhiteSpace(bound) ? "未绑定（控制卡状态字）" : $"IO「{bound}」")}";
+                el.ToolTip = $"{a.Name}轴 {kind} · {(string.IsNullOrWhiteSpace(bound) ? "没绑定 IO（直接看卡报的状态）" : $"IO「{bound}」")}";
                 CvLayout.Children.Add(el);
                 _ioMarks.Add((el, wx, wy, () => ReadAxisIo(item, bound, snapBit)));
             }

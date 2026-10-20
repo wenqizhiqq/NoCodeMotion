@@ -12,7 +12,7 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,6">
-            <TextBlock DockPanel.Dock="Left" Text="运行耗时 / OEE 统计" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+            <TextBlock DockPanel.Dock="Left" Text="跑得慢不慢（耗时统计）" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                 <Ellipse Width="10" Height="10" VerticalAlignment="Center" Margin="0,0,6,0">
                     <Ellipse.Style>
@@ -28,7 +28,7 @@
                     </Ellipse.Style>
                 </Ellipse>
                 <TextBlock Text="{Binding TowerText}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource TextSecondaryBrush}"/>
-                <Button Content="导出CSV" Style="{StaticResource TtPillBlueBtn}" MinWidth="0" Padding="10,3" Click="ExportButton_Click" ToolTip="导出 CT / 步骤耗时 / OEE 统计为 CSV，便于瓶颈分析。"/>
+                <Button Content="导出CSV" Style="{StaticResource TtPillBlueBtn}" MinWidth="0" Padding="10,3" Click="ExportButton_Click" ToolTip="把这些耗时数据存成 CSV 表格，方便拿去分析到底是哪一步最慢"/>
             </StackPanel>
         </DockPanel>
 
@@ -37,19 +37,19 @@
                 <!-- OEE -->
                 <WrapPanel Orientation="Horizontal" Margin="0,0,0,8">
                     <Border Style="{StaticResource CardBorderStyle}" Padding="10" Margin="0,0,8,0">
-                        <StackPanel><TextBlock Text="可用率" Style="{StaticResource KpiTitle}"/><TextBlock Text="{Binding AvailText}" Style="{StaticResource KpiValue}"/></StackPanel>
+                        <StackPanel><TextBlock Text="可用率" Style="{StaticResource KpiTitle}" ToolTip="机器真正在干活的时间，占总共开机时间的比例"/><TextBlock Text="{Binding AvailText}" Style="{StaticResource KpiValue}"/></StackPanel>
                     </Border>
                     <Border Style="{StaticResource CardBorderStyle}" Padding="10" Margin="0,0,8,0">
-                        <StackPanel><TextBlock Text="性能" Style="{StaticResource KpiTitle}"/><TextBlock Text="{Binding PerfText}" Style="{StaticResource KpiValue}"/></StackPanel>
+                        <StackPanel><TextBlock Text="性能" Style="{StaticResource KpiTitle}" ToolTip="实际速度和理想速度差多少：跑得比预期慢，这个数就低"/><TextBlock Text="{Binding PerfText}" Style="{StaticResource KpiValue}"/></StackPanel>
                     </Border>
                     <Border Style="{StaticResource CardBorderStyle}" Padding="10" Margin="0,0,8,0">
-                        <StackPanel><TextBlock Text="良率" Style="{StaticResource KpiTitle}"/><TextBlock Text="{Binding QualText}" Style="{StaticResource KpiValue}"/></StackPanel>
+                        <StackPanel><TextBlock Text="良率" Style="{StaticResource KpiTitle}" ToolTip="合格品占的比例 = 合格数 ÷ 总数"/><TextBlock Text="{Binding QualText}" Style="{StaticResource KpiValue}"/></StackPanel>
                     </Border>
                     <Border Style="{StaticResource CardBorderStyle}" Padding="10" Margin="0,0,8,0">
                         <StackPanel><TextBlock Text="OEE" Style="{StaticResource KpiTitle}"/><TextBlock Text="{Binding OeeText}" Style="{StaticResource KpiValue}"/></StackPanel>
                     </Border>
                     <Border Style="{StaticResource CardBorderStyle}" Padding="10" Margin="0,0,8,0">
-                        <StackPanel><TextBlock Text="完成轮数" Style="{StaticResource KpiTitle}"/><TextBlock Text="{Binding CycleText}" Style="{StaticResource KpiValue}"/></StackPanel>
+                        <StackPanel><TextBlock Text="完成轮数" Style="{StaticResource KpiTitle}" ToolTip="流程从头走到尾一共完成了多少轮"/><TextBlock Text="{Binding CycleText}" Style="{StaticResource KpiValue}"/></StackPanel>
                     </Border>
                     <Border Style="{StaticResource CardBorderStyle}" Padding="10">
                         <StackPanel><TextBlock Text="运行时间" Style="{StaticResource KpiTitle}"/><TextBlock Text="{Binding RunText}" Style="{StaticResource KpiValue}"/></StackPanel>
@@ -74,10 +74,10 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
-                <TextBlock Text="（本轮 / 平均 / 最大 ms · 轮数）" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,6"/>
+                <TextBlock Text="（这一次 / 平均 / 最慢 各花多少毫秒 · 一共跑了几轮）" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,6"/>
 
                 <!-- 最慢步骤 -->
-                <TextBlock Text="最慢步骤 Top-N（瓶颈）" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,4"/>
+                <TextBlock Text="最慢的几步（想提速就先改这里）" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,4"/>
                 <ListView ItemsSource="{Binding SlowSteps}" BorderThickness="0" Background="Transparent" MaxHeight="150">
                     <ListView.ItemTemplate>
                         <DataTemplate>
@@ -93,7 +93,7 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
-                <TextBlock Text="（平均 / 最大 ms · 用于定位耗时久的环节）" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}"/>
+                <TextBlock Text="（平均和最慢各多少毫秒 · 用来看时间耗在哪一步）" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}"/>
             </StackPanel>
         </ScrollViewer>
     </Grid>

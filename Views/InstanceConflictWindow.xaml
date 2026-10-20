@@ -11,9 +11,9 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TextBlock Grid.Row="0" FontSize="15" FontWeight="Bold" Foreground="#C0392B"
-                   Text="检测到「NoCodeMotion」已在运行"/>
+                   Text="这个软件已经有一个在开着了"/>
         <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="0,12,0,0" FontSize="13" Foreground="#333"
-                   Text="同一时间只能运行一个本软件。&#10;是否关闭正在运行的其它实例并以本窗口继续？&#10;（选择「取消打开」将不会打开本软件）"/>
+                   Text="这个软件一次只能开一个。&#10;要不要把已经开着的那个关掉，用现在这个窗口继续？&#10;（点「取消打开」就两个都不动，这个窗口也不会打开）"/>
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
             <Button x:Name="BtnContinue" Content="关闭其它并打开" Width="140" Height="36" Margin="0,0,12,0"
                     Click="Continue_Click" Background="#2E86DE" Foreground="White" FontWeight="Bold" BorderThickness="0"/>

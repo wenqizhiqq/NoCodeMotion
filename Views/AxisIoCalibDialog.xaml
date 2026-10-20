@@ -11,8 +11,8 @@
 
         <StackPanel Grid.Row="0">
             <TextBlock Text="轴IO标定（3D 仿真）" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-            <TextBlock Text="为每个轴选择对应的正限位 / 负限位 / 原点开关（输入IO）与轴使能（输出IO）；" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,0" TextWrapping="Wrap"/>
-            <TextBlock Text="标定后点「生成3D模型」，机台行程端点会显示传感器（绿色=信号有效）。" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+            <TextBlock Text="给每根轴指认一下：正限位、负限位、原点开关分别是哪个输入点，使能是哪个输出点；" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+            <TextBlock Text="标好之后点【生成3D模型】，机台行程的两端就会画出这些传感器（绿色 = 这个信号现在有效）。" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">

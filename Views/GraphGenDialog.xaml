@@ -88,18 +88,18 @@
                 <TextBlock Grid.Row="3" Grid.Column="2" Text="折线模式" Style="{StaticResource AppleLabel}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                 <CheckBox  Grid.Row="3" Grid.Column="3" Style="{StaticResource AppleToggle}" IsChecked="{Binding PolylineMode}"
                            HorizontalAlignment="Left" VerticalAlignment="Center"
-                           ToolTip="勾选：连续单击连成折线；取消：每次单击是独立点位"/>
+                           ToolTip="勾上 = 你点的每个点连成一条折线；不勾 = 每点一下就是一个单独的点位"/>
             </Grid>
 
             <!-- 画布操作 -->
             <StackPanel Orientation="Horizontal" Margin="22,12,22,0">
-                <Button Content="导入底图" Command="{Binding ImportImageCommand}" Style="{StaticResource TtPillGrayBtn}" MinWidth="0" Padding="12,0" ToolTip="选择一张图片作为描点底图（仅作参考，不参与坐标换算）"/>
-                <Button Content="新折线" Command="{Binding NewStrokeCommand}" Style="{StaticResource TtPillGrayBtn}" MinWidth="0" Padding="12,0" Margin="6,0,0,0" ToolTip="结束当前折线，下一次单击开始一条新折线"/>
+                <Button Content="导入底图" Command="{Binding ImportImageCommand}" Style="{StaticResource TtPillGrayBtn}" MinWidth="0" Padding="12,0" ToolTip="挑一张图铺在下面照着描（只是给你看着描，不参与坐标换算）"/>
+                <Button Content="新折线" Command="{Binding NewStrokeCommand}" Style="{StaticResource TtPillGrayBtn}" MinWidth="0" Padding="12,0" Margin="6,0,0,0" ToolTip="这一条折线画完了；下一次点就是开始新的一条"/>
                 <Button Content="撤销" Command="{Binding UndoCommand}" Style="{StaticResource TtPillGrayBtn}" MinWidth="0" Padding="12,0" Margin="6,0,0,0" ToolTip="删除最后一个点位"/>
                 <Button Content="清空" Command="{Binding ClearCommand}" Style="{StaticResource TtPillGrayBtn}" MinWidth="0" Padding="12,0" Margin="6,0,0,0" ToolTip="清空画布上所有点位"/>
             </StackPanel>
 
-            <TextBlock Text="框 = 整块画布：左下角对应「起点X / 起点Y」，框宽 / 框高 = 画布整幅对应的机器行程。生成后轴1←X、轴2←Y。"
+            <TextBlock Text="这一整块画布就代表机台的活动范围：左下角对应你填的「起点X / 起点Y」，画布的宽和高对应机器能走的行程。生成之后 X 给轴1、Y 给轴2。"
                        FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="22,8,22,0"/>
 
             <!-- 按钮区 -->
@@ -107,7 +107,7 @@
                 <Button x:Name="CancelButton" Content="取消" Style="{StaticResource TtGrayBtn}" Click="CancelButton_Click" IsCancel="True"/>
                 <Button x:Name="OkButton" Content="生成点位" Style="{StaticResource TtBaseBtn}" Margin="8,0,0,0"
                         Click="OkButton_Click" IsDefault="True" IsEnabled="{Binding HasPoints}"
-                        ToolTip="把画布上的点位按框尺寸与起点映射为机器坐标，追加到当前工位"/>
+                        ToolTip="按你定的起点和范围，把画布上的点换算成机器坐标，加到当前工位的点位里"/>
             </StackPanel>
         </StackPanel>
     </Border>

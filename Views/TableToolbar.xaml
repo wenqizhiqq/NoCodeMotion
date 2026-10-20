@@ -87,13 +87,13 @@
                 <Button x:Name="btnPrevSearch" Grid.Column="3"
                         Style="{StaticResource TtIconBtn}"
                         Click="BtnPrevSearch_Click"
-                        ToolTip="上一条匹配 (Shift+Enter)">
+                        ToolTip="跳到上一个找到的（Shift+Enter）">
                     <Path Data="{StaticResource PrevIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                 </Button>
                 <Button x:Name="btnNextSearch" Grid.Column="4"
                         Style="{StaticResource TtIconBtn}"
                         Click="BtnNextSearch_Click"
-                        ToolTip="下一条匹配 (Enter)">
+                        ToolTip="跳到下一个找到的（Enter）">
                     <Path Data="{StaticResource NextIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                 </Button>
                 <Button x:Name="btnClearSearch" Grid.Column="5"

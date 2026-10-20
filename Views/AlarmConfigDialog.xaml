@@ -32,7 +32,7 @@
                     <TextBlock Grid.Row="3" Grid.Column="0" Text="蜂鸣器" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
                     <ComboBox Grid.Row="3" Grid.Column="1" x:Name="BuzzerCombo" SelectedItem="{Binding BuzzerOutput, Mode=TwoWay}" Style="{StaticResource CellComboStyle}" Margin="0,3"/>
                 </Grid>
-                <TextBlock Text="输出名与 IO 表一致；留空表示该灯/蜂鸣器不接。" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,10"/>
+                <TextBlock Text="这里填的名字要和「IO」页里的输出点名字一模一样；不接灯或不接蜂鸣器，留空就行。" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,10"/>
 
                 <TextBlock Text="蜂鸣器参数" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
                 <Grid>
@@ -63,7 +63,7 @@
                 <TextBlock Text="安全位" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,12,0,8"/>
                 <CheckBox Content="急停后自动回安全位（跑复位流程）" IsChecked="{Binding AutoSafeOnEStop, Mode=TwoWay}" Margin="0,3"/>
                 <CheckBox Content="流程异常后自动回安全位（跑复位流程）" IsChecked="{Binding AutoSafeOnException, Mode=TwoWay}" Margin="0,3"/>
-                <TextBlock Text="需在流程页新增「复位流程」（Role=复位）才会真正执行。" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                <TextBlock Text="还要在「流程」页建一个角色选「复位」的流程，报警解除后才会真的去执行（否则这里只是设了个名字）。" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
             </StackPanel>
         </ScrollViewer>
 

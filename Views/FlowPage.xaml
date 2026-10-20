@@ -167,28 +167,28 @@
         <local:EditorPage.LeftToolbarContent>
             <StackPanel Orientation="Horizontal">
                 <!-- 添加运控流程（Kind=Table）：表格图标 + 蓝色 -->
-                <Button Command="{Binding AddTableFlowCommand}" Style="{StaticResource ToolButtonStyle}">
+                <Button Command="{Binding AddTableFlowCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="加一条「运控流程」：一行一行写着机器干什么（轴走位 / IO / 气缸 / 点位 / 等待）。「运控」就是运动控制，是最常用的一种流程">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource TableIconGeometry}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="#2563EB"/>
                         <TextBlock Text="添加运控" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <!-- 添加 Lua 脚本流程（Kind=Lua，自动填默认脚本模板）：脚本图标 + 橙色 -->
-                <Button Command="{Binding AddScriptFlowCommand}" Style="{StaticResource ToolButtonStyle}">
+                <Button Command="{Binding AddScriptFlowCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="加一条脚本流程：内置步骤不够用时，写几行 Lua 把逻辑串起来（编辑器里有「智能插入」，不用背命令）">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource ScriptIconGeometry}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="#F59E0B"/>
                         <TextBlock Text="添加脚本" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <!-- 添加视觉流程（Kind=Vision）：相机/眼睛图标 + 绿色 -->
-                <Button Command="{Binding AddVisionFlowCommand}" Style="{StaticResource ToolButtonStyle}">
+                <Button Command="{Binding AddVisionFlowCommand}" Style="{StaticResource ToolButtonStyle}" ToolTip="加一条视觉流程：拍照 → 处理图像 → 找模板 / 读字符 / 量尺寸，结果可以写进变量给流程判断用">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource VisionIconGeometry}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="#10B981"/>
                         <TextBlock Text="添加视觉" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <!-- 添加节点图流程（Kind=NodeGraph）：节点+连线图标 + 紫色 -->
-                <Button Command="{Binding AddNodeGraphFlowCommand}" Style="{StaticResource ToolButtonStyle}" Margin="0,0,0,0">
+                <Button Command="{Binding AddNodeGraphFlowCommand}" Style="{StaticResource ToolButtonStyle}" Margin="0,0,0,0" ToolTip="加一条节点图流程：把动作做成方块，用线连起来，分支和跳转比一行行表格更直观">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource NodeGraphIconGeometry}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="#8E44AD"/>
                         <TextBlock Text="添加节点图" VerticalAlignment="Center"/>
@@ -196,7 +196,7 @@
                 </Button>
                 <!-- 清空全部流程（弹窗二次确认，避免误删）。破坏性操作统一红色 -->
                 <Button Command="{Binding DeleteAllCommand}" Style="{StaticResource TtDeleteBtn}" Margin="8,0,0,0"
-                        ToolTip="删除全部流程（弹窗确认）">
+                        ToolTip="把本页所有流程全删掉（会先弹窗问你；删掉就找不回来了）">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                         <TextBlock Text="清空" VerticalAlignment="Center"/>
@@ -237,17 +237,17 @@
                              注意：EditorPage.Detail 内容里不能给元素起 x:Name（会触发 MC3093 双重注册）。 -->
                         <TextBlock VerticalAlignment="Center" Margin="0,0,10,0" FontSize="12"
                                    Foreground="{StaticResource TextMutedBrush}"
-                                   Text="① 复制JSON → ② 贴给 AI 补一句需求 → ③ 粘贴生成 → ④ 生成不对可回退"
-                                   ToolTip="① 点【复制JSON】把提示词复制到剪贴板&#x0a;② 粘到豆包 / WorkBuddy 等 AI 对话，补一句需求，让它返回流程 JSON&#x0a;③ 点【粘贴生成】，把 AI 返回的 JSON 粘进弹窗，点【确定生成】写入流程&#x0a;④ 生成结果不满意，点【回退】把流程列表恢复到粘贴之前（会弹窗确认）"/>
+                                   Text="不会写流程？复制给 AI → 说一句你想干什么 → 粘回来生成 → 不满意还能退回"
+                                   ToolTip="第一步：点【复制JSON】；&#10;第二步：贴到豆包 / WorkBuddy 这类 AI 对话里，再补一句你想让机器干什么；&#10;第三步：AI 回了一段内容，点【粘贴生成】把它贴进弹窗，点【确定生成】；&#10;第四步：生成得不满意，点【回退】就退回粘贴之前（会弹窗确认）。"/>
                         <Button Content="复制JSON" Style="{StaticResource TtBaseBtn}"
                                 Command="{Binding CopyFlowJsonCommand}"
-                                ToolTip="把当前流程的 JSON（含本工程可用名称、输出格式契约、需求待填行）复制到剪贴板。粘贴到豆包 / WorkBuddy 等 AI 并补一句需求，它就会返回流程 JSON。"/>
+                                ToolTip="把「这份流程的说明书 + 你这个工程里能用的轴 / IO / 点位名字 + 要你补充的需求」一次复制到剪贴板。贴给 AI，再说一句你想干什么，AI 就会回一段流程内容。"/>
                         <Button Content="粘贴生成" Style="{StaticResource TtBaseBtn}" Margin="8,0,0,0"
                                 Command="{Binding PasteFlowJsonCommand}"
-                                ToolTip="弹出「粘贴生成流程」弹窗：里面有四步操作说明、可编辑的 JSON 输入框（自动填入剪贴板内容）和实时预览。点【确定生成】后，AI 只回 1 个流程时覆盖当前流程（名称保留），回多个时追加为新流程。"/>
+                                ToolTip="打开粘贴窗口：把 AI 回的内容贴进去，右边会实时预览。点【确定生成】：AI 只给 1 个流程就覆盖当前流程（名字保留），给多个就当新流程加进来。"/>
                         <Button Content="回退" Style="{StaticResource TtGrayBtn}" Margin="8,0,0,0"
                                 Command="{Binding RevertPasteCommand}"
-                                ToolTip="把流程列表恢复到最近一次【粘贴生成】之前，点之前会弹窗确认（回退会丢掉这次 AI 生成的内容）。没有粘贴记录时按钮是灰的；连点可以一路退回更早的状态。"/>
+                                ToolTip="把流程退回到上一次【粘贴生成】之前的样子（这次 AI 生成的内容就丢了），点之前会弹窗确认。没粘贴过按钮就是灰的；连着点可以一路往回退。"/>
                     </StackPanel>
                 </DockPanel>
 
@@ -385,7 +385,7 @@
                                             <DataTemplate>
                                                 <CheckBox IsChecked="{Binding Breakpoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                          ToolTip="断点：运行到此行暂停，再点「运行一次/循环运行」继续"/>
+                                                          ToolTip="点一下打上断点：跑到这一行会停住，方便你看是哪一步出问题；再点【运行一次】接着往下走"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
@@ -493,7 +493,7 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0"
-                                           Text="运行一次 = 走完一遍即结束；循环运行 = 反复执行直到点「停止」。单步按「逻辑」列跳转：如果 / 否则如果 / 否则 选择分支，循环开始 / 循环结束 重复执行；分支真假按「实际值」列（或变量值）与「运算」判定，橙色行 = 当前执行行。"
+                                           Text="【运行一次】走完一遍就停；【循环运行】一直跑到你点【停止】。&#10;要看懂跳转：写了 如果 / 否则如果 / 否则 的是分支，循环开始 ~ 循环结束 里的内容会重复跑；分支成不成立，看「实际值」那一列和「运算」比出来对不对。&#10;跑起来之后，橙色那一行就是现在执行到的地方。"
                                            FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
                                            TextWrapping="Wrap" Margin="0,0,0,8"/>
                                 <Grid Grid.Row="1">
@@ -512,10 +512,10 @@
                                     <Button Content="运行一次" Style="{StaticResource TtBaseBtn}"
                                             Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}"
                                             Margin="0,0,8,0"
-                                            ToolTip="从头执行一遍当前流程，走到末尾即结束。"/>
+                                            ToolTip="从第 1 行走到底，走完就停。第一次跑请先用这个。"/>
                                     <Button Content="循环运行" Style="{StaticResource TtBaseBtn}"
                                             Command="{Binding LoopRunCommand}" IsEnabled="{Binding CanRun}"
-                                            ToolTip="反复执行整个流程（每轮结束后自动回到第 1 行），点「停止」退出。"/>
+                                            ToolTip="一轮接一轮一直跑，直到你点【停止】"/>
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="跳到选中行" Style="{StaticResource TtBaseBtn}"
                                         Command="{Binding JumpCommand}" HorizontalAlignment="Center" Margin="0,0,8,0"/>
@@ -587,7 +587,7 @@
                             </StackPanel>
                             <Button DockPanel.Dock="Right" Content="清空" Style="{StaticResource TtGrayBtn}"
                                     Click="ClearAlarms_Click"
-                                    ToolTip="清空报警列表（只清界面显示，已落盘的 Logs/exceptions_*.csv 不受影响）"/>
+                                    ToolTip="把下面的报警列表清干净（只清屏幕上的显示，日志文件里的记录还留着）"/>
                         </DockPanel>
                         <!-- 报警条目：时间 / 等级 / 来源·流程 / 内容 -->
                         <ListBox ItemsSource="{Binding Source={x:Static svc:AlarmService.Entries}}"

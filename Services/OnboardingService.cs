@@ -115,25 +115,25 @@ namespace NoCodeMotion.Services
             if (addBtn != null || listBox != null)
             {
                 if (addBtn != null)
-                    steps.Add(new GuideStep(addBtn, "① 添加第一个配置项",
-                        "点击「添加」，新建你的第一个配置项（例如一根轴、一个 IO 点）。新建后它会出现在左侧列表里。"));
+                    steps.Add(new GuideStep(addBtn, "第 1 步：先加一个东西",
+                        "点【添加】，建你的第一个对象（比如一根轴、一个 IO 点）。建好之后它会出现在左边的列表里。"));
                 if (listBox != null)
-                    steps.Add(new GuideStep(listBox, "② 在列表中选择",
-                        "新项目会出现在左侧列表，点它选中，右侧即可编辑它的参数。"));
+                    steps.Add(new GuideStep(listBox, "第 2 步：在左边点中它",
+                        "刚建的东西在左边列表里。点一下选中它，右边就出现它可以改的设置。"));
                 if (detail != null)
-                    steps.Add(new GuideStep(detail, "③ 填写参数",
-                        "选中后在这里填写参数（名称、数值等）。底部有「操作说明 / 注意事项」提示，按提示填写即可。"));
+                    steps.Add(new GuideStep(detail, "第 3 步：在这里填参数",
+                        "名称、数值都在这右边填。不知道填多少就先留默认值。\n屏幕最下面有一条「本页怎么用」：第一步做什么写在左边，容易踩的坑写在右边，照着做就行。"));
             }
 
             // 顶部导航：引导切换到其它功能分类，并在最后提示到「操作员」运行
             if (navPanel != null)
-                steps.Add(new GuideStep(navPanel, "④ 切换功能分类",
-                    "顶部这些按钮切换不同功能页：轴 / IO / 气缸 / 点位 / 通讯 / 料盘 / 相机 / 变量 / 流程 / 操作员。配置完一类，点这里进入下一类继续添加。全部配置完成后，到「操作员」页启动运行。"));
+                steps.Add(new GuideStep(navPanel, "第 4 步：顶部换页面",
+                        "最上面一排是各个页面：项目管理 / 控制器 / 轴 / IO / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 变量 / 流程。\n一类配完就点这里换下一类继续加。\n全部配好之后，到【操作员】页按【启动】就开始跑了；忘了怎么操作随时点【说明书】。"));
 
             // 兜底：若既不是编辑页也找不到导航（极少见），至少用导航引导起步
             if (steps.Count == 0 && navPanel != null)
-                steps.Add(new GuideStep(navPanel, "开始配置",
-                    "点击顶部分类按钮（轴 / IO / 气缸 / 点位 / 通讯 / 料盘 / 相机 / 变量 / 流程）开始添加你的第一个配置项。"));
+                steps.Add(new GuideStep(navPanel, "从这儿开始",
+                        "点最上面一排的页面名字（控制器 / 轴 / IO / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 变量 / 流程），进去就能【添加】你的第一个对象。"));
 
             return steps.Count > 0 ? steps : null;
         }

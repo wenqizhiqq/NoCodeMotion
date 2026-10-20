@@ -561,10 +561,10 @@ public sealed class NgRunner
 
             case NgKind.PointGo: {
                 var pt = HardwareResolver.ResolvePointTable(GetProp(node, "点位表", ""));
-                if (pt == null) { NodeFail($"未找到点位表「{GetProp(node, "点位表", "")}」：请先在「点位」页添加同名点位表"); break; }
+                if (pt == null) { NodeFail($"未找到点位表「{GetProp(node, "点位表", "")}」：请先在「点位表」页添加同名点位表"); break; }
                 string want = GetProp(node, "点位", "");
                 var item = pt.Points.FirstOrDefault(p => p.Name == want) ?? pt.Points.FirstOrDefault();
-                if (item == null) { NodeFail($"点位表「{pt.Name}」里还没有点位，请先在「点位」页添加"); break; }
+                if (item == null) { NodeFail($"点位表「{pt.Name}」里还没有点位，请先在「点位表」页添加"); break; }
                 // 防撞：条件不满足 → 写报警列表（无人值守，绝不弹窗）+ 阻止移动并中止整图
                 // （与流程页 ExecPoint 同一口径：机台状态与预期不符还继续动作，有撞机风险）。
                 var ptFails = PointConditionService.Evaluate(item);
