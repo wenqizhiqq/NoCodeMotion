@@ -1647,7 +1647,10 @@ else:
           '+ $"|{cfg.SecsRole}|{cfg.SecsDeviceId}"' in _c28)
     # 管道 / 共享内存 / 本机文件 / Web 这几类的参数改了同样必须换通道实例（否则改完还是旧连接行为）
     check("G28.25b 通道指纹含本机互联与接口类参数（管道角色 / 共享区大小 / 写入方式 / 请求方式 / Content-Type）",
-          '+ $"|{cfg.PipeRole}|{cfg.ShmSizeKb}|{cfg.FileWriteMode}|{cfg.WebMethod}|{cfg.WebContentType}";' in _c28)
+          '+ $"|{cfg.PipeRole}|{cfg.ShmSizeKb}|{cfg.FileWriteMode}|{cfg.WebMethod}|{cfg.WebContentType}' in _c28)
+    # 仿真开关也必须进指纹：不然「开/关仿真」不会重建通道，界面显示在仿真、底下还是老连接（或反之）
+    check("G28.25c 通道指纹含仿真开关（开了仿真不能沿用实机连接）",
+          '{(cfg.SimEnabled ? "仿真" : "实机")}' in _c28)
 
 # ---- 模型参数 ----
 if _ci28 is None:

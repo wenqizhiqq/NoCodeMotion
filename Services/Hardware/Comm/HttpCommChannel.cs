@@ -30,6 +30,10 @@ namespace NoCodeMotion.Services.Hardware.Comm
         {
             AllowAutoRedirect = true,
             UseCookies = false,
+            // ★ 必须绕开系统代理：本机的代理设置会把发往 127.0.0.1 / 局域网设备的请求转给代理，
+            //   代理不认识就一路挂到超时（现场表现为「浏览器能开、软件里超时」）。
+            //   本软件是设备对接工具，直连才是预期行为；真要过代理请在 URL 那侧自己配。
+            UseProxy = false,
         });
 
         private readonly CommItem _cfg;

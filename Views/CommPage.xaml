@@ -318,6 +318,71 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- ============ 仿真对端：每种通讯类型一套独立的仿真设置（参数随通讯项落盘）============ -->
+                    <Border Style="{StaticResource AppleGroupCard}" Padding="12,10">
+                        <StackPanel>
+                            <DockPanel LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Text="仿真对端" Style="{StaticResource AppleSectionHeader}"/>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding SimStateText}" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding SimEndpointText}" FontSize="12" TextWrapping="Wrap" Margin="12,0,12,6"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+
+                            <WrapPanel Margin="12,0,12,8">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,6">
+                                    <TextBlock Text="启用仿真" Style="{StaticResource AppleLabel}" Margin="0,0,6,0"/>
+                                    <CheckBox Style="{StaticResource AppleToggle}" IsChecked="{Binding SelectedItem.SimEnabled}"
+                                              ToolTip="开 = 本条通讯走仿真。&#10;真对端类型（管道 / 共享内存 / 共享文件夹 / 本机文件 / 网口TCP / UDP / ModbusTCP / Web / SECS）：软件在本机真的起一个「对方」，本端仍走真实通道。&#10;回环类型（串口 / ModbusRTU / GPIB / 西门子S7 / 三菱MC）：本机起不了另一端，改为接管本通道，一次硬件都不碰。"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,6">
+                                    <TextBlock Text="应答模式" Style="{StaticResource AppleLabel}" Margin="0,0,6,0"/>
+                                    <ListBox ItemsSource="{Binding SimModeOptions}" SelectedItem="{Binding SelectedItem.SimMode}"
+                                             Style="{StaticResource ApplePillList}"
+                                             ToolTip="回显 = 本端发什么对端回什么；按规则 = 用下面规则表；静默 = 只记录不回话。"/>
+                                </StackPanel>
+                                <Button Content="启动仿真" Style="{StaticResource AppleBtnSecondary}" Margin="0,0,6,6"
+                                        Command="{Binding StartSimCommand}"
+                                        ToolTip="按当前配置起对端（监听端口 / 反向通道 / 回环接管）。失败会在下方日志里说清原因。"/>
+                                <Button Content="停止仿真" Style="{StaticResource AppleBtnSecondary}" Margin="0,0,6,6"
+                                        Command="{Binding StopSimCommand}"
+                                        ToolTip="停对端并把通道换回实机连接。"/>
+                            </WrapPanel>
+
+                            <TextBlock Text="应答规则（一行一条：条件=&gt;应答；条件前加 * 表示「包含」；条件留空 = 兜底；应答里 {msg} = 收到的原文）"
+                                       Style="{StaticResource AppleLabel}" FontSize="11.5" Margin="12,0,12,2"
+                                       Foreground="{StaticResource TextMutedBrush}"/>
+                            <TextBox Margin="12,0,12,8" MinHeight="56" MaxHeight="120" AcceptsReturn="True" TextWrapping="NoWrap"
+                                     VerticalScrollBarVisibility="Auto" Padding="8,6" FontSize="12" FontFamily="Consolas"
+                                     BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                     Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+                                     Text="{Binding SelectedItem.SimRules, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="示例：&#10;启动=&gt;已收到&#10;*温度=&gt;25.6&#10;=&gt;OK"/>
+
+                            <DockPanel Margin="12,0,12,8" LastChildFill="True">
+                                <Button DockPanel.Dock="Right" Content="注入给本端" Style="{StaticResource AppleBtnSecondary}" Margin="8,0,0,0"
+                                        Command="{Binding InjectSimCommand}"
+                                        ToolTip="把这段内容当成「对方发来的」—— 本端下一次「接收」就会拿到它。&#10;Modbus 从站的注入格式：40001=123（保持寄存器）/ 00001=1（线圈）/ 30001=7（输入寄存器）。"/>
+                                <TextBox Text="{Binding SimInjectText, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="8,6" FontSize="12" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                         Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </DockPanel>
+
+                            <DockPanel Margin="12,0,12,2" LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Text="仿真收发记录" Style="{StaticResource AppleLabel}" FontSize="11.5"
+                                           Foreground="{StaticResource TextMutedBrush}"/>
+                                <Button DockPanel.Dock="Right" Content="清空" Style="{StaticResource AppleBtnSecondary}"
+                                        Command="{Binding ClearSimLogCommand}"/>
+                            </DockPanel>
+                            <ListBox Margin="12,0,12,6" Height="120" ItemsSource="{Binding SimLog}" FontSize="11.5" FontFamily="Consolas"
+                                     BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                     Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                            <TextBlock Text="{Binding SimNoteText}" FontSize="11.5" TextWrapping="Wrap" Margin="12,0,12,2"
+                                       Foreground="{StaticResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- 调试操作 -->
                     <Border Style="{StaticResource AppleGroupCard}" Padding="12,10">
                         <StackPanel>

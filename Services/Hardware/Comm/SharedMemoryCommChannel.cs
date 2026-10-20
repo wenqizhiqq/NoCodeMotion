@@ -222,7 +222,11 @@ namespace NoCodeMotion.Services.Hardware.Comm
         private bool Hold(int ms)
         {
             if (_owned) return true;
-            try { _owned = _mutex.WaitOne(ms <= 0 ? 1 : ms); return _owned; }
+            // 停止 / 重建的瞬间 _mutex 可能已被 Dispose 置空（收发线程与 Stop 竞争），
+            // 这里直接判空返回 false：拿不到锁就是没拿到，不该靠异常兜 —— 那样每关一次仿真就喷一条 NRE 到日志。
+            var mtx = _mutex;
+            if (mtx == null) return false;
+            try { _owned = mtx.WaitOne(ms <= 0 ? 1 : ms); return _owned; }
             catch (AbandonedMutexException) { _owned = true; return true; }   // 对方进程被强杀：锁归我，继续干活
             catch { return false; }
         }

@@ -87,6 +87,23 @@ namespace NoCodeMotion.Models
         /// <summary>Web 请求体的 Content-Type（如 text/plain、application/json）。</summary>
         public string WebContentType { get => _webContentType; set => SetField(ref _webContentType, value); }
 
+        // ---- 仿真（每种通讯类型都有独立的「设置 + 对端仿真」面板，参数随工程落盘）----
+        private bool _simEnabled;                       // 本条通讯是否启用仿真对端
+        private string _simMode = "回显";               // 应答模式：回显 / 按规则 / 静默
+        private string _simRules = "";                  // 应答规则（一行一条「条件=>应答」，* 前缀=包含，空条件=兜底）
+
+        /// <summary>仿真开关：开启后由「对端仿真器」扮演另一端（回环型则连本端通道都不碰硬件）。</summary>
+        public bool SimEnabled { get => _simEnabled; set => SetField(ref _simEnabled, value); }
+
+        /// <summary>仿真应答模式：回显（收到什么回什么）/ 按规则 / 静默（只记录不回话）。</summary>
+        public string SimMode { get => _simMode; set => SetField(ref _simMode, value); }
+
+        /// <summary>
+        /// 仿真应答规则，一行一条：<c>条件=&gt;应答</c>；条件前加 <c>*</c> 表示「包含」；
+        /// 条件留空是兜底规则；应答里 <c>{msg}</c> 引用收到的原文；<c>\r \n</c> 等转义与通道一致。
+        /// </summary>
+        public string SimRules { get => _simRules; set => SetField(ref _simRules, value); }
+
         /// <summary>S1F2 / S1F14 里回的软件版本 SOFTREV。</summary>
         public string SecsSoftRev { get => _secsSoftRev; set => SetField(ref _secsSoftRev, value); }
     }

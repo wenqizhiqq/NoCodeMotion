@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Concurrent;
 using NoCodeMotion.Models;
+using NoCodeMotion.Services.Hardware.Comm.Sim;
 
 namespace NoCodeMotion.Services.Hardware.Comm
 {
@@ -108,11 +109,17 @@ namespace NoCodeMotion.Services.Hardware.Comm
             $"{cfg.Name}|{cfg.CommType}|{cfg.PortOrIp}|{cfg.BaudOrPort}|{cfg.DataBits}|{cfg.Parity}|{cfg.StopBits}"
             + $"|{cfg.SecsRole}|{cfg.SecsDeviceId}"
             // 新参数的改动必须换通道实例，否则改了「管道角色 / 共享区大小 / 写入方式 / 请求方式」还沿用旧通道
-            + $"|{cfg.PipeRole}|{cfg.ShmSizeKb}|{cfg.FileWriteMode}|{cfg.WebMethod}|{cfg.WebContentType}";
+            + $"|{cfg.PipeRole}|{cfg.ShmSizeKb}|{cfg.FileWriteMode}|{cfg.WebMethod}|{cfg.WebContentType}"
+            + $"|{(cfg.SimEnabled ? "仿真" : "实机")}";
 
         private static ICommChannel Create(CommItem cfg)
         {
             string type = (cfg.CommType ?? string.Empty).Trim();
+
+            // ★ 仿真接管：串口 / ModbusRTU / GPIB / 西门子S7 / 三菱MC 这几类本机起不了「另一端」，
+            //   开了仿真后本端通道直接换成仿真器的通道壳 —— 一次硬件都不碰，发送只进日志、接收按规则产生。
+            //   （其余类型是「真对端」型：本端仍走真实通道，仿真器在本机另起一个对方。）
+            if (Sim.CommSimManager.TryTakeover(cfg, out var takeover)) return takeover;
 
             // ★ SECS/HSMS 必须最先判断：它的类型串里没有 TCP 字样，
             //   落到最后会被默认分支当成普通 TcpCommChannel（不报错，但完全没有 SECS 语义）。

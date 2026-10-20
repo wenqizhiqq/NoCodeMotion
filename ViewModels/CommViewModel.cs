@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using NoCodeMotion.Models;
+using NoCodeMotion.Services.Hardware.Comm.Sim;
 using NoCodeMotion.Services;
 using NoCodeMotion.Services.Hardware.Comm;
 using NoCodeMotion.Services.Hardware.Comm.Secs;
@@ -131,6 +132,112 @@ namespace NoCodeMotion.ViewModels
         /// <summary>最近一次测试连接的结果文本（延迟/状态）。</summary>
         public string PingResult { get => _pingResult; set => SetField(ref _pingResult, value); }
 
+        // ==================== 仿真对端（每种通讯类型一套独立设置，参数随通讯项落盘）====================
+
+        /// <summary>应答模式：回显最省事（本端发什么对端就回什么）；按规则用下面的规则表；静默只记录不回话。</summary>
+        public string[] SimModeOptions { get; } = { "回显", "按规则", "静默" };
+
+        private readonly System.Collections.ObjectModel.ObservableCollection<string> _simLog = new();
+
+        /// <summary>仿真器的收发 / 状态日志（面板记录区，只留最近 200 行）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<string> SimLog => _simLog;
+
+        private string _simInjectText = string.Empty;
+
+        /// <summary>注入框文本：点「注入给本端」把这段内容当成对方发来的。</summary>
+        public string SimInjectText { get => _simInjectText; set => SetField(ref _simInjectText, value); }
+
+        private string _simStateText = "未启动";
+        /// <summary>仿真状态：未启动 / 仿真中 / 回环接管中（后者本端不碰硬件）。</summary>
+        public string SimStateText { get => _simStateText; private set => SetField(ref _simStateText, value); }
+
+        private string _simEndpointText = string.Empty;
+        /// <summary>这一类仿真的「对端在哪」：如「本机监听 0.0.0.0:502（本端连 127.0.0.1:502）」。</summary>
+        public string SimEndpointText { get => _simEndpointText; private set => SetField(ref _simEndpointText, value); }
+
+        private string _simNoteText = string.Empty;
+        /// <summary>这个仿真器和真设备的差别（灰字提示，避免仿真通过就当真机能用）。</summary>
+        public string SimNoteText { get => _simNoteText; private set => SetField(ref _simNoteText, value); }
+
+        public ICommand StartSimCommand { get; }
+        public ICommand StopSimCommand { get; }
+        public ICommand InjectSimCommand { get; }
+        public ICommand ClearSimLogCommand { get; }
+
+        /// <summary>刷新仿真状态三行文字（切换通讯项、启停仿真、改模式后都要刷）。</summary>
+        private void RefreshSim()
+        {
+            var item = SelectedItem;
+            if (item == null)
+            {
+                SimStateText = "未选择通讯项";
+                SimEndpointText = string.Empty;
+                SimNoteText = string.Empty;
+                return;
+            }
+            var sim = CommSimManager.Peek(item.Name);
+            if (sim == null)
+            {
+                // 还没建过仿真器：用 For 建一个（不会启动），为的是把「对端在哪 / 注意事项」先显示出来
+                sim = CommSimManager.For(item);
+            }
+            SimStateText = !sim.IsRunning
+                ? (item.SimEnabled ? "已启用仿真 · 未启动" : "未启动")
+                : sim.TakesOverLocalChannel ? "仿真中 · 回环接管（本端不碰硬件）" : "仿真中 · 对端已就绪";
+            SimEndpointText = sim.Endpoint;
+            SimNoteText = sim.Note;
+        }
+
+        private void StartSim()
+        {
+            var item = SelectedItem;
+            if (item == null) return;
+            try
+            {
+                var sim = CommSimManager.For(item);
+                sim.Start();
+                item.SimEnabled = true;              // 开关随工程落盘：重开软件还是仿着
+                ProjectStore.ScheduleSave();
+                Log($"[仿真] 「{item.Name}」仿真已启动：{sim.Endpoint}");
+            }
+            catch (Exception ex)
+            {
+                Log($"✗ [仿真] 启动失败：{ex.Message}");
+                StatusBarService.ReportException($"仿真对端启动失败：{ex.Message}");
+            }
+            RefreshSim();
+        }
+
+        private void StopSim()
+        {
+            var item = SelectedItem;
+            if (item == null) return;
+            CommSimManager.Stop(item);
+            item.SimEnabled = false;
+            ProjectStore.ScheduleSave();
+            // 仿真关了就得把通道换回实机连接，否则缓存里还挂着仿真通道壳
+            _comm.Close(item);
+            Log($"[仿真] 「{item.Name}」仿真已停止，通道恢复实机。");
+            RefreshSim();
+        }
+
+        private void InjectSim()
+        {
+            var item = SelectedItem;
+            if (item == null || string.IsNullOrEmpty(SimInjectText)) return;
+            var sim = CommSimManager.Peek(item.Name);
+            if (sim == null || !sim.IsRunning)
+            {
+                Log("⚠ 仿真还没启动：先点「启动仿真」再注入。");
+                return;
+            }
+            if (!sim.Inject(SimInjectText))
+                Log("⚠ 这一类仿真不支持主动注入（如 HTTP 只能应答本端请求 / UDP 要先收到过本端一包）；"
+                    + "Modbus 从站的注入格式是「40001=123」或「00001=1」。");
+            else
+                SimInjectText = string.Empty;
+        }
+
         // ---------- 调试命令 ----------
         public ICommand TestConnectionCommand { get; }
         public ICommand OpenCommand { get; }
@@ -214,6 +321,23 @@ namespace NoCodeMotion.ViewModels
             ApplySecsPresetCommand = new RelayCommand(_ => ApplySecsPreset(), _ => !string.IsNullOrEmpty(SelectedSecsPreset));
             SecsSelectCommand = new RelayCommand(_ => SecsSelect());
             SecsLinktestCommand = new RelayCommand(_ => SecsLinktest());
+
+            StartSimCommand = new RelayCommand(_ => StartSim());
+            StopSimCommand = new RelayCommand(_ => StopSim());
+            InjectSimCommand = new RelayCommand(_ => InjectSim(), _ => !string.IsNullOrEmpty(SimInjectText));
+            ClearSimLogCommand = new RelayCommand(_ => _simLog.Clear());
+            // 仿真器的日志来自后台线程（对端的收发循环），统一转回 UI 线程再进面板
+            CommSimManager.LineLogged += line =>
+            {
+                var app = System.Windows.Application.Current;
+                if (app == null) return;
+                app.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _simLog.Add(line);
+                    while (_simLog.Count > 200) _simLog.RemoveAt(0);
+                }));
+            };
+            RefreshSim();
         }
 
         /// <summary>选中项变了 → 重新盯着它的属性变化，并刷新连接状态。</summary>
@@ -223,6 +347,7 @@ namespace NoCodeMotion.ViewModels
             if (propertyName != nameof(SelectedItem)) return;
             WatchSelected();
             SyncConnectionState();
+            RefreshSim();
         }
 
         private void WatchSelected()
@@ -241,6 +366,18 @@ namespace NoCodeMotion.ViewModels
                 || e.PropertyName == nameof(CommItem.BaudOrPort)
                 || e.PropertyName == nameof(CommItem.SecsRole))
                 SyncConnectionState();
+
+            // ★ 仿真开关改了要立刻换通道：关仿真后不能继续用缓存里的仿真通道壳（否则界面显示实机、底下还在回环）。
+            if (e.PropertyName == nameof(CommItem.SimEnabled) && sender is CommItem item)
+            {
+                if (item.SimEnabled) CommSimManager.For(item);
+                else { CommSimManager.Stop(item); _comm.Close(item); }
+                SyncConnectionState();
+            }
+            if (e.PropertyName == nameof(CommItem.SimEnabled)
+                || e.PropertyName == nameof(CommItem.SimMode)
+                || e.PropertyName == nameof(CommItem.SimRules))
+                RefreshSim();
         }
 
         protected override CommItem CreateNewItem() => new CommItem { Name = $"通讯{Counter + 1}" };
