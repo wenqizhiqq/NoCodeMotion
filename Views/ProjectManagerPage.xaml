@@ -115,8 +115,7 @@
                                      BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
                                      Background="{StaticResource SurfaceBrush}"
                                      Foreground="{StaticResource TextPrimaryBrush}"
-                                     Text="{Binding DetailRemark, UpdateSourceTrigger=LostFocus}"
-                                     LostFocus="Remark_LostFocus"/>
+                                     Text="{Binding DetailRemark, UpdateSourceTrigger=PropertyChanged}"/>
                         </StackPanel>
                     </Border>
 

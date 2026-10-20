@@ -24,6 +24,8 @@ namespace NoCodeMotion.ViewModels
             get => _selectedEntry;
             set
             {
+                // ★ 切选中项时，先把上一个工程的待保存备注落盘（否则切走就丢了）
+                FlushPendingRemark();
                 if (SetField(ref _selectedEntry, value))
                 {
                     LoadDetailFor(value);
@@ -31,6 +33,32 @@ namespace NoCodeMotion.ViewModels
                     OnPropertyChanged(nameof(SelectedFilePath));
                 }
             }
+        }
+
+        /// <summary>立即把待保存的备注写盘（切选中项 / 关闭窗口时调用，防止丢失）。</summary>
+        private void FlushPendingRemark()
+        {
+            if (_remarkSaveTimer == null || string.IsNullOrEmpty(_pendingRemarkName)) return;
+            _remarkSaveTimer.Stop();
+            // 直接在 UI 线程调一次（Flush 场景极少，重一点没关系，且比丢数据强）
+            var name = _pendingRemarkName;
+            _pendingRemarkName = null;
+            try
+            {
+                var entry = Projects.FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (entry == null) return;
+
+                if (string.Equals(ProjectManager.CurrentName, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (ProjectStore.Data != null) ProjectStore.Data.Remark = entry.Remark;
+                    ProjectStore.ScheduleSave();
+                }
+                else
+                {
+                    ProjectManager.SetRemark(name, entry.Remark);
+                }
+            }
+            catch { }
         }
 
         public string? CurrentProject => ProjectManager.CurrentName;
@@ -44,11 +72,62 @@ namespace NoCodeMotion.ViewModels
         public string SelectedFilePath => SelectedEntry == null ? "（先在左边选中一个工程）" : ProjectManager.FilePathOf(SelectedEntry.Name);
 
         private string _detailRemark = "";
-        /// <summary>右侧详情的备注（编辑后点【保存备注】写回工程文件）。</summary>
+        /// <summary>右侧详情的备注（编辑后自动保存，400ms 防抖后台写盘）。</summary>
         public string DetailRemark
         {
             get => _detailRemark;
-            set => SetField(ref _detailRemark, value);
+            set
+            {
+                if (!SetField(ref _detailRemark, value)) return;
+                if (_loadingDetail) return;  // LoadDetailFor 初始化赋值跳过自动保存
+                if (SelectedEntry == null) return;
+
+                // 轻量赋值：同步列表显示 + 同步当前工程的内存态
+                SelectedEntry.Remark = value;
+                if (ProjectStore.Data != null
+                    && string.Equals(ProjectManager.CurrentName, SelectedEntry.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    ProjectStore.Data.Remark = value;
+                }
+
+                // ★ 定时器后台防抖写盘：400ms 无新输入才触发一次；Timer 在后台线程，绝不卡 UI
+                _pendingRemarkName = SelectedEntry.Name;
+                _remarkSaveTimer?.Stop();
+                _remarkSaveTimer?.Start();
+            }
+        }
+
+        // —— 备注自动保存：后台 Timer 防抖，避免 UI 线程跑 xlsx IO ——
+        private System.Timers.Timer? _remarkSaveTimer;
+        private string? _pendingRemarkName;
+
+        private void EnsureRemarkSaveTimer()
+        {
+            if (_remarkSaveTimer != null) return;
+            _remarkSaveTimer = new System.Timers.Timer(400) { AutoReset = false };
+            _remarkSaveTimer.Elapsed += (_, _) =>
+            {
+                // Timer.Elapsed 在后台线程，写 xlsx 不卡 UI
+                try
+                {
+                    var name = _pendingRemarkName;
+                    if (string.IsNullOrEmpty(name)) return;
+                    var entry = Projects.FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+                    if (entry == null) return;
+
+                    if (string.Equals(ProjectManager.CurrentName, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // 当前打开的工程 → 走 ScheduleSave（已改 Data.Remark，防抖写盘统一入口）
+                        ProjectStore.ScheduleSave();
+                    }
+                    else
+                    {
+                        // 非当前打开的工程 → 后台线程直接写它自己的 xlsx
+                        ProjectManager.SetRemark(name, entry.Remark);
+                    }
+                }
+                catch { /* 写盘失败静默吞 */ }
+            };
         }
 
         /// <summary>右侧详情的需求（多行文本，每行一条需求或一段自然语言描述）。\n        /// 编辑后点【保存需求】写回工程文件。</summary>
@@ -85,20 +164,28 @@ namespace NoCodeMotion.ViewModels
 
         public ProjectManagerViewModel()
         {
+            EnsureRemarkSaveTimer();
             Refresh();
         }
 
         // ==================== 详情加载 / 保存 ====================
 
+        /// <summary>初始化备注/需求时为 true，让 setter 跳过自动保存（避免选中工程时误写盘）。</summary>
+        private bool _loadingDetail;
+
         /// <summary>选中某个工程后，从工程文件读取备注与需求到右侧详情。</summary>
         private void LoadDetailFor(ProjectEntry? entry)
         {
-            RequirementsText = "";
+            _loadingDetail = true;
+            try
+            {
+                RequirementsText = "";
+                if (entry == null) { DetailRemark = ""; return; }
 
-            if (entry == null) return;
-
-            DetailRemark = entry.Remark ?? "";
-            RequirementsText = ProjectManager.GetRequirementsText(entry.Name);
+                DetailRemark = entry.Remark ?? "";
+                RequirementsText = ProjectManager.GetRequirementsText(entry.Name);
+            }
+            finally { _loadingDetail = false; }
         }
 
         private void SaveRemark()
