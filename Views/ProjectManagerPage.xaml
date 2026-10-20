@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="NoCodeMotion.Views.ProjectManagerPage"
+<UserControl x:Class="NoCodeMotion.Views.ProjectManagerPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -117,45 +117,6 @@
                                      Foreground="{StaticResource TextPrimaryBrush}"
                                      Text="{Binding DetailRemark, UpdateSourceTrigger=LostFocus}"
                                      LostFocus="Remark_LostFocus"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- 需求（单文本框，每行一条） -->
-                    <Border Style="{StaticResource AppleGroupCard}">
-                        <StackPanel>
-                            <DockPanel Style="{StaticResource AppleRow}" LastChildFill="False">
-                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleSectionHeader}" Text="需求"/>
-                                <Button DockPanel.Dock="Right" Content="保存需求" Style="{StaticResource TtPillGreenBtn}"
-                                        Command="{Binding SaveRequirementsCommand}" Margin="0,0,12,0"/>
-                            </DockPanel>
-                            <TextBox Margin="12,4,12,10" MinHeight="120" MaxHeight="260"
-                                     AcceptsReturn="True" TextWrapping="Wrap"
-                                     VerticalScrollBarVisibility="Auto"
-                                     VerticalContentAlignment="Top"
-                                     Padding="10,8" FontSize="13"
-                                     BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                     Background="{StaticResource SurfaceBrush}"
-                                     Foreground="{StaticResource TextPrimaryBrush}"
-                                     Text="{Binding RequirementsText, UpdateSourceTrigger=LostFocus}"
-                                     ToolTip="每行一条需求。写清楚动作、IO、气缸、视觉、点位等。点击【保存需求】或失焦后生效。"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- AI 生成（JSON 往返）：复制需求 / 粘贴生成 -->
-                    <Border Style="{StaticResource AppleGroupCard}">
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="AI 生成工程（JSON 往返）"/>
-                            <TextBlock Margin="12,2,12,8" FontSize="12" TextWrapping="Wrap"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       Text="填好备注和需求 →「复制需求」→ 粘给 AI（豆包等）→ 复制 AI 返回的 JSON →「粘贴生成」。会自动生成轴/IO/气缸/相机/运控流程/脚本流程/视觉流程等配置。"/>
-                            <StackPanel Orientation="Horizontal" Margin="12,0,12,12">
-                                <Button Content="复制需求" Style="{StaticResource TtBaseBtn}" MinWidth="110"
-                                        Command="{Binding CopyPromptCommand}"
-                                        ToolTip="把工程名 + 备注 + 需求 + JSON 契约复制为 AI 提示词"/>
-                                <Button Content="粘贴生成" Style="{StaticResource TtPillGreenBtn}" MinWidth="110" Margin="8,0,0,0"
-                                        Command="{Binding PasteGenerateCommand}"
-                                        ToolTip="读取剪贴板里的 AI 返回 JSON，生成轴/IO/气缸/相机/运控+脚本+视觉流程等配置"/>
-                            </StackPanel>
                         </StackPanel>
                     </Border>
 
