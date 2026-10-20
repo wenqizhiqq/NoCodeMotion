@@ -1936,6 +1936,49 @@ else:
           'new NoCodeMotion.Views.SwitchUserDialog()' in _sm
           and 'new NoCodeMotion.Views.UserManagementDialog()' in _sm)
 
+# ---------------------------------------------------------------------
+# G31  节点图画布按键分工：左键选中/框选/拖动、中键平移、滚轮缩放
+# ---------------------------------------------------------------------
+# 需求：左键在空白处 = 框选，框好后拖任意一个整组一起走；平移让给中键。
+# ★ 这里守的全是「静默失效」型：
+#   - 平移若回到左键分支里，框选和它会抢同一个手势（表现为拖不出选择框）；
+#   - 选择框一旦能吃鼠标，MouseUp 就落在它身上，框选永远收不到结果；
+#   - SelectedNode 的 setter 会清 IsSelected，不加组内判断 → 框选高亮一设 SelectedNode 就散架；
+#   - 平移基准量错空间（画布带 LayoutTransform）→ 缩放后拖拽速度不对。
+_pg = (read(r"Views\NodeGraphPage.xaml.cs") or "").replace("\r\n", "\n")
+_pgx = (read(r"Views\NodeGraphPage.xaml") or "").replace("\r\n", "\n")
+_ngv = (read(r"ViewModels\NodeGraphViewModel.cs") or "").replace("\r\n", "\n")
+
+_down = _pg[_pg.find("DesignerCanvas_PreviewMouseLeftButtonDown"):
+            _pg.find("DesignerCanvas_PreviewMouseDown(object")] if "DesignerCanvas_PreviewMouseLeftButtonDown" in _pg else ""
+check("G31.1 左键按下空白处 = 开始框选（该分支里不许再出现 _panning = true）",
+      "_marquee = true;" in _down and "_panning = true;" not in _down)
+check("G31.2 中键按住才平移，且位移量在父空间（CanvasScroller）上量",
+      "if (e.ChangedButton != MouseButton.Middle) return;" in _pg
+      and "_panStart = e.GetPosition(CanvasScroller);" in _pg
+      and "_panStart = e.GetPosition(DesignerCanvas);" not in _pg)
+check("G31.3 选择框挂在画布里且不吃鼠标（否则 MouseUp 落在它身上，框不到节点）",
+      'x:Name="MarqueeBox"' in _pgx and 'IsHitTestVisible="False"' in _pgx
+      and "MarqueeBox" in _pg)
+check("G31.4 框选命中按容器实际渲染范围算（跟着缩放走，不用写死节点宽高）",
+      "NodesHost.ItemContainerGenerator.ContainerFromItem(node)" in _pg
+      and "el.TransformToVisual(DesignerCanvas)" in _pg)
+check("G31.5 没拖动（<4px）的左键单击只取消选中，不产生零宽选择框",
+      "Math.Abs(end.X - _marqueeStart.X) > 4" in _pg)
+check("G31.6 整组拖动：_groupDrag 分支必须排在 _dragNode 之前（否则只有被点那个动）",
+      _pg.find("if (_groupDrag.Count > 0)") < _pg.find("else if (_dragNode != null)")
+      and "foreach (var (node, dx, dy) in _groupDrag)" in _pg)
+check("G31.7 点中框选组内的节点时不清组（点了就清 = 整组散架）",
+      "!(_vm.SelectedNodes.Count > 1 && _vm.SelectedNodes.Contains(anyNode))" in _pg)
+check("G31.8 SelectedNode 的 setter 不许抹掉框选组成员的高亮",
+      "if (_selectedNode != null && !SelectedNodes.Contains(_selectedNode)) _selectedNode.IsSelected = false;" in _ngv)
+check("G31.9 删除支持整组（按 id 集合连着连线一起删）",
+      "var ids = new System.Collections.Generic.HashSet<string>(group.Select(n => n.Id));" in _ngv
+      and "ids.Contains(c.SourceId) || ids.Contains(c.TargetId)" in _ngv)
+check("G31.10 右下角小字提示存在且不挡鼠标（画布按键分工就靠它告诉用户）",
+      "中键按住拖拽平移" in _pgx and "左键在空白处框选" in _pgx
+      and _pgx.count('IsHitTestVisible="False"') >= 2)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

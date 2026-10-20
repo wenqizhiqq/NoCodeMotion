@@ -3,6 +3,7 @@
 // ◆◇※▣▤▥ۦ▧▨۩░ے▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥ۦ▧▨۩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥ۦۧ
 using System;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -28,6 +29,11 @@ public partial class NodeGraphPage : UserControl
     // 拖拽状态
     private NodeGraphNodeViewModel? _dragNode;
     private Point _dragOffset;
+    // 整组拖动：框选出多个节点后，拖其中任意一个 → 记录「每个节点相对鼠标的偏移」，一起平移
+    private readonly System.Collections.Generic.List<(NodeGraphNodeViewModel Node, double Dx, double Dy)> _groupDrag = new();
+    // 左键框选
+    private bool _marquee;
+    private Point _marqueeStart;
     private NodeGraphNodeViewModel? _linkSrc;
     private string? _linkPort;
 
@@ -132,15 +138,45 @@ public partial class NodeGraphPage : UserControl
         // 3) 输入端口 → 等待 mouseup 完成连线（此处不动作）
         if (FindWithTag(dep, "IN") != null) { e.Handled = true; return; }
         // 4) 整张节点卡（除 OUT/IN 端口外，标题栏/主体/属性区/浮标区均可）→ 拖拽移动，单击即选中
+        //    属于框选组时不先清高亮，否则整组会散架（清组的事交给 BeginNodeDrag 判断）
         var anyNode = FindNodeVm(dep);
+        if (anyNode != null && !(_vm.SelectedNodes.Count > 1 && _vm.SelectedNodes.Contains(anyNode)))
+            _vm.ClearSelectedNodes();
         if (anyNode != null) { BeginNodeDrag(anyNode, e); return; }
-        // 6) 空白 → 取消选中，并开始按住拖拽平移画布
+        // 6) 空白 → 取消选中并开始框选（平移让给中键）
+        _vm.ClearSelectedNodes();
         _vm.SelectedNode = null;
+        _vm.SelectedConnection = null;
+        _marquee = true;
+        _marqueeStart = e.GetPosition(DesignerCanvas);
+        PlaceMarquee(_marqueeStart, _marqueeStart);
+        MarqueeBox.Visibility = Visibility.Visible;
+        DesignerCanvas.CaptureMouse();
+        e.Handled = true;
+    }
+
+    /// <summary>中键按住 = 平移画布（左键要留给选中 / 拖动 / 框选）。</summary>
+    private void DesignerCanvas_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle) return;     // 左 / 右键走各自的处理器
+        _marquee = false;
+        MarqueeBox.Visibility = Visibility.Collapsed;
         _panning = true;
+        // ★ 位移必须在父空间量：画布自身带 LayoutTransform（缩放），在自己的空间里量会跟着缩放变形
         _panStart = e.GetPosition(CanvasScroller);
         _scrollStartX = CanvasScroller.ContentHorizontalOffset;
         _scrollStartY = CanvasScroller.ContentVerticalOffset;
         DesignerCanvas.CaptureMouse();
+        Mouse.OverrideCursor = Cursors.ScrollAll;
+        e.Handled = true;
+    }
+
+    private void DesignerCanvas_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle || !_panning) return;
+        _panning = false;
+        if (DesignerCanvas.IsMouseCaptured) DesignerCanvas.ReleaseMouseCapture();
+        Mouse.OverrideCursor = null;
         e.Handled = true;
     }
 
@@ -168,7 +204,17 @@ public partial class NodeGraphPage : UserControl
 
     private void DesignerCanvas_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (_dragNode != null)
+        if (_groupDrag.Count > 0)
+        {
+            var gp = e.GetPosition(DesignerCanvas);
+            foreach (var (node, dx, dy) in _groupDrag)
+            {
+                node.X = Math.Max(0, gp.X - dx);
+                node.Y = Math.Max(0, gp.Y - dy);
+            }
+            e.Handled = true;
+        }
+        else if (_dragNode != null)
         {
             var p = e.GetPosition(DesignerCanvas);
             _dragNode.X = Math.Max(0, p.X - _dragOffset.X);
@@ -178,6 +224,11 @@ public partial class NodeGraphPage : UserControl
         else if (_linkSrc != null)
         {
             UpdateTempLine(e.GetPosition(DesignerCanvas));
+            e.Handled = true;
+        }
+        else if (_marquee)
+        {
+            PlaceMarquee(_marqueeStart, e.GetPosition(DesignerCanvas));
             e.Handled = true;
         }
         else if (_panning)
@@ -191,7 +242,14 @@ public partial class NodeGraphPage : UserControl
 
     private void DesignerCanvas_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (_dragNode != null)
+        if (_groupDrag.Count > 0)
+        {
+            _groupDrag.Clear();
+            DesignerCanvas.ReleaseMouseCapture();
+            _vm.Save();
+            e.Handled = true;
+        }
+        else if (_dragNode != null)
         {
             _dragNode = null;
             DesignerCanvas.ReleaseMouseCapture();
@@ -212,19 +270,64 @@ public partial class NodeGraphPage : UserControl
             EndLink();
             e.Handled = true;
         }
+        else if (_marquee)
+        {
+            _marquee = false;
+            MarqueeBox.Visibility = Visibility.Collapsed;
+            if (DesignerCanvas.IsMouseCaptured) DesignerCanvas.ReleaseMouseCapture();
+            var end = e.GetPosition(DesignerCanvas);
+            // 没拖动 = 只是点了一下空白：取消选中就完事，不要框出一个零宽选择
+            if (Math.Abs(end.X - _marqueeStart.X) > 4 || Math.Abs(end.Y - _marqueeStart.Y) > 4)
+            {
+                var box = new Rect(_marqueeStart, end);
+                var hits = _vm.Nodes.Where(n => NodeInBox(n, box)).ToList();
+                if (hits.Count > 0) _vm.SelectNodes(hits);
+            }
+            e.Handled = true;
+        }
         else if (_panning)
         {
             _panning = false;
             if (DesignerCanvas.IsMouseCaptured) DesignerCanvas.ReleaseMouseCapture();
+            Mouse.OverrideCursor = null;
             e.Handled = true;
         }
     }
 
+    /// <summary>把两个角点画成选择框（Rect 自带归一化，反向拖动也正确）。</summary>
+    private void PlaceMarquee(Point a, Point b)
+    {
+        var r = new Rect(a, b);
+        Canvas.SetLeft(MarqueeBox, r.Left);
+        Canvas.SetTop(MarqueeBox, r.Top);
+        MarqueeBox.Width = r.Width;
+        MarqueeBox.Height = r.Height;
+    }
+
+    /// <summary>节点是否被框到：按容器实际渲染范围判断（含属性区，且自动跟着缩放走）。</summary>
+    private bool NodeInBox(NodeGraphNodeViewModel node, Rect box)
+    {
+        if (NodesHost.ItemContainerGenerator.ContainerFromItem(node) is not FrameworkElement el) return false;
+        if (el.ActualWidth <= 0 || el.ActualHeight <= 0) return false;
+        var origin = el.TransformToVisual(DesignerCanvas).Transform(new Point(0, 0));
+        return box.IntersectsWith(new Rect(origin, new Size(el.ActualWidth, el.ActualHeight)));
+    }
+
     private void BeginNodeDrag(NodeGraphNodeViewModel vm, MouseButtonEventArgs e)
     {
-        _dragNode = vm;
         var p = e.GetPosition(DesignerCanvas);
-        _dragOffset = new Point(p.X - vm.X, p.Y - vm.Y);
+        _groupDrag.Clear();
+        if (_vm.SelectedNodes.Count > 1 && _vm.SelectedNodes.Contains(vm))
+        {
+            // 拖的是刚框选出的一组里的任意一个 → 整组按同一偏移一起走
+            foreach (var n in _vm.SelectedNodes) _groupDrag.Add((n, p.X - n.X, p.Y - n.Y));
+        }
+        else
+        {
+            _vm.ClearSelectedNodes();           // 只拖这一个，框选组作废
+            _dragNode = vm;
+            _dragOffset = new Point(p.X - vm.X, p.Y - vm.Y);
+        }
         _vm.SelectedNode = vm;
         DesignerCanvas.CaptureMouse();
         e.Handled = true;

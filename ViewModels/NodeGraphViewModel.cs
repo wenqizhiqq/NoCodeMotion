@@ -37,6 +37,31 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     public ObservableCollection<NodeGraphNodeViewModel> Nodes { get; } = new();
     public ObservableCollection<NodeGraphConnectionViewModel> Connections { get; } = new();
 
+    /// <summary>
+    /// 框选出来的一组节点：拖其中任意一个整组一起走，删除时整组一起删。
+    /// 属性面板仍然只显示一个（取组内第一个），所以这里同时维护 <see cref="SelectedNode"/>。
+    /// </summary>
+    public System.Collections.Generic.List<NodeGraphNodeViewModel> SelectedNodes { get; } = new();
+
+    /// <summary>框选结果落地：清掉旧高亮 → 标上新的一组 → 属性面板指向第一个。</summary>
+    public void SelectNodes(System.Collections.Generic.IEnumerable<NodeGraphNodeViewModel> nodes)
+    {
+        ClearSelectedNodes();
+        SelectedConnection = null;
+        _selectedNode = null;                                   // 绕开 setter，免得它把刚点亮的组又清掉
+        foreach (var n in nodes) { n.IsSelected = true; SelectedNodes.Add(n); }
+        if (SelectedNodes.Count > 0) SelectedNode = SelectedNodes[0];
+        OnChanged(nameof(SelectedHint));
+    }
+
+    /// <summary>清掉框选组的高亮（不动 SelectedNode，由调用方决定）。</summary>
+    public void ClearSelectedNodes()
+    {
+        foreach (var n in SelectedNodes) n.IsSelected = false;
+        SelectedNodes.Clear();
+        OnChanged(nameof(SelectedHint));
+    }
+
     private NodeGraphNodeViewModel? _selectedNode;
     public NodeGraphNodeViewModel? SelectedNode
     {
@@ -44,7 +69,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         set
         {
             if (_selectedNode == value) return;
-            if (_selectedNode != null) _selectedNode.IsSelected = false;
+            if (_selectedNode != null && !SelectedNodes.Contains(_selectedNode)) _selectedNode.IsSelected = false;
             _selectedNode = value;
             if (_selectedNode != null) _selectedNode.IsSelected = true;
             if (value != null) SelectedConnection = null;
@@ -75,12 +100,17 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
 
     public bool HasSelection => SelectedNode != null || SelectedConnection != null;
 
+    /// <summary>框选组的人数（单点选中时为 0/1，只用于提示文案）。</summary>
+    public int SelectedNodeCount => SelectedNodes.Count;
+
     /// <summary>选中项提示（面板顶部显示选中了哪条连线 / 哪个节点，并说明删除方式）。</summary>
-    public string SelectedHint => SelectedConnection != null
-        ? $"已选中连线：{SelectedConnection.Describe}　（点「删除所选」或按 Delete 键删除）"
-        : SelectedNode != null
-            ? $"已选中节点：{SelectedNode.Title}　（点「删除所选」或按 Delete 键删除）"
-            : string.Empty;
+    public string SelectedHint => SelectedNodes.Count > 1
+        ? $"已框选 {SelectedNodes.Count} 个节点　（拖动其中任意一个，整组一起挪；点「删除所选」或按 Delete 键整组删除）"
+        : SelectedConnection != null
+            ? $"已选中连线：{SelectedConnection.Describe}　（点「删除所选」或按 Delete 键删除）"
+            : SelectedNode != null
+                ? $"已选中节点：{SelectedNode.Title}　（点「删除所选」或按 Delete 键删除）"
+                : string.Empty;
 
     /// <summary>属性面板是否显示「实时值」行（选中 轴类 / 设置变量 / 运算 节点时）。null 安全：未选中时为 false。</summary>
     public bool ShowLiveRow => SelectedNode?.ShowsLiveRow == true;
@@ -367,12 +397,18 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
 
     public void DeleteSelected()
     {
-        if (SelectedNode != null)
+        // 框选了多个 → 整组一起删（含它们身上连着的线）；否则删当前选中的那一个
+        var group = SelectedNodes.Count > 1
+            ? SelectedNodes.ToList()
+            : SelectedNode != null ? new System.Collections.Generic.List<NodeGraphNodeViewModel> { SelectedNode }
+                                   : new System.Collections.Generic.List<NodeGraphNodeViewModel>();
+        if (group.Count > 0)
         {
-            var id = SelectedNode.Id;
-            foreach (var c in Connections.Where(c => c.SourceId == id || c.TargetId == id).ToList())
+            var ids = new System.Collections.Generic.HashSet<string>(group.Select(n => n.Id));
+            foreach (var c in Connections.Where(c => ids.Contains(c.SourceId) || ids.Contains(c.TargetId)).ToList())
                 Connections.Remove(c);
-            Nodes.Remove(SelectedNode);
+            foreach (var n in group) Nodes.Remove(n);
+            ClearSelectedNodes();
             SelectedNode = null;
             Save();
             SyncRunnerTopology();

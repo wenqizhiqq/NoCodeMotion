@@ -113,49 +113,62 @@
             </DockPanel>
         </Border>
 
-        <!-- 中：画布（ScrollViewer 提供滚动条；滚轮缩放；AllowDrop 接收工具箱拖入）-->
+        <!-- 中：画布。按键分工：左键 = 选中 / 拖动 / 框选 / 连线，中键 = 按住平移，滚轮 = 缩放。
+             （左键原先兼做平移，会和框选抢同一个手势，故让给中键。）-->
         <Border Grid.Column="1" Grid.Row="0" Margin="0,10,0,10" Style="{StaticResource CardBorderStyle}">
-            <ScrollViewer x:Name="CanvasScroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                <Canvas x:Name="DesignerCanvas"
-                        Width="4000" Height="3000"
-                        Background="{StaticResource NodeGridBrush}"
-                        AllowDrop="True"
-                        Focusable="True" FocusVisualStyle="{x:Null}"
-                        PreviewMouseLeftButtonDown="DesignerCanvas_PreviewMouseLeftButtonDown"
-                        PreviewMouseMove="DesignerCanvas_PreviewMouseMove"
-                        PreviewMouseLeftButtonUp="DesignerCanvas_PreviewMouseLeftButtonUp"
-                        PreviewMouseRightButtonDown="DesignerCanvas_PreviewMouseRightButtonDown"
-                        PreviewKeyDown="DesignerCanvas_PreviewKeyDown"
-                        PreviewMouseWheel="DesignerCanvas_PreviewMouseWheel"
-                        Drop="DesignerCanvas_Drop">
-                    <!-- 连线层（在节点之下）-->
-                    <ItemsControl ItemsSource="{Binding Connections}" ItemTemplate="{StaticResource ConnectionTemplate}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><Canvas IsItemsHost="True"/></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                    </ItemsControl>
-                    <!-- 连线拖拽临时线 -->
-                    <Path x:Name="TempLine" Stroke="Gray" StrokeThickness="2" StrokeDashArray="4 3"
-                          Visibility="Collapsed" IsHitTestVisible="False"/>
-                    <!-- 节点层（在连线之上）-->
-                    <ItemsControl ItemsSource="{Binding Nodes}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><Canvas IsItemsHost="True"/></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemContainerStyle>
-                            <Style TargetType="ContentPresenter">
-                                <Setter Property="Canvas.Left" Value="{Binding X}"/>
-                                <Setter Property="Canvas.Top" Value="{Binding Y}"/>
-                            </Style>
-                        </ItemsControl.ItemContainerStyle>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <local:NodeGraphNodeView/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </Canvas>
-            </ScrollViewer>
+            <Grid>
+                <ScrollViewer x:Name="CanvasScroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <Canvas x:Name="DesignerCanvas"
+                            Width="4000" Height="3000"
+                            Background="{StaticResource NodeGridBrush}"
+                            AllowDrop="True"
+                            Focusable="True" FocusVisualStyle="{x:Null}"
+                            PreviewMouseLeftButtonDown="DesignerCanvas_PreviewMouseLeftButtonDown"
+                            PreviewMouseDown="DesignerCanvas_PreviewMouseDown"
+                            PreviewMouseUp="DesignerCanvas_PreviewMouseUp"
+                            PreviewMouseMove="DesignerCanvas_PreviewMouseMove"
+                            PreviewMouseLeftButtonUp="DesignerCanvas_PreviewMouseLeftButtonUp"
+                            PreviewMouseRightButtonDown="DesignerCanvas_PreviewMouseRightButtonDown"
+                            PreviewKeyDown="DesignerCanvas_PreviewKeyDown"
+                            PreviewMouseWheel="DesignerCanvas_PreviewMouseWheel"
+                            Drop="DesignerCanvas_Drop">
+                        <!-- 连线层（在节点之下）-->
+                        <ItemsControl ItemsSource="{Binding Connections}" ItemTemplate="{StaticResource ConnectionTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><Canvas IsItemsHost="True"/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <!-- 连线拖拽临时线 -->
+                        <Path x:Name="TempLine" Stroke="Gray" StrokeThickness="2" StrokeDashArray="4 3"
+                              Visibility="Collapsed" IsHitTestVisible="False"/>
+                        <!-- 左键框选的选择框：只画不接鼠标，坐标与节点同为画布逻辑坐标（随缩放自动对齐）-->
+                        <Rectangle x:Name="MarqueeBox" Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="90"
+                                   Stroke="#2563EB" StrokeThickness="1" StrokeDashArray="4 2" Fill="#1E2563EB"/>
+                        <!-- 节点层（在连线之上）-->
+                        <ItemsControl x:Name="NodesHost" ItemsSource="{Binding Nodes}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><Canvas IsItemsHost="True"/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                    <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <local:NodeGraphNodeView/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Canvas>
+                </ScrollViewer>
+                <!-- 右下角小字：这块画布怎么用（不挡鼠标，纯提示）-->
+                <TextBlock HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,8"
+                           FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}"
+                           IsHitTestVisible="False"
+                           Text="滚轮缩放 · 中键按住拖拽平移 · 左键在空白处框选（选中后拖任意一个，整组一起走）"/>
+            </Grid>
         </Border>
 
         <!-- 右：属性面板 -->
@@ -215,7 +228,7 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <TextBlock Text="（先点一下节点或连线把它选中，再点【删除所选】，或者直接按 Delete 键）" FontSize="11" Margin="0,10,0,0"
+                        <TextBlock Text="（左键点节点 / 连线选中，在空白处按住左键拖动可框选一整组；框好后拖动其中任意一个，整组一起挪。要看全局用中键按住拖动画布、滚轮缩放）" FontSize="11" Margin="0,10,0,0"
                                    TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
