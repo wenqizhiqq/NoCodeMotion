@@ -578,12 +578,31 @@ namespace NoCodeMotion.ViewModels
 
         public CustomDesignerViewModel()
         {
+            // ★ 自定义页面控件增删改都自动保存（400ms 防抖写盘）：
+            //   - Widgets 集合的 Add/Remove → ScheduleSave
+            //   - 每个 Widget 的 Model 属性变更（位置/大小/文本/动作/参数…）→ ScheduleSave
+            Widgets.CollectionChanged += (_, e) =>
+            {
+                if (e.NewItems != null)
+                    foreach (DesignerWidgetVM vm in e.NewItems)
+                        if (vm.Model != null) vm.Model.PropertyChanged += OnWidgetModelChanged;
+                if (e.OldItems != null)
+                    foreach (DesignerWidgetVM vm in e.OldItems)
+                        if (vm.Model != null) vm.Model.PropertyChanged -= OnWidgetModelChanged;
+                ProjectStore.ScheduleSave();
+            };
             ReloadFromStore();
+            // 初始加载的控件也需要订阅（CollectionChanged 在订阅前已触发过一次，不会再进上面的回调）
+            foreach (var vm in Widgets)
+                if (vm.Model != null) vm.Model.PropertyChanged += OnWidgetModelChanged;
             DeleteSelectedCommand = new RelayCommand(_ => DeleteSelected());
             ClearAllCommand = new RelayCommand(_ => ClearAll());
             ExportCommand = new RelayCommand(_ => ExportWidgets());
             ImportCommand = new RelayCommand(_ => ImportWidgets());
         }
+
+        private static void OnWidgetModelChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+            => ProjectStore.ScheduleSave();
 
         /// <summary>从工程数据重建包装列表（页面构造 / 清空 / 导入后重载时调用）。</summary>
         private void ReloadFromStore()
