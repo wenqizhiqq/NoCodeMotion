@@ -490,6 +490,53 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- ============ 视觉算子（参数行由 Services/Vision/VisionOperators.cs 目录自动生成） ============ -->
+                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
+                            Visibility="{Binding HasStep, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="视觉算子"/>
+                                <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,2,0,4"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Text="挑一个算子，这一步就用它（找边、找圆、量尺寸…）。不挑就按上面的「步骤类型」跑。"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="算子"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          ItemsSource="{Binding OpChoices}"
+                                          SelectedItem="{Binding SelectedOpName, Mode=TwoWay}"
+                                          IsEnabled="{Binding HasStep}"/>
+                                </DockPanel>
+                                <TextBlock Text="{Binding OpHelp}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           Foreground="{StaticResource AccentDarkBrush}"
+                                           Visibility="{Binding HasOp, Converter={StaticResource BoolToVis}}"/>
+                                <ItemsControl ItemsSource="{Binding OpParams}"
+                                              Visibility="{Binding HasOp, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                                <DockPanel Style="{StaticResource AppleRow}">
+                                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}"
+                                                               Text="{Binding Name}" ToolTip="{Binding Help}"/>
+                                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                                              ItemsSource="{Binding OptionList}"
+                                                              SelectedItem="{Binding Value, Mode=TwoWay}"
+                                                              Visibility="{Binding IsChoice, Converter={StaticResource BoolToVis}}"/>
+                                                    <CheckBox DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                                              VerticalAlignment="Center"
+                                                              IsChecked="{Binding BoolValue, Mode=TwoWay}"
+                                                              Visibility="{Binding IsBool, Converter={StaticResource BoolToVis}}"/>
+                                                    <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
+                                                             Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                                                             Visibility="{Binding IsText, Converter={StaticResource BoolToVis}}"/>
+                                                </DockPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
                         <!-- 图像采集 -->
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
                             Visibility="{Binding IsImageAcquisition, Converter={StaticResource BoolToVis}}">

@@ -40,7 +40,7 @@ public partial class NodeGraphPage : UserControl
     // 缩放（滚轮）与工具箱拖拽状态
     private double _zoom = 1.0;
     private readonly ScaleTransform _scale = new ScaleTransform(1, 1);
-    private NgKind? _dragKind;
+    private NgNodeDef? _dragTool;
     private Point _dragStartPoint;
 
     // 空白画布拖拽平移
@@ -359,7 +359,7 @@ public partial class NodeGraphPage : UserControl
     {
         if (sender is FrameworkElement fe && fe.DataContext is NgNodeDef def && fe is UIElement ui)
         {
-            _dragKind = def.Kind;
+            _dragTool = def;
             _dragStartPoint = e.GetPosition(this);
             ui.CaptureMouse();
         }
@@ -367,35 +367,34 @@ public partial class NodeGraphPage : UserControl
 
     private void ToolItem_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (_dragKind == null) return;
+        if (_dragTool == null) return;
         var ui = sender as UIElement;
         if (e.LeftButton != MouseButtonState.Pressed)
         {
             ui?.ReleaseMouseCapture();
-            _dragKind = null;
+            _dragTool = null;
             return;
         }
         var cur = e.GetPosition(this);
         if (Math.Abs(cur.X - _dragStartPoint.X) < 4 && Math.Abs(cur.Y - _dragStartPoint.Y) < 4) return;
-        var kind = _dragKind.Value;
-        _dragKind = null;
+        var tool = _dragTool;
+        _dragTool = null;
         ui?.ReleaseMouseCapture();
-        DragDrop.DoDragDrop(ui ?? this, new DataObject("NgKind", kind), DragDropEffects.Copy);
+        DragDrop.DoDragDrop(ui ?? this, new DataObject("NgTool", tool), DragDropEffects.Copy);
     }
 
     private void ToolItem_PreviewMouseUp(object sender, MouseButtonEventArgs e)
     {
         if (sender is UIElement ui) ui.ReleaseMouseCapture();
-        _dragKind = null;
+        _dragTool = null;
     }
 
     // 在画布上放下工具箱拖来的节点：落点即为节点中心（逻辑坐标，随缩放自动一致）。
     private void DesignerCanvas_Drop(object sender, DragEventArgs e)
     {
-        if (!e.Data.GetDataPresent("NgKind")) return;
-        var kind = (NgKind)e.Data.GetData("NgKind");
+        if (!(e.Data.GetData("NgTool") is NgNodeDef tool)) return;
         var p = e.GetPosition(DesignerCanvas);
-        _vm.AddNode(kind, p.X - NgGeometry.NodeWidth / 2, Math.Max(0, p.Y - NgGeometry.HeaderHeight / 2));
+        _vm.AddTool(tool, p.X - NgGeometry.NodeWidth / 2, Math.Max(0, p.Y - NgGeometry.HeaderHeight / 2));
         e.Handled = true;
     }
 

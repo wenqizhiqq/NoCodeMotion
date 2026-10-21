@@ -76,8 +76,12 @@ public sealed class NgDoc
             if (n == null) continue;
             if (!NgNodeDefinitions.All.TryGetValue(n.Kind, out var def)) continue;
             var old = n.Props ?? new List<NgProp>();
-            var rebuilt = new List<NgProp>(def.Props.Count);
-            foreach (var pd in def.Props)
+            // 算子节点的参数表跟着「算子」走（每个算子参数不一样），不能套节点定义里那两行兜底属性，
+            // 否则老工程一载入就把刚填的算子参数全抹了。
+            System.Collections.Generic.IReadOnlyList<NgPropDef> propDefs =
+                n.Kind == NgKind.VisionOp ? NgNodeDefinitions.OpProps(NgNodeDefinitions.OpNameOf(n)) : def.Props;
+            var rebuilt = new List<NgProp>(propDefs.Count);
+            foreach (var pd in propDefs)
             {
                 var prev = old.FirstOrDefault(x => x != null && x.Name == pd.Name);
                 rebuilt.Add(new NgProp

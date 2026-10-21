@@ -211,8 +211,9 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
     public NgDomain Domain => NgNodeDefinitions.All[_model.Kind].Domain;
     /// <summary>领域中文名（视觉 / 运控 / 通讯），供属性面板显示。</summary>
     public string DomainText => NgNodeDefinitions.DomainTitle.TryGetValue(Domain, out var t) ? t : Domain.ToString();
-    public string Title => NgNodeDefinitions.All[_model.Kind].Title;
-    public string Color => NgNodeDefinitions.All[_model.Kind].Color;
+    /// <summary>卡片标题：算子节点显示它选的算子名（找直线 / 找圆 …），其它节点显示类型名。</summary>
+    public string Title => NgNodeDefinitions.TitleOf(_model);
+    public string Color => NgNodeDefinitions.ColorOf(_model);
     public bool HasInput => NgNodeDefinitions.All[_model.Kind].HasInput;
     public IReadOnlyList<string> Outputs => NgNodeDefinitions.All[_model.Kind].Outputs;
 
@@ -292,19 +293,60 @@ public sealed class NodeGraphNodeViewModel : INotifyPropertyChanged
         set { if (_isCurrent != value) { _isCurrent = value; OnChanged(nameof(IsCurrent)); } }
     }
 
+    private readonly System.Action? _externalSave;
+
     public NodeGraphNodeViewModel(NgNode model, System.Action? onPropChanged = null)
     {
         _model = model;
+        _externalSave = onPropChanged;
         // 属性变更时：先刷新「条件N名称候选 / 分支显隐 / 端口判定」，再回调外部（自动保存 / 重绘连线）
         Props = new ObservableCollection<NgPropViewModel>(
-            model.Props.Select(p => new NgPropViewModel(p, () =>
-            {
-                RefreshPropDependencies();
-                RefreshDecisionState();
-                onPropChanged?.Invoke();
-            }, model)));
+            model.Props.Select(p => new NgPropViewModel(p, () => OnPropValueChanged(p.Name), model)));
         BuildPanelGroups();
         BuildOutputPorts();
+    }
+
+    /// <summary>某个属性值变了。算子节点换「算子」时整张参数表要跟着换（每个算子的参数不一样）。</summary>
+    void OnPropValueChanged(string propName)
+    {
+        if (_model.Kind == NgKind.VisionOp && propName == "算子") RebuildOpProps();
+        else
+        {
+            RefreshPropDependencies();
+            RefreshDecisionState();
+        }
+        _externalSave?.Invoke();
+    }
+
+    /// <summary>按当前选的算子重建属性（同名参数保留已填的值），并刷新卡片标题与右侧属性面板。</summary>
+    public void RebuildOpProps()
+    {
+        var defs = NgNodeDefinitions.OpProps(NgNodeDefinitions.OpNameOf(_model));
+        var old = _model.Props ?? new System.Collections.Generic.List<NgProp>();
+        var list = new System.Collections.Generic.List<NgProp>(defs.Length);
+        foreach (var pd in defs)
+        {
+            var prev = old.FirstOrDefault(x => x != null && x.Name == pd.Name);
+            list.Add(new NgProp
+            {
+                Name = pd.Name,
+                Value = prev != null && !string.IsNullOrEmpty(prev.Value) ? prev.Value : pd.Default,
+                Options = pd.Options
+            });
+        }
+        _model.Props = list;
+        Props.Clear();
+        foreach (var p in list)
+        {
+            var captured = p;
+            Props.Add(new NgPropViewModel(captured, () => OnPropValueChanged(captured.Name), _model));
+        }
+        PanelGroups.Clear();
+        BuildPanelGroups();
+        OnChanged(nameof(Title));
+        OnChanged(nameof(Color));
+        OnChanged(nameof(Props));
+        OnChanged(nameof(PanelGroups));
     }
 
     /// <summary>某个属性变了 → 刷新所有行的「候选 / 显隐」。

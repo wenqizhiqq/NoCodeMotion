@@ -73,7 +73,7 @@
                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource AppleSectionHeader}" Text="节点工具箱"/>
                 <TextBlock DockPanel.Dock="Top" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}"
                            Margin="0,0,0,4" Text="拖到画布或点击添加"/>
-                <ScrollViewer VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
                     <ItemsControl ItemsSource="{Binding ToolboxGroups}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -89,13 +89,13 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Button Command="{Binding DataContext.AddNodeCommand, RelativeSource={RelativeSource AncestorType=local:NodeGraphPage}}"
-                                                        CommandParameter="{Binding Kind}"
+                                                        CommandParameter="{Binding}"
                                                         PreviewMouseLeftButtonDown="ToolItem_PreviewMouseDown"
                                                         PreviewMouseMove="ToolItem_PreviewMouseMove"
                                                         PreviewMouseUp="ToolItem_PreviewMouseUp"
                                                         Style="{StaticResource ToolButtonStyle}"
                                                         Height="24" Margin="2" Padding="4,2"
-                                                        HorizontalContentAlignment="Left" ToolTip="{Binding Title}">
+                                                        HorizontalContentAlignment="Left" ToolTip="{Binding Tip}">
                                                     <StackPanel Orientation="Horizontal">
                                                         <Ellipse Width="8" Height="8" Margin="0,0,4,0" VerticalAlignment="Center"
                                                                  Fill="{Binding Color, Converter={StaticResource NgStringToBrush}}"/>

@@ -711,6 +711,7 @@ public sealed class NgRunner
             // 采集节点把当帧落盘，后续 匹配/缺陷/测量/对位/标定 复用同一帧；
             // 结果摘要回填卡片，数值结果写入变量供 条件分支 / 运算 节点引用。
             // 异常一律降级到 _lastNodeError，不抛 —— 节点卡 + 日志显示 + 流程继续。
+            case NgKind.VisionOp:
             case NgKind.CamCapture:
             case NgKind.TemplateMatch:
             case NgKind.DefectDetect:

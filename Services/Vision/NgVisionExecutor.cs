@@ -68,7 +68,7 @@ public sealed class NgVisionExecutor
     /// <summary>是否为本类负责的视觉节点。</summary>
     public static bool IsVisionKind(NgKind k) =>
         k == NgKind.CamCapture || k == NgKind.TemplateMatch || k == NgKind.DefectDetect
-        || k == NgKind.Measure || k == NgKind.Align || k == NgKind.Calib;
+        || k == NgKind.Measure || k == NgKind.Align || k == NgKind.Calib || k == NgKind.VisionOp;
 
     /// <summary>单节点执行结果：summary 写卡片摘要，error 非空时由 NgRunner 写 ErrorText（不进异常流）。</summary>
     public readonly struct VisionExecOutcome
@@ -93,6 +93,7 @@ public sealed class NgVisionExecutor
                 NgKind.Measure => MeasureStep(node),
                 NgKind.Align => Align(node),
                 NgKind.Calib => Calib(node),
+                NgKind.VisionOp => Op(node),
                 _ => new VisionExecOutcome($"非视觉节点：{node.Kind}", null)
             };
         }
@@ -414,6 +415,59 @@ public sealed class NgVisionExecutor
         if (!VisionEngine.SaveBgra(rep.Bgra, rep.Width, rep.Height, file))
             throw new InvalidOperationException("标定图像落盘失败（临时目录不可写）");
         _framePath = file;
+    }
+
+    // ===================== 视觉算子节点 =====================
+
+    /// <summary>
+    /// 「视觉算子」节点：右侧属性面板那张参数表就是算子目录里的同一份，这里把它还原成
+    /// VisualFlowStep（Op = 内部键 + ParamJson）交给引擎按算子执行，再把算子给出的每个数
+    /// 按「变量前缀」写成变量 —— 下游的 条件分支 / 运算 节点可以直接引用（如「找直线角度」）。
+    /// </summary>
+    private VisionExecOutcome Op(NgNode node)
+    {
+        string opName = NgNodeDefinitions.OpNameOf(node);
+        var spec = VisionOperators.All2.FirstOrDefault(a => a.Name == opName);
+        if (spec == null)
+            return new VisionExecOutcome("还没选算子：在右边「算子」里挑一个", "算子「" + opName + "」不存在");
+
+        // 会话里没有当帧就别往下拼链了：引擎对「来源=文件 + 空路径」已经明确不回退测试图，
+        // 硬跑只会得到一句没头没尾的「请先执行图像采集」，看不出是前面缺了采集节点。
+        if (string.IsNullOrEmpty(_framePath) || !File.Exists(_framePath))
+            return new VisionExecOutcome("这张图还没采到：在算子前面接一个「拍一张照」节点再运行",
+                "缺少图像：请先执行「拍一张照」");
+
+        var step = new VisualFlowStep
+        {
+            Name = spec.Name,
+            StepType = spec.Name,
+            Enabled = true,
+            Op = spec.Key
+        };
+        foreach (var pd in spec.Params)
+        {
+            var p = node.Props.FirstOrDefault(x => x != null && x.Name == pd.Name);
+            if (p == null || string.IsNullOrWhiteSpace(p.Value)) continue;      // 留空 = 用目录里的默认值
+            step.SetOpParam(pd.Key, p.Value.Trim());
+        }
+
+        VisionReport rep;
+        string err = "";
+        try { rep = RunChain(step, replayOps: true); }
+        catch (Exception ex) { err = ex.Message; rep = new VisionReport(); }
+        var r = LastResult(rep, spec.Name);
+        AddOp(node.Id, step);
+
+        string prefix = Prop(node, "变量前缀", spec.Name).Trim();
+        if (prefix.Length == 0) prefix = spec.Name;
+        bool ok = r?.Ok ?? false;
+        if (r?.Numbers != null)
+            foreach (var kv in r.Numbers) _setVar(prefix + kv.Key, kv.Value);
+        _setVar(prefix + "合格", ok ? 1 : 0);
+
+        string summary = err.Length > 0 ? $"{spec.Name}没跑起来：{err}" : (r?.Summary ?? spec.Name + " 没有结果");
+        _log($"[视觉] {spec.Name}：{summary}");
+        return new VisionExecOutcome(summary, ok ? null : (err.Length > 0 ? err : summary));
     }
 
     // ===================== 小工具 =====================

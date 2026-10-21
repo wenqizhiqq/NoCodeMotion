@@ -36,6 +36,13 @@ namespace NoCodeMotion.Services.Vision
 
         /// <summary>结构化计数结果：模板匹配=命中框数；缺陷检测=缺陷处数；其它=0。</summary>
         public int Count { get; set; }
+
+        /// <summary>
+        /// 算子的输出量（圆心X / 半径 / 角度 / 偏差…）。
+        /// 结果区按这张表逐行列出，流程也能按名字取用 —— 不用从 Summary 文本里正则抽数。
+        /// </summary>
+        public System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, double>> Numbers { get; }
+            = new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, double>>();
     }
 
     /// <summary>
@@ -115,6 +122,7 @@ namespace NoCodeMotion.Services.Vision
         {
             var report = new VisionReport();
             Cv.Mat? cur = null;
+            var opCtx = new VisionOpContext();   // 算子之间传数据（上一步的边缘点给下一步拟合用）
             Cv.Mat? display = null;   // 注释画布：累积各步的框/线/十字，与数据图 cur 分离，避免标注被后续算子当作像素内容（否则匹配绿框灰度≈126 会触发误检）
             bool usedSynthetic = false;
             int tplX = 0, tplY = 0, tplW = 0, tplH = 0; // 合成测试图里的“目标”矩形（用于无模板文件时自动取模板）
@@ -146,6 +154,28 @@ namespace NoCodeMotion.Services.Vision
                     int before = report.Results.Count;
                     try
                     {
+                        // 算子通道：步骤挑了「算子」（Op 非空）就走目录驱动的新算子，
+                        // 没挑就照老 StepType 跑 —— 老工程一字不动。
+                        var opSpec = VisionOperators.Find(s.Op);
+                        if (opSpec != null)
+                        {
+                            if (cur == null) AddFail(report, s, "请先执行图像采集");
+                            else
+                            {
+                                var nextOp = VisionOpRunner.Run(opSpec, s, cur, display, report, opCtx, progress);
+                                if (!ReferenceEquals(nextOp, cur))
+                                {
+                                    // 图像 / 颜色类算子换了一张图：数据图和注释画布都要跟着换，
+                                    // 否则下一步要么还在处理旧图，要么标注画在错的底上。
+                                    cur?.Dispose();
+                                    cur = nextOp;
+                                    display?.Dispose();
+                                    display = cur.Clone();
+                                }
+                            }
+                            break;
+                        }
+
                         switch ((s.StepType ?? "").Trim())
                         {
                             case "图像采集":

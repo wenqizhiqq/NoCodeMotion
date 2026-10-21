@@ -2066,6 +2066,95 @@ else:
     check("G32.13 AI 写的旧内部名也会被认（ClampTo / ClampOperation 先过词表再判合法）",
           "FlowVocab.ToInternalFunction(s)" in _ai and "FlowVocab.ToInternalOperation(given, func)" in _ai)
 
+# ---------------------------------------------------------------------
+# G33  视觉算子：目录（白话名）↔ 实现 ↔ 自动参数界面
+# ---------------------------------------------------------------------
+# 需求：算子要对齐 LV Studio / VisionMaster 的数量，名字要白话，实现要真做（不是占位）。
+# ★ 这里守的三条最容易烂掉的地方：
+#   ① 目录里列了算子但执行器没实现 → 现场点了只得到「未实现」，比不列更坑；
+#   ② 引擎仍先按 StepType 分派 → 算子永远跑不到（不报错，只是没结果）；
+#   ③ 参数界面退回手写 → 加一个算子就要改一遍 XAML，迟早和目录对不上。
+import re as _re33
+
+_vop = (read(r"Services\Vision\VisionOperators.cs") or "").replace("\r\n", "\n")
+_vrun = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n")
+_veng = (read(r"Services\Vision\VisionEngine.cs") or "").replace("\r\n", "\n")
+_vxaml = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+_vvm = (read(r"Views\VisualFlowDetailViewModel.cs") or "").replace("\r\n", "\n")
+_vstep = (read(r"Models\VisualFlowStep.cs") or "").replace("\r\n", "\n")
+
+if not _vop or not _vrun:
+    check("G33 找到视觉算子目录 / 执行器", False, "VisionOperators.cs 或 VisionOpRunner.cs 缺失")
+else:
+    _keys = _re33.findall(r'Key\s*=\s*"([a-z][a-z0-9_]*)"', _vop)
+    _impl = _re33.findall(r'case\s+"([a-z][a-z0-9_]*)"\s*:', _vrun)
+    check("G33.1 目录里的每个算子在执行器里都有实现（列了没实现 = 现场点了报未实现）",
+          _keys and not [k for k in _keys if k not in _impl],
+          "缺实现: " + ",".join(k for k in _keys if k not in _impl))
+    check("G33.2 算子键不重复", len(_keys) == len(set(_keys)), ",".join(_keys))
+    # 逐项数：每个算子都该有一行 Category / Summary / Outputs（"Key =" 在参数定义里也出现，不能拿来计数）
+    _n = len(_keys)
+    check("G33.3 每个算子都有白话名 / 分类 / 一句话说明 / 输出清单",
+          _vop.count('Name = "') == _n and _vop.count("Category = \"") == _n
+          and _vop.count("Summary = \"") == _n and _vop.count("Outputs = \"") == _n,
+          "算子 %d 个，但 Name/Category/Summary/Outputs 分别是 %d/%d/%d/%d" % (
+              _n, _vop.count('Name = "'), _vop.count("Category = \""),
+              _vop.count("Summary = \""), _vop.count("Outputs = \"")))
+    check("G33.4 引擎在按「步骤类型」分派之前先看算子（否则算子永远跑不到）",
+          _veng.find("VisionOperators.Find(s.Op)") < _veng.find('switch ((s.StepType ?? "").Trim())'))
+    check("G33.5 算子内部异常兜成「这一步失败」，不打断整条流程",
+          "catch (Exception ex)" in _vrun and "这个算子跑不起来：" in _vrun)
+    check("G33.6 参数界面由目录自动生成（不是为每个算子手写一遍 XAML）",
+          'ItemsSource="{Binding OpParams}"' in _vxaml and "VisionParamEditor" in _vvm)
+    check("G33.7 参数包用 JsonDocument 解析（AI/人手写数字值不会被整体丢掉）",
+          "JsonDocument.Parse(_paramJson)" in _vstep and "Dictionary<string, string>" in _vstep)
+    check("G33.8 算子输出量是结构化的（Numbers），不靠从 Summary 里正则抽数",
+          "public System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, double>> Numbers" in _veng
+          and "Numbers.Add(" in _vrun)
+    check("G33.9 选了算子后步骤类型跟着显示成算子名，取消时退回图像采集（两套参数卡不同时冒出来）",
+          'SelectedStep.StepType = spec.Name;' in _vvm and 'VisionOperators.Names.Contains(SelectedStep.StepType)' in _vvm)
+
+# ---------------------------------------------------------------------
+# G34  节点工具箱：算子要看得见、拖得动、跑得起来
+# ---------------------------------------------------------------------
+# 需求（2026-10-21 现场反馈）：节点图工具箱里找不到算子，而且列表被截断又滚不动。
+#   ① 工具箱必须能滚动 —— 这条就是那个 bug 的回归网（当年写死 Disabled，编译运行都不报错）；
+#   ② 算子芯片和它的参数表都必须来自 VisionOperators 目录，不另写一份清单；
+#   ③ 老工程载入不能把已填的算子参数抹掉，换了算子参数表要整张跟着换；
+#   ④ 卡片标题跟着所选算子变 —— 41 个节点都叫「视觉算子」等于没接。
+_ngxaml = (read(r"Views\NodeGraphPage.xaml") or "").replace("\r\n", "\n")
+_ngpage = (read(r"Views\NodeGraphPage.xaml.cs") or "").replace("\r\n", "\n")
+_ngvm = (read(r"ViewModels\NodeGraphViewModel.cs") or "").replace("\r\n", "\n")
+_ngnvm = (read(r"ViewModels\NodeGraphNodeViewModel.cs") or "").replace("\r\n", "\n")
+_ngdefs = (read(r"Models\NodeGraph\NgDefs.cs") or "").replace("\r\n", "\n")
+_ngmodel = (read(r"Models\NodeGraph\NgModel.cs") or "").replace("\r\n", "\n")
+_ngrun = (read(r"Services\NgRunner.cs") or "").replace("\r\n", "\n")
+_ngvis = (read(r"Services\Vision\NgVisionExecutor.cs") or "").replace("\r\n", "\n")
+
+if not _ngxaml or not _ngdefs:
+    check("G34 找到节点图页面 / 节点定义", False, "NodeGraphPage.xaml 或 NgDefs.cs 缺失")
+else:
+    check("G34.1 工具箱能滚动（曾经写死 Disabled，通讯组被截在屏幕外）",
+          'VerticalScrollBarVisibility="Auto"' in _ngxaml and 'ItemsSource="{Binding ToolboxGroups}"' in _ngxaml)
+    check("G34.2 工具箱里的算子芯片来自目录（不另写一份清单）",
+          "VisionOperators.All2" in _ngdefs and "NgNodeDefinitions.OpTools" in _ngvm
+          and 'Title = "算子 · "' in _ngvm)
+    check("G34.3 算子节点的参数表来自目录（bool 参数渲成 是|否 下拉）",
+          "foreach (var pd in spec.Params)" in _ngdefs and '"是|否"' in _ngdefs)
+    check("G34.4 老工程载入不抹掉算子参数（Normalize 对 VisionOp 走 OpProps）",
+          "n.Kind == NgKind.VisionOp ? NgNodeDefinitions.OpProps" in _ngmodel)
+    check("G34.5 换了算子，参数表整张跟着换（不是只改一个下拉值）",
+          "RebuildOpProps()" in _ngnvm and 'propName == "算子"' in _ngnvm)
+    check("G34.6 卡片标题 / 颜色跟着所选算子走",
+          "NgNodeDefinitions.TitleOf(_model)" in _ngnvm and "NgNodeDefinitions.ColorOf(_model)" in _ngnvm)
+    check("G34.7 算子节点真的会被执行（runner 认它 + 执行器有 Op 分支）",
+          "case NgKind.VisionOp:" in _ngrun and "NgKind.VisionOp => Op(node)" in _ngvis)
+    check("G34.8 算子给的数写成变量，下游节点能引用（按变量前缀拼名）",
+          "_setVar(prefix + kv.Key, kv.Value)" in _ngvis and 'Prop(node, "变量前缀"' in _ngvis)
+    check("G34.9 拖拽带的是整个条目（只带 NgKind 会丢算子键 → 参数表铺不出来）",
+          'new DataObject("NgTool", tool)' in _ngpage and "_vm.AddTool(tool" in _ngpage
+          and 'CommandParameter="{Binding}"' in _ngxaml)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

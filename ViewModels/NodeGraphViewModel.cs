@@ -243,7 +243,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         };
         _actualPosTimer.Start();
 
-        AddNodeCommand = new RelayCommand(p => AddNode(ParseKind(p), DefaultX(), DefaultY()));
+        AddNodeCommand = new RelayCommand(p => AddTool(p as NgNodeDef, DefaultX(), DefaultY()));
         DeleteCommand = new RelayCommand(_ => DeleteSelected(), _ => HasSelection);
         DeleteAllConnectionsCommand = new RelayCommand(_ => DeleteAllConnections(), _ => Connections.Count > 0);
         ClearCommand = new RelayCommand(_ => ClearAll());
@@ -298,12 +298,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             if (p is string id && !string.IsNullOrEmpty(id)) ToggleBreakpointAt(id);
         });
 
-        ToolboxGroups = NgNodeDefinitions.DomainOrder.Select(dom => new NgToolGroup
-        {
-            Domain = dom,
-            Title = NgNodeDefinitions.DomainTitle[dom],
-            Items = NgNodeDefinitions.All.Values.Where(d => d.Domain == dom).ToList()
-        }).ToList();
+        ToolboxGroups = BuildToolboxGroups();
     }
 
     // ============ 加载 / 保存 ============
@@ -368,11 +363,22 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     private double DefaultX() => 80 + (Nodes.Count * 26) % 360;
     private double DefaultY() => 80 + (Nodes.Count * 26) % 240;
 
-    public void AddNode(NgKind kind, double x, double y)
+    public void AddNode(NgKind kind, double x, double y) => AddNode(kind, x, y, null);
+
+    /// <summary>工具箱里点一下 / 拖进画布：算子芯片建的是「视觉算子」节点，参数表直接来自算子目录。</summary>
+    public void AddTool(NgNodeDef? tool, double x, double y)
+    {
+        if (tool == null) return;
+        if (string.IsNullOrEmpty(tool.OpKey)) AddNode(tool.Kind, x, y);
+        else AddNode(NgKind.VisionOp, x, y, NgNodeDefinitions.OpProps(tool.Title));
+    }
+
+    /// <summary>建节点。传了 props（算子属性表）就用它，否则用该节点类型定义里的属性。</summary>
+    public void AddNode(NgKind kind, double x, double y, System.Collections.Generic.IReadOnlyList<NgPropDef>? props)
     {
         var def = NgNodeDefinitions.All[kind];
         var node = new NgNode { Kind = kind, X = x, Y = y };
-        foreach (var pd in def.Props)
+        foreach (var pd in props ?? def.Props)
             node.Props.Add(new NgProp { Name = pd.Name, Value = pd.Default, Options = pd.Options });
         var vm = new NodeGraphNodeViewModel(node, Save);
         Nodes.Add(vm);
@@ -462,8 +468,32 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         SyncRunnerTopology();
     }
 
-    private static NgKind ParseKind(object? p) =>
-        p is NgKind k ? k : NgKind.Start;
+    /// <summary>工具箱分组：普通节点按领域分；「视觉算子」再按算子分类拆小组 —— 目录里加算子，这里自动多一行。</summary>
+    static System.Collections.Generic.List<NgToolGroup> BuildToolboxGroups()
+    {
+        var groups = new System.Collections.Generic.List<NgToolGroup>();
+        foreach (var dom in NgNodeDefinitions.DomainOrder)
+        {
+            if (dom != NgDomain.VisionOp)
+            {
+                groups.Add(new NgToolGroup
+                {
+                    Domain = dom,
+                    Title = NgNodeDefinitions.DomainTitle[dom],
+                    Items = NgNodeDefinitions.All.Values.Where(d => d.Domain == dom).ToList()
+                });
+                continue;
+            }
+            foreach (var cat in NoCodeMotion.Services.Vision.VisionOperators.Categories)
+                groups.Add(new NgToolGroup
+                {
+                    Domain = dom,
+                    Title = "算子 · " + cat,
+                    Items = NgNodeDefinitions.OpTools.Where(d => d.Category == cat).ToList()
+                });
+        }
+        return groups;
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

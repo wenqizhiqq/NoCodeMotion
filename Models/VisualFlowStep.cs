@@ -9,12 +9,73 @@ namespace NoCodeMotion.Models
     /// <summary>
     /// 视觉流程步骤。StepType 决定右侧参数面板显示哪一组字段。
     /// 工具类型：模板匹配 / 图像采集 / 图像预处理 / 缺陷检测 / 测量 / 字符识别 / 通讯。
+    ///
+    /// 另外两个字段是「算子」通道（目录见 Services/Vision/VisionOperators.cs）：
+    ///   Op        —— 算子内部键（line / circle / quad…）。空 = 仍按老的 StepType 跑，老工程不受影响；
+    ///   ParamJson —— 算子参数包。参数界面由目录自动生成，所以加算子不必再往这个类里堆字段。
     /// </summary>
     public class VisualFlowStep : INotifyPropertyChanged
     {
         private string _name = "";
         private string _stepType = "图像采集";
         private bool _enabled = true;
+
+        // ===================== 算子通道（白话名 → 内部键 → 参数包） =====================
+
+        private string _op = "";
+        private string _paramJson = "";
+        private System.Collections.Generic.Dictionary<string, string>? _paramCache;
+        private string? _paramCacheRaw;
+
+        /// <summary>算子内部键（VisionOperators 目录里的 Key）。空 = 走老的 StepType。</summary>
+        public string Op { get => _op; set => Set(ref _op, value); }
+
+        /// <summary>算子参数包（JSON 对象，随工程落盘）。</summary>
+        public string ParamJson
+        {
+            get => _paramJson;
+            set { if (Set(ref _paramJson, value)) _paramCacheRaw = null; }
+        }
+
+        /// <summary>取一个算子参数；没填 / 填了空串都回落到默认值。</summary>
+        public string GetOpParam(string key, string fallback = "")
+        {
+            if (_paramCache == null || _paramCacheRaw != _paramJson)
+            {
+                var map = new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal);
+                if (!string.IsNullOrWhiteSpace(_paramJson))
+                {
+                    try
+                    {
+                        // 用 JsonDocument 而不是反序列化成 Dictionary&lt;string,string&gt;：
+                        // AI 或人手写的 {"cx":120} 是数字不是字符串，整体反序列化会抛掉、参数全丢。
+                        using var doc = System.Text.Json.JsonDocument.Parse(_paramJson);
+                        if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+                            foreach (var p in doc.RootElement.EnumerateObject())
+                                map[p.Name] = p.Value.ValueKind == System.Text.Json.JsonValueKind.String
+                                    ? (p.Value.GetString() ?? "") : p.Value.ToString();
+                    }
+                    catch { /* 参数包写坏了就全按默认值跑，不让一步算子把整条流程带崩 */ }
+                }
+                _paramCache = map;
+                _paramCacheRaw = _paramJson;
+            }
+            return _paramCache.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v : fallback;
+        }
+
+        /// <summary>写一个算子参数（界面编辑参数行时用）。</summary>
+        public void SetOpParam(string key, string value)
+        {
+            GetOpParam("__warm__");                     // 先把缓存建起来（顺带把坏 JSON 清成空表）
+            _paramCache ??= new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal);
+            _paramCache[key] = value ?? "";
+            var opts = new System.Text.Json.JsonSerializerOptions
+            { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+            ParamJson = System.Text.Json.JsonSerializer.Serialize(_paramCache, opts);
+        }
+
+        /// <summary>这个算子的参数有没有被改过（结果列表 / 提示用）。</summary>
+        public bool HasOpParams => !string.IsNullOrWhiteSpace(_paramJson);
 
         // 通用
         private string _cameraId = "0";

@@ -1,12 +1,16 @@
 ﻿// ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦
 // ◆温⁣启⁠志⁣◆​编⁣写‍◇​微‌信​﹕​1‏8⁠7‍◆‏1⁣9‏3⁣6‏◇⁠1‏3‎9⁣9‏　‌※‍保⁣留⁣所‏有‎权‍利⁠请‏勿​删‏除‏◇
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨ۤ
+using System.Linq;
+using NoCodeMotion.Services.Vision;
+
 namespace NoCodeMotion.Models.NodeGraph;
 
-/// <summary>节点三大领域：视觉 / 运控 / 通讯 / 逻辑。工具箱按此分组。</summary>
+/// <summary>节点领域：视觉 / 视觉算子 / 运控 / 通讯 / 逻辑。工具箱按此分组。</summary>
 public enum NgDomain
 {
     Vision,
+    VisionOp,
     Motion,
     Comm,
     Logic
@@ -27,6 +31,15 @@ public sealed class NgNodeDef
     public NgKind Kind { get; init; }
     public string Title { get; init; } = "";
     public NgDomain Domain { get; init; }
+    /// <summary>工具箱芯片对应的算子键（只有「视觉算子」分组里的条目非空）。</summary>
+    public string OpKey { get; init; } = "";
+    /// <summary>算子分类（工具箱按它再分小组）。</summary>
+    public string Category { get; init; } = "";
+    /// <summary>一句话说明（工具箱鼠标停上去的提示）。</summary>
+    public string Summary { get; init; } = "";
+
+    /// <summary>工具箱提示：有说明就「名字：说明」，没有就只显示名字。</summary>
+    public string Tip => Summary.Length == 0 ? Title : Title + "：" + Summary;
     public string Color { get; init; } = "#4A89DC";
     public bool HasInput { get; init; } = true;
     public IReadOnlyList<string> Outputs { get; init; } = new[] { "Out" };
@@ -45,6 +58,7 @@ public enum NgKind
     Measure,         // 测量
     Align,           // 对位
     Calib,           // 标定
+    VisionOp,        // 视觉算子（参数表由 VisionOperators 目录生成）
 
     // —— 运控 ——
     Start,           // 开始
@@ -335,6 +349,15 @@ public static class NgNodeDefinitions
                 new NgPropDef { Name = "分支数", Default = "4", Options = "2|3|4|5|6|7|8" }
             }
         },
+        [NgKind.VisionOp] = new()
+        {
+            Kind = NgKind.VisionOp, Title = "视觉算子", Domain = NgDomain.VisionOp, Color = "#0EA5E9",
+            Props = new[]
+            {
+                new NgPropDef { Name = "算子", Default = "" },
+                new NgPropDef { Name = "变量前缀", Default = "算子" },
+            }
+        },
     };
 
     /// <summary>
@@ -361,11 +384,87 @@ public static class NgNodeDefinitions
     }
 
     /// <summary>工具箱分组顺序（视觉 / 运控 / 通讯 / 逻辑）。</summary>
-    public static readonly IReadOnlyList<NgDomain> DomainOrder = new[] { NgDomain.Vision, NgDomain.Motion, NgDomain.Comm, NgDomain.Logic };
+    public static readonly IReadOnlyList<NgDomain> DomainOrder = new[] { NgDomain.Vision, NgDomain.VisionOp, NgDomain.Motion, NgDomain.Comm, NgDomain.Logic };
+
+    static readonly System.Collections.Generic.Dictionary<string, string> CategoryColor = new()
+    {
+        ["找边与测量"] = "#0EA5E9",
+        ["几何计算"] = "#6366F1",
+        ["标定与换算"] = "#14B8A6",
+        ["匹配与识别"] = "#F59E0B",
+        ["图像与颜色"] = "#EC4899",
+    };
+
+    /// <summary>
+    /// 工具箱「视觉算子」分组里的芯片：一个算子一个，全部来自 VisionOperators 目录
+    /// ——目录加了算子，节点图这边自动就有，不需要再手写节点。
+    /// </summary>
+    public static IReadOnlyList<NgNodeDef> OpTools { get; } = BuildOpTools();
+
+    static NgNodeDef[] BuildOpTools()
+    {
+        var list = new System.Collections.Generic.List<NgNodeDef>();
+        foreach (var op in VisionOperators.All2)
+            list.Add(new NgNodeDef
+            {
+                Kind = NgKind.VisionOp,
+                Title = op.Name,
+                Domain = NgDomain.VisionOp,
+                OpKey = op.Key,
+                Category = op.Category,
+                Summary = op.Summary,
+                Color = CategoryColor.TryGetValue(op.Category, out var c) ? c : "#0EA5E9",
+                Props = OpProps(op.Name),
+            });
+        return list.ToArray();
+    }
+
+    /// <summary>某个算子做成节点时的属性表：算子 + 变量前缀 + 该算子目录里的全部参数。</summary>
+    public static NgPropDef[] OpProps(string? opName)
+    {
+        var list = new System.Collections.Generic.List<NgPropDef>
+        {
+            new() { Name = "算子", Default = opName ?? "", Options = string.Join("|", VisionOperators.Names) },
+            new() { Name = "变量前缀", Default = string.IsNullOrWhiteSpace(opName) ? "算子" : opName },
+        };
+        var spec = VisionOperators.All2.FirstOrDefault(a => a.Name == opName);
+        if (spec == null) return list.ToArray();
+        foreach (var pd in spec.Params)
+            list.Add(new NgPropDef
+            {
+                Name = pd.Name,
+                Default = pd.Kind == "bool" ? (pd.Default == "false" ? "否" : "是") : pd.Default,
+                Options = pd.Kind == "bool" ? "是|否" : (pd.Options ?? ""),
+            });
+        return list.ToArray();
+    }
+
+    /// <summary>节点卡片标题：算子节点显示它选的算子名，其它节点显示类型名。</summary>
+    public static string TitleOf(NgNode node)
+    {
+        if (node == null) return "";
+        if (node.Kind != NgKind.VisionOp) return All.TryGetValue(node.Kind, out var d) ? d.Title : node.Kind.ToString();
+        string v = OpNameOf(node);
+        return v.Length == 0 ? "视觉算子" : v;
+    }
+
+    /// <summary>节点卡片颜色：算子节点跟着分类走，一眼看出它是哪族算子。</summary>
+    public static string ColorOf(NgNode node)
+    {
+        if (node == null) return "#0EA5E9";
+        if (node.Kind != NgKind.VisionOp) return All.TryGetValue(node.Kind, out var d) ? d.Color : "#0EA5E9";
+        var spec = VisionOperators.All2.FirstOrDefault(a => a.Name == OpNameOf(node));
+        return spec != null && CategoryColor.TryGetValue(spec.Category, out var c) ? c : "#0EA5E9";
+    }
+
+    /// <summary>算子节点当前选的算子白话名（没选返回空串）。</summary>
+    public static string OpNameOf(NgNode node)
+        => node?.Props?.FirstOrDefault(x => x != null && x.Name == "算子")?.Value?.Trim() ?? "";
 
     public static readonly IReadOnlyDictionary<NgDomain, string> DomainTitle = new Dictionary<NgDomain, string>
     {
         [NgDomain.Vision] = "视觉",
+        [NgDomain.VisionOp] = "视觉算子",
         [NgDomain.Motion] = "运控",
         [NgDomain.Comm] = "通讯",
         [NgDomain.Logic] = "逻辑/变量",

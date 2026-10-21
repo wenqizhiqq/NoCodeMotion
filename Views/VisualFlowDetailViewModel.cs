@@ -80,6 +80,106 @@ namespace NoCodeMotion.Views
             private set => SetValue(HasStepProperty, value);
         }
 
+        // ===================== 算子通道（目录驱动，见 Services/Vision/VisionOperators.cs） =====================
+
+        /// <summary>一行算子参数：把「参数定义 + 这一步」包成可双向编辑的界面项。</summary>
+        public sealed class VisionParamEditor : INotifyPropertyChanged
+        {
+            readonly Func<string> _get;
+            readonly Action<string> _set;
+
+            public VisionParamEditor(VisionParamDef def, VisualFlowStep step)
+            {
+                Name = def.Name; Kind = def.Kind; Help = def.Help; Options = def.Options; Width = def.Width;
+                _get = () => step.GetOpParam(def.Key, def.Default);
+                _set = s => step.SetOpParam(def.Key, s);
+            }
+
+            public event PropertyChangedEventHandler? PropertyChanged;
+            public string Name { get; }
+            public string Kind { get; }
+            public string Help { get; }
+            public string Options { get; }
+            public int Width { get; }
+            public bool IsChoice => Kind == "choice";
+            public bool IsBool => Kind == "bool";
+            public bool IsText => !IsChoice && !IsBool;
+            public string[] OptionList => (Options ?? "").Split('|');
+
+            public string Value
+            {
+                get => _get();
+                set { _set(value); PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value))); }
+            }
+            public bool BoolValue
+            {
+                get
+                {
+                    var v = _get();
+                    return v == "1" || v == "真" || v.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+                set { _set(value ? "1" : "0"); }
+            }
+        }
+
+        /// <summary>算子下拉候选：第一行是「不用算子」（回到老的步骤类型）。</summary>
+        public List<string> OpChoices { get; } = new List<string> { OpNoneText }
+            .Concat(VisionOperators.All2.Select(o => o.Name)).ToList();
+
+        const string OpNoneText = "（不用算子，按上面的步骤类型跑）";
+
+        /// <summary>当前步骤选中的算子名（写回 step.Op 内部键）。</summary>
+        public string SelectedOpName
+        {
+            get
+            {
+                var spec = VisionOperators.Find(SelectedStep?.Op ?? "");
+                return spec?.Name ?? OpNoneText;
+            }
+            set
+            {
+                if (SelectedStep == null) return;
+                var spec = (value ?? "").Length == 0 || value == OpNoneText
+                    ? null
+                    : VisionOperators.All2.FirstOrDefault(o => o.Name == value);
+                SelectedStep.Op = spec?.Key ?? "";
+                // 步骤类型跟着显示成算子名：左侧步骤列表一眼看得出这一步在干什么，
+                // 老的类型参数卡也自然隐藏（它们各自匹配具体类型名）。取消算子时退回「图像采集」。
+                if (spec != null) SelectedStep.StepType = spec.Name;
+                else if ((SelectedStep.StepType ?? "").Length == 0 || VisionOperators.Names.Contains(SelectedStep.StepType))
+                    SelectedStep.StepType = "图像采集";
+                RebuildOpParams();
+                RaiseTypeFlags();
+                OnPropertyChanged(nameof(SelectedOpName));
+                OnPropertyChanged(nameof(HasOp));
+                OnPropertyChanged(nameof(OpHelp));
+            }
+        }
+
+        public bool HasOp => VisionOperators.Find(SelectedStep?.Op ?? "") != null;
+
+        /// <summary>这一行在干什么 + 它会给出哪些数（白话，直接抄目录）。</summary>
+        public string OpHelp
+        {
+            get
+            {
+                var spec = VisionOperators.Find(SelectedStep?.Op ?? "");
+                return spec == null ? "" : spec.Summary + "　｜　会给出：" + spec.Outputs;
+            }
+        }
+
+        public ObservableCollection<VisionParamEditor> OpParams { get; } = new();
+
+        /// <summary>换步骤 / 换算子后重建参数行（参数界面完全由目录生成，加算子不用改 XAML）。</summary>
+        public void RebuildOpParams()
+        {
+            OpParams.Clear();
+            var spec = VisionOperators.Find(SelectedStep?.Op ?? "");
+            if (spec != null && SelectedStep != null)
+                foreach (var p in spec.Params) OpParams.Add(new VisionParamEditor(p, SelectedStep));
+            OnPropertyChanged(nameof(OpParams));
+        }
+
         // ---- 当前选中步骤的工具类型显隐标志（用于右侧参数卡按类型切换） ----
         public bool IsImageAcquisition => SelectedStep?.StepType == "图像采集";
         public bool IsPreprocess => SelectedStep?.StepType == "图像预处理";
@@ -648,6 +748,10 @@ namespace NoCodeMotion.Views
             if (e.OldValue is INotifyPropertyChanged oldInpc) oldInpc.PropertyChanged -= vm.OnSelectedStepTypeChanged;
             if (e.NewValue is INotifyPropertyChanged newInpc) newInpc.PropertyChanged += vm.OnSelectedStepTypeChanged;
             vm.HasStep = e.NewValue != null;
+            vm.RebuildOpParams();                       // 参数卡跟着这一步的算子走
+            vm.OnPropertyChanged(nameof(SelectedOpName));
+            vm.OnPropertyChanged(nameof(HasOp));
+            vm.OnPropertyChanged(nameof(OpHelp));
             // 切换步骤时清空模板预览 / 匹配结果（不同步骤数据互不串）
             vm.TemplatePreviewImage = null;
             vm.HasTemplatePreview = false;
