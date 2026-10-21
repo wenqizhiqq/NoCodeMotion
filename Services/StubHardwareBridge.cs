@@ -42,6 +42,27 @@ namespace NoCodeMotion.Services
         }
         public void StopAxis(AxisItem axis) =>
             Write($"轴停止 → 名称={axis.Name} 轴号={axis.AxisNo}");
+        public void StopAxis(AxisItem axis, bool emergency) =>
+            Write($"轴停止 → 名称={axis.Name} 轴号={axis.AxisNo} 方式={(emergency ? "急停" : "减速停止")}");
+        public void DisableAxis(AxisItem axis) =>
+            Write($"断开使能 → 名称={axis.Name} 轴号={axis.AxisNo}");
+        public string StartAxisJog(AxisItem axis, bool positive, double speed)
+        {
+            Write($"点动 → 名称={axis.Name} 轴号={axis.AxisNo} 方向={(positive ? "正" : "负")} 速度={speed}");
+            return null;
+        }
+        public string LineInterpolate(System.Collections.Generic.IReadOnlyList<(AxisItem Axis, double Target)> targets,
+            bool absolute, double speed, double accSeconds)
+        {
+            Write($"[桩] 直线插补 → {targets.Count} 轴，{(absolute ? "绝对" : "相对")}，速度={speed}");
+            return null;
+        }
+        public string ArcInterpolate3P(AxisItem ax1, AxisItem ax2, double mid1, double mid2,
+            double end1, double end2, bool absolute, int turns)
+        {
+            Write($"[桩] 圆弧插补 → {ax1.Name}/{ax2.Name} 终点=({end1},{end2})");
+            return null;
+        }
         /// <summary>
         /// ★ 等待闸（接口成员）。桩实现也遵守它：暂停时阻塞、停止时抛异常。
         /// 说明：桩本身几乎不耗时，但保留这个闸可以让「无硬件」环境下的流程回归测试

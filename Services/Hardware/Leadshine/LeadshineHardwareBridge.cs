@@ -219,13 +219,24 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
                 + DiagnoseAxis(axis, card, no));
         }
 
-        public void StopAxis(AxisItem axis)
+        public void StopAxis(AxisItem axis) => StopAxis(axis, false);
+
+        public void StopAxis(AxisItem axis, bool emergency)
         {
             if (!Ready(axis.Name, "停止")) return;
             var (card, no) = Addr(axis);
-            Guard(() => _card.Stop(card, no, immediate: false));
-            Log($"[雷赛] 轴「{axis.Name}」已减速停止");
+            Guard(() => _card.Stop(card, no, immediate: emergency));
+            Log($"[雷赛] 轴「{axis.Name}」已{(emergency ? "急停" : "减速停止")}");
         }
+
+
+        public string LineInterpolate(System.Collections.Generic.IReadOnlyList<(AxisItem Axis, double Target)> targets,
+            bool absolute, double speed, double accSeconds)
+            => "雷赛卡桥接层没有插补接口：这张卡请改用单轴运动分开走";
+
+        public string ArcInterpolate3P(AxisItem ax1, AxisItem ax2, double mid1, double mid2,
+            double end1, double end2, bool absolute, int turns)
+            => "雷赛卡桥接层没有插补接口：这张卡请改用单轴运动分开走";
 
         public void WaitAxisDone(AxisItem axis)
         {

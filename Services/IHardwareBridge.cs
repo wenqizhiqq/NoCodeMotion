@@ -48,8 +48,28 @@ namespace NoCodeMotion.Services
         /// <summary>执行回零（HomeMode / HomeSpeed 等参数取自 axis）。</summary>
         void HomeAxis(AxisItem axis);
 
-        /// <summary>立即停止轴。</summary>
+        /// <summary>停止轴（减速停）。</summary>
         void StopAxis(AxisItem axis);
+
+        /// <summary>停止轴。emergency=true 走急停（能立刻断输出的卡就断），false 走减速停。</summary>
+        void StopAxis(AxisItem axis, bool emergency);
+
+        /// <summary>断开伺服使能（下伺服）。</summary>
+        void DisableAxis(AxisItem axis);
+
+        /// <summary>点动：按 speed 一直走，直到再调 StopAxis。返回 null / 空 = 已下发；否则是给用户看的原因。</summary>
+        string StartAxisJog(AxisItem axis, bool positive, double speed);
+
+        /// <summary>
+        /// 多轴直线插补。返回 null / 空 = 已下发；否则是给用户看的原因（卡不支持 / 轴不在同一张卡）。
+        /// <para>速度 / 加减速时间是否生效取决于卡族；不支持的卡应返回明确原因，不要静默忽略。</para>
+        /// </summary>
+        string LineInterpolate(System.Collections.Generic.IReadOnlyList<(AxisItem Axis, double Target)> targets,
+            bool absolute, double speed, double accSeconds);
+
+        /// <summary>三点圆弧插补（中间点 → 终点）。坐标按卡族模型的整数单位下发。返回 null / 空 = 已下发。</summary>
+        string ArcInterpolate3P(AxisItem ax1, AxisItem ax2, double mid1, double mid2,
+            double end1, double end2, bool absolute, int turns);
 
         /// <summary>阻塞等待轴到位（到位误差 InPosError），超时按 axis 配置处理。</summary>
         void WaitAxisDone(AxisItem axis);

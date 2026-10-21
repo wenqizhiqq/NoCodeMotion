@@ -565,13 +565,94 @@ namespace NoCodeMotion.Services.Hardware.Cards
             Log($"[卡族] 轴「{axis.Name}」定位到 {position} {axis.Unit}（卡{slot.CardNo} 轴{axis.AxisNo}）");
         }
 
-        public void StopAxis(AxisItem axis)
+        public void StopAxis(AxisItem axis) => StopAxis(axis, false);
+
+        /// <summary>停止某根轴。emergency=true 走急停（卡内立刻断输出），false 走减速停。</summary>
+        public void StopAxis(AxisItem axis, bool emergency)
         {
             var (slot, a) = AxisOf(axis);
             if (a == null) { WarnNoAxis(axis, "停止"); return; }
             int res = 0;
-            Guard(() => res = a.StopCardAxisMovement(slot.CardNo, Math.Max(axis.AxisNo, 0), 0));   // 0 = 减速停止
-            Report("轴停止", res, $"[卡族] 轴「{axis.Name}」已减速停止");
+            Guard(() => res = a.StopCardAxisMovement(slot.CardNo, Math.Max(axis.AxisNo, 0), emergency ? 1 : 0));
+            Report("轴停止", res, $"[卡族] 轴「{axis.Name}」已{(emergency ? "急停" : "减速停止")}");
+        }
+
+        /// <summary>
+        /// 多轴直线插补（LV Studio「直线插补」对应实现）：轴号与目标位置填进卡族模型后交给
+        /// <see cref="IAxis.CardAxesLineUnit"/>。返回 null = 已下发；非 null = 给用户看的原因。
+        /// <para>★ 速度 / 加减速时间写在模型里，但是否生效**取决于卡族**：部分卡只认卡内插补参数
+        /// （见各卡族 SetCardAxisInterpolateVectorProfile），这时速度参数不参与。</para>
+        /// </summary>
+        public string LineInterpolate(IReadOnlyList<(AxisItem Axis, double Target)> targets,
+            bool absolute, double speed, double accSeconds)
+        {
+            if (targets == null || targets.Count < 2) return "直线插补至少要两根轴";
+            var axes = new int[targets.Count];
+            var pos = new double[targets.Count];
+            int cardNo = -1;
+            IAxis impl = null;
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var target = targets[i];
+                var (slot, a) = AxisOf(target.Axis);
+                if (a == null) return $"轴「{target.Axis?.Name}」不可用：请确认控制器已连接、轴号没越界";
+                if (impl == null) { impl = a; cardNo = slot.CardNo; }
+                else if (slot.CardNo != cardNo) return "插补的轴必须在同一张控制卡上";
+                CheckSoftLimit(target.Axis, target.Target);
+                axes[i] = Math.Max(target.Axis.AxisNo, 0);
+                pos[i] = target.Target;
+            }
+            var line = new LineInterpolateparamModel
+            {
+                CardNo = cardNo,
+                Crd = 0,
+                Axis = axes,
+                TargetPos = pos,
+                PosiMode = absolute ? 1 : 0,
+                minVel = 0,
+                maxVel = Math.Max(0, speed),
+                tacc = Math.Max(0.001, accSeconds),
+                tdec = 0,
+                s_Param = 0,
+                stopVel = 0
+            };
+            int res = 0;
+            try { res = impl.CardAxesLineUnit(line); }
+            catch (Exception ex) { return "这张卡不支持直线插补：" + ex.Message; }
+            if (res != 0) return $"控制卡返回 {res}：这张卡可能不支持插补，或目标 / 速度超出范围";
+            return null;
+        }
+
+        /// <summary>
+        /// 三点圆弧插补（经过中间点到终点）。坐标按**整数单位**下发（卡族模型的 TargetPos / MidPos 是 int[]），
+        /// 所以毫米坐标请按整数填。turns：0 = 单段圆弧，正整数 = 螺旋圈数。
+        /// </summary>
+        public string ArcInterpolate3P(AxisItem ax1, AxisItem ax2, double mid1, double mid2,
+            double end1, double end2, bool absolute, int turns)
+        {
+            if (ax1 == null || ax2 == null) return "圆弧插补要两根轴";
+            if (ReferenceEquals(ax1, ax2)) return "圆弧插补的两根轴不能是同一根";
+            var (s1, a1) = AxisOf(ax1);
+            var (s2, a2) = AxisOf(ax2);
+            if (a1 == null || a2 == null) return "轴不可用：请确认控制器已连接、轴号没越界";
+            if (s1 == null || s2 == null || s1.CardNo != s2.CardNo) return "插补的轴必须在同一张控制卡上";
+            CheckSoftLimit(ax1, end1);
+            CheckSoftLimit(ax2, end2);
+            var arc = new ArcInterpolateparamModel
+            {
+                CardNo = s1.CardNo,
+                Crd = 0,
+                Axis = new[] { Math.Max(ax1.AxisNo, 0), Math.Max(ax2.AxisNo, 0) },
+                TargetPos = new[] { (int)Math.Round(end1), (int)Math.Round(end2) },
+                MidPos = new[] { (int)Math.Round(mid1), (int)Math.Round(mid2) },
+                PosiMode = absolute ? 1 : 0,
+                CircleCounts = Math.Max(0, turns)
+            };
+            int res = 0;
+            try { res = a1.CardAxesArcMoveCenterUnit(arc); }
+            catch (Exception ex) { return "这张卡不支持圆弧插补：" + ex.Message; }
+            if (res != 0) return $"控制卡返回 {res}：这张卡可能不支持圆弧插补，或参数超出范围";
+            return null;
         }
 
         public void WaitAxisDone(AxisItem axis)

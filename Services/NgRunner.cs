@@ -529,7 +529,72 @@ public sealed class NgRunner
                 _bridge.SetAxisSpeed(ax, spd);
                 if (rel) _bridge.MoveAxisRel(ax, pos);
                 else _bridge.MoveAxisAbs(ax, pos);
+                // LV Studio 的「等待定位完成 / 到位延时」：老流程默认不等（后面另有「等电机停稳」节点），不改变原行为
+                if (GetProp(node, "等待到位", "否") == "是") _bridge.WaitAxisDone(ax);
+                int settle = GetIntProp(node, "到位延时ms", 0);
+                if (settle > 0) System.Threading.Thread.Sleep(settle);
                 _lastNodeSummary = rel ? $"轴 {ax.Name} 相对移动 {pos:0.###}" : $"轴 {ax.Name} 绝对移动 {pos:0.###}";
+                break;
+            }
+
+            case NgKind.AxisJog: {
+                var ax = _findAxis(GetProp(node, "轴", "X"));
+                if (ax == null) { NodeFail($"未找到轴「{GetProp(node, "轴", "")}」：请先在「轴」页添加同名轴"); break; }
+                bool positive = GetProp(node, "方向", "正") != "负";
+                string jogErr = _bridge.StartAxisJog(ax, positive, GetDoubleProp(node, "速度", 10));
+                if (!string.IsNullOrEmpty(jogErr)) { NodeFail(jogErr); break; }
+                _lastNodeSummary = $"轴 {ax.Name} 点动（{(positive ? "正" : "负")}向）——要停请接「停下这根轴」";
+                break;
+            }
+
+            case NgKind.AxisStop: {
+                var ax = _findAxis(GetProp(node, "轴", "X"));
+                if (ax == null) { NodeFail($"未找到轴「{GetProp(node, "轴", "")}」：请先在「轴」页添加同名轴"); break; }
+                bool fast = GetProp(node, "停止方式", "减速停止") == "立即停止";
+                _bridge.StopAxis(ax, fast);
+                _bridge.WaitAxisDone(ax);
+                _lastNodeSummary = $"轴 {ax.Name} 已{(fast ? "急停" : "减速停止")}";
+                break;
+            }
+
+            case NgKind.AxisServo: {
+                var ax = _findAxis(GetProp(node, "轴", "X"));
+                if (ax == null) { NodeFail($"未找到轴「{GetProp(node, "轴", "")}」：请先在「轴」页添加同名轴"); break; }
+                bool on = GetProp(node, "动作", "使能") != "断开";
+                if (on) _bridge.EnableAxis(ax); else _bridge.DisableAxis(ax);
+                _lastNodeSummary = $"轴 {ax.Name} 已{(on ? "使能（上伺服）" : "断开（下伺服）")}";
+                break;
+            }
+
+            case NgKind.LineInterp: {
+                var a1 = _findAxis(GetProp(node, "轴1", "X"));
+                var a2 = _findAxis(GetProp(node, "轴2", "Y"));
+                if (a1 == null || a2 == null) { NodeFail("插补的轴找不到：请先在「轴」页添加同名轴"); break; }
+                bool abs = GetProp(node, "模式", "绝对") != "相对";
+                double t1 = GetDoubleProp(node, "目标1", 0), t2 = GetDoubleProp(node, "目标2", 0);
+                string lineErr = _bridge.LineInterpolate(
+                    new[] { (a1, t1), (a2, t2) }, abs,
+                    GetDoubleProp(node, "速度", 20), GetDoubleProp(node, "加减速时间", 0.2));
+                if (!string.IsNullOrEmpty(lineErr)) { NodeFail(lineErr); break; }
+                _bridge.WaitAxisDone(a1);
+                _bridge.WaitAxisDone(a2);
+                _lastNodeSummary = $"直线插补完成：（{a1.Name} {t1:0.###}，{a2.Name} {t2:0.###}）";
+                break;
+            }
+
+            case NgKind.ArcInterp: {
+                var a1 = _findAxis(GetProp(node, "轴1", "X"));
+                var a2 = _findAxis(GetProp(node, "轴2", "Y"));
+                if (a1 == null || a2 == null) { NodeFail("圆弧插补的轴找不到：请先在「轴」页添加同名轴"); break; }
+                bool abs = GetProp(node, "模式", "绝对") != "相对";
+                string arcErr = _bridge.ArcInterpolate3P(a1, a2,
+                    GetDoubleProp(node, "中间点1", 0), GetDoubleProp(node, "中间点2", 0),
+                    GetDoubleProp(node, "终点1", 0), GetDoubleProp(node, "终点2", 0),
+                    abs, GetIntProp(node, "圈数", 0));
+                if (!string.IsNullOrEmpty(arcErr)) { NodeFail(arcErr); break; }
+                _bridge.WaitAxisDone(a1);
+                _bridge.WaitAxisDone(a2);
+                _lastNodeSummary = "圆弧插补完成";
                 break;
             }
 

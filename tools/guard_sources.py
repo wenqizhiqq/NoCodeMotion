@@ -2177,6 +2177,31 @@ else:
 check("G34.12 节点工具箱里算子分组排在最下面（现场先摆流程骨架，再往下挑算子）",
       "NgDomain.Logic, NgDomain.VisionOp };" in _ngdefs)
 
+# ---------------------------------------------------------------------
+# G35  LV Studio 运控算子（手册 6.1 运动控制）在节点图里的落地
+# ---------------------------------------------------------------------
+# 手册 6.1 共 8 个工具：单轴运动 / 回零 / Jog / 轴停止 / 直线插补 / 圆弧插补 / 点表运动 / IO 控制。
+# 已有单轴-回零-点表-IO，本次补 Jog / 轴停止 / 伺服使能 / 直线插补 / 三点圆弧插补。
+_ngdefs35 = (read(r"Models\NodeGraph\NgDefs.cs") or "").replace("\r\n", "\n")
+_ngrun35 = (read(r"Services\NgRunner.cs") or "").replace("\r\n", "\n")
+_bridge35 = (read(r"Services\Hardware\Cards\WenQiZhiCardBridge.cs") or "").replace("\r\n", "\n")
+_iface35 = (read(r"Services\IHardwareBridge.cs") or "").replace("\r\n", "\n")
+
+check("G35.1 LV 手册 6.1 的 8 个运控工具在节点图里都有对应节点",
+      all(("NgKind." + k) in _ngdefs35 for k in
+          ["MoveAxis", "Home", "AxisJog", "AxisStop", "LineInterp", "ArcInterp", "PointGo", "IoWrite"]))
+check("G35.2 新增运控节点在执行器里都有 case（列了不实现 = 点了没反应）",
+      all(("case NgKind." + k + ":") in _ngrun35 for k in
+          ["AxisJog", "AxisStop", "AxisServo", "LineInterp", "ArcInterp"]))
+check("G35.3 插补走卡族接口，卡不支持时给人话原因（不静默假装走了）",
+      "CardAxesLineUnit(line)" in _bridge35 and "CardAxesArcMoveCenterUnit(arc)" in _bridge35
+      and "这张卡可能不支持插补" in _bridge35 and "string LineInterpolate(" in _iface35)
+check("G35.4 单轴运动补齐 LV 的「等待到位 / 到位延时」",
+      'Name = "等待到位"' in _ngdefs35 and 'Name = "到位延时ms"' in _ngdefs35
+      and 'GetProp(node, "等待到位", "否")' in _ngrun35)
+check("G35.5 卡层插补先过软限位（不能绕过限位撞机）",
+      "CheckSoftLimit(target.Axis, target.Target);" in _bridge35 and "CheckSoftLimit(ax1, end1);" in _bridge35)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

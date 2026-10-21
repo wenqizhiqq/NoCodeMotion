@@ -63,6 +63,11 @@ public enum NgKind
     // —— 运控 ——
     Start,           // 开始
     MoveAxis,        // 轴运动
+    AxisJog,         // 点动（一直走，直到停）
+    AxisStop,        // 停下这根轴
+    AxisServo,       // 伺服使能 / 断开
+    LineInterp,      // 直线插补
+    ArcInterp,       // 三点圆弧插补
     Home,            // 回零
     Delay,           // 延时
     WaitInput,       // 等待输入
@@ -190,6 +195,65 @@ public static class NgNodeDefinitions
                 new NgPropDef { Name = "目标位置", Default = "0" },
                 new NgPropDef { Name = "速度", Default = "10" },
                 new NgPropDef { Name = "加速度", Default = "50" },
+                new NgPropDef { Name = "等待到位", Default = "否", Options = "是|否" },
+                new NgPropDef { Name = "到位延时ms", Default = "0" },
+            }
+        },
+        [NgKind.AxisJog] = new()
+        {
+            Kind = NgKind.AxisJog, Title = "点动（一直走，直到停）", Domain = NgDomain.Motion, Color = "#4A89DC",
+            Props = new[]
+            {
+                new NgPropDef { Name = "轴", Default = "X" },
+                new NgPropDef { Name = "方向", Default = "正", Options = "正|负" },
+                new NgPropDef { Name = "速度", Default = "10" },
+            }
+        },
+        [NgKind.AxisStop] = new()
+        {
+            Kind = NgKind.AxisStop, Title = "停下这根轴", Domain = NgDomain.Motion, Color = "#ED5565",
+            Props = new[]
+            {
+                new NgPropDef { Name = "轴", Default = "X" },
+                new NgPropDef { Name = "停止方式", Default = "减速停止", Options = "减速停止|立即停止" },
+            }
+        },
+        [NgKind.AxisServo] = new()
+        {
+            Kind = NgKind.AxisServo, Title = "伺服使能 / 断开", Domain = NgDomain.Motion, Color = "#967ADC",
+            Props = new[]
+            {
+                new NgPropDef { Name = "轴", Default = "X" },
+                new NgPropDef { Name = "动作", Default = "使能", Options = "使能|断开" },
+            }
+        },
+        [NgKind.LineInterp] = new()
+        {
+            Kind = NgKind.LineInterp, Title = "直线插补（两轴一起走直线）", Domain = NgDomain.Motion, Color = "#4A89DC",
+            Props = new[]
+            {
+                new NgPropDef { Name = "轴1", Default = "X" },
+                new NgPropDef { Name = "目标1", Default = "0" },
+                new NgPropDef { Name = "轴2", Default = "Y" },
+                new NgPropDef { Name = "目标2", Default = "0" },
+                new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对" },
+                new NgPropDef { Name = "速度", Default = "20" },
+                new NgPropDef { Name = "加减速时间", Default = "0.2" },
+            }
+        },
+        [NgKind.ArcInterp] = new()
+        {
+            Kind = NgKind.ArcInterp, Title = "圆弧插补（过中间点到终点）", Domain = NgDomain.Motion, Color = "#4A89DC",
+            Props = new[]
+            {
+                new NgPropDef { Name = "轴1", Default = "X" },
+                new NgPropDef { Name = "轴2", Default = "Y" },
+                new NgPropDef { Name = "中间点1", Default = "0" },
+                new NgPropDef { Name = "中间点2", Default = "0" },
+                new NgPropDef { Name = "终点1", Default = "0" },
+                new NgPropDef { Name = "终点2", Default = "0" },
+                new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对" },
+                new NgPropDef { Name = "圈数", Default = "0" },
             }
         },
         [NgKind.Home] = new()
