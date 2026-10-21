@@ -2201,6 +2201,9 @@ check("G35.4 单轴运动补齐 LV 的「等待到位 / 到位延时」",
       and 'GetProp(node, "等待到位", "否")' in _ngrun35)
 check("G35.5 卡层插补先过软限位（不能绕过限位撞机）",
       "CheckSoftLimit(target.Axis, target.Target);" in _bridge35 and "CheckSoftLimit(ax1, end1);" in _bridge35)
+check("G35.6 直线插补要单独写速度曲线（卡族 CardAxesLineUnit 不读速度，漏了这步速度参数等于白填）",
+      "impl.CardAxisLineUnitSpeed(line)" in _bridge35
+      and _bridge35.find("impl.CardAxisLineUnitSpeed(line)") < _bridge35.find("impl.CardAxesLineUnit(line)"))
 
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:

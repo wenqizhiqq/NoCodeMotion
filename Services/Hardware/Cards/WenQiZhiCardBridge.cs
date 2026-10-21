@@ -616,8 +616,20 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 s_Param = 0,
                 stopVel = 0
             };
+            // ★ 卡族的 CardAxesLineUnit 只下发「轴 + 目标」，速度 / 加减速不在里面
+            //   （MCN42 的 DmcCardAxisLineUnit 只读 Axis / TargetPos / PosiMode）。
+            //   速度曲线要单独写一次（MCN42 = DmcSetCardVectorProfileUnit，type=1 直线）。
+            //   少数卡的这个接口是空实现（返回 -1），那就沿用卡内插补参数 —— 记日志，不阻断运动。
+            int prof = 0;
+            try { prof = impl.CardAxisLineUnitSpeed(line); }
+            catch (Exception ex) { Log($"[卡族·警告] 写插补速度失败（沿用卡内插补参数）：{ex.Message}"); }
+            if (prof != 0)
+                Log($"[卡族·警告] 写插补速度返回 {prof}：这张卡沿用卡内插补参数，节点上的「速度 / 加减速时间」不生效");
+
             int res = 0;
             try { res = impl.CardAxesLineUnit(line); }
+            // 卡族在「插补坐标系还没建」时抛 ArgumentNullException（AxisLineParaDic 没有这张卡的 0 号坐标系）
+            catch (ArgumentNullException) { return "插补坐标系还没初始化：请先连接控制器、等初始化完成，再跑这条流程"; }
             catch (Exception ex) { return "这张卡不支持直线插补：" + ex.Message; }
             if (res != 0) return $"控制卡返回 {res}：这张卡可能不支持插补，或目标 / 速度超出范围";
             return null;
