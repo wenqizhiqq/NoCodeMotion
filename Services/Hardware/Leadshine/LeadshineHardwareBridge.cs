@@ -494,11 +494,14 @@ namespace NoCodeMotion.Services.Hardware.Leadshine
             return value;
         }
 
-        public void WaitInput(IoItem io, int value)
+        public void WaitInput(IoItem io, int value) => WaitInput(io, value, 0);
+
+        public void WaitInput(IoItem io, int value, int timeoutMs)
         {
             if (!_cardReady) { WarnNoCard($"等待输入「{io.Name}」= {value}"); return; }
+            int limit = timeoutMs > 0 ? timeoutMs : Options.IoWaitTimeoutMs;
             var sw = Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < Options.IoWaitTimeoutMs)
+            while (sw.ElapsedMilliseconds < limit)
             {
                 if ((int)ReadInput(io) == value)
                 {

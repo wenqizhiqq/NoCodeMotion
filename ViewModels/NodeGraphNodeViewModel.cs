@@ -50,9 +50,14 @@ public sealed class NgPropViewModel : INotifyPropertyChanged
         {
             if (TryBranchIndex(out int bi) && Name.EndsWith("名称", System.StringComparison.Ordinal))
                 return BranchNameOptions(bi);
+            // 插补节点用的是「轴1 / 轴2」，也得给轴名下拉，否则只能手打名字、打错就报找不到轴
+            if (Name.Length >= 2 && Name[0] == '轴' && char.IsDigit(Name[1])) return Catalog.AxisNames;
             return Name switch
             {
                 "轴" => Catalog.AxisNames,
+                "设备" => Catalog.CommNames,
+                "点位表" => Catalog.PointTableNames,
+                "相机" => Catalog.CameraNames,
                 "变量" => Catalog.VariableNames,
                 "输出" => Catalog.OutIoNames,
                 "信号" => Catalog.InIoNames,

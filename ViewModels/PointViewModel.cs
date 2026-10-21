@@ -188,7 +188,10 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>点位名称库汇总所有工位下的点位行（而不是工位名）。</summary>
         protected override void SyncCatalog()
-            => Catalog.SetPoint(Items.SelectMany(t => t.Points).Select(p => p.Name));
+        {
+            Catalog.SetPoint(Items.SelectMany(t => t.Points).Select(p => p.Name));
+            Catalog.SetPointTable(Items.Select(t => t.Name));
+        }
 
         private void OnTablesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {

@@ -29,6 +29,8 @@ namespace NoCodeMotion.Services
         public static ObservableCollection<string> VariableNames { get; } = new();
         public static ObservableCollection<string> AllNames { get; } = new();
         public static ObservableCollection<string> PointNames { get; } = new();
+        /// <summary>点位表（工位）名：节点「走到点位」要按表名 + 点位名两级选。</summary>
+        public static ObservableCollection<string> PointTableNames { get; } = new();
         public static ObservableCollection<string> ControllerNames { get; } = new();
         public static ObservableCollection<string> VendorNames { get; } = new();
         public static ObservableCollection<string> BusTypeNames { get; } = new();
@@ -42,6 +44,7 @@ namespace NoCodeMotion.Services
         public static void SetComm(IEnumerable<string> names) => Set(CommNames, names);
         public static void SetVariable(IEnumerable<string> names) => Set(VariableNames, names);
         public static void SetPoint(IEnumerable<string> names) => Set(PointNames, names);
+        public static void SetPointTable(IEnumerable<string> names) => Set(PointTableNames, names);
         public static void SetController(IEnumerable<string> names) => Set(ControllerNames, names);
         public static void SetVendor(IEnumerable<string> names) => Set(VendorNames, names);
         public static void SetBusType(IEnumerable<string> names) => Set(BusTypeNames, names);

@@ -1568,10 +1568,13 @@ namespace NoCodeMotion.Services.Hardware.Cards
             return value;
         }
 
-        public void WaitInput(IoItem io, int value)
+        public void WaitInput(IoItem io, int value) => WaitInput(io, value, 0);
+
+        public void WaitInput(IoItem io, int value, int timeoutMs)
         {
+            int limit = timeoutMs > 0 ? timeoutMs : Options.IoWaitTimeoutMs;
             var sw = Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < Options.IoWaitTimeoutMs)
+            while (sw.ElapsedMilliseconds < limit)
             {
                 if ((int)ReadInput(io) == value)
                 {
@@ -1581,7 +1584,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 WaitInterruptible(Options.PollIntervalMs);
             }
             throw new ScriptRuntimeException(
-                $"等待输入「{io.Name}」= {value} 超时（{Options.IoWaitTimeoutMs}ms）。"
+                $"等待输入「{io.Name}」= {value} 超时（{limit}ms）。"
                 + $"请检查传感器接线、电平设置（当前 {io.Level}）与卡号 / 寻址是否正确"
                 + $"（当前按 {DescribeIoAddress(io)} 读，读到的原始值 {io.Value}）。");
         }

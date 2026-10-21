@@ -2205,6 +2205,55 @@ check("G35.6 直线插补要单独写速度曲线（卡族 CardAxesLineUnit 不�
       "impl.CardAxisLineUnitSpeed(line)" in _bridge35
       and _bridge35.find("impl.CardAxisLineUnitSpeed(line)") < _bridge35.find("impl.CardAxesLineUnit(line)"))
 
+# ---------------------------------------------------------------------
+# G36  节点参数不许是摆设（定义了却没人读 = 用户填了不生效）
+# ---------------------------------------------------------------------
+# 背景：2026-10-21 审计发现「电机走位」的加速度、回零的「方向/模式」、等待输入的「超时ms」
+# 都只是摆在界面上好看 —— 执行器根本没读。这类假参数比没参数更坑（现场会以为已经设了）。
+_ngdefs36 = (read(r"Models\NodeGraph\NgDefs.cs") or "").replace("\r\n", "\n")
+_ngrun36 = (read(r"Services\NgRunner.cs") or "").replace("\r\n", "\n")
+_ngvis36 = (read(r"Services\Vision\NgVisionExecutor.cs") or "").replace("\r\n", "\n")
+
+_switch_start = _ngrun36.find("switch (node.Kind)")
+_switch_end = _ngrun36.find("// 视觉节点", _switch_start)
+_switch_body = _ngrun36[_switch_start:_switch_end] if _switch_start >= 0 else ""
+_case_starts = [(m.group(1), m.start(), m.end())
+                for m in _re33.finditer(r"case NgKind\.(\w+):", _switch_body)]
+_def_starts = [(m.group(1), m.start()) for m in _re33.finditer(r"\[NgKind\.(\w+)\] = new\(\)", _ngdefs36)]
+_defs36 = {}
+for _i, (_k, _pos) in enumerate(_def_starts):
+    _end = _def_starts[_i + 1][1] if _i + 1 < len(_def_starts) else _ngdefs36.find("    };", _pos)
+    _defs36[_k] = _re33.findall(r'Name = "([^"]+)"', _ngdefs36[_pos:_end])
+
+_skip36 = {"Start", "End", "ParallelFork", "ParallelJoin", "Decision", "Loop", "Compute"}
+# 这几个节点由视觉执行器读参数（不在 NgRunner 的 switch 里）
+_vision36 = {"CamCapture", "TemplateMatch", "DefectDetect", "Measure", "Align", "Calib"}
+_fake36 = []
+for _i, (_k, _s0, _e0) in enumerate(_case_starts):
+    _end = _case_starts[_i + 1][1] if _i + 1 < len(_case_starts) else len(_switch_body)
+    _src = _switch_body[_e0:_end]
+    if _k in _vision36:
+        _src = _ngvis36
+    elif _k == "VisionOp":
+        continue          # 参数表来自算子目录，逐项执行见 G33
+    elif _k in _skip36:
+        continue
+    _used = set(_re33.findall(r'(?:Get(?:Prop|DoubleProp|IntProp)|Prop|Num)\(node, "([^"]+)"', _src))
+    _unused = [p for p in _defs36.get(_k, []) if p not in _used]
+    if _unused:
+        _fake36.append("%s: %s" % (_k, ",".join(_unused)))
+check("G36.1 节点上定义的每个参数执行器都真的读（假参数比没参数更坑）",
+      not _fake36, "; ".join(_fake36))
+
+_ngnvm36 = (read(r"ViewModels\NodeGraphNodeViewModel.cs") or "").replace("\r\n", "\n")
+check("G36.2 名称类参数给的是工程里的真实候选（轴1/轴2、设备、点位表、相机）",
+      "char.IsDigit(Name[1])" in _ngnvm36 and '"设备" => Catalog.CommNames' in _ngnvm36
+      and '"点位表" => Catalog.PointTableNames' in _ngnvm36
+      and '"相机" => Catalog.CameraNames' in _ngnvm36)
+check("G36.3 点位表名有单独的候选源（SetPointTable 由点位页同步）",
+      "PointTableNames" in (read(r"Services\Catalog.cs") or "")
+      and "Catalog.SetPointTable(" in (read(r"ViewModels\PointViewModel.cs") or ""))
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

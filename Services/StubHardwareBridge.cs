@@ -103,7 +103,9 @@ namespace NoCodeMotion.Services
             Write($"读输入 → 名称={io.Name} 卡类={io.CardType} 卡号={io.CardNo} 模块={io.ModuleNo} 序号={io.Sequence} 当前={v}");
             return v;
         }
-        public void WaitInput(IoItem io, int value)
+        public void WaitInput(IoItem io, int value) => WaitInput(io, value, 0);
+
+        public void WaitInput(IoItem io, int value, int timeoutMs)
         {
             Write($"等待输入 → 名称={io.Name} 卡号={io.CardNo} 模块={io.ModuleNo} 序号={io.Sequence} 目标={value}");
             HardwareBridge.WaitGuard?.Invoke();

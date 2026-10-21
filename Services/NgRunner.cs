@@ -672,7 +672,7 @@ public sealed class NgRunner
                 if (io == null) { NodeFail($"未找到输入「{GetProp(node, "信号", "")}」：请先在「IO」页添加同名输入点"); break; }
                 string st = GetProp(node, "状态", "高电平");
                 int want = st == "高电平" ? 1 : 0;
-                _bridge.WaitInput(io, want);
+                _bridge.WaitInput(io, want, GetIntProp(node, "超时ms", 0));
                 _lastNodeSummary = $"输入 {io.Name} = {want}（{st}）已满足";
                 break;
             }

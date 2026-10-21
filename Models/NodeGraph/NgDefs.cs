@@ -123,7 +123,6 @@ public static class NgNodeDefinitions
                 new NgPropDef { Name = "匹配模式", Default = "灰度匹配", Options = "灰度匹配|轮廓匹配" },
                 new NgPropDef { Name = "分数阈值", Default = "0.8" },
                 new NgPropDef { Name = "角度范围", Default = "360" },
-                new NgPropDef { Name = "失败即停", Default = "是", Options = "是|否" },
                 new NgPropDef { Name = "变量前缀", Default = "匹配" },
             }
         },
@@ -138,7 +137,6 @@ public static class NgNodeDefinitions
                 new NgPropDef { Name = "最小面积", Default = "50" },
                 new NgPropDef { Name = "最大面积", Default = "100000" },
                 new NgPropDef { Name = "允许缺陷数", Default = "0" },
-                new NgPropDef { Name = "超限即停", Default = "否", Options = "是|否" },
                 new NgPropDef { Name = "变量前缀", Default = "缺陷" },
             }
         },
@@ -164,7 +162,6 @@ public static class NgNodeDefinitions
                 new NgPropDef { Name = "基准Y", Default = "0" },
                 new NgPropDef { Name = "像素当量", Default = "0" },
                 new NgPropDef { Name = "容差", Default = "0.5" },
-                new NgPropDef { Name = "超差即停", Default = "否", Options = "是|否" },
                 new NgPropDef { Name = "变量前缀", Default = "偏差" },
             }
         },
@@ -194,7 +191,6 @@ public static class NgNodeDefinitions
                 new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对" },
                 new NgPropDef { Name = "目标位置", Default = "0" },
                 new NgPropDef { Name = "速度", Default = "10" },
-                new NgPropDef { Name = "加速度", Default = "50" },
                 new NgPropDef { Name = "等待到位", Default = "否", Options = "是|否" },
                 new NgPropDef { Name = "到位延时ms", Default = "0" },
             }
@@ -259,12 +255,8 @@ public static class NgNodeDefinitions
         [NgKind.Home] = new()
         {
             Kind = NgKind.Home, Title = "回原点", Domain = NgDomain.Motion, Color = "#5D9CEC",
-            Props = new[]
-            {
-                new NgPropDef { Name = "轴", Default = "X" },
-                new NgPropDef { Name = "方向", Default = "负向", Options = "负向|正向" },
-                new NgPropDef { Name = "模式", Default = "ORG", Options = "ORG|限位反向|Index" },
-            }
+            // 回零方向 / 回零模式 / 高低速都在「轴」页配（按轴区分），节点这里只管走一次回零
+            Props = new[] { new NgPropDef { Name = "轴", Default = "X" } }
         },
         [NgKind.Delay] = new()
         {
