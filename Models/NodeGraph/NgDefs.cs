@@ -383,8 +383,8 @@ public static class NgNodeDefinitions
         return list.ToArray();
     }
 
-    /// <summary>工具箱分组顺序（视觉 / 运控 / 通讯 / 逻辑）。</summary>
-    public static readonly IReadOnlyList<NgDomain> DomainOrder = new[] { NgDomain.Vision, NgDomain.VisionOp, NgDomain.Motion, NgDomain.Comm, NgDomain.Logic };
+    /// <summary>工具箱分组顺序（视觉 / 运控 / 通讯 / 逻辑），算子组固定排在最后 —— 现场先摆流程骨架，再往下挑算子。</summary>
+    public static readonly IReadOnlyList<NgDomain> DomainOrder = new[] { NgDomain.Vision, NgDomain.Motion, NgDomain.Comm, NgDomain.Logic, NgDomain.VisionOp };
 
     static readonly System.Collections.Generic.Dictionary<string, string> CategoryColor = new()
     {

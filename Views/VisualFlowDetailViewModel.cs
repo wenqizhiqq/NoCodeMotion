@@ -122,38 +122,91 @@ namespace NoCodeMotion.Views
             }
         }
 
-        /// <summary>算子下拉候选：第一行是「不用算子」（回到老的步骤类型）。</summary>
-        public List<string> OpChoices { get; } = new List<string> { OpNoneText }
-            .Concat(VisionOperators.All2.Select(o => o.Name)).ToList();
+        // ---------- 步骤类型：先选分组，再选该组里的类型（算子也在这里面） ----------
 
-        const string OpNoneText = "（不用算子，按上面的步骤类型跑）";
+        const string GroupBasic = "基础步骤";
 
-        /// <summary>当前步骤选中的算子名（写回 step.Op 内部键）。</summary>
-        public string SelectedOpName
+        /// <summary>老步骤类型（归在「基础步骤」分组里）。</summary>
+        static readonly string[] BasicStepTypes =
+        {
+            "图像采集", "图像预处理", "模板匹配", "缺陷检测", "测量", "字符识别", "对位", "标定", "通讯"
+        };
+
+        string _selectedGroup = GroupBasic;
+
+        /// <summary>分组下拉：基础步骤 + 算子分类。</summary>
+        public List<string> GroupChoices { get; } = new List<string> { GroupBasic }
+            .Concat(VisionOperators.Categories).ToList();
+
+        /// <summary>当前分组。只决定下面「步骤类型」列什么，不改这一步本身的配置。</summary>
+        public string SelectedGroup
+        {
+            get => _selectedGroup;
+            set
+            {
+                if (string.IsNullOrEmpty(value) || _selectedGroup == value) return;
+                _selectedGroup = value;
+                OnPropertyChanged(nameof(SelectedGroup));
+                RebuildStepTypeChoices();
+            }
+        }
+
+        /// <summary>「步骤类型」下拉的候选：基础步骤，或所选分组里的算子。</summary>
+        public ObservableCollection<string> StepTypeChoices { get; } = new ObservableCollection<string>();
+
+        /// <summary>
+        /// 「步骤类型」选中的那一个。选到算子 → 写 Op 内部键 + 步骤类型用算子白话名；
+        /// 选到老类型 → 清空 Op，回到老的类型参数卡（两套参数卡不会同时冒出来）。
+        /// </summary>
+        public string SelectedTypeName
         {
             get
             {
                 var spec = VisionOperators.Find(SelectedStep?.Op ?? "");
-                return spec?.Name ?? OpNoneText;
+                return spec?.Name ?? (SelectedStep?.StepType ?? "");
             }
             set
             {
-                if (SelectedStep == null) return;
-                var spec = (value ?? "").Length == 0 || value == OpNoneText
-                    ? null
-                    : VisionOperators.All2.FirstOrDefault(o => o.Name == value);
-                SelectedStep.Op = spec?.Key ?? "";
-                // 步骤类型跟着显示成算子名：左侧步骤列表一眼看得出这一步在干什么，
-                // 老的类型参数卡也自然隐藏（它们各自匹配具体类型名）。取消算子时退回「图像采集」。
-                if (spec != null) SelectedStep.StepType = spec.Name;
-                else if ((SelectedStep.StepType ?? "").Length == 0 || VisionOperators.Names.Contains(SelectedStep.StepType))
-                    SelectedStep.StepType = "图像采集";
+                if (SelectedStep == null || string.IsNullOrEmpty(value)) return;
+                var spec = VisionOperators.All2.FirstOrDefault(o => o.Name == value);
+                if (spec != null)
+                {
+                    SelectedStep.Op = spec.Key;
+                    SelectedStep.StepType = spec.Name;
+                }
+                else
+                {
+                    SelectedStep.Op = "";
+                    SelectedStep.StepType = value;
+                }
                 RebuildOpParams();
                 RaiseTypeFlags();
-                OnPropertyChanged(nameof(SelectedOpName));
+                OnPropertyChanged(nameof(SelectedTypeName));
                 OnPropertyChanged(nameof(HasOp));
                 OnPropertyChanged(nameof(OpHelp));
             }
+        }
+
+        /// <summary>按当前分组重建类型候选。这一步现有的类型不在候选里时补进去，老工程不会显示空白。</summary>
+        void RebuildStepTypeChoices()
+        {
+            StepTypeChoices.Clear();
+            if (_selectedGroup == GroupBasic)
+                foreach (var t in BasicStepTypes) StepTypeChoices.Add(t);
+            else
+                foreach (var op in VisionOperators.ByCategory(_selectedGroup)) StepTypeChoices.Add(op.Name);
+            string cur = SelectedTypeName;
+            if (cur.Length > 0 && !StepTypeChoices.Contains(cur)) StepTypeChoices.Add(cur);
+        }
+
+        /// <summary>切到某一步时，把分组切到这一步所属的组（老类型 → 基础步骤）。</summary>
+        void SyncGroupToSelectedStep()
+        {
+            var spec = VisionOperators.Find(SelectedStep?.Op ?? "");
+            _selectedGroup = spec == null ? GroupBasic : spec.Category;
+            OnPropertyChanged(nameof(SelectedGroup));
+            RebuildStepTypeChoices();
+            OnPropertyChanged(nameof(SelectedTypeName));
         }
 
         public bool HasOp => VisionOperators.Find(SelectedStep?.Op ?? "") != null;
@@ -641,18 +694,39 @@ namespace NoCodeMotion.Views
         /// </summary>
         public ICommand ConfirmTemplateCommand { get; }
 
+        /// <summary>加一步「通用步骤」（走老的步骤类型通道，默认图像采集）。</summary>
+        public void AddPlainStep()
+        {
+            var s = Steps;
+            if (s == null) return;
+            var step = new VisualFlowStep { Name = $"步骤{s.Count + 1}", StepType = "图像采集" };
+            s.Add(step);
+            SelectedStep = step;
+        }
+
+        /// <summary>
+        /// 直接加一步「某个算子」：步骤名和步骤类型都用算子白话名，Op 写内部键，参数用目录默认值。
+        /// 流程里还没有采集步骤时先补一个图像采集 —— 算子没图可跑，引擎会直接报「请先执行图像采集」。
+        /// </summary>
+        public void AddOperatorStep(string opName)
+        {
+            var s = Steps;
+            var spec = VisionOperators.All2.FirstOrDefault(o => o.Name == opName);
+            if (s == null || spec == null) return;
+            if (s.Count == 0)
+                s.Add(new VisualFlowStep { Name = "拍一张照", StepType = "图像采集" });
+            var step = new VisualFlowStep { Name = spec.Name, StepType = spec.Name, Op = spec.Key };
+            s.Add(step);
+            SelectedStep = step;
+        }
+
         private readonly Progress<string> _progress;
 
         public VisualFlowDetailViewModel()
         {
-            AddStepCommand = new SimpleRelayCommand(_ =>
-            {
-                var s = Steps;
-                if (s == null) return;
-                var step = new VisualFlowStep { Name = $"步骤{s.Count + 1}", StepType = "图像采集" };
-                s.Add(step);
-                SelectedStep = step;
-            });
+            // 先把「基础步骤」的类型候选铺好（还没选步骤时下拉是灰的，但列表要有内容）
+            RebuildStepTypeChoices();
+            AddStepCommand = new SimpleRelayCommand(_ => AddPlainStep());
 
             DeleteStepCommand = new SimpleRelayCommand(_ =>
             {
@@ -749,7 +823,7 @@ namespace NoCodeMotion.Views
             if (e.NewValue is INotifyPropertyChanged newInpc) newInpc.PropertyChanged += vm.OnSelectedStepTypeChanged;
             vm.HasStep = e.NewValue != null;
             vm.RebuildOpParams();                       // 参数卡跟着这一步的算子走
-            vm.OnPropertyChanged(nameof(SelectedOpName));
+            vm.SyncGroupToSelectedStep();
             vm.OnPropertyChanged(nameof(HasOp));
             vm.OnPropertyChanged(nameof(OpHelp));
             // 切换步骤时清空模板预览 / 匹配结果（不同步骤数据互不串）

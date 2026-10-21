@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using NoCodeMotion.Models;
+using NoCodeMotion.Services.Vision;
 using NoCodeMotion.ViewModels;
 
 namespace NoCodeMotion.Views
@@ -30,7 +31,38 @@ namespace NoCodeMotion.Views
         private NotifyCollectionChangedEventHandler? _ocrTextHandler;
         private int _projRetry;   // 布局时序重试计数，避免无限重排
 
-        public VisualFlowPage()
+        /// <summary>
+    /// 「添加步骤」：弹出按分类铺开的菜单 —— 最上面是通用步骤，下面按算子分类列出全部算子。
+    /// 点哪个就加哪一步（算子步骤会把 Op / 步骤类型 / 名字一起写好），不用先加通用步骤再去长下拉里找。
+    /// </summary>
+    private void AddStep_Click(object sender, RoutedEventArgs e)
+    {
+        if (!(DataContext is VisualFlowDetailViewModel vm)) return;
+        var menu = new ContextMenu
+        {
+            PlacementTarget = AddStepBtn,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom
+        };
+        var plain = new MenuItem { Header = "通用步骤（只拍一张照）", ToolTip = "加一个图像采集步骤，步骤类型在右边再选" };
+        plain.Click += (_, __) => vm.AddPlainStep();
+        menu.Items.Add(plain);
+        menu.Items.Add(new Separator());
+        foreach (var cat in VisionOperators.Categories)
+        {
+            var top = new MenuItem { Header = cat };
+            foreach (var op in VisionOperators.ByCategory(cat))
+            {
+                var item = new MenuItem { Header = op.Name, ToolTip = op.Summary };
+                string name = op.Name;
+                item.Click += (_, __) => vm.AddOperatorStep(name);
+                top.Items.Add(item);
+            }
+            menu.Items.Add(top);
+        }
+        menu.IsOpen = true;
+    }
+
+    public VisualFlowPage()
         {
             InitializeComponent();
             DataContext = _vm;

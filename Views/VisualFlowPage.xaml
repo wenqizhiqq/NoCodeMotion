@@ -11,19 +11,6 @@
     <UserControl.Resources>
         <!-- OpenCV 角度（逆时针）→ WPF 旋转（顺时针）取反转换器，供匹配叠加层旋转框使用 -->
         <local:AngleNegateConverter x:Key="AngleNegate"/>
-        <!-- 视觉流程步骤的工具类型 -->
-        <x:Array x:Key="VisualStepTypes" Type="sys:String">
-            <sys:String>图像采集</sys:String>
-            <sys:String>图像预处理</sys:String>
-            <sys:String>模板匹配</sys:String>
-            <sys:String>缺陷检测</sys:String>
-            <sys:String>测量</sys:String>
-            <sys:String>字符识别</sys:String>
-            <sys:String>对位</sys:String>
-            <sys:String>标定</sys:String>
-            <sys:String>通讯</sys:String>
-        </x:Array>
-
         <!-- 标定方式 -->
         <x:Array x:Key="CalibModes" Type="sys:String">
             <sys:String>XY+旋转</sys:String>
@@ -119,8 +106,9 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                    <Button Command="{Binding AddStepCommand}"
-                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,8,0">
+                    <Button x:Name="AddStepBtn" Click="AddStep_Click"
+                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,8,0"
+                            ToolTip="点一下挑要加的东西：普通拍照步骤，或直接选一个算子（按分类列出）">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform"
                                   Margin="0,0,5,0" VerticalAlignment="Center"
@@ -472,13 +460,23 @@
                                          IsEnabled="{Binding HasStep}"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <!-- 步骤类型选择：移到右侧参数区（左侧 ListBox 已删掉"类型"列） -->
+                                <!-- 分组 → 步骤类型：先选基础步骤还是某类算子，类型列表跟着换 -->
+                                <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="分组"/>
+                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
+                                          ItemsSource="{Binding GroupChoices}"
+                                          SelectedItem="{Binding SelectedGroup, Mode=TwoWay}"
+                                          IsEnabled="{Binding HasStep}"
+                                          ToolTip="先选一组：基础步骤（拍照 / 预处理 / 匹配…），或某一类算子（找边与测量 / 几何计算…）"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="步骤类型"/>
                                     <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
-                                          ItemsSource="{StaticResource VisualStepTypes}"
-                                          SelectedItem="{Binding SelectedStep.StepType, UpdateSourceTrigger=PropertyChanged}"
-                                          IsEnabled="{Binding HasStep}"/>
+                                          ItemsSource="{Binding StepTypeChoices}"
+                                          SelectedItem="{Binding SelectedTypeName, Mode=TwoWay}"
+                                          IsEnabled="{Binding HasStep}"
+                                          ToolTip="这一组里可选的类型；选到算子时，下面就是它的参数"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
@@ -494,18 +492,11 @@
                         <Border Style="{StaticResource AppleGroupCard}" Margin="0,12,0,0"
                             Visibility="{Binding HasStep, Converter={StaticResource BoolToVis}}">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="视觉算子"/>
+                                <TextBlock Style="{StaticResource AppleSectionHeader}" Text="算子参数"/>
                                 <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,2,0,4"
                                            Foreground="{StaticResource TextSecondaryBrush}"
-                                           Text="挑一个算子，这一步就用它（找边、找圆、量尺寸…）。不挑就按上面的「步骤类型」跑。"/>
+                                           Text="上面的「步骤类型」选的是算子时，这里就是它的参数；选的是基础步骤则没有参数。"/>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
-                                <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="算子"/>
-                                    <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
-                                          ItemsSource="{Binding OpChoices}"
-                                          SelectedItem="{Binding SelectedOpName, Mode=TwoWay}"
-                                          IsEnabled="{Binding HasStep}"/>
-                                </DockPanel>
                                 <TextBlock Text="{Binding OpHelp}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
                                            Foreground="{StaticResource AccentDarkBrush}"
                                            Visibility="{Binding HasOp, Converter={StaticResource BoolToVis}}"/>

@@ -1072,7 +1072,9 @@ if _vfs is not None:
 _vfp = read(r"Views\VisualFlowPage.xaml")
 if _vfp is not None:
     _x = _vfp.replace("\r\n", "\n")
-    check("G23.2 视觉流程页工具类型含「字符识别」", "<sys:String>字符识别</sys:String>" in _x)
+    _vfd = (read(r"Views\VisualFlowDetailViewModel.cs") or "").replace("\r\n", "\n")
+    check("G23.2 视觉流程的工具类型含「字符识别」（候选在详情 VM 的 BasicStepTypes，步骤类型下拉才选得到）",
+          "BasicStepTypes" in _vfd and '"字符识别"' in _vfd)
     check("G23.3 视觉流程页有 OCR 参数卡（语言/匹配方式/期望文本/忽略大小写/识别区域 + 清除）",
           'x:Key="OcrLanguages"' in _x and 'x:Key="OcrMatchModes"' in _x
           and "Binding IsOcr," in _x
@@ -2111,8 +2113,9 @@ else:
     check("G33.8 算子输出量是结构化的（Numbers），不靠从 Summary 里正则抽数",
           "public System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, double>> Numbers" in _veng
           and "Numbers.Add(" in _vrun)
-    check("G33.9 选了算子后步骤类型跟着显示成算子名，取消时退回图像采集（两套参数卡不同时冒出来）",
-          'SelectedStep.StepType = spec.Name;' in _vvm and 'VisionOperators.Names.Contains(SelectedStep.StepType)' in _vvm)
+    check("G33.9 步骤类型里选到算子 → 写 Op 且类型显示算子名；选回基础类型 → 清空 Op（两套参数卡不同时冒出来）",
+          'SelectedStep.StepType = spec.Name;' in _vvm and 'SelectedStep.Op = "";' in _vvm
+          and "VisionOperators.ByCategory(_selectedGroup)" in _vvm)
 
 # ---------------------------------------------------------------------
 # G34  节点工具箱：算子要看得见、拖得动、跑得起来
@@ -2130,6 +2133,9 @@ _ngdefs = (read(r"Models\NodeGraph\NgDefs.cs") or "").replace("\r\n", "\n")
 _ngmodel = (read(r"Models\NodeGraph\NgModel.cs") or "").replace("\r\n", "\n")
 _ngrun = (read(r"Services\NgRunner.cs") or "").replace("\r\n", "\n")
 _ngvis = (read(r"Services\Vision\NgVisionExecutor.cs") or "").replace("\r\n", "\n")
+_vfpage = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+_vfcode = (read(r"Views\VisualFlowPage.xaml.cs") or "").replace("\r\n", "\n")
+_vfvm = (read(r"Views\VisualFlowDetailViewModel.cs") or "").replace("\r\n", "\n")
 
 if not _ngxaml or not _ngdefs:
     check("G34 找到节点图页面 / 节点定义", False, "NodeGraphPage.xaml 或 NgDefs.cs 缺失")
@@ -2154,6 +2160,22 @@ else:
     check("G34.9 拖拽带的是整个条目（只带 NgKind 会丢算子键 → 参数表铺不出来）",
           'new DataObject("NgTool", tool)' in _ngpage and "_vm.AddTool(tool" in _ngpage
           and 'CommandParameter="{Binding}"' in _ngxaml)
+    check("G34.10 视觉流程点「添加步骤」能直接按分类挑算子（不是先加通用步骤再去长下拉里找）",
+          'Click="AddStep_Click"' in (_vfpage or "")
+          and "VisionOperators.Categories" in (_vfcode or "")
+          and "AddOperatorStep" in (_vfvm or "")
+          and "s.Count == 0" in (_vfvm or ""))
+    check("G34.11 视觉流程「步骤类型」是两级：上面选分组、下面选类型，算子并进类型下拉（不再单独一个算子下拉）",
+          "GroupChoices" in (_vfvm or "") and "SelectedGroup" in (_vfvm or "")
+          and "StepTypeChoices" in (_vfvm or "")
+          and 'ItemsSource="{Binding StepTypeChoices}"' in (_vfpage or "")
+          and 'ItemsSource="{Binding GroupChoices}"' in (_vfpage or "")
+          and 'ItemsSource="{Binding OpChoices}"' not in (_vfpage or "")
+          and (_vfpage or "").find('ItemsSource="{Binding GroupChoices}"')
+              < (_vfpage or "").find('ItemsSource="{Binding StepTypeChoices}"'))
+
+check("G34.12 节点工具箱里算子分组排在最下面（现场先摆流程骨架，再往下挑算子）",
+      "NgDomain.Logic, NgDomain.VisionOp };" in _ngdefs)
 
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
