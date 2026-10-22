@@ -171,9 +171,9 @@ if os.path.exists(xml):
     check("G5.4 含 code=8194 且为「普通缓冲满出错」",
           'code="8194"' in b.decode("utf-8-sig") and "普通缓冲满出错" in b.decode("utf-8-sig"))
 csproj = read("NoCodeMotion.csproj")
-check("G5.5 csproj 已声明随程序复制",
-      csproj is not None and
-      '<None Include="Native\\Mcn420ErrorCode.xml" Link="Mcn420ErrorCode.xml" CopyToOutputDirectory="PreserveNewest" />' in csproj)
+check("G5.5 csproj 已声明随程序复制（输出落点 = exe 同级的 Mcn420ErrorCode.xml）",
+      csproj is not None and 'TargetPath="Mcn420ErrorCode.xml"' in csproj
+      and 'Mcn420ErrorCode.xml' in csproj)
 
 # ---------------------------------------------------------------------
 section("G6  缓冲占用类错误码：先给「先停再 Jog」的动作，不再反问轴号/当量")
@@ -2292,10 +2292,17 @@ check("G38.1 原生 dll 全部落到输出目录的 native\\ 子目录",
 check("G38.2 启动时把 native\\ 加进 DLL 搜索路径（否则 P/Invoke 找不到）",
       'SetDllDirectory(nativeDir)' in _app38
       and 'Path.Combine(System.AppContext.BaseDirectory, "native")' in _app38)
-check("G38.3 托管卡库（C++/CLI）仍与 exe 同级，没被一起挪走",
-      'Link="CoreMotionApi_CLRLib.dll"' in _csproj38
-      and 'Link="native\\CoreMotionApi_CLRLib.dll"' not in _csproj38
+_managed38 = ["WMX3Api_CLRLib.dll", "RtMotionApiNET.dll", "EcApi_CLRLib.dll",
+              "CoreMotionApi_CLRLib.dll", "IOApi_CLRLib.dll", "EventApi_CLRLib.dll"]
+check("G38.3 托管卡库的输出落点仍是 exe 同级（TargetPath 不带 native\\）",
+      all(('TargetPath="%s"' % d) in _csproj38 for d in _managed38)
+      and all(('TargetPath="native\\%s"' % d) not in _csproj38 for d in _managed38)
       and 'Link="MvCameraControl.Net.dll"' not in _csproj38)
+check("G38.4 托管卡库在工程树里归到 Native\\ 下（Link 与 TargetPath 分离，树整洁但运行时位置不变）",
+      all(('Link="Native\\%s" TargetPath="%s"' % (d, d)) in _csproj38 for d in _managed38))
+check("G38.5 3D 模型放在 Models\\CAD\\（仓库根不再放 47MB 的 stp）",
+      'Content Include="Models\\CAD\\IR-R10-140S-INT-3D-3D.stp"' in _csproj38
+      and 'Content Include="IR-R10-140S-INT-3D-3D.stp"' not in _csproj38)
 
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:

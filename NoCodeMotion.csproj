@@ -116,7 +116,7 @@
     <None Include="Native\MCC800S.dll" Link="native\MCC800S.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\MCCE135.dll" Link="native\MCCE135.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\MCN420.dll" Link="native\MCN420.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Native\Mcn420ErrorCode.xml" Link="Mcn420ErrorCode.xml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\Mcn420ErrorCode.xml" Link="Native\Mcn420ErrorCode.xml" TargetPath="Mcn420ErrorCode.xml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\MCX08.dll" Link="native\MCX08.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\PCI400.dll" Link="native\PCI400.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Native\PLT.dll" Link="native\PLT.dll" CopyToOutputDirectory="PreserveNewest" />
@@ -129,12 +129,12 @@
   <!-- SoftServo 卡家族依赖的厂商托管 SDK（WMX3 实时软伺服）。
        这些是托管程序集：既要 Reference 才能编译，也要随输出目录复制才能运行。 -->
   <ItemGroup>
-    <None Include="Native\WMX3Api_CLRLib.dll" Link="WMX3Api_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Native\RtMotionApiNET.dll" Link="RtMotionApiNET.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Native\EcApi_CLRLib.dll" Link="EcApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Native\CoreMotionApi_CLRLib.dll" Link="CoreMotionApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Native\IOApi_CLRLib.dll" Link="IOApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Native\EventApi_CLRLib.dll" Link="EventApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\WMX3Api_CLRLib.dll" Link="Native\WMX3Api_CLRLib.dll" TargetPath="WMX3Api_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\RtMotionApiNET.dll" Link="Native\RtMotionApiNET.dll" TargetPath="RtMotionApiNET.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\EcApi_CLRLib.dll" Link="Native\EcApi_CLRLib.dll" TargetPath="EcApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\CoreMotionApi_CLRLib.dll" Link="Native\CoreMotionApi_CLRLib.dll" TargetPath="CoreMotionApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\IOApi_CLRLib.dll" Link="Native\IOApi_CLRLib.dll" TargetPath="IOApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Native\EventApi_CLRLib.dll" Link="Native\EventApi_CLRLib.dll" TargetPath="EventApi_CLRLib.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="RtMotionApiNET">
@@ -172,7 +172,7 @@
 
   <!-- 内置示例机器人 STP（Creo BREP），随输出目录提供，操作员仿真页自动载入显示 -->
   <ItemGroup>
-    <Content Include="IR-R10-140S-INT-3D-3D.stp" Link="Models\CAD\IR-R10-140S-INT-3D-3D.stp" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Models\CAD\IR-R10-140S-INT-3D-3D.stp" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Lua 编辑器语法高亮定义，嵌入程序集供 AvalonEdit 加载（主路径是 LuaEditorView 里的内联 xshd，
