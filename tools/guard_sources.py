@@ -2223,7 +2223,7 @@ _def_starts = [(m.group(1), m.start()) for m in _re33.finditer(r"\[NgKind\.(\w+)
 _defs36 = {}
 for _i, (_k, _pos) in enumerate(_def_starts):
     _end = _def_starts[_i + 1][1] if _i + 1 < len(_def_starts) else _ngdefs36.find("    };", _pos)
-    _defs36[_k] = _re33.findall(r'Name = "([^"]+)"', _ngdefs36[_pos:_end])
+    _defs36[_k] = _re33.findall(r'(?<![A-Za-z])Name = "([^"]+)"', _ngdefs36[_pos:_end])
 
 _skip36 = {"Start", "End", "ParallelFork", "ParallelJoin", "Decision", "Loop", "Compute"}
 # 这几个节点由视觉执行器读参数（不在 NgRunner 的 switch 里）
@@ -2253,6 +2253,13 @@ check("G36.2 名称类参数给的是工程里的真实候选（轴1/轴2、设�
 check("G36.3 点位表名有单独的候选源（SetPointTable 由点位页同步）",
       "PointTableNames" in (read(r"Services\Catalog.cs") or "")
       and "Catalog.SetPointTable(" in (read(r"ViewModels\PointViewModel.cs") or ""))
+check("G36.4 每个节点都有标准名 + 详细说明（工具箱悬停不能只显示标题）",
+      'StdName = "' in _ngdefs36 and 'public string Tip' in _ngdefs36
+      and _ngdefs36.count('Summary = "') >= 32)
+check("G36.5 悬停提示带参数清单（Tip 自己拼 Props，不用每页手写）",
+      'Append("参数：")' in _ngdefs36)
+check("G36.6 工具箱按钮绑的是 Tip（绑 Title 就只有一行字）",
+      'ToolTip="{Binding Tip}"' in _ngxaml)
 
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:

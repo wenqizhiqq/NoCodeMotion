@@ -35,11 +35,27 @@ public sealed class NgNodeDef
     public string OpKey { get; init; } = "";
     /// <summary>算子分类（工具箱按它再分小组）。</summary>
     public string Category { get; init; } = "";
-    /// <summary>一句话说明（工具箱鼠标停上去的提示）。</summary>
+    /// <summary>标准名（手册 / 行业叫法），白话名不好懂时在提示里补上。</summary>
+    public string StdName { get; init; } = "";
+    /// <summary>详细说明（工具箱悬停显示）。</summary>
     public string Summary { get; init; } = "";
 
-    /// <summary>工具箱提示：有说明就「名字：说明」，没有就只显示名字。</summary>
-    public string Tip => Summary.Length == 0 ? Title : Title + "：" + Summary;
+    /// <summary>
+    /// 工具箱悬停提示：第一行「白话名（标准名）」，第二行详细说明，第三行参数清单。
+    /// 只写标题的话，悬停等于没提示 —— 每个节点都必须有说明（守卫 G36.4 会拦）。
+    /// </summary>
+    public string Tip
+    {
+        get
+        {
+            var sb = new System.Text.StringBuilder(Title);
+            if (StdName.Length > 0 && StdName != Title) sb.Append("（").Append(StdName).Append('）');
+            if (Summary.Length > 0) sb.Append('\n').Append(Summary);
+            if (Props.Count > 0)
+                sb.Append('\n').Append("参数：").Append(string.Join(" / ", System.Linq.Enumerable.Select(Props, p => p.Name)));
+            return sb.ToString();
+        }
+    }
     public string Color { get; init; } = "#4A89DC";
     public bool HasInput { get; init; } = true;
     public IReadOnlyList<string> Outputs { get; init; } = new[] { "Out" };
@@ -103,6 +119,7 @@ public static class NgNodeDefinitions
         [NgKind.CamCapture] = new()
         {
             Kind = NgKind.CamCapture, Title = "拍一张照", Domain = NgDomain.Vision, Color = "#10B981",
+            StdName = "图像采集", Summary = "从相机或图片文件取一帧，后面所有视觉节点都复用这一张图；可设曝光与分辨率。没接相机时会用测试图跑通流程。",
             Props = new[]
             {
                 new NgPropDef { Name = "图像源", Default = "相机", Options = "相机|文件|文件夹" },
@@ -116,6 +133,7 @@ public static class NgNodeDefinitions
         [NgKind.TemplateMatch] = new()
         {
             Kind = NgKind.TemplateMatch, Title = "图上找图案", Domain = NgDomain.Vision, Color = "#34C759",
+            StdName = "模板匹配", Summary = "用框选的模板在整幅图里找最像的位置，给出中心坐标、角度和相似度；结果按「变量前缀」写成变量供后续判断。",
             Props = new[]
             {
                 new NgPropDef { Name = "模板路径", Default = "" },
@@ -129,6 +147,7 @@ public static class NgNodeDefinitions
         [NgKind.DefectDetect] = new()
         {
             Kind = NgKind.DefectDetect, Title = "找缺陷", Domain = NgDomain.Vision, Color = "#22C55E",
+            StdName = "缺陷检测", Summary = "按灰度阈值 + 面积（或轮廓）找暗斑 / 亮斑，统计个数和总面积，再和「允许缺陷数」比较得出合格与否。",
             Props = new[]
             {
                 new NgPropDef { Name = "检测模式", Default = "阈值面积", Options = "阈值面积|边缘轮廓" },
@@ -143,6 +162,7 @@ public static class NgNodeDefinitions
         [NgKind.Measure] = new()
         {
             Kind = NgKind.Measure, Title = "量尺寸", Domain = NgDomain.Vision, Color = "#16A34A",
+            StdName = "测量", Summary = "用上游找到的特征（匹配中心 / 斑点重心）算距离或直径，按标定系数换算成毫米，可设上下限判合格。",
             Props = new[]
             {
                 new NgPropDef { Name = "测量项", Default = "距离", Options = "距离|直径" },
@@ -156,6 +176,7 @@ public static class NgNodeDefinitions
         [NgKind.Align] = new()
         {
             Kind = NgKind.Align, Title = "对准位置", Domain = NgDomain.Vision, Color = "#059669",
+            StdName = "对位", Summary = "把匹配到的中心与基准点比较，算出 X / Y 偏差（像素或毫米），供下游补偿或判断是否超差。",
             Props = new[]
             {
                 new NgPropDef { Name = "基准X", Default = "0" },
@@ -168,6 +189,7 @@ public static class NgNodeDefinitions
         [NgKind.Calib] = new()
         {
             Kind = NgKind.Calib, Title = "标定对应关系", Domain = NgDomain.Vision, Color = "#047857",
+            StdName = "标定", Summary = "用棋盘格 / 圆点算出「多少像素 = 1 毫米」，后续测量和对位都用这个比例换算。",
             Props = new[]
             {
                 new NgPropDef { Name = "标定板", Default = "棋盘格", Options = "棋盘格|圆点" },
@@ -180,11 +202,13 @@ public static class NgNodeDefinitions
         // ============ 运控 ============
         [NgKind.Start] = new()
         {
-            Kind = NgKind.Start, Title = "开始", Domain = NgDomain.Motion, Color = "#37BC9B", HasInput = false,
+            Kind = NgKind.Start, Title = "开始", Domain = NgDomain.Motion, Color = "#37BC9B",
+            StdName = "起始", Summary = "流程的入口：运行从这里开始往下走，本身不动作。", HasInput = false,
         },
         [NgKind.MoveAxis] = new()
         {
             Kind = NgKind.MoveAxis, Title = "电机走位", Domain = NgDomain.Motion, Color = "#4A89DC",
+            StdName = "单轴运动", Summary = "把一根轴按速度走到目标位置（绝对 = 走到坐标，相对 = 走一段距离）；勾「等待到位」会等轴停稳再往下走。加速 / 减速时间在「轴」页配置。",
             Props = new[]
             {
                 new NgPropDef { Name = "轴", Default = "X" },
@@ -198,6 +222,7 @@ public static class NgNodeDefinitions
         [NgKind.AxisJog] = new()
         {
             Kind = NgKind.AxisJog, Title = "点动（一直走，直到停）", Domain = NgDomain.Motion, Color = "#4A89DC",
+            StdName = "Jog 运动", Summary = "让轴朝指定方向一直走，直到执行「停下这根轴」或有人拍急停；适合手动找位置，确认周边安全再用。",
             Props = new[]
             {
                 new NgPropDef { Name = "轴", Default = "X" },
@@ -208,6 +233,7 @@ public static class NgNodeDefinitions
         [NgKind.AxisStop] = new()
         {
             Kind = NgKind.AxisStop, Title = "停下这根轴", Domain = NgDomain.Motion, Color = "#ED5565",
+            StdName = "轴停止", Summary = "让正在动的轴停下来：减速停止按轴的减速时间收尾，立即停止会马上断输出。",
             Props = new[]
             {
                 new NgPropDef { Name = "轴", Default = "X" },
@@ -217,6 +243,7 @@ public static class NgNodeDefinitions
         [NgKind.AxisServo] = new()
         {
             Kind = NgKind.AxisServo, Title = "伺服使能 / 断开", Domain = NgDomain.Motion, Color = "#967ADC",
+            StdName = "伺服使能", Summary = "给轴上伺服（使能）或断使能。未使能的轴收到运动指令也不会动。",
             Props = new[]
             {
                 new NgPropDef { Name = "轴", Default = "X" },
@@ -226,6 +253,7 @@ public static class NgNodeDefinitions
         [NgKind.LineInterp] = new()
         {
             Kind = NgKind.LineInterp, Title = "直线插补（两轴一起走直线）", Domain = NgDomain.Motion, Color = "#4A89DC",
+            StdName = "直线插补", Summary = "两根轴联动走一条直线，按合成速度一起到目标点。两轴必须在同一张卡上；速度 / 加减速是否生效取决于控制卡。",
             Props = new[]
             {
                 new NgPropDef { Name = "轴1", Default = "X" },
@@ -240,6 +268,7 @@ public static class NgNodeDefinitions
         [NgKind.ArcInterp] = new()
         {
             Kind = NgKind.ArcInterp, Title = "圆弧插补（过中间点到终点）", Domain = NgDomain.Motion, Color = "#4A89DC",
+            StdName = "三点圆弧插补", Summary = "两根轴联动走圆弧：经过「中间点」到「终点」。两轴必须在同一张卡上，坐标按整数单位下发。",
             Props = new[]
             {
                 new NgPropDef { Name = "轴1", Default = "X" },
@@ -255,17 +284,20 @@ public static class NgNodeDefinitions
         [NgKind.Home] = new()
         {
             Kind = NgKind.Home, Title = "回原点", Domain = NgDomain.Motion, Color = "#5D9CEC",
+            StdName = "回零运动", Summary = "按「轴」页配置的回零模式 / 方向 / 速度回原点，并等它到位；上电后建议先回零。",
             // 回零方向 / 回零模式 / 高低速都在「轴」页配（按轴区分），节点这里只管走一次回零
             Props = new[] { new NgPropDef { Name = "轴", Default = "X" } }
         },
         [NgKind.Delay] = new()
         {
             Kind = NgKind.Delay, Title = "按时间等待", Domain = NgDomain.Motion, Color = "#F6BB42",
+            StdName = "延时", Summary = "等待指定毫秒再往下走；等待期间按「暂停」会挂起、按「停止」会立刻结束。",
             Props = new[] { new NgPropDef { Name = "时间ms", Default = "500" } }
         },
         [NgKind.WaitInput] = new()
         {
             Kind = NgKind.WaitInput, Title = "等输入信号", Domain = NgDomain.Motion, Color = "#8CC152",
+            StdName = "条件等待", Summary = "等某个输入点变成指定电平再继续；超过「超时ms」（0 = 用全局超时）仍未满足会报错并停下。",
             Props = new[]
             {
                 new NgPropDef { Name = "信号", Default = "IN0" },
@@ -276,6 +308,7 @@ public static class NgNodeDefinitions
         [NgKind.Decision] = new()
         {
             Kind = NgKind.Decision, Title = "按条件分岔", Domain = NgDomain.Motion, Color = "#E9573F",
+            StdName = "条件分支", Summary = "按配置的条件（变量 / 轴位置 / IO 等）决定走哪个出口，满足哪条就走哪条。",
             // 多分支：条件1..条件8 + 否则（旧图的 True/False 端口在 NgRunner 里做了兼容回退）
             Outputs = new[] { "条件1", "条件2", "条件3", "条件4", "条件5", "条件6", "条件7", "条件8", "否则" },
             Props = BuildDecisionProps()
@@ -283,12 +316,14 @@ public static class NgNodeDefinitions
         [NgKind.Loop] = new()
         {
             Kind = NgKind.Loop, Title = "重复几次", Domain = NgDomain.Motion, Color = "#967ADC",
+            StdName = "循环", Summary = "循环体的起点：执行到这里会按设置的次数回头重复，循环结束的节点负责跳回。",
             Outputs = new[] { "Body", "Exit" },
             Props = new[] { new NgPropDef { Name = "次数", Default = "3" } }
         },
         [NgKind.End] = new()
         {
             Kind = NgKind.End, Title = "结束", Domain = NgDomain.Motion, Color = "#DA4453",
+            StdName = "结束", Summary = "流程的终点：走到这里本次运行结束（循环运行时再开下一轮）。",
             Outputs = System.Array.Empty<string>(),
         },
 
@@ -296,11 +331,13 @@ public static class NgNodeDefinitions
         [NgKind.WaitAxis] = new()
         {
             Kind = NgKind.WaitAxis, Title = "等电机停稳", Domain = NgDomain.Motion, Color = "#48CFAD",
+            StdName = "等待到位", Summary = "阻塞等待该轴停止并到位；超时会按轴的配置报错。",
             Props = new[] { new NgPropDef { Name = "轴", Default = "X" } }
         },
         [NgKind.Cylinder] = new()
         {
             Kind = NgKind.Cylinder, Title = "气缸动作", Domain = NgDomain.Motion, Color = "#EC87C0",
+            StdName = "气缸控制", Summary = "让气缸伸出 / 缩回，并等磁性开关到位再往下走。",
             Props = new[]
             {
                 new NgPropDef { Name = "气缸", Default = "夹爪" },
@@ -310,6 +347,7 @@ public static class NgNodeDefinitions
         [NgKind.PointGo] = new()
         {
             Kind = NgKind.PointGo, Title = "走到点位", Domain = NgDomain.Motion, Color = "#4FC1E9",
+            StdName = "点表运动", Summary = "按点位表里配好的点位一次走多轴，流程里只需选表名 + 点位名。",
             Props = new[]
             {
                 new NgPropDef { Name = "点位表", Default = "取放工位" },
@@ -319,6 +357,7 @@ public static class NgNodeDefinitions
         [NgKind.IoWrite] = new()
         {
             Kind = NgKind.IoWrite, Title = "打开/关闭输出", Domain = NgDomain.Motion, Color = "#A0D468",
+            StdName = "IO 控制（写）", Summary = "把某个输出点设成 1（开）或 0（关），可接气缸、光源、蜂鸣器。",
             Props = new[]
             {
                 new NgPropDef { Name = "输出", Default = "光源" },
@@ -330,6 +369,7 @@ public static class NgNodeDefinitions
         [NgKind.ModbusSend] = new()
         {
             Kind = NgKind.ModbusSend, Title = "发消息（外部通讯）", Domain = NgDomain.Comm, Color = "#AF52DE",
+            StdName = "Modbus 写入", Summary = "向通讯页配好的 Modbus 通道写入指令（指令 / 地址 / 值）。",
             Props = new[]
             {
                 new NgPropDef { Name = "通讯", Default = "通讯1" },
@@ -339,6 +379,7 @@ public static class NgNodeDefinitions
         [NgKind.ModbusRecv] = new()
         {
             Kind = NgKind.ModbusRecv, Title = "收消息（外部通讯）", Domain = NgDomain.Comm, Color = "#B06BE0",
+            StdName = "Modbus 读取", Summary = "从 Modbus 通道读一次数据，按关键字取字段写进变量。",
             Props = new[]
             {
                 new NgPropDef { Name = "通讯", Default = "通讯1" },
@@ -348,6 +389,7 @@ public static class NgNodeDefinitions
         [NgKind.TcpSend] = new()
         {
             Kind = NgKind.TcpSend, Title = "发消息（网口）", Domain = NgDomain.Comm, Color = "#9B51E0",
+            StdName = "TCP 发送", Summary = "向指定 host:port 发一段文本，3 秒连不上会报错。",
             Props = new[]
             {
                 new NgPropDef { Name = "端点", Default = "192.168.1.10:8000" },
@@ -357,6 +399,7 @@ public static class NgNodeDefinitions
         [NgKind.McuWrite] = new()
         {
             Kind = NgKind.McuWrite, Title = "写下位机寄存器", Domain = NgDomain.Comm, Color = "#8E44AD",
+            StdName = "下位机写", Summary = "把数据写到通讯页配好的设备（或 host:port），适合下位机寄存器 / 指令。",
             Props = new[]
             {
                 new NgPropDef { Name = "设备", Default = "MCU1" },
@@ -368,6 +411,7 @@ public static class NgNodeDefinitions
         [NgKind.VarSet] = new()
         {
             Kind = NgKind.VarSet, Title = "把值存进变量", Domain = NgDomain.Logic, Color = "#ED5565",
+            StdName = "变量赋值", Summary = "把值（数字 / 文本 / 其它变量）存进指定变量，供后面节点和条件判断用。",
             Props = new[]
             {
                 new NgPropDef { Name = "变量", Default = "计数" },
@@ -377,6 +421,7 @@ public static class NgNodeDefinitions
         [NgKind.Compute] = new()
         {
             Kind = NgKind.Compute, Title = "算一下", Domain = NgDomain.Logic, Color = "#DA4453",
+            StdName = "变量计算", Summary = "对变量做加 / 减 / 乘 / 除 / 求余 / 真假互换，右值可以是数字、变量名或表达式。",
             // 结构化运算：下拉选「运算」(加/减/乘/除/取模/取反) + 自由文本「值」(可为数字或其它变量名/表达式)。
             // 例：变量=计数，运算=加，值=1 → 计数 当前值 + 1。彻底避免「+1 被当成设置为 1」的歧义。
             Props = new[]
@@ -391,6 +436,7 @@ public static class NgNodeDefinitions
         [NgKind.ParallelFork] = new()
         {
             Kind = NgKind.ParallelFork, Title = "同时做几件事", Domain = NgDomain.Logic, Color = "#FF9500",
+            StdName = "并行分支", Summary = "同时扇出多条分支一起执行（例如多轴联动）。",
             Outputs = new[] { "Branch1", "Branch2", "Branch3", "Branch4", "Branch5", "Branch6", "Branch7", "Branch8" },
             Props = new[]
             {
@@ -400,6 +446,7 @@ public static class NgNodeDefinitions
         [NgKind.ParallelJoin] = new()
         {
             Kind = NgKind.ParallelJoin, Title = "等几件事都做完", Domain = NgDomain.Logic, Color = "#FF9500",
+            StdName = "并行汇聚", Summary = "等所有分支都执行到这里再继续往下走。",
             Props = new[]
             {
                 new NgPropDef { Name = "分支数", Default = "4", Options = "2|3|4|5|6|7|8" }
@@ -408,6 +455,7 @@ public static class NgNodeDefinitions
         [NgKind.VisionOp] = new()
         {
             Kind = NgKind.VisionOp, Title = "视觉算子", Domain = NgDomain.VisionOp, Color = "#0EA5E9",
+            StdName = "视觉算子", Summary = "从算子目录里挑一个视觉算子，参数按目录自动生成；结果按「变量前缀」写成变量。",
             Props = new[]
             {
                 new NgPropDef { Name = "算子", Default = "" },
@@ -468,6 +516,7 @@ public static class NgNodeDefinitions
                 Domain = NgDomain.VisionOp,
                 OpKey = op.Key,
                 Category = op.Category,
+                StdName = "",
                 Summary = op.Summary,
                 Color = CategoryColor.TryGetValue(op.Category, out var c) ? c : "#0EA5E9",
                 Props = OpProps(op.Name),
