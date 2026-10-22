@@ -145,7 +145,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 // FlowRunControl）—— 不是本实例的 WaitGuard。这样 HookWaitGuard 只绑一处就对所有桥同时生效。
                 HardwareBridge.WaitGuard?.Invoke();
                 int slice = Math.Min(50, remain);
-                Thread.Sleep(slice);
+                Timing.Sleep(slice);          // 精确到 ~1ms，Sleep(1) 不再实际睡 15ms
                 remain -= slice;
             }
         }

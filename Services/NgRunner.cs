@@ -511,9 +511,9 @@ public sealed class NgRunner
                     // ExecuteNodeSync 拿不到 RunAsync 的 ct：Stop() 先置 _state=Stopped 再 Cancel _cts，
                     // 两个都查等价且更稳（将来新增 Cancel 调用点也不会漏）。
                     if (_state == NgRunState.Stopped || (_cts?.IsCancellationRequested ?? false)) return;
-                    if (_state == NgRunState.Paused) { Thread.Sleep(30); continue; }
+                    if (_state == NgRunState.Paused) { Timing.Sleep(30); continue; }
                     int slice = Math.Min(50, remain);
-                    Thread.Sleep(slice);
+                    Timing.Sleep(slice);
                     remain -= slice;
                 }
                 break;
@@ -532,7 +532,7 @@ public sealed class NgRunner
                 // LV Studio 的「等待定位完成 / 到位延时」：老流程默认不等（后面另有「等电机停稳」节点），不改变原行为
                 if (GetProp(node, "等待到位", "否") == "是") _bridge.WaitAxisDone(ax);
                 int settle = GetIntProp(node, "到位延时ms", 0);
-                if (settle > 0) System.Threading.Thread.Sleep(settle);
+                if (settle > 0) Timing.Sleep(settle);
                 _lastNodeSummary = rel ? $"轴 {ax.Name} 相对移动 {pos:0.###}" : $"轴 {ax.Name} 绝对移动 {pos:0.###}";
                 break;
             }

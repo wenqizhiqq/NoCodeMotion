@@ -2261,6 +2261,20 @@ check("G36.5 悬停提示带参数清单（Tip 自己拼 Props，不用每页手
 check("G36.6 工具箱按钮绑的是 Tip（绑 Title 就只有一行字）",
       'ToolTip="{Binding Tip}"' in _ngxaml)
 
+# ---------------------------------------------------------------------
+# G37  计时精度：Sleep(1) 在 Windows 上默认实际睡 ~15ms
+# ---------------------------------------------------------------------
+_timing37 = (read(r"Services\Timing.cs") or "").replace("\r\n", "\n")
+_app37 = (read(r"App.xaml.cs") or "").replace("\r\n", "\n")
+_runner37 = (read(r"Services\NgRunner.cs") or "").replace("\r\n", "\n")
+_bridge37 = (read(r"Services\Hardware\Cards\WenQiZhiCardBridge.cs") or "").replace("\r\n", "\n")
+
+check("G37.1 启动时把进程计时精度提到 1ms、退出还原（默认 Sleep(1) 实测 ~15ms）",
+      "timeBeginPeriod" in _timing37 and "Timing.Raise(1);" in _app37 and "Timing.Release();" in _app37)
+check("G37.2 等待热路径用 Timing.Sleep（等轴到位 / 节点延时 / 到位延时）",
+      "Timing.Sleep(slice)" in _bridge37 and "Timing.Sleep(slice)" in _runner37
+      and "Timing.Sleep(settle)" in _runner37)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

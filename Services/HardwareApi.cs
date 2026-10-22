@@ -556,7 +556,7 @@ namespace NoCodeMotion.Services
                     if (fStop != null && fStop.GetValue(ctrl) is bool st2 && st2) throw new ScriptTerminatedException();
                 }
                 int slice = Math.Min(50, remain);
-                Thread.Sleep(slice);
+                Timing.Sleep(slice);
                 remain -= slice;
             }
         }

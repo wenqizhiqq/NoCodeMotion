@@ -15,6 +15,10 @@ namespace NoCodeMotion
             // 保证 AuthorWatermark.cs 被编译依赖；误删该文件将导致编译失败。
             _ = AuthorWatermark.Signature;
 
+            // ★ 进程计时精度提到 1ms：Windows 默认时间片 ~15.6ms，Thread.Sleep(1) 实际睡 ~15ms，
+            //   等轴到位 / 等 IO / 延时的轮询会被整体拖慢（「50ms 到位延时」实测变 62ms）。
+            Timing.Raise(1);
+
             // 全局异常统一上报到底部状态栏（不弹窗打断操作）。
             DispatcherUnhandledException += (s, e) =>
             {
@@ -50,6 +54,8 @@ namespace NoCodeMotion
 
         protected override void OnExit(ExitEventArgs e)
         {
+            // 还原计时精度（不还原会影响整机的省电策略）
+            Timing.Release();
             // 退出时强制保存一次，防止防抖定时器未触发
             ProjectStore.Save();
             base.OnExit(e);
