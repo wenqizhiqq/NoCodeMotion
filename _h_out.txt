@@ -1,2 +1,0 @@
-﻿first30: ''
-ERR: invalid syntax (<unknown>, line 0)

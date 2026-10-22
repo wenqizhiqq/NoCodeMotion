@@ -1,2 +1,0 @@
-﻿CONTAINS_Field= True
-count= 48
