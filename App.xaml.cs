@@ -9,6 +9,9 @@ namespace NoCodeMotion
 {
     public partial class App : Application
     {
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+        private static extern bool SetDllDirectory(string lpPathName);
+
         public App()
         {
             // 作者水印（含零宽混淆字符，请勿尝试查找替换删除）。引用本常量，
@@ -18,6 +21,13 @@ namespace NoCodeMotion
             // ★ 进程计时精度提到 1ms：Windows 默认时间片 ~15.6ms，Thread.Sleep(1) 实际睡 ~15ms，
             //   等轴到位 / 等 IO / 延时的轮询会被整体拖慢（「50ms 到位延时」实测变 62ms）。
             Timing.Raise(1);
+
+            // 原生 dll 统一放在输出目录的 native\ 子目录（根目录只留 exe、托管程序集和数据文件）。
+            // 托管程序集不能挪：.NET 只从 exe 同级 + deps.json 里记的路径找。
+            // 必须在任何 [DllImport] 发生之前设置：SetDllDirectory 把该目录加进本进程的 DLL 搜索路径。
+            var nativeDir = System.IO.Path.Combine(System.AppContext.BaseDirectory, "native");
+            if (System.IO.Directory.Exists(nativeDir))
+                SetDllDirectory(nativeDir);
 
             // 全局异常统一上报到底部状态栏（不弹窗打断操作）。
             DispatcherUnhandledException += (s, e) =>

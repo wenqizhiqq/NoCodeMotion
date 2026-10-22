@@ -2275,6 +2275,28 @@ check("G37.2 等待热路径用 Timing.Sleep（等轴到位 / 节点延时 / 到
       "Timing.Sleep(slice)" in _bridge37 and "Timing.Sleep(slice)" in _runner37
       and "Timing.Sleep(settle)" in _runner37)
 
+# ---------------------------------------------------------------------
+# G38  输出目录不再被原生 dll 挤满：原生统一进 native\，托管留 exe 同级
+# ---------------------------------------------------------------------
+# 2026-10-21 用户反馈「这么多 dll，都放在一个文件夹吧」。
+#   · 原生 dll 可以挪（启动时 SetDllDirectory 把 native\ 加进搜索路径）；
+#   · 托管程序集（含 C++/CLI 的 *_CLRLib）必须与 exe 同级 —— .NET 只从那里 + deps.json 找。
+_csproj38 = (read(r"NoCodeMotion.csproj") or "").replace("\r\n", "\n")
+_app38 = (read(r"App.xaml.cs") or "").replace("\r\n", "\n")
+_native38 = ["LTDMC.dll", "MCN420.dll", "OpenCvSharpExtern.dll", "opencv_world480.dll",
+             "GrayModelNative.dll", "vcomp140.dll", "sldmv.dll"]
+
+check("G38.1 原生 dll 全部落到输出目录的 native\\ 子目录",
+      all(('Link="native\\%s"' % d) in _csproj38 for d in _native38)
+      and all(('Link="%s"' % d) not in _csproj38 for d in _native38))
+check("G38.2 启动时把 native\\ 加进 DLL 搜索路径（否则 P/Invoke 找不到）",
+      'SetDllDirectory(nativeDir)' in _app38
+      and 'Path.Combine(System.AppContext.BaseDirectory, "native")' in _app38)
+check("G38.3 托管卡库（C++/CLI）仍与 exe 同级，没被一起挪走",
+      'Link="CoreMotionApi_CLRLib.dll"' in _csproj38
+      and 'Link="native\\CoreMotionApi_CLRLib.dll"' not in _csproj38
+      and 'Link="MvCameraControl.Net.dll"' not in _csproj38)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")
