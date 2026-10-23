@@ -23,6 +23,8 @@ public sealed class NgPropDef
     public string Default { get; init; } = "";
     /// <summary>若为枚举，提供 "A|B|C" 形式的可选项，属性面板渲染为下拉框。</summary>
     public string? Options { get; init; }
+    /// <summary>这句参数是干什么的白话说明（属性面板悬停显示；守卫 G39 要求每行都有）。</summary>
+    public string Help { get; init; } = "";
 }
 
 /// <summary>节点类型元数据（数据驱动：NodeGraphNodeView 据此渲染端口与属性面板）。</summary>
@@ -122,12 +124,12 @@ public static class NgNodeDefinitions
             StdName = "图像采集", Summary = "从相机或图片文件取一帧，后面所有视觉节点都复用这一张图；可设曝光与分辨率。没接相机时会用测试图跑通流程。",
             Props = new[]
             {
-                new NgPropDef { Name = "图像源", Default = "相机", Options = "相机|文件|文件夹" },
-                new NgPropDef { Name = "相机", Default = "相机1" },
-                new NgPropDef { Name = "图像路径", Default = "" },
-                new NgPropDef { Name = "曝光ms", Default = "10" },
-                new NgPropDef { Name = "宽度", Default = "1280" },
-                new NgPropDef { Name = "高度", Default = "960" },
+                new NgPropDef { Name = "图像源", Default = "相机", Options = "相机|文件|文件夹", Help = "从相机取图，还是读本地图片 / 一个文件夹里的图" },
+                new NgPropDef { Name = "相机", Default = "相机1", Help = "用哪台相机（名字和「相机」页里的一致）" },
+                new NgPropDef { Name = "图像路径", Default = "", Help = "图片来源选「文件 / 文件夹」时，这里填路径" },
+                new NgPropDef { Name = "曝光ms", Default = "10", Help = "相机曝光时间（毫秒）：越大越亮，但运动中的工件会拖影" },
+                new NgPropDef { Name = "宽度", Default = "1280", Help = "采集画面的宽度（像素）" },
+                new NgPropDef { Name = "高度", Default = "960", Help = "采集画面的高度（像素）" },
             }
         },
         [NgKind.TemplateMatch] = new()
@@ -136,12 +138,12 @@ public static class NgNodeDefinitions
             StdName = "模板匹配", Summary = "用框选的模板在整幅图里找最像的位置，给出中心坐标、角度和相似度；结果按「变量前缀」写成变量供后续判断。",
             Props = new[]
             {
-                new NgPropDef { Name = "模板路径", Default = "" },
-                new NgPropDef { Name = "模板框", Default = "" },
-                new NgPropDef { Name = "匹配模式", Default = "灰度匹配", Options = "灰度匹配|轮廓匹配" },
-                new NgPropDef { Name = "分数阈值", Default = "0.8" },
-                new NgPropDef { Name = "角度范围", Default = "360" },
-                new NgPropDef { Name = "变量前缀", Default = "匹配" },
+                new NgPropDef { Name = "模板路径", Default = "", Help = "模板图片的完整路径" },
+                new NgPropDef { Name = "模板框", Default = "", Help = "在图上框选模板区域，格式 左上X,左上Y,宽,高" },
+                new NgPropDef { Name = "匹配模式", Default = "灰度匹配", Options = "灰度匹配|轮廓匹配", Help = "灰度匹配 = 看明暗纹理；轮廓匹配 = 看外形边缘" },
+                new NgPropDef { Name = "分数阈值", Default = "0.8", Help = "相似度到多少才算找到（0~1，越大越严格）" },
+                new NgPropDef { Name = "角度范围", Default = "360", Help = "允许工件转动的角度范围（度）" },
+                new NgPropDef { Name = "变量前缀", Default = "匹配", Help = "结果会自动起名并存进变量，这是名字前缀（例如填「匹配」→ 匹配分数、匹配X）" },
             }
         },
         [NgKind.DefectDetect] = new()
@@ -150,13 +152,13 @@ public static class NgNodeDefinitions
             StdName = "缺陷检测", Summary = "按灰度阈值 + 面积（或轮廓）找暗斑 / 亮斑，统计个数和总面积，再和「允许缺陷数」比较得出合格与否。",
             Props = new[]
             {
-                new NgPropDef { Name = "检测模式", Default = "阈值面积", Options = "阈值面积|边缘轮廓" },
-                new NgPropDef { Name = "缺陷类型", Default = "暗斑", Options = "暗斑|亮斑" },
-                new NgPropDef { Name = "阈值", Default = "128" },
-                new NgPropDef { Name = "最小面积", Default = "50" },
-                new NgPropDef { Name = "最大面积", Default = "100000" },
-                new NgPropDef { Name = "允许缺陷数", Default = "0" },
-                new NgPropDef { Name = "变量前缀", Default = "缺陷" },
+                new NgPropDef { Name = "检测模式", Default = "阈值面积", Options = "阈值面积|边缘轮廓", Help = "按「灰度阈值 + 面积」找斑，还是按边缘轮廓找" },
+                new NgPropDef { Name = "缺陷类型", Default = "暗斑", Options = "暗斑|亮斑", Help = "找比背景暗的斑（暗斑）还是比背景亮的斑（亮斑）" },
+                new NgPropDef { Name = "阈值", Default = "128", Help = "明暗分界线（0~255）：比它亮的（或暗的）才算目标" },
+                new NgPropDef { Name = "最小面积", Default = "50", Help = "小于这个像素数的碎块忽略（滤掉噪点）" },
+                new NgPropDef { Name = "最大面积", Default = "100000", Help = "大于这个像素数的块当背景忽略（0 = 不限制）" },
+                new NgPropDef { Name = "允许缺陷数", Default = "0", Help = "缺陷不超过几个算合格" },
+                new NgPropDef { Name = "变量前缀", Default = "缺陷", Help = "结果会自动起名并存进变量，这是名字前缀（例如填「匹配」→ 匹配分数、匹配X）" },
             }
         },
         [NgKind.Measure] = new()
@@ -165,12 +167,12 @@ public static class NgNodeDefinitions
             StdName = "测量", Summary = "用上游找到的特征（匹配中心 / 斑点重心）算距离或直径，按标定系数换算成毫米，可设上下限判合格。",
             Props = new[]
             {
-                new NgPropDef { Name = "测量项", Default = "距离", Options = "距离|直径" },
-                new NgPropDef { Name = "标定系数", Default = "1" },
-                new NgPropDef { Name = "单位", Default = "mm" },
-                new NgPropDef { Name = "下限", Default = "0" },
-                new NgPropDef { Name = "上限", Default = "0" },
-                new NgPropDef { Name = "变量前缀", Default = "测量" },
+                new NgPropDef { Name = "测量项", Default = "距离", Options = "距离|直径", Help = "要量的是距离还是直径" },
+                new NgPropDef { Name = "标定系数", Default = "1", Help = "一个像素等于多少毫米（来自标定结果）" },
+                new NgPropDef { Name = "单位", Default = "mm", Help = "结果用什么单位显示（毫米 / 像素）" },
+                new NgPropDef { Name = "下限", Default = "0", Help = "合格范围的下限" },
+                new NgPropDef { Name = "上限", Default = "0", Help = "合格范围的上限（和下限都填 0 = 不判定，只报数）" },
+                new NgPropDef { Name = "变量前缀", Default = "测量", Help = "结果会自动起名并存进变量，这是名字前缀（例如填「匹配」→ 匹配分数、匹配X）" },
             }
         },
         [NgKind.Align] = new()
@@ -179,11 +181,11 @@ public static class NgNodeDefinitions
             StdName = "对位", Summary = "把匹配到的中心与基准点比较，算出 X / Y 偏差（像素或毫米），供下游补偿或判断是否超差。",
             Props = new[]
             {
-                new NgPropDef { Name = "基准X", Default = "0" },
-                new NgPropDef { Name = "基准Y", Default = "0" },
-                new NgPropDef { Name = "像素当量", Default = "0" },
-                new NgPropDef { Name = "容差", Default = "0.5" },
-                new NgPropDef { Name = "变量前缀", Default = "偏差" },
+                new NgPropDef { Name = "基准X", Default = "0", Help = "工件「应该」在的 X 位置（对位时拿实测值和它比）" },
+                new NgPropDef { Name = "基准Y", Default = "0", Help = "工件「应该」在的 Y 位置" },
+                new NgPropDef { Name = "像素当量", Default = "0", Help = "一个像素等于多少毫米（填 0 = 用当前工程的标定）" },
+                new NgPropDef { Name = "容差", Default = "0.5", Help = "偏差在多少以内算合格" },
+                new NgPropDef { Name = "变量前缀", Default = "偏差", Help = "结果会自动起名并存进变量，这是名字前缀（例如填「匹配」→ 匹配分数、匹配X）" },
             }
         },
         [NgKind.Calib] = new()
@@ -192,10 +194,10 @@ public static class NgNodeDefinitions
             StdName = "标定", Summary = "用棋盘格 / 圆点算出「多少像素 = 1 毫米」，后续测量和对位都用这个比例换算。",
             Props = new[]
             {
-                new NgPropDef { Name = "标定板", Default = "棋盘格", Options = "棋盘格|圆点" },
-                new NgPropDef { Name = "行数", Default = "9" },
-                new NgPropDef { Name = "列数", Default = "9" },
-                new NgPropDef { Name = "格子尺寸mm", Default = "10" },
+                new NgPropDef { Name = "标定板", Default = "棋盘格", Options = "棋盘格|圆点", Help = "用棋盘格还是圆点标定板" },
+                new NgPropDef { Name = "行数", Default = "9", Help = "标定板上点的行数" },
+                new NgPropDef { Name = "列数", Default = "9", Help = "标定板上点的列数" },
+                new NgPropDef { Name = "格子尺寸mm", Default = "10", Help = "标定板上一个格子（或点距）的实际边长，单位毫米" },
             }
         },
 
@@ -211,12 +213,12 @@ public static class NgNodeDefinitions
             StdName = "单轴运动", Summary = "把一根轴按速度走到目标位置（绝对 = 走到坐标，相对 = 走一段距离）；勾「等待到位」会等轴停稳再往下走。加速 / 减速时间在「轴」页配置。",
             Props = new[]
             {
-                new NgPropDef { Name = "轴", Default = "X" },
-                new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对" },
-                new NgPropDef { Name = "目标位置", Default = "0" },
-                new NgPropDef { Name = "速度", Default = "10" },
-                new NgPropDef { Name = "等待到位", Default = "否", Options = "是|否" },
-                new NgPropDef { Name = "到位延时ms", Default = "0" },
+                new NgPropDef { Name = "轴", Default = "X", Help = "这一步动哪根轴（名字要和「轴」页里的一致）" },
+                new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对", Help = "绝对 = 按坐标走到目标点；相对 = 从当前位置再走这么远" },
+                new NgPropDef { Name = "目标位置", Default = "0", Help = "要走到哪里：绝对 = 走到这个坐标；相对 = 走这么远（正负表示方向）" },
+                new NgPropDef { Name = "速度", Default = "10", Help = "走多快（每秒多少个单位，和「轴」页的单位一致）" },
+                new NgPropDef { Name = "等待到位", Default = "否", Options = "是|否", Help = "选「是」会等轴停稳再执行下一步；选「否」发完指令就往下走" },
+                new NgPropDef { Name = "到位延时ms", Default = "0", Help = "轴到位后再等多少毫秒才继续（0 = 不等）" },
             }
         },
         [NgKind.AxisJog] = new()
@@ -225,9 +227,9 @@ public static class NgNodeDefinitions
             StdName = "Jog 运动", Summary = "让轴朝指定方向一直走，直到执行「停下这根轴」或有人拍急停；适合手动找位置，确认周边安全再用。",
             Props = new[]
             {
-                new NgPropDef { Name = "轴", Default = "X" },
-                new NgPropDef { Name = "方向", Default = "正", Options = "正|负" },
-                new NgPropDef { Name = "速度", Default = "10" },
+                new NgPropDef { Name = "轴", Default = "X", Help = "这一步动哪根轴（名字要和「轴」页里的一致）" },
+                new NgPropDef { Name = "方向", Default = "正", Options = "正|负", Help = "往正方向走还是负方向走" },
+                new NgPropDef { Name = "速度", Default = "10", Help = "走多快（每秒多少个单位，和「轴」页的单位一致）" },
             }
         },
         [NgKind.AxisStop] = new()
@@ -236,8 +238,8 @@ public static class NgNodeDefinitions
             StdName = "轴停止", Summary = "让正在动的轴停下来：减速停止按轴的减速时间收尾，立即停止会马上断输出。",
             Props = new[]
             {
-                new NgPropDef { Name = "轴", Default = "X" },
-                new NgPropDef { Name = "停止方式", Default = "减速停止", Options = "减速停止|立即停止" },
+                new NgPropDef { Name = "轴", Default = "X", Help = "这一步动哪根轴（名字要和「轴」页里的一致）" },
+                new NgPropDef { Name = "停止方式", Default = "减速停止", Options = "减速停止|立即停止", Help = "减速停止 = 按轴配置的减速时间平稳收尾；立即停止 = 马上断输出（可能有冲击）" },
             }
         },
         [NgKind.AxisServo] = new()
@@ -246,8 +248,8 @@ public static class NgNodeDefinitions
             StdName = "伺服使能", Summary = "给轴上伺服（使能）或断使能。未使能的轴收到运动指令也不会动。",
             Props = new[]
             {
-                new NgPropDef { Name = "轴", Default = "X" },
-                new NgPropDef { Name = "动作", Default = "使能", Options = "使能|断开" },
+                new NgPropDef { Name = "轴", Default = "X", Help = "这一步动哪根轴（名字要和「轴」页里的一致）" },
+                new NgPropDef { Name = "动作", Default = "使能", Options = "使能|断开", Help = "要做的动作（气缸：伸出 / 缩回；伺服：使能 / 断开）" },
             }
         },
         [NgKind.LineInterp] = new()
@@ -256,13 +258,13 @@ public static class NgNodeDefinitions
             StdName = "直线插补", Summary = "两根轴联动走一条直线，按合成速度一起到目标点。两轴必须在同一张卡上；速度 / 加减速是否生效取决于控制卡。",
             Props = new[]
             {
-                new NgPropDef { Name = "轴1", Default = "X" },
-                new NgPropDef { Name = "目标1", Default = "0" },
-                new NgPropDef { Name = "轴2", Default = "Y" },
-                new NgPropDef { Name = "目标2", Default = "0" },
-                new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对" },
-                new NgPropDef { Name = "速度", Default = "20" },
-                new NgPropDef { Name = "加减速时间", Default = "0.2" },
+                new NgPropDef { Name = "轴1", Default = "X", Help = "参与联动的第一根轴（名字和「轴」页一致；两根轴必须在同一张控制卡上）" },
+                new NgPropDef { Name = "目标1", Default = "0", Help = "第一根轴要走到哪里（绝对 = 坐标；相对 = 走多远）" },
+                new NgPropDef { Name = "轴2", Default = "Y", Help = "参与联动的第二根轴（名字和「轴」页一致）" },
+                new NgPropDef { Name = "目标2", Default = "0", Help = "第二根轴要走到哪里（绝对 = 坐标；相对 = 走多远）" },
+                new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对", Help = "绝对 = 按坐标走到目标点；相对 = 从当前位置再走这么远" },
+                new NgPropDef { Name = "速度", Default = "20", Help = "走多快（每秒多少个单位，和「轴」页的单位一致）" },
+                new NgPropDef { Name = "加减速时间", Default = "0.2", Help = "从静止加到设定速度要几秒（0.2 秒很常用；越小越冲）" },
             }
         },
         [NgKind.ArcInterp] = new()
@@ -271,14 +273,14 @@ public static class NgNodeDefinitions
             StdName = "三点圆弧插补", Summary = "两根轴联动走圆弧：经过「中间点」到「终点」。两轴必须在同一张卡上，坐标按整数单位下发。",
             Props = new[]
             {
-                new NgPropDef { Name = "轴1", Default = "X" },
-                new NgPropDef { Name = "轴2", Default = "Y" },
-                new NgPropDef { Name = "中间点1", Default = "0" },
-                new NgPropDef { Name = "中间点2", Default = "0" },
-                new NgPropDef { Name = "终点1", Default = "0" },
-                new NgPropDef { Name = "终点2", Default = "0" },
-                new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对" },
-                new NgPropDef { Name = "圈数", Default = "0" },
+                new NgPropDef { Name = "轴1", Default = "X", Help = "参与联动的第一根轴（名字和「轴」页一致；两根轴必须在同一张控制卡上）" },
+                new NgPropDef { Name = "轴2", Default = "Y", Help = "参与联动的第二根轴（名字和「轴」页一致）" },
+                new NgPropDef { Name = "中间点1", Default = "0", Help = "圆弧经过的那个点在第一根轴上的坐标" },
+                new NgPropDef { Name = "中间点2", Default = "0", Help = "圆弧经过的那个点在第二根轴上的坐标" },
+                new NgPropDef { Name = "终点1", Default = "0", Help = "圆弧最后到达位置（第一根轴）" },
+                new NgPropDef { Name = "终点2", Default = "0", Help = "圆弧最后到达位置（第二根轴）" },
+                new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对", Help = "绝对 = 按坐标走到目标点；相对 = 从当前位置再走这么远" },
+                new NgPropDef { Name = "圈数", Default = "0", Help = "0 = 走一段圆弧；大于 0 = 螺旋多绕几圈" },
             }
         },
         [NgKind.Home] = new()
@@ -286,13 +288,13 @@ public static class NgNodeDefinitions
             Kind = NgKind.Home, Title = "回原点", Domain = NgDomain.Motion, Color = "#5D9CEC",
             StdName = "回零运动", Summary = "按「轴」页配置的回零模式 / 方向 / 速度回原点，并等它到位；上电后建议先回零。",
             // 回零方向 / 回零模式 / 高低速都在「轴」页配（按轴区分），节点这里只管走一次回零
-            Props = new[] { new NgPropDef { Name = "轴", Default = "X" } }
+            Props = new[] { new NgPropDef { Name = "轴", Default = "X", Help = "这一步动哪根轴（名字要和「轴」页里的一致）" } }
         },
         [NgKind.Delay] = new()
         {
             Kind = NgKind.Delay, Title = "按时间等待", Domain = NgDomain.Motion, Color = "#F6BB42",
             StdName = "延时", Summary = "等待指定毫秒再往下走；等待期间按「暂停」会挂起、按「停止」会立刻结束。",
-            Props = new[] { new NgPropDef { Name = "时间ms", Default = "500" } }
+            Props = new[] { new NgPropDef { Name = "时间ms", Default = "500", Help = "等多少毫秒再往下走（1000 = 1 秒）" } }
         },
         [NgKind.WaitInput] = new()
         {
@@ -300,9 +302,9 @@ public static class NgNodeDefinitions
             StdName = "条件等待", Summary = "等某个输入点变成指定电平再继续；超过「超时ms」（0 = 用全局超时）仍未满足会报错并停下。",
             Props = new[]
             {
-                new NgPropDef { Name = "信号", Default = "IN0" },
-                new NgPropDef { Name = "状态", Default = "高电平", Options = "高电平|低电平" },
-                new NgPropDef { Name = "超时ms", Default = "0" },
+                new NgPropDef { Name = "信号", Default = "IN0", Help = "要等的输入点（名字和「IO」页里的一致）" },
+                new NgPropDef { Name = "状态", Default = "高电平", Options = "高电平|低电平", Help = "要等这个输入变成高电平还是低电平" },
+                new NgPropDef { Name = "超时ms", Default = "0", Help = "最多等多少毫秒（0 = 用系统默认）；超时就报错停下，不会一直卡着" },
             }
         },
         [NgKind.Decision] = new()
@@ -318,7 +320,7 @@ public static class NgNodeDefinitions
             Kind = NgKind.Loop, Title = "重复几次", Domain = NgDomain.Motion, Color = "#967ADC",
             StdName = "循环", Summary = "循环体的起点：执行到这里会按设置的次数回头重复，循环结束的节点负责跳回。",
             Outputs = new[] { "Body", "Exit" },
-            Props = new[] { new NgPropDef { Name = "次数", Default = "3" } }
+            Props = new[] { new NgPropDef { Name = "次数", Default = "3", Help = "循环重复多少次" } }
         },
         [NgKind.End] = new()
         {
@@ -332,7 +334,7 @@ public static class NgNodeDefinitions
         {
             Kind = NgKind.WaitAxis, Title = "等电机停稳", Domain = NgDomain.Motion, Color = "#48CFAD",
             StdName = "等待到位", Summary = "阻塞等待该轴停止并到位；超时会按轴的配置报错。",
-            Props = new[] { new NgPropDef { Name = "轴", Default = "X" } }
+            Props = new[] { new NgPropDef { Name = "轴", Default = "X", Help = "这一步动哪根轴（名字要和「轴」页里的一致）" } }
         },
         [NgKind.Cylinder] = new()
         {
@@ -340,8 +342,8 @@ public static class NgNodeDefinitions
             StdName = "气缸控制", Summary = "让气缸伸出 / 缩回，并等磁性开关到位再往下走。",
             Props = new[]
             {
-                new NgPropDef { Name = "气缸", Default = "夹爪" },
-                new NgPropDef { Name = "动作", Default = "伸出", Options = "伸出|缩回" },
+                new NgPropDef { Name = "气缸", Default = "夹爪", Help = "要动哪个气缸（名字和「气缸」页里的一致）" },
+                new NgPropDef { Name = "动作", Default = "伸出", Options = "伸出|缩回", Help = "要做的动作（气缸：伸出 / 缩回；伺服：使能 / 断开）" },
             }
         },
         [NgKind.PointGo] = new()
@@ -350,8 +352,8 @@ public static class NgNodeDefinitions
             StdName = "点表运动", Summary = "按点位表里配好的点位一次走多轴，流程里只需选表名 + 点位名。",
             Props = new[]
             {
-                new NgPropDef { Name = "点位表", Default = "取放工位" },
-                new NgPropDef { Name = "点位", Default = "取料点" },
+                new NgPropDef { Name = "点位表", Default = "取放工位", Help = "用哪一张点位表（名字和「点位」页左侧列表一致）" },
+                new NgPropDef { Name = "点位", Default = "取料点", Help = "点位表里的哪一行" },
             }
         },
         [NgKind.IoWrite] = new()
@@ -360,8 +362,8 @@ public static class NgNodeDefinitions
             StdName = "IO 控制（写）", Summary = "把某个输出点设成 1（开）或 0（关），可接气缸、光源、蜂鸣器。",
             Props = new[]
             {
-                new NgPropDef { Name = "输出", Default = "光源" },
-                new NgPropDef { Name = "值", Default = "1", Options = "1|0" },
+                new NgPropDef { Name = "输出", Default = "光源", Help = "要控制的输出点（名字和「IO」页里的一致）" },
+                new NgPropDef { Name = "值", Default = "1", Options = "1|0", Help = "要写入的值：输出点 1 = 开 / 0 = 关；变量可以填数字或文字" },
             }
         },
 
@@ -372,8 +374,8 @@ public static class NgNodeDefinitions
             StdName = "Modbus 写入", Summary = "向通讯页配好的 Modbus 通道写入指令（指令 / 地址 / 值）。",
             Props = new[]
             {
-                new NgPropDef { Name = "通讯", Default = "通讯1" },
-                new NgPropDef { Name = "指令", Default = "write" },
+                new NgPropDef { Name = "通讯", Default = "通讯1", Help = "用哪个通讯设备（名字和「通讯」页里的一致）" },
+                new NgPropDef { Name = "指令", Default = "write", Help = "发给设备的命令字（常见 write / read）" },
             }
         },
         [NgKind.ModbusRecv] = new()
@@ -382,8 +384,8 @@ public static class NgNodeDefinitions
             StdName = "Modbus 读取", Summary = "从 Modbus 通道读一次数据，按关键字取字段写进变量。",
             Props = new[]
             {
-                new NgPropDef { Name = "通讯", Default = "通讯1" },
-                new NgPropDef { Name = "关键字", Default = "OK" },
+                new NgPropDef { Name = "通讯", Default = "通讯1", Help = "用哪个通讯设备（名字和「通讯」页里的一致）" },
+                new NgPropDef { Name = "关键字", Default = "OK", Help = "从对方回的数据里取哪个字段" },
             }
         },
         [NgKind.TcpSend] = new()
@@ -392,8 +394,8 @@ public static class NgNodeDefinitions
             StdName = "TCP 发送", Summary = "向指定 host:port 发一段文本，3 秒连不上会报错。",
             Props = new[]
             {
-                new NgPropDef { Name = "端点", Default = "192.168.1.10:8000" },
-                new NgPropDef { Name = "报文", Default = "hello" },
+                new NgPropDef { Name = "端点", Default = "192.168.1.10:8000", Help = "对方地址，格式 主机:端口，例如 127.0.0.1:8000" },
+                new NgPropDef { Name = "报文", Default = "hello", Help = "要发送的文本内容" },
             }
         },
         [NgKind.McuWrite] = new()
@@ -402,8 +404,8 @@ public static class NgNodeDefinitions
             StdName = "下位机写", Summary = "把数据写到通讯页配好的设备（或 host:port），适合下位机寄存器 / 指令。",
             Props = new[]
             {
-                new NgPropDef { Name = "设备", Default = "MCU1" },
-                new NgPropDef { Name = "数据", Default = "0x01" },
+                new NgPropDef { Name = "设备", Default = "MCU1", Help = "要写到哪台设备（填「通讯」页里的设备名，或 host:port）" },
+                new NgPropDef { Name = "数据", Default = "0x01", Help = "要发送的数据内容" },
             }
         },
 
@@ -414,8 +416,8 @@ public static class NgNodeDefinitions
             StdName = "变量赋值", Summary = "把值（数字 / 文本 / 其它变量）存进指定变量，供后面节点和条件判断用。",
             Props = new[]
             {
-                new NgPropDef { Name = "变量", Default = "计数" },
-                new NgPropDef { Name = "值", Default = "0" },
+                new NgPropDef { Name = "变量", Default = "计数", Help = "要读写哪个变量（名字和「变量」页里的一致）" },
+                new NgPropDef { Name = "值", Default = "0", Help = "要写入的值：输出点 1 = 开 / 0 = 关；变量可以填数字或文字" },
             }
         },
         [NgKind.Compute] = new()
@@ -426,9 +428,9 @@ public static class NgNodeDefinitions
             // 例：变量=计数，运算=加，值=1 → 计数 当前值 + 1。彻底避免「+1 被当成设置为 1」的歧义。
             Props = new[]
             {
-                new NgPropDef { Name = "变量", Default = "结果" },
-                new NgPropDef { Name = "运算", Default = "加上", Options = "加上|减去|乘以|除以|求余数|真假互换" },
-                new NgPropDef { Name = "值", Default = "1" },
+                new NgPropDef { Name = "变量", Default = "结果", Help = "要读写哪个变量（名字和「变量」页里的一致）" },
+                new NgPropDef { Name = "运算", Default = "加上", Options = "加上|减去|乘以|除以|求余数|真假互换", Help = "对这个变量做什么算术：加上 / 减去 / 乘以 / 除以 / 求余数 / 真假互换" },
+                new NgPropDef { Name = "值", Default = "1", Help = "要写入的值：输出点 1 = 开 / 0 = 关；变量可以填数字或文字" },
             }
         },
 
@@ -440,7 +442,7 @@ public static class NgNodeDefinitions
             Outputs = new[] { "Branch1", "Branch2", "Branch3", "Branch4", "Branch5", "Branch6", "Branch7", "Branch8" },
             Props = new[]
             {
-                new NgPropDef { Name = "分支数", Default = "4", Options = "2|3|4|5|6|7|8" }
+                new NgPropDef { Name = "分支数", Default = "4", Options = "2|3|4|5|6|7|8", Help = "这个判断有几条出口（走不同分支）" }
             }
         },
         [NgKind.ParallelJoin] = new()
@@ -449,7 +451,7 @@ public static class NgNodeDefinitions
             StdName = "并行汇聚", Summary = "等所有分支都执行到这里再继续往下走。",
             Props = new[]
             {
-                new NgPropDef { Name = "分支数", Default = "4", Options = "2|3|4|5|6|7|8" }
+                new NgPropDef { Name = "分支数", Default = "4", Options = "2|3|4|5|6|7|8", Help = "这个判断有几条出口（走不同分支）" }
             }
         },
         [NgKind.VisionOp] = new()
@@ -458,8 +460,8 @@ public static class NgNodeDefinitions
             StdName = "视觉算子", Summary = "从算子目录里挑一个视觉算子，参数按目录自动生成；结果按「变量前缀」写成变量。",
             Props = new[]
             {
-                new NgPropDef { Name = "算子", Default = "" },
-                new NgPropDef { Name = "变量前缀", Default = "算子" },
+                new NgPropDef { Name = "算子", Default = "", Help = "这一步用哪个视觉算子（换算子时下面的参数会整张跟着换）" },
+                new NgPropDef { Name = "变量前缀", Default = "算子", Help = "结果会自动起名并存进变量，这是名字前缀（例如填「匹配」→ 匹配分数、匹配X）" },
             }
         },
     };
@@ -473,17 +475,21 @@ public static class NgNodeDefinitions
     {
         var list = new System.Collections.Generic.List<NgPropDef>
         {
-            new NgPropDef { Name = "分支数", Default = "2", Options = "2|3|4|5|6|7|8" }
+            new NgPropDef { Name = "分支数", Default = "2", Options = "2|3|4|5|6|7|8", Help = "这个判断有几条出口（走不同分支）" }
         };
         for (int i = 1; i <= 8; i++)
         {
-            list.Add(new NgPropDef { Name = $"条件{i}类型", Default = "变量", Options = "轴位置|轴速度|输入信号|输出信号|变量" });
-            list.Add(new NgPropDef { Name = $"条件{i}名称", Default = "" });
-            list.Add(new NgPropDef { Name = $"条件{i}比较", Default = "等于", Options = "等于|不等于|大于|大于等于|小于|小于等于" });
-            list.Add(new NgPropDef { Name = $"条件{i}值", Default = "0" });
+            list.Add(new NgPropDef { Name = $"条件{i}类型", Default = "变量", Options = "轴位置|轴速度|输入信号|输出信号|变量",
+                Help = "拿什么来判断：轴走到哪 / 轴转多快 / 某个输入通不通 / 某个输出开没开 / 某个变量是多少" });
+            list.Add(new NgPropDef { Name = $"条件{i}名称", Default = "",
+                Help = "具体比哪一个（名字要和对应的页里一致）" });
+            list.Add(new NgPropDef { Name = $"条件{i}比较", Default = "等于", Options = "等于|不等于|大于|大于等于|小于|小于等于",
+                Help = "怎么比：等于 / 不等于 / 大于 / 大于等于 / 小于 / 小于等于" });
+            list.Add(new NgPropDef { Name = $"条件{i}值", Default = "0",
+                Help = "和什么数比：满足就走这一条出口" });
         }
         // 旧图 / 内置模板用的表达式条件（结构化分支都没配时作为兜底）
-        list.Add(new NgPropDef { Name = "条件", Default = "" });
+        list.Add(new NgPropDef { Name = "条件", Default = "", Help = "判断用的表达式，例如 计数 > 10" });
         return list.ToArray();
     }
 

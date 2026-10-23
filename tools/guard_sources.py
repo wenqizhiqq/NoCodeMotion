@@ -2304,6 +2304,25 @@ check("G38.5 3D 模型放在 Models\\CAD\\（仓库根不再放 47MB 的 stp）"
       'Content Include="Models\\CAD\\IR-R10-140S-INT-3D-3D.stp"' in _csproj38
       and 'Content Include="IR-R10-140S-INT-3D-3D.stp"' not in _csproj38)
 
+# ---------------------------------------------------------------------
+# G39  参数说明直接显示（不靠悬停），且每个参数都有说明
+# ---------------------------------------------------------------------
+# 用户 2026-10-21：「不需要悬停，直接显示大白话」——没经验的人不会去猜哪里能悬停。
+_ngdefs39 = (read(r"Models\NodeGraph\NgDefs.cs") or "").replace("\r\n", "\n")
+_ngxaml39 = (read(r"Views\NodeGraphPage.xaml") or "").replace("\r\n", "\n")
+_vfxaml39 = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+_manual39 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+
+check("G39.1 节点参数说明直接显示在参数行下面（不是 ToolTip）",
+      'Text="{Binding Help}"' in _ngxaml39 and 'ToolTip="{Binding Help}"' not in _ngxaml39)
+check("G39.2 视觉流程的算子参数说明也直接显示",
+      'Text="{Binding Help}"' in _vfxaml39 and 'ToolTip="{Binding Help}"' not in _vfxaml39)
+check("G39.3 每个节点参数都写了说明（Help 不空）",
+      'public string Help { get; init; } = "";' in _ngdefs39
+      and _ngdefs39.count('Help = "') >= 95)
+check("G39.4 说明书有「名词解释」章节（Jog / 使能 / 回零 / 脉冲当量 这类词查得到）",
+      "名词解释" in _manual39 and "脉冲当量" in _manual39 and "点动（Jog）" in _manual39)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

@@ -21,6 +21,22 @@ public sealed class NgPropViewModel : INotifyPropertyChanged
         new(@"^条件(\d)(类型|名称|比较|值)$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     public string Name => _model.Name;
+
+    /// <summary>这一行参数的白话说明（属性面板整行悬停显示）。</summary>
+    public string Help
+    {
+        get
+        {
+            if (_owner == null) return "";
+            var defs = _owner.Kind == NgKind.VisionOp
+                ? NgNodeDefinitions.OpProps(NgNodeDefinitions.OpNameOf(_owner))
+                : NgNodeDefinitions.All.TryGetValue(_owner.Kind, out var d) ? d.Props : null;
+            if (defs == null) return "";
+            foreach (var p in defs)
+                if (p != null && p.Name == _model.Name) return p.Help ?? "";
+            return "";
+        }
+    }
     public bool HasOptions => !string.IsNullOrEmpty(_model.Options);
 
     private bool TryBranchIndex(out int index)

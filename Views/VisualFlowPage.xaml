@@ -508,7 +508,7 @@
                                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                                 <DockPanel Style="{StaticResource AppleRow}">
                                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}"
-                                                               Text="{Binding Name}" ToolTip="{Binding Help}"/>
+                                                               Text="{Binding Name}"/>
                                                     <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                                               ItemsSource="{Binding OptionList}"
                                                               SelectedItem="{Binding Value, Mode=TwoWay}"
@@ -521,6 +521,24 @@
                                                              Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
                                                              Visibility="{Binding IsText, Converter={StaticResource BoolToVis}}"/>
                                                 </DockPanel>
+                                                <!-- 参数说明直接显示在下面（不靠悬停） -->
+                                                <TextBlock Text="{Binding Help}" FontSize="10.5" LineHeight="15"
+                                                           TextWrapping="Wrap" Margin="4,0,2,4"
+                                                           Foreground="{StaticResource TextSecondaryBrush}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Help}" Value="">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Help}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                             </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

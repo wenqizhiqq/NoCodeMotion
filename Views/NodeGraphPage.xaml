@@ -13,8 +13,8 @@
 
         <!-- 属性行（分组内复用）：标签 + 固定候选下拉 / 名称库下拉 / 自由文本 -->
         <DataTemplate x:Key="NgPropRowTemplate">
-            <DockPanel Style="{StaticResource AppleRow}"
-                       Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
+            <StackPanel Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
+                <DockPanel Style="{StaticResource AppleRow}">
                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="{Binding Name}" Width="84"/>
                 <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding OptionsList}"
                           SelectedItem="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
@@ -27,7 +27,25 @@
                 <TextBox DockPanel.Dock="Right" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
                          Visibility="{Binding IsPlainText, Converter={StaticResource BoolToVis}}"
                          Style="{StaticResource AppleTextField}"/>
-            </DockPanel>
+                </DockPanel>
+                <!-- 参数说明直接显示在下面（不靠悬停）：没经验的人一眼知道这格该填什么 -->
+                <TextBlock Text="{Binding Help}" FontSize="10.5" LineHeight="15" TextWrapping="Wrap"
+                           Margin="4,0,2,4" Foreground="{StaticResource TextSecondaryBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Help}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Help}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
         </DataTemplate>
 
         <!-- 连线模板：最底层透明粗线专门用于命中（Tag=CONN）；上面两条可见线/箭头
