@@ -212,7 +212,7 @@
 
                     <!-- ===== 轴控制 ===== -->
                     <TextBlock Text="轴控制" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,4"/>
-                    <TextBlock Text="给这个工位挑 4 根轴（1~4 号位置），下面的 使能 / 回零 / 点动 / Jog 就是操作这 4 根轴；只影响当前工位。"
+                    <TextBlock Text="给这个工位挑 4 根轴（1~4 号位置）。下面每张轴卡片上的按钮就是操作这 4 根轴：上伺服 = 让电机通电；回原点 = 去找零点；走一步 = 按设定距离挪一下；按住就走 = 按住连续走、松开就停。只影响当前工位。"
                                FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                     <ItemsControl ItemsSource="{Binding AxisStates}" ItemTemplate="{StaticResource AxisCardTemplate}">

@@ -2323,6 +2323,34 @@ check("G39.3 每个节点参数都写了说明（Help 不空）",
 check("G39.4 说明书有「名词解释」章节（Jog / 使能 / 回零 / 脉冲当量 这类词查得到）",
       "名词解释" in _manual39 and "脉冲当量" in _manual39 and "点动（Jog）" in _manual39)
 
+# ---------------------------------------------------------------------
+# G40  全站字段说明直接显示（不靠悬停）
+# ---------------------------------------------------------------------
+# 用户 2026-10-21：「不只是节点图，是整个软件所有文字描述」+「不需要悬停，直接显示大白话」。
+# 做法：把配置页字段上的 ToolTip 提升成字段下面一行小字（FieldHintStyle），
+# 节点参数用 NgPropDef.Help 直接显示。这里守住「别又退回只有悬停」。
+_pages40 = {
+    'Axis': read(r"Views\AxisPage.xaml") or "",
+    'AxisController': read(r"Views\AxisControllerPage.xaml") or "",
+    'Comm': read(r"Views\CommPage.xaml") or "",
+    'Camera': read(r"Views\CameraPage.xaml") or "",
+    'Cylinder': read(r"Views\CylinderPage.xaml") or "",
+    'Tray': read(r"Views\TrayPage.xaml") or "",
+    'Io': read(r"Views\IoPage.xaml") or "",
+}
+_total40 = sum(v.count('FieldHintStyle') for v in _pages40.values())
+check("G40.1 七个配置页都有「字段下面一行小字」的说明（合计 ≥ 70 处）",
+      _total40 >= 70, "当前 %d 处" % _total40)
+check("G40.2 轴页 / 控制器页的说明是可见的，不是只在 ToolTip 里",
+      _pages40['Axis'].count('FieldHintStyle') >= 40
+      and _pages40['AxisController'].count('FieldHintStyle') >= 6)
+_vf40 = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+check("G40.3 视觉流程里「给用户看的文字」不再出现英文缩写 ROI（注释不算）",
+      all("ROI" not in v for v in _re33.findall(r'(?:Text|Content|ToolTip)="([^"]*)"', _vf40)))
+check("G40.4 报警弹窗标题用「三色灯 / 效率目标（OEE）」并解释了 OEE",
+      "三色灯 / 效率目标（OEE）" in (read(r"Views\AlarmConfigDialog.xaml") or "")
+      and "设备真正在干活的时间比例" in (read(r"Views\AlarmConfigDialog.xaml") or ""))
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

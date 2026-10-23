@@ -71,47 +71,53 @@
                             <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
-                        <DockPanel Style="{StaticResource AppleRow}">
+                        <StackPanel><DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="品牌"/>
                             <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                       ItemsSource="{x:Static svc:Catalog.VendorNames}"
-                                      SelectedItem="{Binding SelectedItem.Vendor, UpdateSourceTrigger=PropertyChanged}" ToolTip="控制卡是哪个厂家出的；选错厂家会连不上"/>
+                                      SelectedItem="{Binding SelectedItem.Vendor, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="控制卡是哪个厂家出的；选错厂家会连不上"/></StackPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
-                        <DockPanel Style="{StaticResource AppleRow}">
+                        <StackPanel><DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="总线类型"/>
                             <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                       ItemsSource="{x:Static svc:Catalog.BusTypeNames}"
-                                      SelectedItem="{Binding SelectedItem.BusType, UpdateSourceTrigger=PropertyChanged}" ToolTip="这张卡和电脑怎么通信（插卡 / 网线 / 串口 / EtherCAT）。它还决定这张卡上的轴是什么轴类型"/>
+                                      SelectedItem="{Binding SelectedItem.BusType, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="这张卡和电脑怎么通信（插卡 / 网线 / 串口 / EtherCAT）。它还决定这张卡上的轴是什么轴类型"/></StackPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
-                        <DockPanel Style="{StaticResource AppleRow}">
+                        <StackPanel><DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="卡型号"/>
                             <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
-                                      ToolTip="这里的候选会跟着上面的「品牌 + 总线类型」自动筛选：先把品牌和接线方式选对，再来挑型号"
+                                     
                                       ItemsSource="{Binding CardTypeOptions}"
                                       SelectedItem="{Binding SelectedItem.CardType, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="这里的候选会跟着上面的「品牌 + 总线类型」自动筛选：先把品牌和接线方式选对，再来挑型号"/></StackPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
-                        <DockPanel Style="{StaticResource AppleRow}">
+                        <StackPanel><DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="卡号"/>
-                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.CardNo}" ToolTip="同一台电脑上这是第几张卡，从 0 开始，要和实际编号对上"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.CardNo}"/>
                         </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="同一台电脑上这是第几张卡，从 0 开始，要和实际编号对上"/></StackPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
-                        <DockPanel Style="{StaticResource AppleRow}">
+                        <StackPanel><DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="轴数量"/>
-                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.AxisCount}" ToolTip="这张卡准备带几根轴。点了【连接】之后，会被卡真正报上来的数覆盖"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.AxisCount}"/>
                         </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="这张卡准备带几根轴。点了【连接】之后，会被卡真正报上来的数覆盖"/></StackPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
-                        <DockPanel Style="{StaticResource AppleRow}">
+                        <StackPanel><DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="连接方式"/>
-                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.Connection}" SelectedValuePath="Content" ToolTip="卡和电脑怎么连：PCI = 插在电脑槽位里；网口 = 网线，还要填卡的 IP；COM = 串口线；EtherCAT = 工业以太网">
+                            <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}" SelectedValue="{Binding SelectedItem.Connection}" SelectedValuePath="Content">
                                 <ComboBoxItem Content="PCI"/>
                                 <ComboBoxItem Content="网口"/>
                                 <ComboBoxItem Content="COM"/>
                                 <ComboBoxItem Content="EtherCAT"/>
                             </ComboBox>
                         </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="卡和电脑怎么连：PCI = 插在电脑槽位里；网口 = 网线，还要填卡的 IP；COM = 串口线；EtherCAT = 工业以太网"/></StackPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="备注"/>
@@ -143,15 +149,17 @@
                         <Rectangle Style="{StaticResource AppleHairline}"/>
                         <!-- 未选卡型号时禁用整块扩展 IO 配置 -->
                         <StackPanel IsEnabled="{Binding CanConfigureExpansion}">
-                        <DockPanel Style="{StaticResource AppleRow}">
+                        <StackPanel><DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="主板输入IO数"/>
-                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.InIoCount, UpdateSourceTrigger=PropertyChanged}" ToolTip="卡主板上接了多少个输入点（传感器那一路）"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.InIoCount, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="卡主板上接了多少个输入点（传感器那一路）"/></StackPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
-                        <DockPanel Style="{StaticResource AppleRow}">
+                        <StackPanel><DockPanel Style="{StaticResource AppleRow}">
                             <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="主板输出IO数"/>
-                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.OutIoCount, UpdateSourceTrigger=PropertyChanged}" ToolTip="卡主板上接了多少个输出点（气缸阀、指示灯那一路）"/>
+                            <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.OutIoCount, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="卡主板上接了多少个输出点（气缸阀、指示灯那一路）"/></StackPanel>
                         <Rectangle Style="{StaticResource AppleHairline}"/>
 
                         <TextBlock Style="{StaticResource SubLabel}" Margin="16,8,16,0" Text="已经挂上的扩展模块（型号 / 挂几个 / 每个几个输入 / 每个几个输出 / 每个带几根轴）"/>

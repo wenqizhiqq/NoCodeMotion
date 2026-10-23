@@ -5,7 +5,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:local="clr-namespace:NoCodeMotion.Views"
         mc:Ignorable="d" d:DesignHeight="420" d:DesignWidth="420"
-        Title="报警 / 信号塔 / OEE 配置" Height="460" Width="440" WindowStartupLocation="CenterOwner">
+        Title="报警 / 三色灯 / 效率目标（OEE）配置" Height="460" Width="440" WindowStartupLocation="CenterOwner">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -13,7 +13,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="报警 / 信号塔 / OEE 配置" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+        <TextBlock Grid.Row="0" Text="报警 / 三色灯 / 效率目标（OEE）配置" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
             <StackPanel>
@@ -48,7 +48,8 @@
                     <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding BuzzerRepeat, Mode=TwoWay}" Style="{StaticResource AppleTextField}" Margin="0,3"/>
                 </Grid>
 
-                <TextBlock Text="OEE 目标" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,12,0,8"/>
+                <TextBlock Text="设备综合效率目标（OEE）" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,12,0,2"/>
+                <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" TextWrapping="Wrap" Text="OEE = 设备真正在干活的时间比例（时间开动率 × 性能 × 良品率）。这里填目标百分比，操作员页会拿实际值跟它比。"/>
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>

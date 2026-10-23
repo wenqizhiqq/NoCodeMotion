@@ -32,7 +32,7 @@
                         <TextBlock Text="控制器" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Axis" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="配电机：一根轴一页设置，速度、加减速、回零、限位都在这里">
+                <Button Tag="Axis" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="配电机：每根轴一页，速度、起步和收尾多快、零点、不许越过的位置都在这里">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource AxisIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconAxisBrush}"/>
                         <TextBlock Text="轴" VerticalAlignment="Center"/>
@@ -56,7 +56,7 @@
                         <TextBlock Text="点位表" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Comm" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="跟外部设备说话：串口、网口、Modbus、管道、Web……没有真设备也能开仿真对端练">
+                <Button Tag="Comm" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="跟外部设备交换数据：串口、网线、管道、网页都行；没有真设备也能开一个假对方来练手">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource CommIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconCommBrush}"/>
                         <TextBlock Text="通讯" VerticalAlignment="Center"/>
@@ -68,7 +68,7 @@
                         <TextBlock Text="料盘" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Tag="Camera" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="接相机：搜索设备、连上看画面、调曝光，给视觉步骤用">
+                <Button Tag="Camera" Click="Nav_Click" Style="{StaticResource NavButtonStyle}" ToolTip="接相机：搜索设备、连上看画面、调亮度（曝光），给视觉步骤用">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource CameraIcon}" Width="24" Height="24" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{StaticResource NavIconCameraBrush}"/>
                         <TextBlock Text="相机" VerticalAlignment="Center"/>

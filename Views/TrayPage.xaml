@@ -61,40 +61,47 @@
                             <DockPanel LastChildFill="True">
                                 <StackPanel DockPanel.Dock="Top">
                                     <TextBlock Style="{StaticResource AppleSectionHeader}" Text="料盘参数"/>
-                                    <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称" ToolTip="这个料盘叫什么；流程里按这个名字来取第几格"/>
+                                    <StackPanel><DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="名称"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="这个料盘叫什么；流程里按这个名字来取第几格"/></StackPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
-                                    <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="行数" ToolTip="上下方向有几排格子"/>
+                                    <StackPanel><DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="行数"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingRows, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="上下方向有几排格子"/></StackPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
-                                    <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="列数" ToolTip="左右方向有几列格子"/>
+                                    <StackPanel><DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="列数"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingCols, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="左右方向有几列格子"/></StackPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
-                                    <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始X" ToolTip="左下角那一格，X 轴要走到哪儿（毫米）。先把轴手动开到那一格，再照抄这个数最准"/>
+                                    <StackPanel><DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始X"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingStartX, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="左下角那一格，X 轴要走到哪儿（毫米）。先把轴手动开到那一格，再照抄这个数最准"/></StackPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
-                                    <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始Y" ToolTip="左下角那一格，Y 轴要走到哪儿（毫米）"/>
+                                    <StackPanel><DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="起始Y"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingStartY, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="左下角那一格，Y 轴要走到哪儿（毫米）"/></StackPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
-                                    <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距X" ToolTip="往右挪一列，X 要走多少毫米（负号就是往反方向挪）"/>
+                                    <StackPanel><DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距X"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingPitchX, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="往右挪一列，X 要走多少毫米（负号就是往反方向挪）"/></StackPanel>
                                     <Rectangle Style="{StaticResource AppleHairline}"/>
-                                    <DockPanel Style="{StaticResource AppleRow}">
-                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距Y" ToolTip="往上挪一行，Y 要走多少毫米（负号就是往反方向挪）"/>
+                                    <StackPanel><DockPanel Style="{StaticResource AppleRow}">
+                                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="间距Y"/>
                                         <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}" Text="{Binding SelectedItem.PendingPitchY, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="往上挪一行，Y 要走多少毫米（负号就是往反方向挪）"/></StackPanel>
                                 </StackPanel>
 
                                 <!-- 底部：参数修改确认按钮区（弹窗式）：按「应用参数生成点位」才真正生成 Cells。

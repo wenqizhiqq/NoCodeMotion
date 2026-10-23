@@ -178,7 +178,9 @@
 
             <!-- IO 表格（白色卡片包裹） -->
             <Border Style="{StaticResource CardBorderStyle}">
-                <DataGrid x:Name="InputGrid" ItemsSource="{Binding InputPanel.Items}"
+                <DockPanel LastChildFill="True">
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource FieldHintStyle}" Margin="0,0,0,6" TextWrapping="Wrap" Text="每一行一个点：序号 = 卡上的第几路；IO名称 = 你起的名字（流程里按这个名字选）；套码 = 卡内部编号，一般不用改；电平 = 这个信号平时是有电（高）还是没电（低）。"/>
+                        <DataGrid x:Name="InputGrid" ItemsSource="{Binding InputPanel.Items}"
                           SelectedItem="{Binding InputPanel.SelectedItem, Mode=TwoWay}"
                           RowStyle="{StaticResource IoRowStyle}"
                           CellStyle="{StaticResource IoCellStyle}"
@@ -250,6 +252,7 @@
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
+                </DockPanel>
             </Border>
         </DockPanel>
 

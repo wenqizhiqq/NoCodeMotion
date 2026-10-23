@@ -38,32 +38,37 @@
                         <!-- 通用 -->
                         <Border Style="{StaticResource AppleChip}">
                             <StackPanel>
-                                <TextBlock Text="名称" Style="{StaticResource AppleChipLabel}" ToolTip="这条通讯的名字；流程和脚本就是用这个名字找到这条通道的"/>
+                                <TextBlock Text="名称" Style="{StaticResource AppleChipLabel}"/>
                                 <TextBox Text="{Binding SelectedItem.Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="这条通讯的名字；流程和脚本就是用这个名字找到这条通道的"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="串口号" Style="{StaticResource AppleChipLabel}" ToolTip="串口线在电脑上占的口，例如 COM3（插上设备后在「设备管理器」里能看到）"/>
+                                <TextBlock Text="串口号" Style="{StaticResource AppleChipLabel}"/>
                                 <TextBox Text="{Binding SelectedItem.PortOrIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="串口线在电脑上占的口，例如 COM3（插上设备后在「设备管理器」里能看到）"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口|SECS(HSMS)|西门子S7|三菱MC'}">
                             <StackPanel>
-                                <TextBlock Text="端口 / IP" Style="{StaticResource AppleChipLabel}" ToolTip="要连的那台设备的 IP，例如 192.168.1.10。两台电脑要在同一个网段，ping 得通才连得上"/>
+                                <TextBlock Text="端口 / IP" Style="{StaticResource AppleChipLabel}"/>
                                 <TextBox Text="{Binding SelectedItem.PortOrIp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="要连的那台设备的 IP，例如 192.168.1.10。两台电脑要在同一个网段，ping 得通才连得上"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="波特率" Style="{StaticResource AppleChipLabel}" ToolTip="串口跑多快，必须和设备那一端设得一模一样（常用 9600 或 115200）。不一样收到的全是乱码"/>
+                                <TextBlock Text="波特率" Style="{StaticResource AppleChipLabel}"/>
                                 <TextBox Text="{Binding SelectedItem.BaudOrPort}" Style="{StaticResource AppleNumField}"/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="串口跑多快，必须和设备那一端设得一模一样（常用 9600 或 115200）。不一样收到的全是乱码"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='网口TCP|网口UDP|ModbusTCP|相机网口|SECS(HSMS)|西门子S7|三菱MC'}">
                             <StackPanel>
-                                <TextBlock Text="端口号" Style="{StaticResource AppleChipLabel}" ToolTip="对方设备上开着的那个端口号，例如 Modbus 常用 502"/>
+                                <TextBlock Text="端口号" Style="{StaticResource AppleChipLabel}"/>
                                 <TextBox Text="{Binding SelectedItem.BaudOrPort}" Style="{StaticResource AppleNumField}"/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="对方设备上开着的那个端口号，例如 Modbus 常用 502"/>
                             </StackPanel>
                         </Border>
                         <!-- ↓↓↓ 本机互联 / 接口类通道（管道、共享内存、共享文件夹、本机文件、Web）的参数 -->
@@ -114,41 +119,47 @@
                         <!-- ↑↑↑ 本机互联 / 接口类通道参数 -->
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="数据位" Style="{StaticResource AppleChipLabel}" ToolTip="一个字节里有几位数据，一般设 8；要和对端一致"/>
+                                <TextBlock Text="数据位" Style="{StaticResource AppleChipLabel}"/>
                                 <ComboBox ItemsSource="{Binding DataBitsOptions}" MinWidth="90" HorizontalAlignment="Left"
                                           SelectedValue="{Binding SelectedItem.DataBits, TargetNullValue=8}" SelectedValuePath="."/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="一个字节里有几位数据，一般设 8；要和对端一致"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="校验位" Style="{StaticResource AppleChipLabel}" ToolTip="怎么检查传输出错，最常见选「无」；要和对端一致，不一致会收不到正确内容"/>
+                                <TextBlock Text="校验位" Style="{StaticResource AppleChipLabel}"/>
                                 <ComboBox ItemsSource="{Binding ParityOptions}" MinWidth="90" HorizontalAlignment="Left"
                                           SelectedValue="{Binding SelectedItem.Parity}" SelectedValuePath="."/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="怎么检查传输出错，最常见选「无」；要和对端一致，不一致会收不到正确内容"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="停止位" Style="{StaticResource AppleChipLabel}" ToolTip="一帧结束的标志，一般 1；要和对端一致"/>
+                                <TextBlock Text="停止位" Style="{StaticResource AppleChipLabel}"/>
                                 <ComboBox ItemsSource="{Binding StopBitsOptions}" MinWidth="90" HorizontalAlignment="Left"
                                           SelectedValue="{Binding SelectedItem.StopBits}" SelectedValuePath="."/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="一帧结束的标志，一般 1；要和对端一致"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='串口|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="流控" Style="{StaticResource AppleChipLabel}" ToolTip="来不及处理时让对方先别发。没接握手线就选「无」"/>
+                                <TextBlock Text="流控" Style="{StaticResource AppleChipLabel}"/>
                                 <ListBox ItemsSource="{Binding FlowControlOptions}" SelectedItem="{Binding FlowControl}" Style="{StaticResource ApplePillList}"/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="来不及处理时让对方先别发。没接握手线就选「无」"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='ModbusTCP|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="从站地址" Style="{StaticResource AppleChipLabel}" ToolTip="这台设备在 Modbus 上的编号；一根线上挂了好几台时，每台都要不一样"/>
+                                <TextBlock Text="从站地址" Style="{StaticResource AppleChipLabel}"/>
                                 <TextBox Text="{Binding SlaveAddress, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AppleTextField}"/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="这台设备在 Modbus 上的编号；一根线上挂了好几台时，每台都要不一样"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='ModbusTCP|ModbusRTU'}">
                             <StackPanel>
-                                <TextBlock Text="字节序" Style="{StaticResource AppleChipLabel}" ToolTip="设备把两个字节的前后顺序怎么排。读上来的数莫名其妙时，换一种排法试试"/>
+                                <TextBlock Text="字节序" Style="{StaticResource AppleChipLabel}"/>
                                 <ListBox ItemsSource="{Binding EndianOptions}" SelectedItem="{Binding Endian}" Style="{StaticResource ApplePillList}"/>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="设备把两个字节的前后顺序怎么排。读上来的数莫名其妙时，换一种排法试试"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource AppleChip}" Visibility="{Binding SelectedItem.CommType, Converter={StaticResource TypeVisible}, ConverterParameter='西门子S7'}">

@@ -629,7 +629,7 @@
                                                     Value="{Binding SelectedStep.PreParam2}"/>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="框选区域 ROI (x,y,w,h)" ToolTip="要处理的方块区域：x,y 是左上角在图上的位置，w,h 是它的宽和高（都是像素）。也可以在右边那张图上直接按住左键拖一个框，不用手填"/>
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="框选区域（x,y,w,h）" ToolTip="要处理的方块区域：x,y 是左上角在图上的位置，w,h 是它的宽和高（都是像素）。也可以在右边那张图上直接按住左键拖一个框，不用手填"/>
                                     <TextBox DockPanel.Dock="Right" Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.PreRoi, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DockPanel>

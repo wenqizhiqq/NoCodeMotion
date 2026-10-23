@@ -106,6 +106,7 @@
                                          Text="{Binding SelectedItem.ExposureMs, UpdateSourceTrigger=PropertyChanged}"
                                          IsEnabled="{Binding HasSelection}"/>
                             </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="相机睁眼多久（毫秒）：调大画面更亮，但工件在动会拖影。一般 10 毫秒。"/>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
 
                             <DockPanel Style="{StaticResource AppleRow}">
@@ -114,6 +115,7 @@
                                          Text="{Binding SelectedItem.Gain, UpdateSourceTrigger=PropertyChanged}"
                                          IsEnabled="{Binding HasSelection}"/>
                             </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="相机的灵敏度：调大画面更亮、但噪点也更多。先调曝光，不够再动它。"/>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
 
                             <DockPanel Style="{StaticResource AppleRow}">
@@ -122,6 +124,7 @@
                                          SelectedItem="{Binding SelectedItem.TriggerMode, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource ApplePillList}" IsEnabled="{Binding HasSelection}"/>
                             </DockPanel>
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="相机什么时候拍：连续 = 一直拍；软触发 = 软件叫它拍；硬触发 = 等外部信号来了才拍。"/>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
 
                             <DockPanel Style="{StaticResource AppleRow}">
