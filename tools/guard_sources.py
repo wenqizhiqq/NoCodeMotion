@@ -2351,6 +2351,36 @@ check("G40.4 报警弹窗标题用「三色灯 / 效率目标（OEE）」并解�
       "三色灯 / 效率目标（OEE）" in (read(r"Views\AlarmConfigDialog.xaml") or "")
       and "设备真正在干活的时间比例" in (read(r"Views\AlarmConfigDialog.xaml") or ""))
 
+# ---------------------------------------------------------------------
+# G41  没经验的人也能照着做：报错两行式 / 空状态 / 危险提示 / 叫法统一 / 新手入口
+# ---------------------------------------------------------------------
+_ng41 = (read(r"Services\NgRunner.cs") or "").replace("\r\n", "\n")
+_ax41 = (read(r"Views\AxisPage.xaml") or "").replace("\r\n", "\n")
+_ap41 = {}
+for _f41 in ["AxisPage", "AxisControllerPage", "CylinderPage", "CameraPage", "TrayPage"]:
+    _ap41[_f41] = (read(r"Views\\" + _f41 + ".xaml") or "").replace("\r\n", "\n")
+_pm41 = (read(r"Views\ProjectManagerPage.xaml") or "").replace("\r\n", "\n")
+_man41 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+_st41 = (read(r"Resources\AppStyles.xaml") or "").replace("\r\n", "\n")
+
+check("G41.1 节点失败提示是两行式：发生了什么 + 怎么做（至少 10 处）",
+      '"怎么做："' in _ng41 and _ng41.count('NodeFail(') >= 15
+      and _ng41.count(', "去「') >= 5)
+check("G41.2 空状态提示写成「做法：①②③」，不是只说「点添加」",
+      all("做法" in _ap41[k] or "第一次" in _ap41[k] for k in _ap41))
+check("G41.3 轴页手动按钮区有常驻安全提示（电机会真的动）",
+      "电机会真的动" in _ax41 and "机台里没有人" in _ax41)
+check("G41.4 叫法统一：上伺服 / 下伺服 / 回原点 / 点动 / 按住走（旧按钮名不再出现）",
+      all(('Content="%s"' % w) in (_ax41 + _st41) for w in ["上伺服", "下伺服", "回原点", "按住走 −"])
+      and 'Content="使能"' not in _ax41 + _st41
+      and 'Content="Jog' not in _ax41 + _st41
+      and 'Content="回原"' not in _st41)
+check("G41.5 首页有「第一次用？照着这 4 步走」入口",
+      "第一次用？照着这 4 步走" in _pm41 and "自动识别硬件" in _pm41)
+check("G41.6 说明书有 3 条任务线（让轴动一下 / 接传感器 / 抓一次料）",
+      "任务一：让一根轴动一下" in _man41 and "任务二：接一个传感器" in _man41
+      and "任务三：抓一次料" in _man41)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

@@ -69,8 +69,8 @@
                             bhv:JogHoldBehavior.StartCommand="{Binding JogStartCmd, ElementName=Root2D}"
                             bhv:JogHoldBehavior.StartParameter="X-"
                             bhv:JogHoldBehavior.StopCommand="{Binding JogStopCmd, ElementName=Root2D}"/>
-                    <Button Grid.Row="1" Grid.Column="1" Content="回零" Style="{StaticResource TtGrayBtn}" FontSize="12" Padding="0"
-                            Click="Home_Click" ToolTip="把所有轴都回零（仿真里位置归到 0）"/>
+                    <Button Grid.Row="1" Grid.Column="1" Content="回原点" Style="{StaticResource TtGrayBtn}" FontSize="12" Padding="0"
+                            Click="Home_Click" ToolTip="把仿真里的位置都归到 0（只动画面，不动真机）"/>
                     <Button Grid.Row="1" Grid.Column="2" Content="X＋" Style="{StaticResource TtGrayBtn}" FontSize="12" Padding="0"
                             bhv:JogHoldBehavior.StartCommand="{Binding JogStartCmd, ElementName=Root2D}"
                             bhv:JogHoldBehavior.StartParameter="X+"

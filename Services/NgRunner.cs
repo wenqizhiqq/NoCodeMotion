@@ -474,11 +474,18 @@ public sealed class NgRunner
     /// 节点配置/执行错误：写进 <c>_lastNodeError</c>，由 RunAsync 转成「节点卡红色错误文本 + 顶部提示 + 日志」，
     /// **不抛异常**（抛异常会让 VS 调试器弹「用户未处理的异常」对话框），流程继续走下一个节点。
     /// </summary>
-    private void NodeFail(string message)
+    /// <summary>
+    /// 节点失败：第一行说「发生了什么」，第二行说「怎么处理」。
+    /// 没经验的人看到卡号/错误码不知道下一步，所以每个失败都要带一句能照着做的话。
+    /// </summary>
+    private void NodeFail(string message, string hint = null)
     {
-        _lastNodeError = message;
-        if (string.IsNullOrEmpty(_lastNodeSummary)) _lastNodeSummary = message;
-        try { _bridge.Log("[节点提示] " + message); } catch { }
+        string text = string.IsNullOrEmpty(hint)
+            ? message
+            : message + System.Environment.NewLine + "怎么做：" + hint;
+        _lastNodeError = text;
+        if (string.IsNullOrEmpty(_lastNodeSummary)) _lastNodeSummary = text;
+        try { _bridge.Log("[节点提示] " + text); } catch { }
     }
 
     private void ExecuteNodeSync(NgNode node)
@@ -521,7 +528,7 @@ public sealed class NgRunner
 
             case NgKind.MoveAxis: {
                 var ax = _findAxis(GetProp(node, "轴", "X"));
-                if (ax == null) { NodeFail($"未找到轴「{GetProp(node, "轴", "")}」：请先在「轴」页添加同名轴"); break; }
+                if (ax == null) { NodeFail($"找不到轴「{GetProp(node, "轴", "")}」", "去「轴」页看名字有没有写错；还没有这根轴，就到「控制器」页连接控制卡，轴会自动建出来"); break; }
                 string mode = GetProp(node, "模式", "绝对");
                 double pos = GetDoubleProp(node, "目标位置", 0);
                 double spd = GetDoubleProp(node, "速度", 10);
@@ -539,17 +546,17 @@ public sealed class NgRunner
 
             case NgKind.AxisJog: {
                 var ax = _findAxis(GetProp(node, "轴", "X"));
-                if (ax == null) { NodeFail($"未找到轴「{GetProp(node, "轴", "")}」：请先在「轴」页添加同名轴"); break; }
+                if (ax == null) { NodeFail($"找不到轴「{GetProp(node, "轴", "")}」", "去「轴」页看名字有没有写错；还没有这根轴，就到「控制器」页连接控制卡，轴会自动建出来"); break; }
                 bool positive = GetProp(node, "方向", "正") != "负";
                 string jogErr = _bridge.StartAxisJog(ax, positive, GetDoubleProp(node, "速度", 10));
-                if (!string.IsNullOrEmpty(jogErr)) { NodeFail(jogErr); break; }
+                if (!string.IsNullOrEmpty(jogErr)) { NodeFail(jogErr, "先确认这根轴已上伺服、没有报警或限位；点动前把速度调小一点"); break; }
                 _lastNodeSummary = $"轴 {ax.Name} 点动（{(positive ? "正" : "负")}向）——要停请接「停下这根轴」";
                 break;
             }
 
             case NgKind.AxisStop: {
                 var ax = _findAxis(GetProp(node, "轴", "X"));
-                if (ax == null) { NodeFail($"未找到轴「{GetProp(node, "轴", "")}」：请先在「轴」页添加同名轴"); break; }
+                if (ax == null) { NodeFail($"找不到轴「{GetProp(node, "轴", "")}」", "去「轴」页看名字有没有写错；还没有这根轴，就到「控制器」页连接控制卡，轴会自动建出来"); break; }
                 bool fast = GetProp(node, "停止方式", "减速停止") == "立即停止";
                 _bridge.StopAxis(ax, fast);
                 _bridge.WaitAxisDone(ax);
@@ -559,7 +566,7 @@ public sealed class NgRunner
 
             case NgKind.AxisServo: {
                 var ax = _findAxis(GetProp(node, "轴", "X"));
-                if (ax == null) { NodeFail($"未找到轴「{GetProp(node, "轴", "")}」：请先在「轴」页添加同名轴"); break; }
+                if (ax == null) { NodeFail($"找不到轴「{GetProp(node, "轴", "")}」", "去「轴」页看名字有没有写错；还没有这根轴，就到「控制器」页连接控制卡，轴会自动建出来"); break; }
                 bool on = GetProp(node, "动作", "使能") != "断开";
                 if (on) _bridge.EnableAxis(ax); else _bridge.DisableAxis(ax);
                 _lastNodeSummary = $"轴 {ax.Name} 已{(on ? "使能（上伺服）" : "断开（下伺服）")}";
@@ -569,13 +576,13 @@ public sealed class NgRunner
             case NgKind.LineInterp: {
                 var a1 = _findAxis(GetProp(node, "轴1", "X"));
                 var a2 = _findAxis(GetProp(node, "轴2", "Y"));
-                if (a1 == null || a2 == null) { NodeFail("插补的轴找不到：请先在「轴」页添加同名轴"); break; }
+                if (a1 == null || a2 == null) { NodeFail("插补用的轴找不到", "去「轴」页看轴名写对没；插补的两根轴必须在同一张控制卡上"); break; }
                 bool abs = GetProp(node, "模式", "绝对") != "相对";
                 double t1 = GetDoubleProp(node, "目标1", 0), t2 = GetDoubleProp(node, "目标2", 0);
                 string lineErr = _bridge.LineInterpolate(
                     new[] { (a1, t1), (a2, t2) }, abs,
                     GetDoubleProp(node, "速度", 20), GetDoubleProp(node, "加减速时间", 0.2));
-                if (!string.IsNullOrEmpty(lineErr)) { NodeFail(lineErr); break; }
+                if (!string.IsNullOrEmpty(lineErr)) { NodeFail(lineErr, "先确认控制卡已连接、两根轴在同一张卡；还是不行就查卡手册的错误码"); break; }
                 _bridge.WaitAxisDone(a1);
                 _bridge.WaitAxisDone(a2);
                 _lastNodeSummary = $"直线插补完成：（{a1.Name} {t1:0.###}，{a2.Name} {t2:0.###}）";
@@ -585,13 +592,13 @@ public sealed class NgRunner
             case NgKind.ArcInterp: {
                 var a1 = _findAxis(GetProp(node, "轴1", "X"));
                 var a2 = _findAxis(GetProp(node, "轴2", "Y"));
-                if (a1 == null || a2 == null) { NodeFail("圆弧插补的轴找不到：请先在「轴」页添加同名轴"); break; }
+                if (a1 == null || a2 == null) { NodeFail("圆弧插补用的轴找不到", "去「轴」页看轴名写对没；两根轴必须在同一张控制卡上"); break; }
                 bool abs = GetProp(node, "模式", "绝对") != "相对";
                 string arcErr = _bridge.ArcInterpolate3P(a1, a2,
                     GetDoubleProp(node, "中间点1", 0), GetDoubleProp(node, "中间点2", 0),
                     GetDoubleProp(node, "终点1", 0), GetDoubleProp(node, "终点2", 0),
                     abs, GetIntProp(node, "圈数", 0));
-                if (!string.IsNullOrEmpty(arcErr)) { NodeFail(arcErr); break; }
+                if (!string.IsNullOrEmpty(arcErr)) { NodeFail(arcErr, "先确认控制卡已连接、两根轴在同一张卡；还是不行就查卡手册的错误码"); break; }
                 _bridge.WaitAxisDone(a1);
                 _bridge.WaitAxisDone(a2);
                 _lastNodeSummary = "圆弧插补完成";
@@ -600,7 +607,7 @@ public sealed class NgRunner
 
             case NgKind.Home: {
                 var ax = _findAxis(GetProp(node, "轴", "X"));
-                if (ax == null) { NodeFail($"未找到轴「{GetProp(node, "轴", "")}」：请先在「轴」页添加同名轴"); break; }
+                if (ax == null) { NodeFail($"找不到轴「{GetProp(node, "轴", "")}」", "去「轴」页看名字有没有写错；还没有这根轴，就到「控制器」页连接控制卡，轴会自动建出来"); break; }
                 _bridge.HomeAxis(ax);
                 _bridge.WaitAxisDone(ax);
                 _lastNodeSummary = $"轴 {ax.Name} 回零完成";
@@ -609,7 +616,7 @@ public sealed class NgRunner
 
             case NgKind.WaitAxis: {
                 var ax = _findAxis(GetProp(node, "轴", "X"));
-                if (ax == null) { NodeFail($"未找到轴「{GetProp(node, "轴", "")}」：请先在「轴」页添加同名轴"); break; }
+                if (ax == null) { NodeFail($"找不到轴「{GetProp(node, "轴", "")}」", "去「轴」页看名字有没有写错；还没有这根轴，就到「控制器」页连接控制卡，轴会自动建出来"); break; }
                 _bridge.WaitAxisDone(ax);
                 _lastNodeSummary = $"轴 {ax.Name} 已到位（{_bridge.ReadAxisPosition(ax):0.###}）";
                 break;
@@ -617,7 +624,7 @@ public sealed class NgRunner
 
             case NgKind.Cylinder: {
                 var cyl = _findCyl(GetProp(node, "气缸", ""));
-                if (cyl == null) { NodeFail($"未找到气缸「{GetProp(node, "气缸", "")}」：请先在「气缸」页添加同名气缸"); break; }
+                if (cyl == null) { NodeFail($"找不到气缸「{GetProp(node, "气缸", "")}」", "去「气缸」页看名字；还没有就到那里点【添加】，并把伸出/缩回两个输出点选好"); break; }
                 string act = GetProp(node, "动作", "伸出");
                 _bridge.CylinderMove(cyl, act == "伸出" ? 1 : 0);
                 _bridge.WaitCylinder(cyl);
@@ -627,10 +634,10 @@ public sealed class NgRunner
 
             case NgKind.PointGo: {
                 var pt = HardwareResolver.ResolvePointTable(GetProp(node, "点位表", ""));
-                if (pt == null) { NodeFail($"未找到点位表「{GetProp(node, "点位表", "")}」：请先在「点位表」页添加同名点位表"); break; }
+                if (pt == null) { NodeFail($"找不到点位表「{GetProp(node, "点位表", "")}」", "去「点位」页左侧看表名；还没有就点【新增工位】建一个"); break; }
                 string want = GetProp(node, "点位", "");
                 var item = pt.Points.FirstOrDefault(p => p.Name == want) ?? pt.Points.FirstOrDefault();
-                if (item == null) { NodeFail($"点位表「{pt.Name}」里还没有点位，请先在「点位表」页添加"); break; }
+                if (item == null) { NodeFail($"点位表「{pt.Name}」里是空的", "去「点位」页，在这个工位下面点【添加点位】再填坐标"); break; }
                 // 防撞：条件不满足 → 写报警列表（无人值守，绝不弹窗）+ 阻止移动并中止整图
                 // （与流程页 ExecPoint 同一口径：机台状态与预期不符还继续动作，有撞机风险）。
                 var ptFails = PointConditionService.Evaluate(item);
@@ -660,7 +667,7 @@ public sealed class NgRunner
 
             case NgKind.IoWrite: {
                 var io = _findOutput(GetProp(node, "输出", ""));
-                if (io == null) { NodeFail($"未找到输出「{GetProp(node, "输出", "")}」：请先在「IO」页添加同名输出点"); break; }
+                if (io == null) { NodeFail($"找不到输出点「{GetProp(node, "输出", "")}」", "去「IO」页看输出名；名字不一致就在那里改，还没有就点【添加】"); break; }
                 int v = GetIntProp(node, "值", 1);
                 _bridge.WriteOutput(io, v);
                 _lastNodeSummary = $"输出 {io.Name} = {v}";
@@ -669,7 +676,7 @@ public sealed class NgRunner
 
             case NgKind.WaitInput: {
                 var io = _findInput(GetProp(node, "信号", ""));
-                if (io == null) { NodeFail($"未找到输入「{GetProp(node, "信号", "")}」：请先在「IO」页添加同名输入点"); break; }
+                if (io == null) { NodeFail($"找不到输入点「{GetProp(node, "信号", "")}」", "去「IO」页看输入名；名字不一致就在那里改，还没有就点【添加】"); break; }
                 string st = GetProp(node, "状态", "高电平");
                 int want = st == "高电平" ? 1 : 0;
                 _bridge.WaitInput(io, want, GetIntProp(node, "超时ms", 0));
@@ -721,14 +728,14 @@ public sealed class NgRunner
                         _lastNodeSummary = $"{name} = {expr} = {r:0.###}";
                     }
                     else
-                        NodeFail($"表达式无法求值：「{expr}」：请检查变量名与运算符（如 计数+1）");
+                        NodeFail($"这个算式算不出来：「{expr}」", "检查变量名有没有写错、运算符两边是不是数字；例：计数 + 1");
                 }
                 break;
             }
 
             case NgKind.ModbusSend: {
                 var c = _findComm(GetProp(node, "通讯", ""));
-                if (c == null) { NodeFail($"未找到通讯「{GetProp(node, "通讯", "")}」：请先在「通讯」页配置同名通道"); break; }
+                if (c == null) { NodeFail($"找不到通讯「{GetProp(node, "通讯", "")}」", "去「通讯」页看通道名；还没有就新建一个并点【保存】"); break; }
                 string payload = GetProp(node, "指令", "");
                 _bridge.CommSend(c, payload);
                 _lastNodeSummary = $"已发送 → {c.Name}：{payload}";
@@ -737,7 +744,7 @@ public sealed class NgRunner
 
             case NgKind.ModbusRecv: {
                 var c = _findComm(GetProp(node, "通讯", ""));
-                if (c == null) { NodeFail($"未找到通讯「{GetProp(node, "通讯", "")}」：请先在「通讯」页配置同名通道"); break; }
+                if (c == null) { NodeFail($"找不到通讯「{GetProp(node, "通讯", "")}」", "去「通讯」页看通道名；还没有就新建一个并点【保存】"); break; }
                 string got = _bridge.CommRecv(c) ?? "";
                 string key = GetProp(node, "关键字", "OK");
                 bool hasKey = string.IsNullOrWhiteSpace(key) || got.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0;
@@ -752,7 +759,7 @@ public sealed class NgRunner
                 string ep = GetProp(node, "端点", "");
                 string msg = GetProp(node, "报文", "");
                 string tcpErr = TcpSendOnce(ep, msg);
-                if (tcpErr != null) { NodeFail(tcpErr); break; }
+                if (tcpErr != null) { NodeFail(tcpErr, "确认对方 IP / 端口填对、对方程序已启动、防火墙放行"); break; }
                 _lastNodeSummary = $"TCP 已发送 {System.Text.Encoding.UTF8.GetByteCount(msg)} 字节 → {ep}";
                 break;
             }
@@ -765,10 +772,10 @@ public sealed class NgRunner
                 else if (dev.Contains(':'))
                 {
                     string tcpErr = TcpSendOnce(dev, data);
-                    if (tcpErr != null) { NodeFail(tcpErr); break; }
+                    if (tcpErr != null) { NodeFail(tcpErr, "确认对方 IP / 端口填对、对方程序已启动、防火墙放行"); break; }
                     _lastNodeSummary = $"下位机写(TCP) → {dev}：{data}";
                 }
-                else NodeFail($"未找到通讯设备「{dev}」：请先在「通讯」页配置同名通道，或把「设备」填成 host:port");
+                else NodeFail($"找不到通讯设备「{dev}」", "去「通讯」页看设备名，或者把这里直接填成 主机:端口（例如 127.0.0.1:8000）");
                 break;
             }
 

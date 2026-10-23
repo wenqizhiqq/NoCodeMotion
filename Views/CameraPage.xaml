@@ -17,7 +17,7 @@
             左侧列表 240px：增/删/重命名由 EditorPage 默认接管（AddCommand/DeleteCommand/RenameCommand）。
             右侧 Detail：本页自定义的属性编辑卡 + 拍照预览占位。
     -->
-    <local:EditorPage>
+    <local:EditorPage EmptyHint="还没有相机。做法：① 点左上角【搜索设备】；② 在列表里双击找到的相机连上；③ 连上后右边可以调曝光，点【拍一张】看画面。">
         <local:EditorPage.Detail>
             <Grid Background="{StaticResource CanvasBrush}">
                 <Grid.RowDefinitions>

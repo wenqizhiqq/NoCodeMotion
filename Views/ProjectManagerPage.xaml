@@ -103,6 +103,15 @@
             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="6,12,12,12">
                 <StackPanel IsEnabled="{Binding CanEditDetail}">
 
+                    <!-- 第一次用：照着 4 步走（常驻显示，不需要悬停） -->
+                    <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource AppleSectionHeader}" Text="第一次用？照着这 4 步走"/>
+                            <TextBlock Style="{StaticResource FieldHintStyle}" Margin="12,2,12,10" TextWrapping="Wrap" LineHeight="19"
+                                       Text="① 建工程：点左上角【新建】，先选「示例机台」，最省事。&#10;② 连控制卡：到「控制器」页点【自动识别硬件】，找到卡再点【连接】。&#10;③ 试动作：到「轴」页选一根轴，点【上伺服】→【点动 +】，电机动一下就算通。&#10;④ 存盘：点左上角【保存】。细节都在「说明书」页签 →「新手入门」里。"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- 备注 -->
                     <Border Style="{StaticResource AppleGroupCard}">
                         <StackPanel>

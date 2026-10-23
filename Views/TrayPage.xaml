@@ -43,7 +43,7 @@
         </Style>
     </UserControl.Resources>
 
-    <local:EditorPage>
+    <local:EditorPage EmptyHint="还没有料盘。做法：① 点左上角【添加】建一个料盘；② 在右边填行数、列数、间距；③ 顺序填好后，流程里就能用「取料 / 放料」按格子走。">
         <local:EditorPage.Detail>
             <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}" Margin="14">
                 <!-- 页标题 -->

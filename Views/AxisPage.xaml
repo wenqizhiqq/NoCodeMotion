@@ -45,7 +45,7 @@
     </UserControl.Resources>
 
 
-    <local:EditorPage EmptyHint="还没有轴，请点击左上角的「添加」按钮新增一条轴。">
+    <local:EditorPage EmptyHint="还没有轴。做法：① 先到「控制器」页连接控制卡，轴会按卡上的轴数自动建出来；② 想手动加一根，就点左上角【添加】；③ 加好后在右边填名称和脉冲当量。">
         <local:EditorPage.Detail>
             <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}">
                 <!-- 页标题 -->
@@ -277,7 +277,7 @@
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="电平与编码器"/>
                                 <StackPanel><DockPanel Style="{StaticResource DenseRow}">
-                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="使能电平"/>
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource DenseLabel}" Text="上伺服电平"/>
                                     <ComboBox DockPanel.Dock="Right" Style="{StaticResource DenseCombo}" SelectedValue="{Binding SelectedItem.EnableLevel}" SelectedValuePath="Content">
                                         <ComboBoxItem Content="高电平"/>
                                         <ComboBoxItem Content="低电平"/>
@@ -511,10 +511,12 @@
                                 </DockPanel>
 
                                 <StackPanel Margin="10,8,10,12">
+                                    <TextBlock Text="⚠ 下面这些按钮按下去，电机会真的动。按之前先确认：机台里没有人、手没有伸进去、行程里没有工具或料。"
+                                               FontSize="11" TextWrapping="Wrap" Foreground="#DC2626" Margin="0,0,0,6"/>
                                     <UniformGrid Columns="2" Margin="0,0,0,6">
-                                        <Button Content="使能" Style="{StaticResource TtPillBlueBtn}" Margin="0,0,3,0"
+                                        <Button Content="上伺服" Style="{StaticResource TtPillBlueBtn}" Margin="0,0,3,0"
                                                 Command="{Binding Monitor.EnableCommand}" ToolTip="给这根轴通上使能（上伺服）。没上使能的轴，你发什么动作它都不动。"/>
-                                        <Button Content="不使能" Style="{StaticResource TtPillGrayBtn}" Margin="3,0,0,0"
+                                        <Button Content="下伺服" Style="{StaticResource TtPillGrayBtn}" Margin="3,0,0,0"
                                                 Command="{Binding Monitor.DisableCommand}" ToolTip="断开这根轴的使能（下伺服），之后可以用手搬动。网口 / 总线轴直接生效；脉冲卡要看驱动器那头有没有断使能信号，可能不生效。"/>
                                     </UniformGrid>
                                     <UniformGrid Columns="1" Margin="0,0,0,6">
@@ -528,17 +530,17 @@
                                                 Command="{Binding Monitor.InchPlusCommand}" ToolTip="按上面「点动距离」往正方向走一格。"/>
                                     </UniformGrid>
                                     <UniformGrid Columns="2" Margin="0,0,0,6">
-                                        <Button Content="Jog −" Style="{StaticResource TtPillOrangeBtn}" Margin="0,0,3,0"
+                                        <Button Content="按住走 −" Style="{StaticResource TtPillOrangeBtn}" Margin="0,0,3,0"
                                                 beh:JogHoldBehavior.StartCommand="{Binding Monitor.JogMinusStartCommand}"
                                                 beh:JogHoldBehavior.StopCommand="{Binding Monitor.JogStopCommand}"
                                                 ToolTip="按住不放才一直往负方向走，一松手就停。只点一下只会动一瞬 —— 想老老实实走一格请用【点动 −】。"/>
-                                        <Button Content="Jog +" Style="{StaticResource TtPillBlueBtn}" Margin="3,0,0,0"
+                                        <Button Content="按住走 +" Style="{StaticResource TtPillBlueBtn}" Margin="3,0,0,0"
                                                 beh:JogHoldBehavior.StartCommand="{Binding Monitor.JogPlusStartCommand}"
                                                 beh:JogHoldBehavior.StopCommand="{Binding Monitor.JogStopCommand}"
                                                 ToolTip="按住不放才一直往正方向走，一松手就停。只点一下只会动一瞬 —— 想老老实实走一格请用【点动 +】。"/>
                                     </UniformGrid>
                                     <UniformGrid Columns="2">
-                                        <Button Content="回零" Style="{StaticResource TtPillGrayBtn}" Margin="0,0,3,0"
+                                        <Button Content="回原点" Style="{StaticResource TtPillGrayBtn}" Margin="0,0,3,0"
                                                 Command="{Binding Monitor.HomeCommand}" ToolTip="按本页「回零参数」的设法定位原点。在后台跑，成功或超时会在下面提示。"/>
                                         <Button Content="设零点" Style="{StaticResource TtPillGreenBtn}" Margin="3,0,0,0"
                                                 Command="{Binding Monitor.SetZeroCommand}" ToolTip="把这根轴现在的位置直接当成 0 点（轴不动）。&#10;注意：改过零点之后，所有点位都是相对这个新零点算的，必要时得重新保存点位。"/>

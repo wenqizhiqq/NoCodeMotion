@@ -204,9 +204,9 @@
                         </TextBlock>
                     </StackPanel>
                     <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource TextMutedBrush}">
-                        <Run Text="使能 "/>
+                        <Run Text="伺服 "/>
                         <Run Text="{Binding Enabled, Converter={StaticResource BoolToZh}}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                        <Run Text="  回原 "/>
+                        <Run Text="  原点 "/>
                         <Run Text="{Binding Homed, Converter={StaticResource BoolToZh}}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                     </TextBlock>
                 </Grid>
@@ -226,14 +226,14 @@
                 <!-- 使能 / 回原 按钮 -->
                 <UniformGrid Columns="2" Margin="0,0,0,4">
                     <Button Command="{Binding DataContext.EnableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index}" Style="{DynamicResource TtPillBlueBtn}" Content="使能" Margin="0,0,2,0"/>
+                            CommandParameter="{Binding Index}" Style="{DynamicResource TtPillBlueBtn}" Content="上伺服" Margin="0,0,2,0" ToolTip="让电机通电；没上伺服时发指令也不会动"/>
                     <Button Command="{Binding DataContext.HomeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding Index}" Style="{DynamicResource TtPillGrayBtn}" Content="回原" Margin="2,0,0,0"/>
+                            CommandParameter="{Binding Index}" Style="{DynamicResource TtPillGrayBtn}" Content="回原点" Margin="2,0,0,0" ToolTip="去找机械零点（按「轴」页配的回零方式）"/>
                 </UniformGrid>
 
                 <!-- 寸动：距离输入 + −/+ 同行 -->
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                    <TextBlock Text="寸动" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    <TextBlock Text="点动" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Height="26" Width="56" Margin="0,0,4,0">
                         <TextBox Text="{Binding InchStep, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" CaretBrush="{StaticResource AccentBrush}" SelectionBrush="{StaticResource AccentSoftBrush}" FocusVisualStyle="{x:Null}"/>
                     </Border>
@@ -245,7 +245,7 @@
 
                 <!-- JOG：速度输入 + −/+ 同行（按住连续运动，松开停止） -->
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="JOG" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    <TextBlock Text="按住走" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
                     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="4" Height="26" Width="56" Margin="0,0,4,0">
                         <TextBox Text="{Binding JogStep, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" CaretBrush="{StaticResource AccentBrush}" SelectionBrush="{StaticResource AccentSoftBrush}" FocusVisualStyle="{x:Null}"/>
                     </Border>
