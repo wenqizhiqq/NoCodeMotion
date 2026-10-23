@@ -152,7 +152,7 @@
     <Grid Margin="16">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="2*"/>
+            <ColumnDefinition Width="2.2*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
@@ -351,12 +351,13 @@
         <!-- 右列：轴控制（上） + 点位移动和设置（下） -->
         <Grid Grid.Column="1" Margin="8,0,0,0">
             <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
+                <!-- 轴控制按卡片内容自动撑高（最多 470，超过才内部滚动）；点位表吃掉剩下的高度 -->
+                <RowDefinition Height="Auto" MinHeight="240"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <!-- ① 轴控制 -->
-            <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="14" Margin="0,0,0,8">
+            <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="14" Margin="0,0,0,8" MaxHeight="470">
                 <DockPanel LastChildFill="True">
                     <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                         <StackPanel Style="{StaticResource SectionHeaderStyle}">
