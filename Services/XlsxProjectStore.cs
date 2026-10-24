@@ -160,7 +160,47 @@ namespace NoCodeMotion.Services
                         ws.Cell(r + 2, c + 1).Value = dt.Rows[r][c]?.ToString() ?? string.Empty;
                 ws.Columns().AdjustToContents();
             }
-            wb.SaveAs(path);
+
+            // 算子手册：工程文件里同时带一份「当前版本全部算子 + 参数说明」，AI 打开 xlsx 就能查着写流程。
+            // 只读参考页：Load 时会跳过，导入不会把它当成配置。
+            var manual = OperatorManualSheet.Build();
+            var wsManual = wb.Worksheets.Add(OperatorManualSheet.SheetName);
+            for (int c = 0; c < manual.Columns.Count; c++)
+                wsManual.Cell(1, c + 1).Value = manual.Columns[c].ColumnName;
+            for (int r = 0; r < manual.Rows.Count; r++)
+                for (int c = 0; c < manual.Columns.Count; c++)
+                    wsManual.Cell(r + 2, c + 1).Value = manual.Rows[r][c]?.ToString() ?? string.Empty;
+            // 参数那列是多行文本，让它自动换行并给固定宽度；其余列按内容收窄
+            wsManual.Column(6).Width = 88;
+            wsManual.Column(5).Width = 52;
+            wsManual.Column(8).Width = 46;
+            wsManual.RangeUsed()?.Style.Alignment.SetWrapText(true);
+            wsManual.RangeUsed()?.Style.Alignment.SetVertical(XLAlignmentVerticalValues.Top);
+            wsManual.Columns().AdjustToContents(1, 4);
+            wsManual.SheetView.FreezeRows(1);
+
+            // ★ 先写临时文件，再把旧文件备份成 .bak，最后替换。
+            //   这样即使保存中途崩溃 / 被别的程序抢写，主文件也不会变成半截；上一次的好文件还在 .bak 里。
+            string tmp = path + ".new.xlsx";   // ClosedXML 只认 .xlsx 后缀，不能用 .tmp
+            wb.SaveAs(tmp);
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Replace(tmp, path, path + ".bak", ignoreMetadataErrors: true);
+                }
+                else
+                {
+                    File.Move(tmp, path);
+                }
+            }
+            catch
+            {
+                // 某些环境（网络盘 / 被占用）不支持 File.Replace：退回「先备份、再覆盖」
+                try { if (File.Exists(path)) File.Copy(path, path + ".bak", overwrite: true); } catch { }
+                File.Copy(tmp, path, overwrite: true);
+                try { File.Delete(tmp); } catch { }
+            }
         }
 
         /// <summary>从工程的 xlsx 读取全部 sheet（sheet 名 -> DataTable）。文件不存在返回空字典。</summary>
@@ -172,6 +212,7 @@ namespace NoCodeMotion.Services
             using var wb = new XLWorkbook(path);
             foreach (var ws in wb.Worksheets)
             {
+                if (ws.Name == OperatorManualSheet.SheetName) continue;   // 只读参考页，不参与导入
                 var dt = new DataTable(ws.Name);
                 var firstRow = ws.FirstRowUsed();
                 if (firstRow == null) continue;
@@ -396,6 +437,22 @@ namespace NoCodeMotion.Services
         /// <summary>便捷：从工程 xlsx 反射回填根对象（读文件+导入）。</summary>
         public static void OpenProject(object root, string projectName)
             => ImportFromDataTables(root, Load(projectName));
+
+        /// <summary>
+        /// 这个文件是不是一个能打开的 xlsx（zip 里必须有 [Content_Types].xml）。
+        /// <para>外面用记事本 / AI 直接往 .xlsx 里写文字会造成这种损坏，先验一下能给中文原因，
+        /// 而不是让 ClosedXML 在后面抛英文的 FileFormatException（调试器还会当成未处理异常弹窗）。</para>
+        /// </summary>
+        public static bool IsValidProjectFile(string path)
+        {
+            try
+            {
+                if (!File.Exists(path)) return false;
+                using var zip = System.IO.Compression.ZipFile.OpenRead(path);
+                return zip.GetEntry("[Content_Types].xml") != null;
+            }
+            catch { return false; }
+        }
 
         // ===================== 嵌套子表 =====================
 

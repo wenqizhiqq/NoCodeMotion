@@ -2389,6 +2389,46 @@ check("G42.1 工程师页「轴控制」行按内容撑高（Auto + 上限 470�
       '<RowDefinition Height="Auto" MinHeight="240"/>' in _eng42
       and 'MaxHeight="470"' in _eng42)
 
+# ---------------------------------------------------------------------
+# G43  工程 xlsx 里的「算子手册」页（给 AI 读的算子全集 + 参数说明）
+# ---------------------------------------------------------------------
+_xlsx43 = (read(r"Services\XlsxProjectStore.cs") or "").replace("\r\n", "\n")
+_oms43 = (read(r"Services\OperatorManualSheet.cs") or "").replace("\r\n", "\n")
+_ai43 = (read(r"Services\AiProjectExchange.cs") or "").replace("\r\n", "\n")
+
+check("G43.1 保存工程时写入「算子手册」页（每次保存自动重建）",
+      "OperatorManualSheet.Build()" in _xlsx43
+      and "wb.Worksheets.Add(OperatorManualSheet.SheetName)" in _xlsx43)
+check("G43.2 读取工程时跳过「算子手册」页（参考表不参与导入）",
+      "if (ws.Name == OperatorManualSheet.SheetName) continue;" in _xlsx43)
+check("G43.3 手册覆盖「视觉算子目录」与「流程节点定义」两套全集",
+      "VisionOperators.All2" in _oms43 and "NgNodeDefinitions.All.Values" in _oms43
+      and "JoinParams" in _oms43)
+check("G43.4 给 AI 的改文件说明指向「算子手册」，并要求只能用表里的名称",
+      "算子手册" in _ai43 and "表里没有的算子不要编" in _ai43
+      and "14 个工作表" in _ai43)
+
+# ---------------------------------------------------------------------
+# G44  工程 xlsx 的抗损坏：原子保存 + 备份 + 打开前验格式
+# ---------------------------------------------------------------------
+# 2026-10-24 现场：工程2.xlsx 被外部程序写成 123 字节的中文句子，打开时 ClosedXML 抛
+# FileFormatException（VS 当成未处理异常弹窗）。这里守住三条：
+#   ① 保存先写临时文件、旧文件进 .bak、再原子替换 —— 保存中途崩不会留下半截文件；
+#   ② 打开前验「是不是真 xlsx」，坏文件给中文原因 + 指出 .bak 在哪；
+#   ③ 不再让英文 FileFormatException 冒到界面上。
+_xlsx44 = (read(r"Services\XlsxProjectStore.cs") or "").replace("\r\n", "\n")
+_pm44 = (read(r"Services\ProjectManager.cs") or "").replace("\r\n", "\n")
+
+check("G44.1 保存工程是原子写：临时文件 → 旧文件备份 .bak → 替换",
+      'string tmp = path + ".new.xlsx";' in _xlsx44
+      and 'File.Replace(tmp, path, path + ".bak"' in _xlsx44)
+check("G44.2 打开前先验是不是有效 xlsx（看 zip 里的 [Content_Types].xml）",
+      'public static bool IsValidProjectFile(string path)' in _xlsx44
+      and '"[Content_Types].xml"' in _xlsx44
+      and 'XlsxProjectStore.IsValidProjectFile(FileFor(name))' in _pm44)
+check("G44.3 文件损坏时给中文原因，并指出可用的 .bak",
+      "工程文件已损坏，打不开" in _pm44 and "上次自动备份可用" in _pm44)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")

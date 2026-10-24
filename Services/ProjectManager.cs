@@ -340,6 +340,17 @@ namespace NoCodeMotion.Services
             if (!File.Exists(FileFor(name)))
                 return (null, $"工程文件已不存在：{FilePathOf(name)}（软件里的配置保持不变）");
 
+            // 先验格式：被记事本 / AI 覆盖过的 .xlsx 里根本不是表格，这里直接给人话，不去抛英文异常
+            if (!XlsxProjectStore.IsValidProjectFile(FileFor(name)))
+            {
+                string bak = FileFor(name) + ".bak";
+                string hint = XlsxProjectStore.IsValidProjectFile(bak)
+                    ? $"（上次自动备份可用：{bak}）"
+                    : "（没有找到可用的自动备份）";
+                return (null, $"工程文件已损坏，打不开：{FilePathOf(name)}。"
+                              + "它现在不是有效的 Excel 表格，多半是被记事本 / AI / 其它程序直接写坏了。" + hint);
+            }
+
             try
             {
                 var data = new ProjectData();

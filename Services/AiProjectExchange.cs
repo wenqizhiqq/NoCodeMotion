@@ -125,8 +125,13 @@ namespace NoCodeMotion.Services
             sb.AppendLine(path);
             sb.AppendLine();
             sb.AppendLine("■ 这是什么文件");
-            sb.AppendLine("无代码运控软件「" + projectName + "」的唯一存储：一个 xlsx，13 个工作表，"
-                          + "顺序与软件顶部菜单一致：项目管理 / 控制器 / 轴 / IO / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 标定 / 变量 / 流程 / 自定义。");
+            sb.AppendLine("无代码运控软件「" + projectName + "」的唯一存储：一个 xlsx，14 个工作表，"
+                          + "顺序与软件顶部菜单一致：项目管理 / 控制器 / 轴 / IO / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 标定 / 变量 / 流程 / 自定义，"
+                          + "最后一张「算子手册」是只读参考表。");
+            sb.AppendLine();
+            sb.AppendLine("■ 写流程前先看「算子手册」表");
+            sb.AppendLine("它列出当前版本软件里全部可用的算子与流程节点：类型 / 分类 / 名称 / 内部键 / 一句话说明 / 每个参数（名称 = 默认值｜白话说明）/ 输出结果。");
+            sb.AppendLine("流程里只能使用这张表里出现过的名称与参数；表里没有的算子不要编。");
             sb.AppendLine("每个表第 1 行是列名，列名 = 软件里的字段名（轴表是英文 AxisNo / PulsePerUnit 这类，流程表是中文 逻辑 / 功能 / 属性 / 设值 这类）。");
             sb.AppendLine();
             sb.AppendLine("■ 动手前先读这段");
