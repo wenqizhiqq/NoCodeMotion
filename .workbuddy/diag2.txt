@@ -1,2 +1,0 @@
-BUILD exit=1 errs=18
-(no startup_error.txt)
