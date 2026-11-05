@@ -2238,7 +2238,7 @@ for _i, (_k, _s0, _e0) in enumerate(_case_starts):
         continue          # 参数表来自算子目录，逐项执行见 G33
     elif _k in _skip36:
         continue
-    _used = set(_re33.findall(r'(?:Get(?:Prop|DoubleProp|IntProp)|Prop|Num)\(node, "([^"]+)"', _src))
+    _used = set(_re33.findall(r'(?:Get(?:Prop|DoubleProp|IntProp)|Prop|Num|SendText|TryTextVars)\(node, "([^"]+)"', _src))
     _unused = [p for p in _defs36.get(_k, []) if p not in _used]
     if _unused:
         _fake36.append("%s: %s" % (_k, ",".join(_unused)))
@@ -2428,6 +2428,285 @@ check("G44.2 打开前先验是不是有效 xlsx（看 zip 里的 [Content_Types
       and 'XlsxProjectStore.IsValidProjectFile(FileFor(name))' in _pm44)
 check("G44.3 文件损坏时给中文原因，并指出可用的 .bak",
       "工程文件已损坏，打不开" in _pm44 and "上次自动备份可用" in _pm44)
+
+# ---------------------------------------------------------------------
+# G45  对位这条线：标定 → 找标记 → 算偏差 → 给出走多少
+# ---------------------------------------------------------------------
+# 2026-11-05 从 WenVision 的对位工具 / 坐标标定移植过来。现场做对位缺的从来不是「找边」，
+# 而是三件事：① 把图上位置换成机台位置（标定）② 算出偏了多少、绕哪转（对位）③ 给出该走多少（补偿）。
+# 这一节守住：算子齐、参数不是摆设、标定结果落到「标定」表、毫米/像素这层单位不许来回错。
+_vop45 = (read(r"Services\Vision\VisionOperators.cs") or "").replace("\r\n", "\n")
+_vrun45 = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n")
+_man45 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+
+_ops45 = []
+for _b45 in _re33.split(r'\n[ ]*new VisionOpSpec\n[ ]*\{\n', _vop45)[1:]:
+    _mk45 = _re33.match(r'\s*Key = "([a-z0-9_]+)"', _b45)
+    if not _mk45:
+        continue
+    _ps45 = _re33.findall(r'P\("([a-z0-9_]+)"', _b45)
+    if 'Roi,' in _b45 or '{ Roi }' in _b45:
+        _ps45.append('roi')
+    _ops45.append((_mk45.group(1), _ps45))
+_reads45 = set(_re33.findall(r'(?:Num|Num0|Txt)\(spec, s, "([a-z0-9_]+)"', _vrun45))
+for _pa45, _pb45 in _re33.findall(r'PickPoint\(spec, s, ctx, "([a-z0-9_]+)", "([a-z0-9_]+)"', _vrun45):
+    _reads45.add(_pa45)
+    _reads45.add(_pb45)
+_dead45 = ["%s: %s" % (_k45, ",".join(_m45)) for _k45, _ps in _ops45
+           for _m45 in [[p for p in _ps if p not in _reads45]] if _m45]
+check("G45.1 每个算子的每个参数都被执行器读到（%d 个算子逐项查，假参数比没参数更坑）" % len(_ops45),
+      _ops45 and not _dead45, "; ".join(_dead45))
+
+check("G45.2 对位要用的算子都在目录里（标定 6 个 + 对位 3 个）",
+      all(('Key = "%s"' % _k) in _vop45 for _k in
+          ["caln", "calone", "rotcenter", "calboard", "lenscal", "lensfix",
+           "alignpm", "alignrigid", "alignout"]))
+check("G45.3 标定算子的结果会写进「标定」表（6 个系数 + Upsert，别的流程能直接取用）",
+      "static void SaveCalib(" in _vrun45
+      and "CalibrationStore.Upsert(new Models.CameraCalibration" in _vrun45
+      and _vrun45.count("SaveCalib(ctx, cam,") >= 4)
+check("G45.4 换算优先走完整关系（ResolveAffine），老的「比例+转角」留作退路",
+      "static double[]? ResolveAffine(" in _vrun45
+      and _vrun45.count("ResolveAffine(spec, s, ctx)") >= 4
+      and "static double[] AffineFrom(" in _vrun45)
+check("G45.5 「标定」表存的是毫米/像素，老参数要像素/毫米 —— 必须取倒数（2026-11-05 修的单位错不许回退）",
+      "return (1 / rec.PixelEquivalent, rec.AngleX" in _vrun45 and "必须取倒数" in _vrun45)
+check("G45.6 旋转中心会换算成机台毫米，且「两个点对位」优先绕它算",
+      "ctx.RotCenterX = mx" in _vrun45 and "ctx.HasRotCenter ? ctx.RotCenterU" in _vrun45)
+check("G45.7 对位链条靠结构化字段传（ctx.AlignDX…），不从结果文字里正则抽数",
+      "ctx.AlignDX = ddx" in _vrun45 and "dx = ctx.AlignDX" in _vrun45 and "public bool HasAlign" in _vrun45)
+check("G45.8 新算子的失败提示都带「怎么办」（只说失败等于让人猜）",
+      all(_w in _vrun45 for _w in ["每行一对最好认", "或把这里改成手填", "把两趟的间距拉大",
+                                   "靠近一点重拍", "先减一半试试", "先跑「多点标定」"]))
+check("G45.9 说明书有对位这条任务线，名词解释补齐对位 / 标记点 / 九点标定 / 旋转中心 / 畸变 / 像素当量",
+      "任务四：让相机把吸嘴对准工件" in _man45 and "• 对位：" in _man45
+      and "标记点（也叫 Mark 点）" in _man45 and "九点标定：" in _man45
+      and "旋转中心：" in _man45 and "• 畸变：" in _man45 and "像素当量：" in _man45)
+check("G45.10 标定板与畸变走 OpenCV 真调用（不是自己糊的近似）",
+      "Cv.Cv2.FindChessboardCorners" in _vrun45 and "Cv.Cv2.FindCirclesGrid" in _vrun45
+      and "Cv.Cv2.CalibrateCamera" in _vrun45 and "Cv.Cv2.InitUndistortRectifyMap" in _vrun45
+      and "Cv.Cv2.Undistort" in _vrun45 and "Cv.Cv2.Remap" in _vrun45)
+check("G45.11 对位与补偿是新分类，排在目录最后（分组下拉和节点工具箱都排最下面）",
+      'Category = "对位与补偿"' in _vop45
+      and _vop45.find('Category = "对位与补偿"') > _vop45.find('Category = "图像与颜色"'))
+
+# ---------------------------------------------------------------------
+# G45.12+  对位结果要能真的接到运动上 + OpenCV 那几个坑不许回踩
+# ---------------------------------------------------------------------
+_ng45b = (read(r"Services\NgRunner.cs") or "").replace("\r\n", "\n")
+_nd45 = (read(r"Models\NodeGraph\NgDefs.cs") or "").replace("\r\n", "\n")
+
+check("G45.12 节点的数字参数能填变量名 / 算式（对位算出的数才能直接喂给「电机走位」）",
+      "private double ReadNum(NgNode n, string name, double def)" in _ng45b
+      and "ExpressionEvaluator.Evaluate(s, _getVar, out double r2)" in _ng45b
+      and "double GetDoubleProp(NgNode n, string name, double def) => ReadNum(n, name, def)" in _ng45b)
+check("G45.13 变量解不出来时不让轴按 0 冲出去（NaN 必须拦住并报错）",
+      "private bool NumMissing(double v, string label)" in _ng45b
+      and 'if (NumMissing(pos, "目标位置")' in _ng45b and 'if (NumMissing(t1, "目标1")' in _ng45b
+      and _ng45b.count("NumMissing(") >= 5)
+check("G45.14 「目标位置」的说明教了怎么接上一条算子的变量",
+      'Name = "目标位置"' in _nd45 and "变量名" in _nd45 and "对位移动X" in _nd45)
+
+# 这三条都是 2026-11-05 实测踩到的 OpenCvSharp 坑：编译运行都不报错，只有真值自检能抓出来
+check("G45.15 相机矩阵自己定尺寸（Reshape 出来的头依赖临时 Mat，出了作用域读回来全是 0）",
+      "var m = new Cv.Mat(3, 3, Cv.MatType.CV_64F);\n            m.SetArray(k);" in _vrun45
+      and "using var flat = Cv.Mat.FromArray(k);\n            return flat.Reshape(3, 3);" not in _vrun45)
+check("G45.16 畸变校正地图按画面尺寸铺（FromArray+Reshape 会变成 2×315000，Remap 当场断言失败）",
+      "new Cv.Mat(h, w, Cv.MatType.CV_32FC2)" in _vrun45
+      and "new Cv.Mat(1, 5, Cv.MatType.CV_64F)" in _vrun45 and "dm.SetArray" in _vrun45)
+check("G45.17 读 Mat 元素用双索引（At<T>(i) 是第 i 行第 0 列，不是第 i 个元素）",
+      "km.At<double>(0, 2)" in _vrun45 and "km.At<double>(1, 2)" in _vrun45
+      and "m.At<double>(0, i)" in _vrun45)
+
+# ---------------------------------------------------------------------
+# G46  「举个例子」与多步算子流程
+# ---------------------------------------------------------------------
+# 2026-11-05：给视觉流程加「对位」例子时暴露出一个大坑 —— 引擎的算子通道写的是 `break;`，
+# 那个 break 出的是**整条步骤循环**（不是 switch），所以任何有 2 个以上算子的流程只跑第一个算子，
+# 后面的步骤静默不执行、也不报错。例子必须整条跑通才看得见这种问题，这里把它钉住。
+_veng46 = (read(r"Services\Vision\VisionEngine.cs") or "").replace("\r\n", "\n")
+_fe46 = (read(r"Services\Vision\FlowExamples.cs") or "").replace("\r\n", "\n")
+_vfvm46 = (read(r"Views\VisualFlowDetailViewModel.cs") or "").replace("\r\n", "\n")
+_vfpage46 = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+_vfcs46 = (read(r"Views\VisualFlowPage.xaml.cs") or "").replace("\r\n", "\n")
+
+_op_branch46 = _veng46[_veng46.find("var opSpec = VisionOperators.Find(s.Op)"):_veng46.find('switch ((s.StepType ?? "").Trim())')]
+check("G46.1 算子通道不能 break 出整条步骤循环（多步算子流程以前只跑第一个算子）",
+      "else switch ((s.StepType ?? \"\").Trim())" in _veng46
+      and "break;" not in _op_branch46, _op_branch46.strip()[:120])
+check("G46.2 有「对位」这条现成例子，且是 5 步一条线（拍照→标定→找角→算偏差→给移动量）",
+      'Key = "align"' in _fe46 and _fe46.count('Op("') >= 4 and "Capture(" in _fe46)
+check("G46.3 例子里每个算子都用目录里的白话名取（名字改了编译/自检就发现，不会静默填错参数）",
+      'Spec("多点标定（图上点对机台点）")' in _fe46 and 'Spec("两个点对位")' in _fe46
+      and 'Spec("算对位移动量")' in _fe46 and 'Spec("找矩形四角")' in _fe46)
+check("G46.4 例子的铁律写在文件头上：必须点【运行一次】就能跑通",
+      "例子必须" in _fe46 and "跑通" in _fe46)
+check("G46.5 页面上有看得见的【举个例子】按钮（不是藏在菜单深处或只靠悬停）",
+      'Click="Example_Click"' in _vfpage46 and 'Text="举个例子"' in _vfpage46)
+check("G46.6 例子的说明直接写在菜单里（每条第二行就是「这几步在干什么」）",
+      "FlowExamples.All" in _vfcs46 and "ex.Help" in _vfcs46 and "AddExampleFlow" in _vfcs46)
+check("G46.7 一键摆例子会选中新加的第一步（右边参数卡立刻摊开填法）",
+      "SelectedStep = s[at];" in _vfvm46 and "RunStatus = $" in _vfvm46)
+check("G46.8 说明书任务四指了【举个例子】这条捷径",
+      "【举个例子】" in (read(r"Views\OperatorManualPage.xaml.cs") or ""))
+# 例子的「整条跑通 + 每步数字对得上」是运行时断言，放在 ncm_op_test/Align5.cs 的 ExampleChecks 里
+# ---------------------------------------------------------------------
+# G47  对位这条线要能自成闭环（示教 → 判定 → 纠偏 → 复核 → 贴合）
+# ---------------------------------------------------------------------
+# 现场要的是「来料 → 量 → 判定 → 纠偏 → 复核 → 贴合」整条循环，缺任一环都会出次品：
+#   ① 示教不能靠人抄坐标（抄错一位，之后每片都对歪）；
+#   ② 视觉算出的数必须能自动接到走位（${变量}）；
+#   ③ 不合格那一条支路必须根本不执行贴合；
+#   ④ 纠偏之后要能复核还剩多少。
+_ngv47 = (read(r"Services\Vision\NgVisionExecutor.cs") or "").replace("\r\n", "\n")
+_ngrun47 = (read(r"Services\NgRunner.cs") or "").replace("\r\n", "\n")
+_tpl47 = (read(r"Models\NodeGraph\NgFlowTemplates.cs") or "").replace("\r\n", "\n")
+_ngvm47 = (read(r"ViewModels\NodeGraphViewModel.cs") or "").replace("\r\n", "\n")
+_ngpage47 = (read(r"Views\NodeGraphPage.xaml") or "").replace("\r\n", "\n")
+_vfvm47 = (read(r"Views\VisualFlowDetailViewModel.cs") or "").replace("\r\n", "\n")
+_vf47 = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+_vrun47 = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n")
+_man47 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+
+check("G47.1 算子节点的参数能写 \${变量名}（视觉算出的数才能喂给下一步算子）",
+      "VarText(p.Value.Trim())" in _ngv47 and "private string VarText(string raw)" in _ngv47
+      and "_getVar(name)" in _ngv47 and "Func<string, double>? getVar = null" in _ngv47
+      and "_vision = new NgVisionExecutor(setVar, msg =>" in _ngrun47 and "_getVar(name)" in _ngrun47)
+check("G47.2 单Mark / 上下两片相对对位两个算子都在，且都把偏差写进上下文（下一步不用重填）",
+      'Key = "aligntpl"' in (read(r"Services\Vision\VisionOperators.cs") or "")
+      and 'Key = "alignrel"' in (read(r"Services\Vision\VisionOperators.cs") or "")
+      and _vrun47.count("ctx.AlignDX = ") >= 3 and "ctx.LastAngle = " in _vrun47)
+check("G47.3 有「对位纠偏一条线」流程模板，判定拿的就是对位合格与否",
+      'Key = "align"' in _tpl47 and '("条件1名称", "对位是否合格")' in _tpl47
+      and 'L(doc, judge, "否则", alarm);' in _tpl47)
+check("G47.4 不合格那支只开报警并结束，绝不执行贴合（贴合只在合格支上）",
+      'L(doc, judge, "否则", alarm);' in _tpl47
+      and 'Out(doc, alarm, stopBad);' in _tpl47
+      and 'Out(doc, alarm, press' not in _tpl47
+      and 'L(doc, judge, "条件1", mvX);' in _tpl47
+      and 'NgKind.Cylinder' in _tpl47)
+check("G47.5 走位目标写的是 \${纠偏目标X} 这套（前缀和算子给的数对得上）",
+      "${纠偏目标X}" in _tpl47 and "${纠偏目标Y}" in _tpl47 and "${纠偏目标角度}" in _tpl47
+      and '"算对位移动量", "纠偏"' in _tpl47)
+check("G47.6 纠偏后还有复核两步（再拍一次 + 再量一次）",
+      'Op(x0 + dx * 12, yMain, "照基准比（一个Mark就够）", "复核")' in _tpl47
+      and _tpl47.count("NgKind.CamCapture") >= 2)
+check("G47.7 流程页有【举个流程】按钮，铺完的说明直接显示在工具栏下面一行",
+      'Click="FlowTemplate_Click"' in _ngpage47 and 'Text="举个流程"' in _ngpage47
+      and 'Text="{Binding TemplateHint}"' in _ngpage47 and "public void AddFlowTemplate(string key)" in _ngvm47)
+check("G47.8 铺模板不清用户已画的图（有东西就铺到下面）",
+      "if (n.Y + 170 > baseY) baseY = n.Y + 170;" in _ngvm47)
+check("G47.9 示教有「记为标准」按钮，且只接实测两个点 / 照基准比这两步",
+      'Command="{Binding TeachCommand}"' in _vf47 and 'Text="记为标准"' in _vf47
+      and 'op != "alignpm" && op != "aligntpl"' in _vfvm47 and "TeachStandardFromLastRun()" in _vfvm47)
+check("G47.10 记为标准取的是结构化输出量（不从结果文字里正则抽数）",
+      'foreach (var kv in res.Numbers) if (kv.Key == key) return kv.Value;' in _vfvm47
+      and '("实测1X", ma.X)' in _vrun47)
+check("G47.11 没跑出结果 / 选错步骤时给的是「下一步该干什么」",
+      "先点【运行一次】" in _vfvm47 and "只有「两个点对位」和「照基准比」这两步能记为标准" in _vfvm47)
+check("G47.12 说明书补齐示教 / 双Mark / 双相机上下对位 / 复核这几个词",
+      "示教（记为标准）" in _man47 and "双 Mark 对位" in _man47
+      and "双相机上下对位" in _man47 and "• 复核：" in _man47 and "【举个流程】" in _man47)
+
+# ---------------------------------------------------------------------
+# G49  整线过程例子：双皮带 + 4 台相机 + 机构取料 + 机械手信号交互
+# ---------------------------------------------------------------------
+# 现场这套单元最难的不是算子，是**互锁与信号**：机械手归它自己的控制器管，软件只发就绪 / 收应答 /
+# 等完成；哪一道门没确认成，下一件动作就不许做。模板漏一个判定就是撞吸嘴或带病放流，所以逐条钉住。
+_tpl49 = (read(r"Models\NodeGraph\NgFlowTemplates.cs") or "").replace("\r\n", "\n")
+_ng49 = (read(r"Services\NgRunner.cs") or "").replace("\r\n", "\n")
+_def49 = (read(r"Models\NodeGraph\NgDefs.cs") or "").replace("\r\n", "\n")
+_man49 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+
+cell49 = _tpl49[_tpl49.index("static NgDoc CellLine()"):_tpl49.index("public static readonly NgFlowTemplate[] All")]
+bad49 = cell49[cell49.index("每一道门的不合格支"):]
+
+check("G49.1 整线模板存在，两条皮带并行送料（分叉与汇聚都是 2 支）",
+      "static NgDoc CellLine()" in _tpl49 and cell49.count('("分支数", "2")') >= 2
+      and 'L(doc, fork, "Branch1", aRun);' in cell49 and 'L(doc, fork, "Branch2", bRun);' in cell49)
+check("G49.2 两条皮带各有跑 / 停，到位后先停皮带再挡停顶起（不停就冲过取料位）",
+      '("输出", "皮带左跑"), ("值", "1")' in cell49 and '("输出", "皮带左跑"), ("值", "0")' in cell49
+      and '("输出", "皮带右跑"), ("值", "1")' in cell49 and '("输出", "皮带右跑"), ("值", "0")' in cell49
+      and 'Out(doc, aIn, aStop); Out(doc, aStop, aBlock);' in cell49)
+check("G49.3 视觉 4 台相机各管一件事（来料 / 定位 / 取料位确认 / 成品复核）",
+      all(f'("相机", "{c}")' in cell49 for c in ("来料相机", "取料定位相机", "机械手取料位相机", "成品复核相机"))
+      and cell49.count("N(NgKind.CamCapture") == 4)
+check("G49.4 机械手我们不管：机器人报文里没有坐标计算，只发就绪 / 停手这类信号字",
+      "PICK X=${" not in cell49 and '("报文", "V_READY")' in cell49
+      and '("报文", "V_STOP")' in cell49 and '("要等内容", "V_ACK")' in cell49)
+check("G49.5 「等对方发信号」是真节点（4 个参数都有大白话说明），不是界面摆设",
+      "WaitComm" in _def49 and 'Title = "等对方发信号"' in _def49
+      and all(f'Name = "{p}"' in _def49[_def49.index("[NgKind.WaitComm]"):][:2400]
+              for p in ("通道", "要等内容", "超时ms", "存到变量")))
+check("G49.6 收信号真收：通讯通道轮询 + 直接连 host:port 收，等到写 1、没等到写 0",
+      "case NgKind.WaitComm:" in _ng49 and "WaitOnCommChannel(" in _ng49 and "TcpRecvOnce(" in _ng49
+      and "_bridge.CommRecv(comm)" in _ng49 and "_setVar(varName, hit ? 1 : 0)" in _ng49
+      and "SignalMatched" in _ng49)
+check("G49.7 收信号不许抛异常打断流程：暂停 / 停止走 WaitGuard，超时只报人话并留变量给判定",
+      "HardwareBridge.WaitGuard?.Invoke()" in _ng49[_ng49.index("private string? WaitOnCommChannel"):]
+      and "private static (string?, string?) TcpRecvOnce" in _ng49
+      and "没有收到{waitWhat}" in _ng49 and "按条件分岔" in _ng49)
+check("G49.8 机构取料一套动作齐：走位用 ${} 引视觉算出来的数 → 吸嘴降 → 真空 → 等吸稳 → 升 → 挡停放开",
+      '("目标位置", "${取料纠偏目标X}")' in cell49 and '("目标位置", "${取料纠偏目标Y}")' in cell49
+      and '("气缸", "取料吸嘴"), ("动作", "伸出")' in cell49 and '("气缸", "取料吸嘴"), ("动作", "缩回")' in cell49
+      and '("输出", "真空吸"), ("值", "1")' in cell49 and '("时间ms", "250")' in cell49
+      and '("气缸", "左挡停"), ("动作", "缩回")' in cell49)
+check("G49.9 吸嘴下降前有两道判定门：找到件 + 移动量在允许范围（超差就不许走位防撞）",
+      '("条件1名称", "取料找到几个")' in cell49 and '("条件1名称", "取料纠偏在允许范围")' in cell49
+      and '("最多允许走多少毫米", "12")' in cell49)
+check("G49.10 举「就绪」前必须先过相机确认，且「就绪」放掉在等取料完成之前",
+      '("条件1名称", "放料确认是否合格")' in cell49
+      and 'L(doc, jPut, "条件1", readyOn);' in cell49
+      and cell49.index("Out(doc, blowOff, readyOff);") < cell49.index("Out(doc, readyOff, picked);")
+      and '("信号", "机械手取料完成")' in cell49 and '("信号", "机械手放料完成")' in cell49)
+check("G49.11 对方没应答就不放料：判「机械手应答」，不合格那支先放掉就绪 + 发 V_STOP（真空不动）",
+      '("条件1名称", "机械手应答")' in cell49 and 'L(doc, jAck, "条件1", blowOn);' in cell49
+      and '("输出", "视觉就绪"), ("值", "0")' in bad49[bad49.index("jAck,"):bad49.index("jEnd,")]
+      and '("报文", "V_STOP")' in bad49[bad49.index("jAck,"):bad49.index("jEnd,")])
+check("G49.12 每一道门的不合格支都不动机构：只报警 / 记 NG / 发停手信号，最后一格是结束",
+      bad49.count("Bad(doc,") == 7 and "NgKind.MoveAxis" not in bad49 and "NgKind.PointGo" not in bad49
+      and '("输出", "真空吸"), ("值", "0")' not in bad49
+      and all('("输出", "报警灯"), ("值", "1")' in seg for seg in bad49.split("Bad(doc,")[1:])
+      and "static void Bad(NgDoc doc, NgNode gate, params NgNode[] chain)" in _tpl49)
+check("G49.13 成品复核不过不放流：判「复核合格与否」，不合格发 V_NG 并按住右皮带",
+      '("条件1名称", "复核合格与否")' in cell49 and '("报文", "V_NG")' in cell49
+      and 'L(doc, jEnd, "条件1", bRun2);' in cell49 and '("变量", "产量"), ("值", "产量+1")' in cell49)
+check("G49.14 开工先过安全回路与心跳门（对方不在线就一步都不动）",
+      '("信号", "安全回路")' in cell49 and '("要等内容", "HEARTBEAT")' in cell49
+      and '("条件1名称", "机械手在线")' in cell49)
+check("G49.15 说明书这一节按新架构写：四台相机 / 信号表 / 七步 / 六条坑",
+      "二十四、整线例子：双皮带 + 4 台相机 + 机构取料 + 机械手信号交互" in _man49
+      and "来料相机 / 取料定位相机 / 机械手取料位相机 / 成品复核相机" in _man49
+      and "机械手取料完成 / 机械手放料完成" in _man49 and "先吹气、再关真空" in _man49
+      and "举了就要放掉" in _man49 and _man49.count("  · ") >= 6)
+check("G49.16 名词解释补齐逻辑信号交互 / 心跳 / 互锁",
+      "• 逻辑信号交互（握手）" in _man49 and "• 心跳：" in _man49 and "• 互锁：" in _man49)
+check("G49.17 单机模板与整线模板都在【举个流程】菜单数据源里",
+      'Key = "align"' in _tpl49 and 'Key = "cell"' in _tpl49 and "Build = CellLine," in _tpl49)
+
+# ---------------------------------------------------------------------
+# G50  工具条不许被裁：写死宽度的栏里必须用会换行的面板
+# ---------------------------------------------------------------------
+# 视觉流程页左栏是 <ColumnDefinition Width="335"/>，按钮排以前是横向 StackPanel ——
+# 按钮只会往右排，排过 335 就没了（不滚动、不换行、编译运行都不报错），
+# 加了【举个例子】【记为标准】之后「删除步骤 / 运行一次 / 循环运行」直接看不见，用户报「显示不全」。
+_vf50 = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+_ng50 = (read(r"Views\NodeGraphPage.xaml") or "").replace("\r\n", "\n")
+
+_bar50 = _vf50[_vf50.index('<WrapPanel Grid.Row="0" Margin="0,0,0,8">'):_vf50.index('列头：类型')]
+check('G50.1 视觉流程页按钮排是会换行的 WrapPanel（栏宽写死也切不到按钮）',
+      '<WrapPanel Grid.Row="0"' in _vf50 and '</WrapPanel>' in _bar50
+      and '<StackPanel Grid.Row="0" Orientation="Horizontal"' not in _vf50
+      and _bar50.count('<Button ') >= 6)
+check('G50.2 这一排六个按钮都在 WrapPanel 里面（添加步骤/举个例子/记为标准/删除步骤/运行一次/循环运行）',
+      all('Text="' + n + '"' in _bar50 for n in ('添加步骤', '举个例子', '记为标准', '删除步骤', '运行一次'))
+      # 「循环运行」那格文字是绑的（按钮会在 循环运行 / 停止循环 之间换字），按绑定名认
+      and 'LoopRunButtonText' in _bar50)
+_ngbar50 = _ng50[_ng50.index('<WrapPanel Grid.Column="0" HorizontalAlignment="Left">'):_ng50.index('</WrapPanel>')]
+check('G50.3 节点图页顶部按钮排同样会换行（【举个流程】也是新加的，别再挤掉「断点」）',
+      '<WrapPanel Grid.Column="0" HorizontalAlignment="Left">' in _ng50
+      and 'Text="举个流程"' in _ngbar50 and 'Text="断点"' in _ngbar50
+      and '<StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left"' not in _ng50)
 
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:

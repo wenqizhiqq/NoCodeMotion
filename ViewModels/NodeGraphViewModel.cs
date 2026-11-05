@@ -358,6 +358,46 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
         ProjectStore.ScheduleSave();
     }
 
+    // ============ 现成流程模板 ============
+
+    private string _templateHint = "";
+    /// <summary>铺完模板后直接显示在工具栏下面的一行字（哪些格子必须自己改，不靠悬停）。</summary>
+    public string TemplateHint
+    {
+        get => _templateHint;
+        private set { _templateHint = value; OnChanged(nameof(TemplateHint)); }
+    }
+
+    /// <summary>
+    /// 【举个流程】：把一条常用流程整张铺到画布。画布空着就直接放；已经有东西就铺在现有图的下面，
+    /// 绝不清掉用户自己摆的（谁也不想点一下按钮辛苦画的图没了）。
+    /// </summary>
+    public void AddFlowTemplate(string key)
+    {
+        var t = NgFlowTemplates.Find(key);
+        if (t == null) { TemplateHint = "没有这条流程模板"; return; }
+        NgDoc doc;
+        try { doc = t.Build(); }
+        catch (Exception ex) { TemplateHint = "这条模板铺不出来：" + ex.Message; return; }
+        if (doc == null || doc.Nodes.Count == 0) { TemplateHint = "这条模板是空的"; return; }
+        doc.Normalize();
+
+        double baseY = 0;
+        foreach (var n in Nodes) if (n.Y + 170 > baseY) baseY = n.Y + 170;      // 已有内容 → 铺到下面一行
+        foreach (var n in doc.Nodes) { n.X += 60; n.Y += baseY; }
+
+        foreach (var n in doc.Nodes) Nodes.Add(new NodeGraphNodeViewModel(n, Save));
+        var map = new System.Collections.Generic.Dictionary<string, NodeGraphNodeViewModel>();
+        foreach (var vm in Nodes) if (!map.ContainsKey(vm.Id)) map[vm.Id] = vm;
+        foreach (var c in doc.Connections)
+        {
+            if (map.TryGetValue(c.SourceId, out var s) && map.TryGetValue(c.TargetId, out var d) && s != null && d != null)
+                Connections.Add(new NodeGraphConnectionViewModel(c, s, d));
+        }
+        Save();
+        TemplateHint = $"已铺好「{t.Name}」：{doc.Nodes.Count} 个节点。" + t.Help;
+    }
+
     // ============ 节点 / 连线编辑 ============
 
     private double DefaultX() => 80 + (Nodes.Count * 26) % 360;

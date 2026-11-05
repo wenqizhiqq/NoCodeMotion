@@ -66,7 +66,7 @@ public sealed class NgNodeDef
 
 /// <summary>节点图节点类型。视觉(图像采集/模板匹配/缺陷检测/测量/对位/标定)、
 /// 运控(开始/轴运动/回零/延时/等待输入/条件分支/循环/结束)、
-/// 通讯(Modbus发送/接收/TCP发送/下位机写)。</summary>
+/// 通讯(Modbus发送/接收/TCP发送/下位机写/等对方发信号)。</summary>
 public enum NgKind
 {
     // —— 视觉 ——
@@ -102,6 +102,7 @@ public enum NgKind
     ModbusRecv,      // Modbus 接收
     TcpSend,         // TCP 发送
     McuWrite,        // 下位机写
+    WaitComm,        // 等对方发信号（逻辑握手：等机械手 / PLC 回一条）
 
     // —— 逻辑 / 变量 ——
     VarSet,          // 设置变量
@@ -215,7 +216,8 @@ public static class NgNodeDefinitions
             {
                 new NgPropDef { Name = "轴", Default = "X", Help = "这一步动哪根轴（名字要和「轴」页里的一致）" },
                 new NgPropDef { Name = "模式", Default = "绝对", Options = "绝对|相对", Help = "绝对 = 按坐标走到目标点；相对 = 从当前位置再走这么远" },
-                new NgPropDef { Name = "目标位置", Default = "0", Help = "要走到哪里：绝对 = 走到这个坐标；相对 = 走这么远（正负表示方向）" },
+                new NgPropDef { Name = "目标位置", Default = "0", Help = "要走到哪里：绝对 = 走到这个坐标；相对 = 走这么远（正负表示方向）。"
+                    + "可以直接填数字，也可以填上一条算子给的变量名（例如「对位移动X」，做视觉对位就这样接）" },
                 new NgPropDef { Name = "速度", Default = "10", Help = "走多快（每秒多少个单位，和「轴」页的单位一致）" },
                 new NgPropDef { Name = "等待到位", Default = "否", Options = "是|否", Help = "选「是」会等轴停稳再执行下一步；选「否」发完指令就往下走" },
                 new NgPropDef { Name = "到位延时ms", Default = "0", Help = "轴到位后再等多少毫秒才继续（0 = 不等）" },
@@ -406,6 +408,26 @@ public static class NgNodeDefinitions
             {
                 new NgPropDef { Name = "设备", Default = "MCU1", Help = "要写到哪台设备（填「通讯」页里的设备名，或 host:port）" },
                 new NgPropDef { Name = "数据", Default = "0x01", Help = "要发送的数据内容" },
+            }
+        },
+        [NgKind.WaitComm] = new()
+        {
+            Kind = NgKind.WaitComm, Title = "等对方发信号", Domain = NgDomain.Comm, Color = "#C084FC",
+            StdName = "信号接收（握手收端）",
+            Summary = "停在这一步，等机械手 / PLC / 上位机发来一条文本信号，内容里含「要等内容」才算到了。"
+                + "等到了把「存到变量」写成 1，超时写成 0 并提示 —— 不直接停机，下一步用「按条件分岔」比这个变量决定继续还是报警。"
+                + "机械手怎么动不归这套软件管，两边只对信号：我发「就绪」，它回「应答」，它做完发「完成」。",
+            Props = new[]
+            {
+                new NgPropDef { Name = "通道", Default = "机械手信号",
+                    Help = "从哪条通道收：填「通讯」页里的通道名（串口 / 网口TCP / Modbus 都算），"
+                        + "也可以直接填 主机:端口（例如 127.0.0.1:9003，这种是本软件主动连过去，对方要开着服务端）" },
+                new NgPropDef { Name = "要等内容", Default = "",
+                    Help = "对方发来的文本里必须含这一段才算这条信号到了（例如 READY，不分大小写）；留空 = 收到任何东西都算" },
+                new NgPropDef { Name = "超时ms", Default = "5000",
+                    Help = "最多等多少毫秒。超时不抛错停机，只把下面的变量写成 0，让「按条件分岔」去报警或重试" },
+                new NgPropDef { Name = "存到变量", Default = "收到信号",
+                    Help = "等到了写 1、没等到写 0，后面「按条件分岔」就比这个变量" },
             }
         },
 

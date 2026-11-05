@@ -89,7 +89,7 @@ public sealed class NgRunner
         _findComm = findComm;
         _setVar = setVar;
         _getVar = getVar;
-        _vision = new NgVisionExecutor(setVar, msg => { try { _bridge?.Log(msg); } catch { } });
+        _vision = new NgVisionExecutor(setVar, msg => { try { _bridge?.Log(msg); } catch { } }, name => { try { return _getVar(name); } catch { return 0; } });
     }
 
     /// <summary>加载/切换 NgDoc 时调用：重建邻接表、清空报告与循环计数、断点保留。</summary>
@@ -532,6 +532,7 @@ public sealed class NgRunner
                 string mode = GetProp(node, "模式", "绝对");
                 double pos = GetDoubleProp(node, "目标位置", 0);
                 double spd = GetDoubleProp(node, "速度", 10);
+                if (NumMissing(pos, "目标位置") || NumMissing(spd, "速度")) break;
                 bool rel = mode == "相对" || mode == "相对移动" || mode == "rel";
                 _bridge.SetAxisSpeed(ax, spd);
                 if (rel) _bridge.MoveAxisRel(ax, pos);
@@ -548,7 +549,9 @@ public sealed class NgRunner
                 var ax = _findAxis(GetProp(node, "轴", "X"));
                 if (ax == null) { NodeFail($"找不到轴「{GetProp(node, "轴", "")}」", "去「轴」页看名字有没有写错；还没有这根轴，就到「控制器」页连接控制卡，轴会自动建出来"); break; }
                 bool positive = GetProp(node, "方向", "正") != "负";
-                string jogErr = _bridge.StartAxisJog(ax, positive, GetDoubleProp(node, "速度", 10));
+                double jogSpd = GetDoubleProp(node, "速度", 10);
+                if (NumMissing(jogSpd, "速度")) break;
+                string jogErr = _bridge.StartAxisJog(ax, positive, jogSpd);
                 if (!string.IsNullOrEmpty(jogErr)) { NodeFail(jogErr, "先确认这根轴已上伺服、没有报警或限位；点动前把速度调小一点"); break; }
                 _lastNodeSummary = $"轴 {ax.Name} 点动（{(positive ? "正" : "负")}向）——要停请接「停下这根轴」";
                 break;
@@ -579,6 +582,7 @@ public sealed class NgRunner
                 if (a1 == null || a2 == null) { NodeFail("插补用的轴找不到", "去「轴」页看轴名写对没；插补的两根轴必须在同一张控制卡上"); break; }
                 bool abs = GetProp(node, "模式", "绝对") != "相对";
                 double t1 = GetDoubleProp(node, "目标1", 0), t2 = GetDoubleProp(node, "目标2", 0);
+                if (NumMissing(t1, "目标1") || NumMissing(t2, "目标2")) break;
                 string lineErr = _bridge.LineInterpolate(
                     new[] { (a1, t1), (a2, t2) }, abs,
                     GetDoubleProp(node, "速度", 20), GetDoubleProp(node, "加减速时间", 0.2));
@@ -736,7 +740,7 @@ public sealed class NgRunner
             case NgKind.ModbusSend: {
                 var c = _findComm(GetProp(node, "通讯", ""));
                 if (c == null) { NodeFail($"找不到通讯「{GetProp(node, "通讯", "")}」", "去「通讯」页看通道名；还没有就新建一个并点【保存】"); break; }
-                string payload = GetProp(node, "指令", "");
+                if (!SendText(node, "指令", "", out string payload)) break;
                 _bridge.CommSend(c, payload);
                 _lastNodeSummary = $"已发送 → {c.Name}：{payload}";
                 break;
@@ -756,8 +760,8 @@ public sealed class NgRunner
             }
 
             case NgKind.TcpSend: {
+                if (!SendText(node, "报文", "", out string msg)) break;
                 string ep = GetProp(node, "端点", "");
-                string msg = GetProp(node, "报文", "");
                 string tcpErr = TcpSendOnce(ep, msg);
                 if (tcpErr != null) { NodeFail(tcpErr, "确认对方 IP / 端口填对、对方程序已启动、防火墙放行"); break; }
                 _lastNodeSummary = $"TCP 已发送 {System.Text.Encoding.UTF8.GetByteCount(msg)} 字节 → {ep}";
@@ -776,6 +780,53 @@ public sealed class NgRunner
                     _lastNodeSummary = $"下位机写(TCP) → {dev}：{data}";
                 }
                 else NodeFail($"找不到通讯设备「{dev}」", "去「通讯」页看设备名，或者把这里直接填成 主机:端口（例如 127.0.0.1:8000）");
+                break;
+            }
+
+            // —— 逻辑信号交互的收端：机械手怎么动我们不管，只跟它握手「就绪 / 应答 / 完成」——
+            // 等到 → 存到变量 = 1；超时 → = 0 并且不抛异常（流程继续），由下游「按条件分岔」决定报警还是重试。
+            case NgKind.WaitComm: {
+                string ch = GetProp(node, "通道", "");
+                string want = GetProp(node, "要等内容", "");
+                string varName = GetProp(node, "存到变量", "收到信号");
+                int toMs = GetIntProp(node, "超时ms", 5000);
+                if (toMs <= 0) toMs = 5000;
+                string waitWhat = string.IsNullOrWhiteSpace(want) ? "对方的一条信号" : $"含「{want.Trim()}」的信号";
+
+                var comm = _findComm(ch);
+                string? got;
+                string? failHint = null;
+                if (comm != null) got = WaitOnCommChannel(comm, want, toMs);
+                else if (ch.Contains(':'))
+                {
+                    var rx = TcpRecvOnce(ch, want, toMs);
+                    got = rx.Item1;
+                    failHint = rx.Item2;
+                }
+                else
+                {
+                    NodeFail($"找不到收信号的通道「{ch}」",
+                             "去「通讯」页看通道名（串口 / 网口TCP / Modbus 都行），名字要对得上；"
+                             + "也可以在这里直接填 主机:端口，例如 127.0.0.1:9003");
+                    break;
+                }
+
+                bool hit = got != null;
+                _setVar(varName, hit ? 1 : 0);
+                if (hit)
+                {
+                    _lastNodeSummary = $"等到信号 ← {ch}：{got}（{varName} = 1）";
+                }
+                else
+                {
+                    _lastNodeSummary = $"等了 {toMs} 毫秒没等到{waitWhat}（{varName} = 0）";
+                    // 第一行说清「为什么没等到」（超时 / 连不上 / 对方把连接关了），第二行永远给同一句可操作指引，
+                    // 别让具体原因把「该怎么办」顶掉 —— 现场的人只看后半句就知道下一步接哪个判定。
+                    string cause = failHint ?? $"从「{ch}」等了 {toMs} 毫秒";
+                    NodeFail($"没有收到{waitWhat}：{cause}，{varName} 已写成 0",
+                             "下一步用「按条件分岔」比这个变量：等于 1 才继续，等于 0 就报警叫停。"
+                             + "对方没回信号就别让机构接着放料 —— 两边信号对不上，比停下来等人检查麻烦得多");
+                }
                 break;
             }
 
@@ -829,6 +880,86 @@ public sealed class NgRunner
         }
     }
 
+    /// <summary>收到的文本算不算「这条信号到了」：空数据不算；「要等内容」留空 = 收到任何东西都算；否则要求含这段。</summary>
+    private static bool SignalMatched(string? got, string? keyword)
+    {
+        if (string.IsNullOrEmpty(got)) return false;
+        string k = (keyword ?? "").Trim();
+        return k.Length == 0 || got.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    /// <summary>
+    /// 在「通讯」页配好的通道上等一条信号：每 200 毫秒取一次（通道自己的收超时由 CommItem.TimeoutMs 决定），
+    /// 每片调一次 WaitGuard —— 操作员按「暂停」这里挂住，按「停止」立刻不再等（按没收到处理，不抛出去）。
+    /// </summary>
+    private string? WaitOnCommChannel(CommItem comm, string? keyword, int timeoutMs)
+    {
+        long deadline = Stopwatch.GetTimestamp() + (long)timeoutMs * Stopwatch.Frequency / 1000;
+        while (true)
+        {
+            string? got = null;
+            try { got = _bridge.CommRecv(comm); } catch { got = null; }
+            if (SignalMatched(got, keyword)) return got;
+            try { HardwareBridge.WaitGuard?.Invoke(); } catch { return null; }
+            if (_state == NgRunState.Stopped) return null;
+            if (Stopwatch.GetTimestamp() >= deadline) return null;
+            Thread.Sleep(200);
+        }
+    }
+
+    /// <summary>
+    /// 按 host:port 连过去等一条信号（3 秒连接超时，收满 超时ms 为止）。
+    /// 返回 (收到的文本, 失败原因)：文本非空 = 等到了；两者都空 = 超时；原因非空 = 连不上 / 对方断开。
+    /// 不抛异常 —— 和发送一样，把原因交回节点卡显示。
+    /// </summary>
+    private static (string?, string?) TcpRecvOnce(string endpoint, string? keyword, int timeoutMs)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint))
+            return (null, "通道为空：填「通讯」页里的通道名，或直接填 主机:端口（例如 127.0.0.1:9003）");
+        var seg = endpoint.Trim().Replace('：', ':').Split(':');
+        if (seg.Length < 2 || !int.TryParse(seg[seg.Length - 1], NumberStyles.Any, CultureInfo.InvariantCulture, out int port))
+            return (null, $"通道格式应为 主机:端口，当前是「{endpoint}」");
+        string host = string.Join(":", seg.Take(seg.Length - 1)).Trim();
+        if (host.Length == 0) return (null, $"通道缺少主机名：{endpoint}");
+
+        try
+        {
+            using var client = new System.Net.Sockets.TcpClient();
+            var ar = client.BeginConnect(host, port, null, null);
+            if (!ar.AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(3)))
+                return (null, $"连接 {host}:{port} 超时（3 秒）：对方程序没开、IP / 端口填错、或防火墙拦了都会这样");
+            client.EndConnect(ar);
+            using var ns = client.GetStream();
+            ns.ReadTimeout = 200;
+
+            var sb = new System.Text.StringBuilder();
+            var buf = new byte[1024];
+            long deadline = Stopwatch.GetTimestamp() + (long)timeoutMs * Stopwatch.Frequency / 1000;
+            while (true)
+            {
+                int n;
+                try { n = ns.Read(buf, 0, buf.Length); }
+                catch (System.IO.IOException) { n = -1; }          // ReadTimeout 到点：再看总超时
+                catch { n = -1; }
+                if (n > 0)
+                {
+                    sb.Append(System.Text.Encoding.UTF8.GetString(buf, 0, n));
+                    string text = sb.ToString();
+                    if (SignalMatched(text, keyword)) return (text.TrimEnd('\r', '\n'), null);
+                }
+                else if (n == 0)
+                    return (null, $"{host}:{port} 把连接关掉了（对方程序退出或重启），这条信号收不到");
+
+                try { HardwareBridge.WaitGuard?.Invoke(); } catch { return (null, "流程被停止，没有继续等信号"); }
+                if (Stopwatch.GetTimestamp() >= deadline) return (null, null);
+            }
+        }
+        catch (Exception ex)
+        {
+            return (null, $"从 {host}:{port} 收信号失败：{ex.Message}");
+        }
+    }
+
     // ===================== 节点属性辅助 =====================
 
     private static string GetProp(NgNode n, string name, string def)
@@ -837,16 +968,71 @@ public sealed class NgRunner
         return p == null || string.IsNullOrEmpty(p.Value) ? def : p.Value;
     }
 
-    private static int GetIntProp(NgNode n, string name, int def)
+    private int GetIntProp(NgNode n, string name, int def)
     {
-        var s = GetProp(n, name, def.ToString(CultureInfo.InvariantCulture));
-        return int.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : def;
+        double v = ReadNum(n, name, def);
+        return double.IsNaN(v) ? def : (int)Math.Round(v);
     }
 
-    private static double GetDoubleProp(NgNode n, string name, double def)
+    /// <summary>数字参数：填数字，或直接填上一条算子给的变量名 / 算式（例：对位移动X、偏差X*2）。</summary>
+    private double GetDoubleProp(NgNode n, string name, double def) => ReadNum(n, name, def);
+
+    /// <summary>读数：先按数字解，不是数字就当算式去取变量；都解不出来返回 NaN（调用方要报错，不能当 0 动）。</summary>
+    private double ReadNum(NgNode n, string name, double def)
     {
-        var s = GetProp(n, name, def.ToString(CultureInfo.InvariantCulture));
-        return double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : def;
+        string s = GetProp(n, name, def.ToString(CultureInfo.InvariantCulture));
+        if (double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double v)) return v;
+        if (ExpressionEvaluator.Evaluate(s, _getVar, out double r2)) return r2;
+        return double.NaN;
+    }
+
+    /// <summary>
+    /// 文本参数里的 ${变量名} 换成当前值：机器人要的报文是「PICK X=12.5 Y=-3.2 R=0.4」这种，
+    /// 坐标由视觉算子算好，人不该再抄一遍数字（抄错一位就把件撞到治具上）。
+    /// 变量还没算出来时返回 false —— 宁可不发这条报文，也不能发一条带 NaN / 半截坐标的报文出去。
+    /// </summary>
+    private bool TryTextVars(string raw, out string text, out string? missing)
+    {
+        text = raw ?? ""; missing = null;
+        if (string.IsNullOrEmpty(raw) || raw.IndexOf("${", StringComparison.Ordinal) < 0) return true;
+        var sb = new System.Text.StringBuilder();
+        int i = 0;
+        while (i < raw.Length)
+        {
+            int a = raw.IndexOf("${", i, StringComparison.Ordinal);
+            if (a < 0) { sb.Append(raw, i, raw.Length - i); break; }
+            sb.Append(raw, i, a - i);
+            int b = raw.IndexOf('}', a + 2);
+            if (b < 0) { sb.Append(raw, a, raw.Length - a); break; }
+            string name = raw.Substring(a + 2, b - a - 2).Trim();
+            double val;
+            try { val = _getVar(name); } catch { val = double.NaN; }
+            if (double.IsNaN(val)) { missing = name; return false; }
+            sb.Append(val.ToString("0.######", CultureInfo.InvariantCulture));
+            i = b + 1;
+        }
+        text = sb.ToString();
+        return true;
+    }
+
+    /// <summary>报文 / 指令取数：变量没算出来就报错停在这一步，不把半截报文发给机器人。</summary>
+    private bool SendText(NgNode node, string propName, string def, out string value)
+    {
+        if (TryTextVars(GetProp(node, propName, def), out value, out string? missing)) return true;
+        NodeFail($"报文里的「{missing}」还没算出来，这条报文没有发出",
+                 "先让算出这个数的算子节点跑成功（注意节点的「变量前缀」要和 ${} 里的名字对得上）；"
+                 + "上游没算出来就别让机器人动手，发半截坐标比不发更危险");
+        return false;
+    }
+
+    /// <summary>数字没解出来时的人话报错（宁可不许动，也不让轴按 0 冲出去）。</summary>
+    private bool NumMissing(double v, string label)
+    {
+        if (!double.IsNaN(v)) return false;
+        NodeFail($"「{label}」这个数没算出来",
+                 "要么直接填数字，要么填上一条算子给出的变量名（注意节点的「变量前缀」要对得上）；"
+                 + "上游算子得先跑成功才会有这个变量");
+        return true;
     }
 
     /// <summary>运算节点的「值」操作数求值：可为数字 / 其它变量名 / 表达式，按当前变量值实时求。失败时记 0。</summary>

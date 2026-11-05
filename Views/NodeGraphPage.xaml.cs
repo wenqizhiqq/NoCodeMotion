@@ -93,6 +93,38 @@ public partial class NodeGraphPage : UserControl
     /// </summary>
     public void Reload() => ApplySelection();
 
+    /// <summary>【举个流程】：菜单里每条第二行就写着这条流程在干什么、铺完还要改哪几格（不靠悬停）。</summary>
+    private void FlowTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        if (!(DataContext is NodeGraphViewModel vm)) return;
+        var menu = new System.Windows.Controls.ContextMenu
+        {
+            PlacementTarget = FlowTemplateBtn,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+        };
+        foreach (var t in NgFlowTemplates.All)
+        {
+            var title = new System.Windows.Controls.TextBlock { Text = t.Name, FontWeight = FontWeights.SemiBold };
+            var detail = new System.Windows.Controls.TextBlock
+            {
+                Text = t.Help,
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 460,
+                Margin = new Thickness(0, 3, 0, 0),
+                FontSize = 11.5,
+                Opacity = 0.82,
+            };
+            var box = new System.Windows.Controls.StackPanel();
+            box.Children.Add(title);
+            box.Children.Add(detail);
+            var item = new System.Windows.Controls.MenuItem { Header = box, ToolTip = t.Help };
+            string key = t.Key;
+            item.Click += (_, __) => vm.AddFlowTemplate(key);
+            menu.Items.Add(item);
+        }
+        menu.IsOpen = true;
+    }
+
     private void ApplySelection()
     {
         if (_flowPage?.DataContext is FlowViewModel fvm)

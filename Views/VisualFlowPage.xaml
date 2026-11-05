@@ -105,7 +105,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                <WrapPanel Grid.Row="0" Margin="0,0,0,8">
                     <Button x:Name="AddStepBtn" Click="AddStep_Click"
                             Style="{StaticResource ToolButtonStyle}" Margin="0,0,8,0"
                             ToolTip="点一下挑要加的东西：普通拍照步骤，或直接选一个算子（按分类列出）">
@@ -114,6 +114,24 @@
                                   Margin="0,0,5,0" VerticalAlignment="Center"
                                   Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
                             <TextBlock Text="添加步骤" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ExampleBtn" Click="Example_Click"
+                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,8,0"
+                            ToolTip="不知道从哪儿下手？点一下把一整条常用流程摆好，参数都填成了能直接跑的样子">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform"
+                                  Margin="0,0,5,0" VerticalAlignment="Center"
+                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            <TextBlock Text="举个例子" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding TeachCommand}" Style="{StaticResource ToolButtonStyle}" Margin="0,0,8,0"
+                            ToolTip="示教：拿标准件跑一次，点它就把刚测到的位置写成这一步的「标准 / 基准」，不用手抄坐标">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#9730;" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"
+                                       Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            <TextBlock Text="记为标准" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding DeleteStepCommand}" Style="{StaticResource TtDeleteBtn}">
@@ -143,7 +161,7 @@
                             <TextBlock Text="{Binding LoopRunButtonText}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                </StackPanel>
+                </WrapPanel>
 
                 <!-- 列头：类型 / 耗时 / 结果 / 断点（全列固定 px，类型只读显示，类型选择移到了右侧参数区） -->
                 <Grid Grid.Row="1" Margin="6,0,6,4">

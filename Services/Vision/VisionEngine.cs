@@ -173,10 +173,9 @@ namespace NoCodeMotion.Services.Vision
                                     display = cur.Clone();
                                 }
                             }
-                            break;
                         }
-
-                        switch ((s.StepType ?? "").Trim())
+                        // 算子通道走完了就不再走老的 StepType（else switch：里面的 break 只出 switch，不出整条流程）
+                        else switch ((s.StepType ?? "").Trim())
                         {
                             case "图像采集":
                                 {

@@ -447,7 +447,8 @@ namespace NoCodeMotion.Services
                 case NgKind.ModbusRecv:
                 case NgKind.TcpSend:
                 case NgKind.McuWrite:
-                    list.Add(LogAction($"[{n.Kind}] {P("指令")}{P("报文")}{P("数据")}"));
+                case NgKind.WaitComm:
+                    list.Add(LogAction($"[{n.Kind}] {P("指令")}{P("报文")}{P("数据")}{P("要等内容")}"));
                     break;
                 case NgKind.TemplateMatch:
                 case NgKind.DefectDetect:

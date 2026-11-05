@@ -43,6 +43,33 @@ namespace NoCodeMotion.Services.Vision
         /// <summary>最近一次量到的长度 / 面积（「定比例」在 pixels 留空时用它）。</summary>
         public double LastLength = double.NaN;
         public Cv.Point2f? LastPoint;
+
+        // ---- 批次 5：对位与标定之间传的数据 ----
+
+        /// <summary>
+        /// 标定算子定出来的完整换算关系：X = A1·u + A2·v + A3，Y = B1·u + B2·v + B3
+        /// （u/v = 图上像素，X/Y = 机台毫米），和「标定」页那张表用同一套系数。
+        /// </summary>
+        public double[]? Affine;
+        public bool HasAffine => Affine != null && Affine.Length == 6;
+
+        /// <summary>最近一次标定的像素当量（毫米/像素）、残差（毫米）、以及存进了哪台相机。</summary>
+        public double MmPerPx = double.NaN;
+        public double CalibRms = double.NaN;
+        public string CalibCam = "";
+
+        /// <summary>「找旋转中心」给的中心（图上像素 / 换算后的机台毫米）、半径、误差。</summary>
+        public double RotCenterU = double.NaN, RotCenterV = double.NaN;
+        public double RotCenterX = double.NaN, RotCenterY = double.NaN;
+        public double RotRadiusPx = double.NaN, RotRmsPx = double.NaN;
+        public bool HasRotCenter => !double.IsNaN(RotCenterU);
+
+        /// <summary>上一条算子给的角度（找图 / 找矩形四角 / 特征点对齐），「照图形基准对位」没填时直接拿它。</summary>
+        public double LastAngle = double.NaN;
+
+        /// <summary>上一条「两个点对位」量到的偏差；「算对位移动量」没填时直接拿它。</summary>
+        public double AlignDX = double.NaN, AlignDY = double.NaN, AlignDR = double.NaN;
+        public bool HasAlign => !double.IsNaN(AlignDX);
     }
 
     public static class VisionOpRunner
@@ -96,6 +123,21 @@ namespace NoCodeMotion.Services.Vision
                     case "px2mm": DoPixelToMachine(spec, s, dst, report, ctx, progress); break;
                     case "mm2px": DoMachineToPixel(spec, s, dst, report, ctx, progress); break;
                     case "scalar": DoScalarConvert(spec, s, report, ctx, progress); break;
+
+                    // ---- 批次 5：标定（对位要用）----
+                    case "caln": DoMultiCalib(spec, s, dst, report, ctx, progress); break;
+                    case "calone": DoOneAxisCalib(spec, s, dst, report, ctx, progress); break;
+                    case "rotcenter": DoRotateCenter(spec, s, dst, report, ctx, progress); break;
+                    case "calboard": DoBoardScale(spec, s, gray, dst, report, ctx, progress); break;
+                    case "lenscal": next = DoLensCalib(spec, s, cur, gray, dst, report, ctx, progress); break;
+                    case "lensfix": next = DoLensFix(spec, s, cur, dst, report, ctx, progress); break;
+
+                    // ---- 批次 5：对位 ----
+                    case "alignpm": DoTwoMarkAlign(spec, s, dst, report, ctx, progress); break;
+                    case "aligntpl": DoTemplateAlign(spec, s, dst, report, ctx, progress); break;
+                    case "alignrel": DoPairAlign(spec, s, report, ctx, progress); break;
+                    case "alignrigid": DoRigidMap(spec, s, dst, report, ctx, progress); break;
+                    case "alignout": DoAlignOutput(spec, s, report, ctx, progress); break;
 
                     // ---- 批次 3：匹配与识别 ----
                     case "shape": DoShapeMatch(spec, s, cur, gray, dst, report, ctx, progress); break;
@@ -390,6 +432,7 @@ namespace NoCodeMotion.Services.Vision
             ctx.Corners.AddRange(corners);
             ctx.LastPoint = new Cv.Point2f((float)corners.Average(p => p.X), (float)corners.Average(p => p.Y));
             ctx.LastLength = Dist(corners[0], corners[2]);
+            ctx.LastAngle = Math.Atan2(corners[1].Y - corners[0].Y, corners[1].X - corners[0].X) * 180 / Math.PI;
             dst.Polylines(new[] { System.Array.ConvertAll(corners, q => new Cv.Point((int)q.X, (int)q.Y)) }, true, Ink, 2);
             foreach (var p in corners) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 4, Dot, 2);
 
@@ -801,6 +844,88 @@ namespace NoCodeMotion.Services.Vision
                 ("每毫米多少像素", pxPerMm), ("转角", rot), ("零点X", ox), ("零点Y", oy));
         }
 
+        /// <summary>取换算用的 6 个系数：本流程标定算子给的优先，其次才是「标定」页里这台相机的。</summary>
+        static double[]? ResolveAffine(VisionOpSpec spec, VisualFlowStep s, VisionOpContext ctx)
+        {
+            if (ctx.HasAffine) return ctx.Affine;
+            var rec = Calibration.CalibrationStore.FindUsable(Txt(spec, s, "cam"));
+            if (rec != null && rec.A1 != 0 && rec.B2 != 0)
+            {
+                ctx.Affine = new[] { rec.A1, rec.A2, rec.A3, rec.B1, rec.B2, rec.B3 };
+                ctx.MmPerPx = rec.PixelEquivalent;
+                ctx.CalibCam = rec.CameraName;
+                return ctx.Affine;
+            }
+            return null;
+        }
+
+        /// <summary>图上像素推成机台毫米；没有可用换算关系返回 false。</summary>
+        static bool TryPixelToMachine(double[]? a, double u, double v, out double x, out double y)
+        {
+            x = y = double.NaN;
+            if (a == null) return false;
+            x = a[0] * u + a[1] * v + a[2];
+            y = a[3] * u + a[4] * v + a[5];
+            return true;
+        }
+
+        /// <summary>反过来：机台毫米推回图上像素（系数退化返回 false）。</summary>
+        static bool TryMachineToPixel(double[]? a, double x, double y, out double u, out double v)
+        {
+            u = v = double.NaN;
+            if (a == null) return false;
+            double det = a[0] * a[4] - a[1] * a[3];
+            if (Math.Abs(det) < 1e-12) return false;
+            double mx = x - a[2], my = y - a[5];
+            u = (mx * a[4] - my * a[1]) / det;
+            v = (a[0] * my - mx * a[3]) / det;
+            return true;
+        }
+
+        /// <summary>毫米/像素（图上横竖两个方向平均）；没有换算关系返回 NaN。</summary>
+        static double MmPerPxOf(double[]? a)
+        {
+            if (a == null) return double.NaN;
+            double u = Math.Sqrt(Sq(a[0]) + Sq(a[3])), v = Math.Sqrt(Sq(a[1]) + Sq(a[4]));
+            if (u < 1e-12 || v < 1e-12) return double.NaN;
+            return 0.5 * (u + v);
+        }
+
+        /// <summary>按「比例 + 转角 + 零点」这套老约定推出 6 个系数（和「手动对两个点」同一套约定）。</summary>
+        static double[] AffineFrom(double scalePxPerMm, double rotDeg, double ox, double oy)
+        {
+            double r = rotDeg * Math.PI / 180, cs = Math.Cos(r), sn = Math.Sin(r);
+            return new[]
+            {
+                cs / scalePxPerMm, -sn / scalePxPerMm, -(cs * ox - sn * oy) / scalePxPerMm,
+                sn / scalePxPerMm, cs / scalePxPerMm, -(sn * ox + cs * oy) / scalePxPerMm,
+            };
+        }
+
+        /// <summary>标定结果写回「标定」页那张表（只在填了相机名时写）。</summary>
+        static void SaveCalib(VisionOpContext ctx, string cam, string how)
+        {
+            var a = ctx.Affine;
+            if (a == null || a.Length != 6 || cam.Length == 0) return;
+            Calibration.CalibrationStore.Upsert(new Models.CameraCalibration
+            {
+                CameraName = cam,
+                CalibratedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                IsValid = true,
+                Message = how,
+                PixelEquivalent = MmPerPxOf(a),
+                PixelEquivalentV = Math.Sqrt(Sq(a[1]) + Sq(a[4])),
+                AngleX = Math.Atan2(a[3], a[0]) * 180 / Math.PI,
+                AngleY = Math.Atan2(a[4], a[1]) * 180 / Math.PI,
+                A1 = a[0], A2 = a[1], A3 = a[2], B1 = a[3], B2 = a[4], B3 = a[5],
+                ResidualRms = ctx.CalibRms,
+                RotCenterX = ctx.RotCenterX, RotCenterY = ctx.RotCenterY,
+                RotCenterU = ctx.RotCenterU, RotCenterV = ctx.RotCenterV,
+                RotRadiusPx = ctx.RotRadiusPx, RotResidualRms = ctx.RotRmsPx,
+            });
+            ctx.CalibCam = cam;
+        }
+
         static (double scale, double rot, double ox, double oy, string from) ResolveCalib(
             VisionOpSpec spec, VisualFlowStep s, VisionOpContext ctx)
         {
@@ -811,8 +936,10 @@ namespace NoCodeMotion.Services.Vision
             if (cam.Length > 0)
             {
                 var rec = Calibration.CalibrationStore.FindUsable(cam);
-                if (rec != null && rec.PixelEquivalent > 0)
-                    return (rec.PixelEquivalent, rec.AngleX, 0, 0, "「标定」表里 " + cam + " 的结果");
+                // 「标定」表里存的是毫米/像素，这套老参数要的是像素/毫米，必须取倒数。
+                // 以前直接把毫米/像素当像素/毫米用，标定越准反而偏得越离谱（2026-11-05 修）。
+                if (rec != null && rec.PixelEquivalent > 1e-12)
+                    return (1 / rec.PixelEquivalent, rec.AngleX, 0, 0, "「标定」表里 " + cam + " 的结果");
             }
             return (double.NaN, 0, 0, 0, "");
         }
@@ -820,9 +947,26 @@ namespace NoCodeMotion.Services.Vision
         static void DoPixelToMachine(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst, VisionReport report,
             VisionOpContext ctx, IProgress<string>? progress)
         {
+            var affIn = ResolveAffine(spec, s, ctx);
+            if (affIn != null)
+            {
+                var pm = PickPoint(spec, s, ctx, "px", "py");
+                if (TryPixelToMachine(affIn, pm.X, pm.Y, out double gx, out double gy))
+                {
+                    double mmpp = MmPerPxOf(affIn);
+                    ctx.LastPoint = pm;
+                    DrawPt(dst, pm);
+                    string by = ctx.CalibCam.Length > 0 ? "「标定」表里 " + ctx.CalibCam + " 的换算关系" : "上一条标定算子给的换算关系";
+                    Add(report, s, spec, true,
+                        $"图上 ({pm.X:F1},{pm.Y:F1}) → 机台 ({gx:F3},{gy:F3}) 毫米｜用的是{by}", gx, 0,
+                        ("机台X", gx), ("机台Y", gy), ("每像素多少毫米", mmpp),
+                        ("每毫米多少像素", mmpp > 1e-12 ? 1 / mmpp : double.NaN));
+                    return;
+                }
+            }
             var (scale, rot, ox, oy, from) = ResolveCalib(spec, s, ctx);
             if (double.IsNaN(scale) || scale <= 0)
-            { Add(report, s, spec, false, "还没有可用的标定：先跑「定比例」或「手动对两个点」，或者去「标定」页做一台相机的标定"); return; }
+            { Add(report, s, spec, false, "还没有可用的标定：先跑「多点标定」「标定板定比例」或「手动对两个点」，或者去「标定」页做一台相机的标定"); return; }
             var p = PickPoint(spec, s, ctx, "px", "py");
             double rad = rot * Math.PI / 180;
             double dx = (p.X - ox) / scale, dy = (p.Y - oy) / scale;
@@ -838,10 +982,18 @@ namespace NoCodeMotion.Services.Vision
         static void DoMachineToPixel(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst, VisionReport report,
             VisionOpContext ctx, IProgress<string>? progress)
         {
+            double mx = Num(spec, s, "mx", 0), my = Num(spec, s, "my", 0);
+            var affOut = ResolveAffine(spec, s, ctx);
+            if (affOut != null && TryMachineToPixel(affOut, mx, my, out double au, out double av))
+            {
+                DrawPt(dst, new Cv.Point2f((float)au, (float)av));
+                Add(report, s, spec, true, $"机台 ({mx:F3},{my:F3}) 毫米 → 图上 ({au:F1},{av:F1})", au, 0,
+                    ("图上X", au), ("图上Y", av));
+                return;
+            }
             var (scale, rot, ox, oy, from) = ResolveCalib(spec, s, ctx);
             if (double.IsNaN(scale) || scale <= 0)
-            { Add(report, s, spec, false, "还没有可用的标定：先跑「定比例」或「手动对两个点」"); return; }
-            double mx = Num(spec, s, "mx", 0), my = Num(spec, s, "my", 0);
+            { Add(report, s, spec, false, "还没有可用的标定：先跑「多点标定」「标定板定比例」或「手动对两个点」"); return; }
             double rad = -rot * Math.PI / 180;
             double a = mx * Math.Cos(rad) - my * Math.Sin(rad);
             double b = mx * Math.Sin(rad) + my * Math.Cos(rad);
@@ -861,6 +1013,761 @@ namespace NoCodeMotion.Services.Vision
             string unit = Txt(spec, s, "unit");
             Add(report, s, spec, true, $"{raw:0.###} × {scale:0.####} + {offset:0.####} = {v:0.###} {unit}", v, 0,
                 ("换算后的值", v), ("比例", scale), ("偏移", offset));
+        }
+
+        // ===================== 批次 5：对位与标定的小工具 =====================
+
+        /// <summary>把一张「每行 per 个数」的表读成数组。逗号、等号、空格、分号、换行都能当分隔符。</summary>
+        static List<double[]> ParseNumbers(string raw, int per)
+        {
+            var list = new List<double[]>();
+            if (string.IsNullOrWhiteSpace(raw)) return list;
+            var norm = raw.Replace('，', ',').Replace('＝', '=').Replace('　', ' ')
+                          .Replace('；', ';').Replace('、', ';').Replace('=', ',').Replace('\r', '\n');
+            foreach (var seg in norm.Split(new[] { ';', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = seg.Trim().Split(new[] { ',', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != per) continue;
+                var v = new double[per];
+                bool okAll = true;
+                for (int i = 0; i < per; i++)
+                {
+                    if (!double.TryParse(parts[i], NumberStyles.Any, CultureInfo.InvariantCulture, out v[i]))
+                    { okAll = false; break; }
+                }
+                if (okAll) list.Add(v);
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// 点配对表 → (图上u, 图上v, 机台X, 机台Y)。一行一对，两种写法都行：
+        ///   「图上X,图上Y=机台X,机台Y」或「图上X,图上Y,机台X,机台Y」；多行用分号或换行隔开。
+        /// </summary>
+        static List<(double U, double V, double X, double Y)> ParsePairs(string raw)
+            => ParseNumbers(raw, 4).Select(q => (q[0], q[1], q[2], q[3])).ToList();
+
+        /// <summary>一行三个数的表（机台位置或角度 + 图上X + 图上Y）。</summary>
+        static List<double[]> ParseTriples(string raw) => ParseNumbers(raw, 3);
+
+        /// <summary>解析一对数：「X,Y」「X=Y」「X，Y」都认。</summary>
+        static bool ParseXY(string raw, out double x, out double y)
+        {
+            x = y = double.NaN;
+            var v = ParseNumbers(raw, 2);
+            if (v.Count == 0) return false;
+            x = v[0][0]; y = v[0][1];
+            return true;
+        }
+
+        /// <summary>参数留空或填 0 都算「没填」，用来实现「0 = 用上一条算子给的数」。</summary>
+        static double Num0(VisionOpSpec spec, VisualFlowStep s, string key)
+        {
+            string raw = s.GetOpParam(key, spec.Find(key)?.Default ?? "0");
+            return double.TryParse((raw ?? "").Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : 0;
+        }
+
+        static double LenOf(double dx, double dy) => Math.Sqrt(Sq(dx) + Sq(dy));
+
+        /// <summary>画一个点，再画一条从它到「该在的位置」的短连线（一眼看出还差多少没对上位）。</summary>
+        static void DrawPair(Cv.Mat dst, double u, double v, double gx, double gy)
+        {
+            DrawPt(dst, new Cv.Point2f((float)u, (float)v));
+            if (double.IsNaN(gx) || double.IsNaN(gy)) return;
+            dst.Line((int)Math.Round(u), (int)Math.Round(v), (int)Math.Round(gx), (int)Math.Round(gy), InkWarn, 1);
+            dst.Circle((int)Math.Round(gx), (int)Math.Round(gy), 3, InkWarn, 1);
+        }
+
+        /// <summary>OpenCV 的去畸变只吃 1 或 3 通道：BGRA 先转 BGR，出来再转回去。</summary>
+        static Cv.Mat ToThree(Cv.Mat src, out bool wasFour)
+        {
+            wasFour = src.Channels() == 4;
+            var o = new Cv.Mat();
+            if (src.Channels() == 1 || src.Channels() == 3) src.CopyTo(o);
+            else Cv.Cv2.CvtColor(src, o, Cv.ColorConversionCodes.BGRA2BGR);
+            return o;
+        }
+
+        static Cv.Mat FromThree(Cv.Mat bgr, bool backToFour)
+        {
+            var o = new Cv.Mat();
+            if (backToFour) Cv.Cv2.CvtColor(bgr, o, Cv.ColorConversionCodes.BGR2BGRA);
+            else bgr.CopyTo(o);
+            return o;
+        }
+
+        // ===================== 批次 5：标定 =====================
+
+        /// <summary>多点标定（九点标定）：好几对「图上的点 = 机台的点」一起定出完整换算关系。</summary>
+        static void DoMultiCalib(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst, VisionReport report,
+                                 VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var pairs = ParsePairs(Txt(spec, s, "pairs"));
+            bool full = Txt(spec, s, "mode") != "只算平移和转动";
+            int need = full ? 3 : 2;
+            if (pairs.Count < need)
+            {
+                Add(report, s, spec, false,
+                    $"点配对至少要 {need} 对才够算，现在只认出 {pairs.Count} 对。一对的写法：图上X,图上Y=机台X,机台Y，"
+                    + "多对用分号或换行隔开（每行一对最好认）。");
+                return;
+            }
+            double[] a;
+            double rms;
+            if (full)
+            {
+                var fit = Calibration.CalibSolver.FitAffine(pairs);
+                if (!fit.Ok) { Add(report, s, spec, false, "算不出换算关系：" + fit.Message); return; }
+                a = new[] { fit.A1, fit.A2, fit.A3, fit.B1, fit.B2, fit.B3 };
+                rms = fit.RmsMm;
+            }
+            else
+            {
+                var img = pairs.Select(q => new Cv.Point2f((float)q.U, (float)q.V)).ToList();
+                var mc = pairs.Select(q => new Cv.Point2f((float)q.X, (float)q.Y)).ToList();
+                var all = Enumerable.Range(0, pairs.Count).ToList();
+                FitLeastSquares(all, img, mc, out double tx, out double ty, out double cs, out double sn, out double sc);
+                if (sc < 1e-9)
+                { Add(report, s, spec, false, "这些点全挤在一块（或重复填了同一对），算不出比例和转角：横竖都要铺开。"); return; }
+                a = new[] { sc * cs, -sc * sn, tx, sc * sn, sc * cs, ty };
+                double se0 = 0;
+                foreach (var q in pairs) se0 += Sq(LenOf(a[0] * q.U + a[1] * q.V + a[2] - q.X,
+                                                         a[3] * q.U + a[4] * q.V + a[5] - q.Y));
+                rms = Math.Sqrt(se0 / (2.0 * pairs.Count));
+            }
+            double mmpp = MmPerPxOf(a);
+            if (double.IsNaN(mmpp) || mmpp <= 0)
+            { Add(report, s, spec, false, "这些点定不出有意义的比例：别让所有点都排在一条直线上。"); return; }
+
+            double tol = Num(spec, s, "tol", 0.05);
+            ctx.Affine = a; ctx.MmPerPx = mmpp; ctx.CalibRms = rms;
+            ctx.ScalePxPerMm = 1 / mmpp;
+            ctx.CalibAngleDeg = Math.Atan2(a[3], a[0]) * 180 / Math.PI;
+            ctx.CalibOriginX = 0; ctx.CalibOriginY = 0;
+            foreach (var q in pairs)
+            {
+                TryPixelToMachine(a, q.U, q.V, out double gx, out double gy);
+                DrawPair(dst, q.U, q.V, gx, gy);
+            }
+            string cam = Txt(spec, s, "cam");
+            SaveCalib(ctx, cam, "多点标定：" + pairs.Count + " 对，" + (full ? "全算（含倾斜）" : "只算平移和转动"));
+            Add(report, s, spec, rms <= tol,
+                $"{pairs.Count} 对点算好了｜1 毫米 = {1 / mmpp:F3} 像素（1 像素 = {mmpp:F6} 毫米）｜图上要再转 {ctx.CalibAngleDeg:F2}° 才是机台方向"
+                + $"｜每点平均差 {Calibration.CalibSolver.Fmt(rms)} 毫米"
+                + (rms > tol ? "（比「误差上限」大，先别拿去对位：查机台是否走到位、点有没有配错）" : "")
+                + (cam.Length > 0 ? "｜已存进「标定」表的 " + cam : "｜只在当前这条流程里生效"),
+                mmpp, pairs.Count,
+                ("每像素多少毫米", mmpp), ("每毫米多少像素", 1 / mmpp), ("转角", ctx.CalibAngleDeg),
+                ("倾斜", Math.Atan2(a[4], a[1]) * 180 / Math.PI),
+                ("标定误差多少毫米", rms), ("用了几对点", pairs.Count), ("零点X", a[2]), ("零点Y", a[5]));
+            progress?.Report(spec.Name + $"：{pairs.Count} 对点，1 毫米 = {1 / mmpp:F3} 像素");
+        }
+
+        /// <summary>单轴标定：只走一根轴，看同一个标记在图上怎么挪，求比例 + 相机和这根轴的夹角。</summary>
+        static void DoOneAxisCalib(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst, VisionReport report,
+                                   VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var rows = ParseTriples(Txt(spec, s, "trio"));
+            if (rows.Count < 2)
+            { Add(report, s, spec, false, "至少要 2 条（机台位置,图上X,图上Y），现在只认出 " + rows.Count + " 条。轴多走几趟更准。"); return; }
+            if (rows.Max(r => r[0]) - rows.Min(r => r[0]) < 1e-6)
+            { Add(report, s, spec, false, "这几条的机台位置全都一样（是不是都填 0 了？）：轴要真的挪开，每趟记的位置才不一样。"); return; }
+
+            foreach (var r in rows) DrawPt(dst, new Cv.Point2f((float)r[1], (float)r[2]));
+
+            // 图上位置对机台位置做线性回归：斜率向量 = 「机台走 1 毫米，图上挪多少像素、朝哪个方向」
+            int n = rows.Count;
+            double sm = 0, su = 0, sv = 0, smm = 0, smu = 0, smv = 0;
+            for (int i = 0; i < n; i++)
+            {
+                double m = rows[i][0], u = rows[i][1], v = rows[i][2];
+                sm += m; su += u; sv += v; smm += m * m; smu += m * u; smv += m * v;
+            }
+            double den = n * smm - sm * sm;
+            if (Math.Abs(den) < 1e-12)
+            { Add(report, s, spec, false, "机台位置太集中，算不出斜率：把两趟的间距拉大一点。"); return; }
+            double du = (n * smu - sm * su) / den, dv = (n * smv - sm * sv) / den;
+            double scale = LenOf(du, dv);                                      // 像素/毫米
+            if (scale < 1e-9)
+            { Add(report, s, spec, false, "机台挪了、图上标记一点没动：相机八成跟着轴一起走，那种情况要走「多点标定」。"); return; }
+            double ox = su / n - du * (sm / n), oy = sv / n - dv * (sm / n);   // 这根轴读数为 0 时，标记在图上的位置
+
+            double theta = Math.Atan2(dv, du) * 180 / Math.PI;                 // 机台这根轴的正方向在图上指向哪
+            bool yAxis = Txt(spec, s, "axis") == "Y";
+            double rot = yAxis ? 90 - theta : -theta;                          // 另一根轴按垂直补齐
+            double se = 0;
+            foreach (var r in rows) se += Sq(LenOf(du * r[0] + ox - r[1], dv * r[0] + oy - r[2]));
+            double rmsMm = Math.Sqrt(se / n) / scale;
+
+            double[] a = AffineFrom(scale, rot, ox, oy);
+            double tol = Num(spec, s, "tol", 0.05);
+            ctx.Affine = a; ctx.ScalePxPerMm = scale; ctx.CalibAngleDeg = rot;
+            ctx.CalibOriginX = ox; ctx.CalibOriginY = oy;
+            ctx.MmPerPx = 1 / scale; ctx.CalibRms = rmsMm;
+            string cam = Txt(spec, s, "cam");
+            SaveCalib(ctx, cam, "单轴标定：走 " + (yAxis ? "Y" : "X") + " 轴 " + n + " 趟，另一根按垂直补齐");
+            Add(report, s, spec, rmsMm <= tol,
+                $"1 毫米 = {scale:F3} 像素（1 像素 = {1 / scale:F6} 毫米）｜机台 {(yAxis ? "Y" : "X")} 轴在图上指向 {theta:F2}°"
+                + $"，另一根按垂直补齐（转角 {rot:F2}°）｜每点平均差 {Calibration.CalibSolver.Fmt(rmsMm)} 毫米"
+                + (rmsMm > tol ? "（超过「误差上限」，先别拿去对位）" : "")
+                + (cam.Length > 0 ? "｜已存进「标定」表的 " + cam : ""),
+                scale, n,
+                ("每毫米多少像素", scale), ("每像素多少毫米", 1 / scale),
+                ("图上方向角", theta), ("补齐后的转角", rot),
+                ("标定误差多少毫米", rmsMm), ("用了几点", n), ("零点X", ox), ("零点Y", oy));
+            progress?.Report(spec.Name + $"：1 毫米 = {scale:F3} 像素，夹角 {theta:F2}°");
+        }
+
+        /// <summary>旋转中心标定：转几个角度记下同一个标记的图上位置，拟出圆心（对位要绕它转）。</summary>
+        static void DoRotateCenter(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst, VisionReport report,
+                                   VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var rows = ParseTriples(Txt(spec, s, "trio"));
+            if (rows.Count < 3)
+            { Add(report, s, spec, false, "至少 3 个角度（转过的角度,图上X,图上Y），现在只认出 " + rows.Count + " 条。常用 5 个。"); return; }
+            if (rows.Max(r => r[0]) - rows.Min(r => r[0]) < 1)
+            { Add(report, s, spec, false, "转过的角度全都差不多，拟不出圆：至少转开 1 度，最好 30~90 度。"); return; }
+
+            var pts = rows.Select(r => (U: r[1], V: r[2])).ToList();
+            var fit = Calibration.CalibSolver.FitCircle(pts);
+            if (!fit.Ok) { Add(report, s, spec, false, "拟圆失败：" + fit.Message); return; }
+            double minr = Num(spec, s, "minr", 5), tol = Num(spec, s, "tol", 3);
+            foreach (var q in pts) DrawPt(dst, new Cv.Point2f((float)q.U, (float)q.V));
+            dst.Circle((int)Math.Round(fit.CenterU), (int)Math.Round(fit.CenterV),
+                       Math.Max(1, (int)Math.Round(fit.RadiusPx)), Ink, 1);
+            DrawPt(dst, new Cv.Point2f((float)fit.CenterU, (float)fit.CenterV));
+
+            ctx.RotCenterU = fit.CenterU; ctx.RotCenterV = fit.CenterV;
+            ctx.RotRadiusPx = fit.RadiusPx; ctx.RotRmsPx = fit.RmsPx;
+            bool thin = fit.RadiusPx < minr;
+            bool mapped = TryPixelToMachine(ResolveAffine(spec, s, ctx), fit.CenterU, fit.CenterV,
+                                            out double mx, out double my);
+            if (mapped) { ctx.RotCenterX = mx; ctx.RotCenterY = my; }
+            string cam = Txt(spec, s, "cam");
+            if (cam.Length > 0 && ctx.HasAffine)
+                SaveCalib(ctx, cam, "找旋转中心：" + rows.Count + " 个角度，半径 " + Calibration.CalibSolver.Fmt(fit.RadiusPx) + " 像素");
+            Add(report, s, spec, fit.RmsPx <= tol && !thin,
+                $"旋转中心在图上 ({Calibration.CalibSolver.Fmt(fit.CenterU)},{Calibration.CalibSolver.Fmt(fit.CenterV)})"
+                + $"｜标记转的半径 {Calibration.CalibSolver.Fmt(fit.RadiusPx)} 像素｜每点平均差 {Calibration.CalibSolver.Fmt(fit.RmsPx)} 像素"
+                + (thin ? $"（半径不到「转半径至少」{minr:0.##} 像素，这个中心不可信：把标记挪离转轴远一点）" : "")
+                + (fit.RmsPx > tol ? "（误差比「误差上限」大：检查每趟拍到的是不是同一个标记）" : "")
+                + (mapped ? $"｜换算到机台 ({mx:F3},{my:F3}) 毫米" : "｜还没定标定，只给图上位置（先跑「多点标定」就能同时给机台位置）"),
+                fit.CenterU, rows.Count,
+                ("旋转中心X", fit.CenterU), ("旋转中心Y", fit.CenterV), ("转半径", fit.RadiusPx),
+                ("标定误差多少像素", fit.RmsPx), ("用了几点", rows.Count),
+                ("机台旋转中心X", mx), ("机台旋转中心Y", my));
+            progress?.Report(spec.Name + $"：中心 ({Calibration.CalibSolver.Fmt(fit.CenterU)},{Calibration.CalibSolver.Fmt(fit.CenterV)})");
+        }
+
+        /// <summary>找标定板上的特征点（框里有几块找几块，取找全的那块）。失败给人话原因。</summary>
+        static Cv.Point2f[]? BoardPoints(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray,
+                                         out int rows, out int cols, out string bad)
+        {
+            rows = cols = 0; bad = "";
+            bool circles = Txt(spec, s, "board") == "圆点";
+            rows = (int)Math.Round(Num(spec, s, "rows", 7));
+            cols = (int)Math.Round(Num(spec, s, "cols", 7));
+            if (rows < 2 || cols < 2) { bad = "行数、列数至少各填 2（填的是点数，不是格子面积）"; return null; }
+            var roi = RoiOf(spec, s, gray);
+            if (roi.Width < cols * 4 || roi.Height < rows * 4)
+            { bad = $"框住的那块太小，装不下 {cols}×{rows} 个板点：把框画大一点，或者少填几行几列。"; return null; }
+            using var sub = gray.SubMat(roi).Clone();
+            Cv.Point2f[]? best = null;
+            for (int att = 0; att < 4 && best == null; att++)
+            {
+                Cv.Point2f[] pts;
+                bool ok;
+                try
+                {
+                    ok = circles
+                        ? Cv.Cv2.FindCirclesGrid(sub, new Cv.Size(cols, rows), out pts, Cv.FindCirclesGridFlags.SymmetricGrid)
+                        : Cv.Cv2.FindChessboardCorners(sub, new Cv.Size(cols, rows), out pts,
+                            Cv.ChessboardFlags.AdaptiveThresh | Cv.ChessboardFlags.NormalizeImage);
+                }
+                catch (Exception ex) { bad = "OpenCV 找板子时报错：" + ex.Message; return null; }
+                if (ok && pts != null && pts.Length == rows * cols)
+                {
+                    for (int i = 0; i < pts.Length; i++)
+                        pts[i] = new Cv.Point2f(pts[i].X + roi.X, pts[i].Y + roi.Y);
+                    best = pts;
+                    break;
+                }
+                // 第一遍没找全：糊的抹一下、反差差的拉一下，再试；还不成就报人话原因。
+                if (att == 0) Cv.Cv2.GaussianBlur(sub, sub, new Cv.Size(5, 5), 0);
+                else if (att == 1) Cv.Cv2.Normalize(sub, sub, 0, 255, Cv.NormTypes.MinMax, -1);
+                else if (att == 2 && !circles)
+                    Cv.Cv2.AdaptiveThreshold(sub, sub, 255, Cv.AdaptiveThresholdTypes.GaussianC, Cv.ThresholdTypes.Binary, 31, 5);
+            }
+            if (best == null)
+            {
+                bad = $"板子没找全（要 {(circles ? "圆点" : "棋盘格")} {cols}×{rows} = {cols * rows} 个点）。"
+                      + "常见原因：只拍到半块、光太强反光、图糊、板子歪太多。"
+                      + "行数列数填交叉点 / 圆点的个数：7×7 的板就填 7 和 7。";
+                return null;
+            }
+            return best;
+        }
+
+        /// <summary>板点 → 换算关系。先全算（含倾斜），残差太大（透视严重）退回「比例 + 转角」。</summary>
+        static (double[]? aff, double mmpp, double rms, double angle) BoardFit(
+            Cv.Point2f[] pts, int rows, int cols, double cellMm)
+        {
+            int ix(int r, int c) => r * cols + c;
+            double angle = Math.Atan2(pts[ix(0, cols - 1)].Y - pts[ix(0, 0)].Y,
+                                      pts[ix(0, cols - 1)].X - pts[ix(0, 0)].X) * 180 / Math.PI;
+            var list = new List<(double U, double V, double X, double Y)>();
+            for (int r = 0; r < rows; r++)
+                for (int c = 0; c < cols; c++)
+                    list.Add((pts[ix(r, c)].X, pts[ix(r, c)].Y, c * cellMm, r * cellMm));
+
+            var fit = Calibration.CalibSolver.FitAffine(list);
+            if (fit.Ok && fit.RmsMm <= cellMm * 0.35)
+                return (new[] { fit.A1, fit.A2, fit.A3, fit.B1, fit.B2, fit.B3 }, fit.PixelEquivalentU, fit.RmsMm, angle);
+
+            // 退路：板点当相似变换拟（只有比例 + 转角 + 零点），再把 px = f(mm) 反解成 mm = f(px)
+            var ideal = list.Select(q => new Cv.Point2f((float)q.X, (float)q.Y)).ToList();
+            var seen = list.Select(q => new Cv.Point2f((float)q.U, (float)q.V)).ToList();
+            var all = Enumerable.Range(0, list.Count).ToList();
+            FitLeastSquares(all, ideal, seen, out double tx, out double ty, out double cs, out double sn, out double sc);
+            if (sc < 1e-9) return (null, double.NaN, double.NaN, angle);
+            double mmpp = 1 / sc, se = 0;
+            foreach (var q in list)
+                se += Sq(LenOf(sc * (q.X * cs - q.Y * sn) + tx - q.U, sc * (q.X * sn + q.Y * cs) + ty - q.V));
+            double rms = Math.Sqrt(se / (2.0 * list.Count)) * mmpp;
+            double angR = Math.Atan2(sn, cs), c2 = Math.Cos(angR), s2 = Math.Sin(angR), inv = 1 / sc;
+            return (new[] { c2 * inv, s2 * inv, -(c2 * tx + s2 * ty) * inv,
+                            -s2 * inv, c2 * inv, (s2 * tx - c2 * ty) * inv }, mmpp, rms, angR * 180 / Math.PI);
+        }
+
+        /// <summary>标定板定比例：拍一张板子自己找点，直接定出换算关系，不用手填任何坐标。</summary>
+        static void DoBoardScale(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+                                 VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var found = BoardPoints(spec, s, gray, out int rows, out int cols, out string bad);
+            if (found == null) { Add(report, s, spec, false, bad); return; }
+            double cell = Num(spec, s, "cell", 10);
+            if (cell <= 0) { Add(report, s, spec, false, "「一格多宽」要填正数（毫米）"); return; }
+            var (a, mmpp, rms, angle) = BoardFit(found, rows, cols, cell);
+            if (a == null)
+            { Add(report, s, spec, false, "这些板点定不出比例：板子在图上几乎缩成一个点了，靠近一点重拍。"); return; }
+            foreach (var q in found) DrawPt(dst, q);
+            double tol = Num(spec, s, "tol", 0.1);
+            ctx.Affine = a; ctx.MmPerPx = mmpp; ctx.CalibRms = rms;
+            ctx.ScalePxPerMm = 1 / mmpp; ctx.CalibAngleDeg = Math.Atan2(a[3], a[0]) * 180 / Math.PI;
+            ctx.CalibOriginX = 0; ctx.CalibOriginY = 0;
+            string board = Txt(spec, s, "board") == "圆点" ? "圆点" : "棋盘格";
+            string cam = Txt(spec, s, "cam");
+            SaveCalib(ctx, cam, "标定板：" + board + " " + cols + "×" + rows + "，格距 " + cell + " 毫米");
+            Add(report, s, spec, rms <= tol,
+                $"{board} {cols}×{rows} 点全找到｜1 毫米 = {1 / mmpp:F3} 像素（1 像素 = {mmpp:F6} 毫米）"
+                + $"｜板子在图上转了 {angle:F2}°｜每点平均差 {Calibration.CalibSolver.Fmt(rms)} 毫米"
+                + (rms > tol ? "（误差比上限大：板子拍歪得多或有透视，正对着拍更准）" : "")
+                + (cam.Length > 0 ? "｜已存进「标定」表的 " + cam : ""),
+                mmpp, found.Length,
+                ("每像素多少毫米", mmpp), ("每毫米多少像素", 1 / mmpp),
+                ("找到几个点", found.Length), ("板子转了多少度", angle), ("标定误差多少毫米", rms));
+            progress?.Report(spec.Name + $"：{found.Length} 个点，1 毫米 = {1 / mmpp:F3} 像素");
+        }
+
+        /// <summary>镜头畸变标定：用标定板算镜头把直线拍弯了多少，顺手可以把这张图掰直。</summary>
+        static Cv.Mat DoLensCalib(VisionOpSpec spec, VisualFlowStep s, Cv.Mat cur, Cv.Mat gray, Cv.Mat dst,
+                                  VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var found = BoardPoints(spec, s, gray, out int rows, out int cols, out string bad);
+            if (found == null) { Add(report, s, spec, false, bad); return cur; }
+            double cell = Num(spec, s, "cell", 10);
+            if (cell <= 0) { Add(report, s, spec, false, "「一格多宽」要填正数（毫米）"); return cur; }
+
+            var obj = new Cv.Point3f[rows * cols];
+            int at = 0;
+            for (int br = 0; br < rows; br++)
+                for (int bc = 0; bc < cols; bc++) obj[at++] = new Cv.Point3f(bc * (float)cell, br * (float)cell, 0);
+            var img = found.Select(q => new Cv.Point2f(q.X, q.Y)).ToArray();
+
+            // 起点：画面正中当主点、长边当焦距；UseIntrinsicGuess 让 OpenCV 从这儿往下解
+            double f0 = Math.Max(gray.Cols, gray.Rows);
+            bool radialOnly = Txt(spec, s, "mode") != "径向+切向";
+            var flags = Cv.CalibrationFlags.UseIntrinsicGuess
+                        | (radialOnly ? Cv.CalibrationFlags.ZeroTangentDist : Cv.CalibrationFlags.None);
+            using var objMat = Cv.Mat.FromArray(obj);
+            using var imgMat = Cv.Mat.FromArray(img);
+            using var km = KMat(new double[9] { f0, 0, gray.Cols / 2.0, 0, f0, gray.Rows / 2.0, 0, 0, 1 });
+            using var dm = new Cv.Mat(1, 5, Cv.MatType.CV_64F);      // k1 k2 p1 p2 k3，从「没畸变」起步
+            dm.SetArray(new double[5]);
+            double reproj;
+            try
+            {
+                reproj = Cv.Cv2.CalibrateCamera(new[] { objMat }, new[] { imgMat },
+                    new Cv.Size(gray.Cols, gray.Rows), km, dm, out _, out _, flags, null);
+            }
+            catch (Exception ex)
+            {
+                Add(report, s, spec, false, "OpenCV 的相机标定没跑起来：" + ex.Message
+                      + "（只拍一张板子时畸变本来就难算准：板子摆正、拍满整个画面再试；"
+                      + "厂商已经给了畸变数的话，用「按参数把图掰直」更稳）");
+                return cur;
+            }
+            double fx = km.At<double>(0, 0), fy = km.At<double>(1, 1), px = km.At<double>(0, 2), py = km.At<double>(1, 2);
+            double dk1 = El(dm, 0), dk2 = El(dm, 1), dp1 = El(dm, 2), dp2 = El(dm, 3), dk3 = El(dm, 4);
+            double mmpp = MmPerPxOf(new[] { fx, 0, px, 0, fy, py });
+            if (double.IsNaN(mmpp)) mmpp = 1 / Math.Max(1e-9, fx);
+
+            foreach (var q in found) DrawPt(dst, q);
+            Cv.Mat next = cur;                        // 换图只交新图，cur 由引擎释放
+            bool fix = Num(spec, s, "fix", 1) >= 1;
+            if (fix)
+            {
+                var done = UndistortTo(cur, km, dm);
+                if (done != null) next = done;
+            }
+            Add(report, s, spec, true,
+                $"畸变算好了：k1={Calibration.CalibSolver.Fmt(dk1)} k2={Calibration.CalibSolver.Fmt(dk2)} k3={Calibration.CalibSolver.Fmt(dk3)}"
+                + (radialOnly ? "（只算径向，切向按 0）" : $"｜切向 p1={Calibration.CalibSolver.Fmt(dp1)} p2={Calibration.CalibSolver.Fmt(dp2)}")
+                + $"｜画面中心 ({px:F1},{py:F1})｜重投影误差 {reproj:F3} 像素（约 {Calibration.CalibSolver.Fmt(reproj * mmpp)} 毫米）"
+                + (fix ? "｜这张图已掰直，后面的算子用的是掰直后的图" : "｜只给参数，图没动"),
+                dk1, found.Length,
+                ("畸变k1", dk1), ("畸变k2", dk2), ("畸变k3", dk3),
+                ("切向p1", dp1), ("切向p2", dp2), ("重投影误差", reproj),
+                ("中心点X", px), ("中心点Y", py), ("焦距", fx), ("每像素多少毫米", mmpp));
+            progress?.Report(spec.Name + $"：k1={Calibration.CalibSolver.Fmt(dk1)}，误差 {reproj:F3} 像素");
+            return next;
+        }
+
+        /// <summary>畸变数组（一行）里取第 i 个；OpenCV 可能只解 4 个（k1 k2 p1 p2），后面按 0 算。</summary>
+        static double El(Cv.Mat m, int i) => i >= 0 && m.Cols > i ? m.At<double>(0, i) : 0;
+
+        /// <summary>把 9 个数摊成 3×3 相机矩阵。尺寸必须自己定：Reshape 出来的头依赖临时 Mat，出了作用域就读到 0。</summary>
+        static Cv.Mat KMat(double[] k)
+        {
+            var m = new Cv.Mat(3, 3, Cv.MatType.CV_64F);
+            m.SetArray(k);
+            return m;
+        }
+
+        /// <summary>按 K / D 掰直当前图（保持通道数）；失败返回 null。</summary>
+        static Cv.Mat? UndistortTo(Cv.Mat src, Cv.Mat K, Cv.Mat D)
+        {
+            try
+            {
+                bool four = src.Channels() == 4;
+                using var three = ToThree(src, out _);
+                using var out3 = new Cv.Mat();
+                Cv.Cv2.Undistort(three, out3, K, D);
+                return FromThree(out3, four);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[VisionOpRunner] 掰直失败：" + ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>按参数把图掰直 / 加回畸变（不用板子，参数手填或抄上一条算子给的）。</summary>
+        static Cv.Mat DoLensFix(VisionOpSpec spec, VisualFlowStep s, Cv.Mat cur, Cv.Mat dst,
+                                VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
+        {
+            double k1 = Num(spec, s, "k1", 0), k2 = Num(spec, s, "k2", 0), k3 = Num(spec, s, "k3", 0);
+            double p1 = Num(spec, s, "p1", 0), p2 = Num(spec, s, "p2", 0);
+            if (Math.Abs(k1) + Math.Abs(k2) + Math.Abs(k3) + Math.Abs(p1) + Math.Abs(p2) < 1e-12)
+            { Add(report, s, spec, false, "五个畸变数全是 0，那等于不处理：把「镜头畸变标定」给的 k1/k2/k3/p1/p2 填进来。"); return cur; }
+            bool fix = Txt(spec, s, "mode") != "还原（加畸变）";
+            int w = cur.Cols, h = cur.Rows;
+            double f = Num(spec, s, "focal", 0);
+            if (f <= 0) f = Math.Max(w, h);
+            double cx = Num(spec, s, "cx", 0), cy = Num(spec, s, "cy", 0);
+            if (cx == 0) cx = (w - 1) / 2.0;
+            if (cy == 0) cy = (h - 1) / 2.0;
+            var K = new double[9] { f, 0, cx, 0, f, cy, 0, 0, 1 };
+            var D = new[] { k1, k2, p1, p2, k3 };
+
+            var next = new Cv.Mat();
+            try
+            {
+                using var km = KMat(K);
+                using var dm = new Cv.Mat(1, D.Length, Cv.MatType.CV_64F);
+                dm.SetArray(D);
+                if (fix)
+                {
+                    using var m1 = new Cv.Mat();
+                    using var m2 = new Cv.Mat();
+                    Cv.Cv2.InitUndistortRectifyMap(km, dm, new Cv.Mat(), km, new Cv.Size(w, h),
+                        Cv.MatType.CV_32FC1, m1, m2);
+                    Cv.Cv2.Remap(cur, next, m1, m2, Cv.InterpolationFlags.Linear,
+                        Cv.BorderTypes.Constant, new Cv.Scalar(0, 0, 0, 0));
+                }
+                else
+                {
+                    // 加畸变：把每个「输出像素」当成理想位置，按 OpenCV 同一套多项式模型
+                    // （径向 k1/k2/k3 + 切向 p1/p2）问它来自输入图的哪儿，逐点自己算，不绕 OpenCV
+                    var src2 = new Cv.Point2f[w * h];
+                    int at = 0;
+                    for (int y = 0; y < h; y++)
+                    {
+                        double ny = (y - cy) / f;
+                        for (int x = 0; x < w; x++)
+                        {
+                            double nx = (x - cx) / f;
+                            double r2 = nx * nx + ny * ny;
+                            double radial = 1 + r2 * (k1 + r2 * (k2 + r2 * k3));
+                            double dx = nx * radial + 2 * p1 * nx * ny + p2 * (r2 + 2 * nx * nx);
+                            double dy = ny * radial + p1 * (r2 + 2 * ny * ny) + 2 * p2 * nx * ny;
+                            src2[at++] = new Cv.Point2f((float)(f * dx + cx), (float)(f * dy + cy));
+                        }
+                    }
+                    using var map = new Cv.Mat(h, w, Cv.MatType.CV_32FC2);   // 地图按画面尺寸铺，Reshape 会算错行列
+                    map.SetArray(src2);
+                    using var none = new Cv.Mat();
+                    Cv.Cv2.Remap(cur, next, map, none, Cv.InterpolationFlags.Linear,
+                        Cv.BorderTypes.Constant, new Cv.Scalar(0, 0, 0, 0));
+                }
+            }
+            catch (Exception ex)
+            {
+                next.Dispose();
+                Add(report, s, spec, false, "OpenCV 生成校正图时报错：" + ex.Message + "（k1 太负会把图掰得太狠，先减一半试试）");
+                return cur;
+            }
+            Add(report, s, spec, true,
+                $"{(fix ? "已掰直（去畸变）" : "已加回畸变（和原图对齐时用）")}｜焦距 {f:F2} 像素、中心 ({cx:F1},{cy:F1})"
+                + $"｜k1={Calibration.CalibSolver.Fmt(k1)} k2={Calibration.CalibSolver.Fmt(k2)} k3={Calibration.CalibSolver.Fmt(k3)} p1={Calibration.CalibSolver.Fmt(p1)} p2={Calibration.CalibSolver.Fmt(p2)}",
+                k1, 0,
+                ("用了k1", k1), ("用了k2", k2), ("用了k3", k3), ("用了p1", p1), ("用了p2", p2),
+                ("用了焦距", f), ("中心点X", cx), ("中心点Y", cy));
+            progress?.Report(spec.Name + (fix ? "：掰直完成" : "：加回畸变完成"));
+            return next;
+        }
+
+        // ===================== 批次 5：对位 =====================
+
+        /// <summary>取实测的两个标记点：上一步的两个角点 / 两个圆心 / 手填一对。</summary>
+        static bool TwoMarks(VisionOpSpec spec, VisualFlowStep s, VisionOpContext ctx,
+                             out Cv.Point2f a, out Cv.Point2f b, out string bad)
+        {
+            a = b = default; bad = "";
+            string use = Txt(spec, s, "src");
+            if (use.StartsWith("上一步"))
+            {
+                if (use.Contains("角点"))
+                {
+                    if (ctx.Corners.Count < 2)
+                    { bad = $"上一步只找到 {ctx.Corners.Count} 个角点，凑不出一对：先跑「找矩形四角」，或把这里改成手填"; return false; }
+                    a = ctx.Corners[0]; b = ctx.Corners[1];
+                    return true;
+                }
+                if (ctx.Circles.Count >= 2)
+                {
+                    int n2 = ctx.Circles.Count;
+                    a = new Cv.Point2f((float)ctx.Circles[n2 - 2].Cx, (float)ctx.Circles[n2 - 2].Cy);
+                    b = new Cv.Point2f((float)ctx.Circles[n2 - 1].Cx, (float)ctx.Circles[n2 - 1].Cy);
+                    return true;
+                }
+                if (ctx.Points.Count >= 2)
+                { a = ctx.Points[ctx.Points.Count - 2]; b = ctx.Points[ctx.Points.Count - 1]; return true; }
+                bad = "上一步没找到两个点（要有两个圆、或一把边缘点）：先跑两次「找圆」，或把这里改成手填";
+                return false;
+            }
+            if (!ParseXY(Txt(spec, s, "m1"), out double ax, out double ay)
+                || !ParseXY(Txt(spec, s, "m2"), out double bx, out double by))
+            { bad = "手填的两个点读不出来：每个点写成「X,Y」这样一对数"; return false; }
+            a = new Cv.Point2f((float)ax, (float)ay); b = new Cv.Point2f((float)bx, (float)by);
+            return true;
+        }
+
+        /// <summary>两个点对位：实测两点 vs 标准两点 → 偏了多少毫米、转了多少度、该绕哪儿转回来。</summary>
+        static void DoTwoMarkAlign(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst, VisionReport report,
+                                   VisionOpContext ctx, IProgress<string>? progress)
+        {
+            if (!TwoMarks(spec, s, ctx, out Cv.Point2f ma, out Cv.Point2f mb, out string bad))
+            { Add(report, s, spec, false, bad); return; }
+            if (!ParseXY(Txt(spec, s, "b1"), out double b1x, out double b1y)
+                || !ParseXY(Txt(spec, s, "b2"), out double b2x, out double b2y))
+            { Add(report, s, spec, false, "标准的两个点要各写一对「X,Y」（两个点用同一个坐标系：都用图上像素，或都用机台毫米）"); return; }
+            double mLen = LenOf(mb.X - ma.X, mb.Y - ma.Y);
+            double bLen = LenOf(b2x - b1x, b2y - b1y);
+            if (mLen < 2 || bLen < 1e-6)
+            { Add(report, s, spec, false, $"两个点要隔开一点：实测两点相距 {mLen:F1}，标准两点相距 {bLen:F3}。挨太近定不出角度。"); return; }
+
+            double rotDeg = Math.Atan2(b2y - b1y, b2x - b1x) * 180 / Math.PI
+                          - Math.Atan2(mb.Y - ma.Y, mb.X - ma.X) * 180 / Math.PI;
+            while (rotDeg > 180) rotDeg -= 360;
+            while (rotDeg < -180) rotDeg += 360;
+
+            // 先绕枢轴把工件转正直，再看还差多少平移：枢轴用标定出的旋转中心，没标定就用两点中点
+            string basis = ctx.HasRotCenter ? "标定出的旋转中心" : "两个点的中点";
+            double px = ctx.HasRotCenter ? ctx.RotCenterU : (ma.X + mb.X) / 2.0;
+            double py = ctx.HasRotCenter ? ctx.RotCenterV : (ma.Y + mb.Y) / 2.0;
+            double mx = (b1x + b2x) / 2.0, my = (b1y + b2y) / 2.0;
+            double midX = (ma.X + mb.X) / 2.0, midY = (ma.Y + mb.Y) / 2.0;
+            double rad = rotDeg * Math.PI / 180, cs = Math.Cos(rad), sn = Math.Sin(rad);
+            double vx = midX - px, vy = midY - py;
+            double dx = mx - (px + cs * vx - sn * vy);
+            double dy = my - (py + sn * vx + cs * vy);
+            double ratio = bLen / mLen;
+
+            double mmpp = Num(spec, s, "mmpp", 0);
+            bool fromCalib = false;
+            if (mmpp <= 0)
+            {
+                double m2 = MmPerPxOf(ResolveAffine(spec, s, ctx));
+                if (!double.IsNaN(m2)) { mmpp = m2; fromCalib = true; }
+                else mmpp = 1;
+            }
+            double ddx = dx * mmpp, ddy = dy * mmpp;
+            double tolX = Num(spec, s, "tolX", 0.1), tolY = Num(spec, s, "tolY", 0.1), tolR = Num(spec, s, "tolR", 0.5);
+            bool ok = Math.Abs(ddx) <= tolX && Math.Abs(ddy) <= tolY && Math.Abs(rotDeg) <= tolR;
+
+            ctx.AlignDX = ddx; ctx.AlignDY = ddy; ctx.AlignDR = rotDeg;
+            dst.Line((int)Math.Round(ma.X), (int)Math.Round(ma.Y), (int)Math.Round(mb.X), (int)Math.Round(mb.Y), InkWarn, 2);
+            DrawPt(dst, ma); DrawPt(dst, mb); DrawPt(dst, new Cv.Point2f((float)px, (float)py));
+            string unit = fromCalib ? "毫米" : (mmpp == 1 ? "像素（还没标定，只能当像素看）" : "毫米");
+            Add(report, s, spec, ok,
+                $"偏了 X {ddx:F3} / Y {ddy:F3} {unit}，要再转 {rotDeg:F3}°（合成 {LenOf(ddx, ddy):F3}）｜绕{basis} ({px:F1},{py:F1}) 转回来"
+                + $"｜两点长度比 {ratio:F4}" + (Math.Abs(ratio - 1) > 0.01 ? "（长度差 1% 以上：多半是标定或透视问题，不是位置偏了）" : "")
+                + (ok ? "｜在容差内" : $"｜超差（容差 X {tolX:0.###} / Y {tolY:0.###} / 角度 {tolR:0.###}°）"),
+                ddx, 0,
+                ("偏差X", ddx), ("偏差Y", ddy), ("合成偏差", LenOf(ddx, ddy)), ("角度偏差", rotDeg),
+                ("旋转中心X", px), ("旋转中心Y", py), ("两点长度比", ratio),
+                ("实测1X", ma.X), ("实测1Y", ma.Y), ("实测2X", mb.X), ("实测2Y", mb.Y),
+                ("是否合格", ok ? 1 : 0), ("每像素多少毫米", mmpp));
+            progress?.Report(spec.Name + $"：偏差 {ddx:F3}/{ddy:F3} {unit}，转角 {rotDeg:F3}°");
+        }
+
+        /// <summary>把角度差折到 -180~180（转 350° 和转 -10° 是一回事，报 -10° 更像人说的话）。</summary>
+        static double Norm180(double a)
+        {
+            while (a > 180) a -= 360;
+            while (a < -180) a += 360;
+            return a;
+        }
+
+        /// <summary>毫米/像素：参数填了就用填的，没填就用标定算出的（标定都没有只能当像素看）。</summary>
+        static double MmPerPxOrDefault(VisionOpSpec spec, VisualFlowStep s, VisionOpContext ctx, out bool fromCalib)
+        {
+            double mmpp = Num(spec, s, "mmpp", 0);
+            fromCalib = false;
+            if (mmpp <= 0)
+            {
+                double m2 = MmPerPxOf(ResolveAffine(spec, s, ctx));
+                if (!double.IsNaN(m2)) { mmpp = m2; fromCalib = true; }
+                else mmpp = 1;
+            }
+            return mmpp;
+        }
+
+        /// <summary>照基准比：刚找到的 Mark 位置 / 角度 vs 示教记下的基准 → ΔX、ΔY、Δθ。</summary>
+        static void DoTemplateAlign(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst, VisionReport report,
+                                    VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var p = PickPoint(spec, s, ctx, "px", "py");
+            double ang = Num0(spec, s, "ang");
+            bool angFromLast = false;
+            if (ang == 0 && !double.IsNaN(ctx.LastAngle)) { ang = ctx.LastAngle; angFromLast = true; }
+            double bx = Num(spec, s, "bx", 0), by = Num(spec, s, "by", 0), bang = Num(spec, s, "bang", 0);
+
+            double mmpp = MmPerPxOrDefault(spec, s, ctx, out bool fromCalib);
+            double ddx = (bx - p.X) * mmpp, ddy = (by - p.Y) * mmpp;
+            double dth = Norm180(bang - ang);
+            double tolX = Num(spec, s, "tolX", 0.1), tolY = Num(spec, s, "tolY", 0.1), tolR = Num(spec, s, "tolR", 0.5);
+            bool ok = Math.Abs(ddx) <= tolX && Math.Abs(ddy) <= tolY && Math.Abs(dth) <= tolR;
+
+            ctx.AlignDX = ddx; ctx.AlignDY = ddy; ctx.AlignDR = dth;
+            DrawPt(dst, p);
+            string unit = fromCalib ? "毫米" : (mmpp == 1 ? "像素（还没标定，只能当像素看）" : "毫米");
+            Add(report, s, spec, ok,
+                $"偏了 X {ddx:F3} / Y {ddy:F3} {unit}，角度差 {dth:F3}°（合成 {LenOf(ddx, ddy):F3}）"
+                + (angFromLast ? "｜角度用的是上一条算子给的" : "")
+                + (ok ? "｜在容差内，可以贴" : $"｜超差（容差 X {tolX:0.###} / Y {tolY:0.###} / 角度 {tolR:0.###}°）先别贴"),
+                ddx, 0,
+                ("偏差X", ddx), ("偏差Y", ddy), ("角度偏差", dth), ("合成偏差", LenOf(ddx, ddy)),
+                ("当前X", p.X), ("当前Y", p.Y), ("当前角度", ang),
+                ("基准X", bx), ("基准Y", by), ("是否合格", ok ? 1 : 0), ("每像素多少毫米", mmpp));
+            progress?.Report(spec.Name + $"：ΔX {ddx:F3} / ΔY {ddy:F3} {unit}，Δθ {dth:F3}°");
+        }
+
+        /// <summary>上下两片相对对位：两层位姿先绕回转中心把转角差吃掉，剩下的就是真正要补的平移差。</summary>
+        static void DoPairAlign(VisionOpSpec spec, VisualFlowStep s, VisionReport report,
+                                VisionOpContext ctx, IProgress<string>? progress)
+        {
+            double ax = Num(spec, s, "ax", 0), ay = Num(spec, s, "ay", 0), aang = Num(spec, s, "aang", 0);
+            double bx = Num(spec, s, "bx", 0), by = Num(spec, s, "by", 0), bang = Num(spec, s, "bang", 0);
+            double rcx = Num(spec, s, "rcx", 0), rcy = Num(spec, s, "rcy", 0);
+
+            bool hasRc = rcx != 0 || rcy != 0;
+            double px0 = hasRc ? rcx : (ax + bx) / 2.0, py0 = hasRc ? rcy : (ay + by) / 2.0;
+            double dth = Norm180(aang - bang);
+            double rad = -dth * Math.PI / 180, cs = Math.Cos(rad), sn = Math.Sin(rad);
+            double vx = ax - px0, vy = ay - py0;
+            double ddx = (px0 + cs * vx - sn * vy) - bx;
+            double ddy = (py0 + sn * vx + cs * vy) - by;
+
+            double tolx = Num(spec, s, "tolx", 0.05), toly = Num(spec, s, "toly", 0.05), tolr = Num(spec, s, "tolr", 0.1);
+            bool ok = Math.Abs(ddx) <= tolx && Math.Abs(ddy) <= toly && Math.Abs(dth) <= tolr;
+
+            ctx.AlignDX = ddx; ctx.AlignDY = ddy; ctx.AlignDR = dth;
+            Add(report, s, spec, ok,
+                $"上下相对偏 X {ddx:F3} / Y {ddy:F3} 毫米，角度差 {dth:F3}°（合成 {LenOf(ddx, ddy):F3}）"
+                + $"｜绕{px0:F2},{py0:F2} 转（{(hasRc ? "用的是填的回转中心" : "没填回转中心，按两片中间算：精度要求高就把它填上")}）"
+                + (ok ? "｜在容差内，可以贴" : $"｜超差（容差 X {tolx:0.###} / Y {toly:0.###} / 角度 {tolr:0.###}°）先别贴"),
+                ddx, 0,
+                ("相对偏差X", ddx), ("相对偏差Y", ddy), ("相对角度", dth), ("合成偏差", LenOf(ddx, ddy)),
+                ("绕哪转X", px0), ("绕哪转Y", py0), ("是否合格", ok ? 1 : 0));
+            progress?.Report(spec.Name + $"：相对 ΔX {ddx:F3} / ΔY {ddy:F3} 毫米，Δθ {dth:F3}°");
+        }
+
+        /// <summary>按标记点换算坐标：标记该在哪 A / 实测到哪 C / 要换算的位置 B → Q = A + R(转角)·(B − C)。</summary>
+        static void DoRigidMap(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst, VisionReport report,
+                               VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var mark = PickPoint(spec, s, ctx, "cx", "cy");                  // C：标记实测到的位置
+            double ax = Num(spec, s, "ax", 0), ay = Num(spec, s, "ay", 0);   // A：标记该在的位置
+            double bx = Num(spec, s, "bx", 0), by = Num(spec, s, "by", 0);   // B：要换算的位置
+            double rot = Num(spec, s, "rot", 0);
+            double mdx = ax - mark.X, mdy = ay - mark.Y;                     // 标记偏了多少
+            bool still = LenOf(mdx, mdy) < 1e-9 && Math.Abs(rot) < 1e-9;
+            double rad = rot * Math.PI / 180, cs = Math.Cos(rad), sn = Math.Sin(rad);
+            double vx = bx - mark.X, vy = by - mark.Y;
+            double ox = ax + cs * vx - sn * vy, oy = ay + sn * vx + cs * vy;
+            if (mark.X >= 0 && mark.Y >= 0 && mark.X < dst.Cols && mark.Y < dst.Rows)
+                DrawPt(dst, new Cv.Point2f((float)mark.X, (float)mark.Y));    // B/Q 可能是毫米，不硬画在图上
+            Add(report, s, spec, true,
+                (still ? "标记没偏、也没给转角：这套关系等于原样搬过去" : $"标记偏了 ({mdx:F2},{mdy:F2})")
+                + $"｜B ({bx:F2},{by:F2}) → ({ox:F2},{oy:F2})｜要补的移动量 ({ox - bx:F3},{oy - by:F3})"
+                + (Math.Abs(rot) > 1e-9 ? $"｜绕标记转了 {rot:F2}°" : "｜没绕标记转（转角 0 = 只平移）"),
+                ox - bx, 0,
+                ("换算后X", ox), ("换算后Y", oy), ("偏移X", ox - bx), ("偏移Y", oy - by),
+                ("标记偏差X", mdx), ("标记偏差Y", mdy), ("转角", rot),
+                ("合成偏移", LenOf(ox - bx, oy - by)));
+            progress?.Report(spec.Name + $"：B ({bx:F2},{by:F2}) 落到 ({ox:F2},{oy:F2})");
+        }
+
+        /// <summary>算对位移动量：视觉偏差 + 现在在哪 + 要去哪 + 吸嘴离相机的距离 → X/Y/R 各走多少。</summary>
+        static void DoAlignOutput(VisionOpSpec spec, VisualFlowStep s, VisionReport report,
+                                  VisionOpContext ctx, IProgress<string>? progress)
+        {
+            double rx = Num(spec, s, "rx", 0), ry = Num(spec, s, "ry", 0), rr = Num(spec, s, "rr", 0);
+            double sx = Num(spec, s, "sx", 0), sy = Num(spec, s, "sy", 0), sr = Num(spec, s, "sr", 0);
+            double dx = Num0(spec, s, "dx"), dy = Num0(spec, s, "dy"), dr = Num0(spec, s, "dr");
+            string used = "";
+            if (dx == 0 && dy == 0 && ctx.HasAlign) { dx = ctx.AlignDX; dy = ctx.AlignDY; used = "（偏差用的是上一条「两个点对位」给的数）"; }
+            if (dr == 0 && ctx.HasAlign) dr = ctx.AlignDR;
+            double offx = Num(spec, s, "offx", 0), offy = Num(spec, s, "offy", 0);
+            double limit = Num(spec, s, "limit", 0);
+
+            double tx2 = sx + dx + offx, ty2 = sy + dy + offy, tr2 = sr + dr;
+            double mvx = tx2 - rx, mvy = ty2 - ry, mvr = tr2 - rr;
+            double dist = LenOf(mvx, mvy);
+            bool inRange = limit <= 0 || dist <= limit;
+            Add(report, s, spec, inRange,
+                $"X 走 {mvx:F3} 毫米、Y 走 {mvy:F3} 毫米、角度转到 {tr2:F3}°（现在 {rr:F3}°，要转 {mvr:F3}°）"
+                + used
+                + (offx != 0 || offy != 0 ? $"｜已把吸嘴离相机的 ({offx:F2},{offy:F2}) 毫米算进去" : "")
+                + (limit > 0 ? (inRange ? $"｜在允许移动的 {limit:0.###} 毫米以内"
+                                       : $"｜超出允许移动的 {limit:0.###} 毫米，先别动：多半是标定不对或抓错了位置") : ""),
+                mvx, 0,
+                ("目标X", tx2), ("目标Y", ty2), ("目标角度", tr2),
+                ("移动X", mvx), ("移动Y", mvy), ("移动角度", mvr), ("移动距离", dist),
+                ("在允许范围", inRange ? 1 : 0));
+            progress?.Report(spec.Name + $"：X {mvx:F3} / Y {mvy:F3} 毫米，转到 {tr2:F3}°");
         }
 
         // ===================== 批次 3：匹配与识别 =====================
@@ -904,6 +1811,7 @@ namespace NoCodeMotion.Services.Vision
             foreach (var h in hits)
                 dst.Rectangle(new Cv.Rect((int)h.X, (int)h.Y, (int)tw, (int)th), Ink, 1);
             ctx.LastPoint = new Cv.Point2f((float)cx, (float)cy);
+            ctx.LastAngle = best.A;
             Add(report, s, spec, true,
                 $"找到 {hits.Count} 处｜最像的一处 ({cx:F1},{cy:F1}) 角度 {best.A:F1}° 相似度 {best.S:F3}", best.S, hits.Count,
                 ("位置X", cx), ("位置Y", cy), ("角度", best.A), ("相似度", best.S), ("找到几个", hits.Count));

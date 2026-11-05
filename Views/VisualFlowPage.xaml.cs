@@ -62,6 +62,38 @@ namespace NoCodeMotion.Views
         menu.IsOpen = true;
     }
 
+    /// <summary>【举个例子】：把一条常用流程整条摆好。菜单里每条都直接写出这串步骤在干什么（不靠悬停）。</summary>
+    private void Example_Click(object sender, RoutedEventArgs e)
+    {
+        if (!(DataContext is VisualFlowDetailViewModel vm)) return;
+        var menu = new ContextMenu
+        {
+            PlacementTarget = ExampleBtn,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom
+        };
+        foreach (var ex in FlowExamples.All)
+        {
+            var title = new System.Windows.Controls.TextBlock { Text = ex.Name, FontWeight = FontWeights.SemiBold };
+            var detail = new System.Windows.Controls.TextBlock
+            {
+                Text = ex.Help,
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 430,
+                Margin = new Thickness(0, 3, 0, 0),
+                FontSize = 11.5,
+                Opacity = 0.82,
+            };
+            var box = new System.Windows.Controls.StackPanel();
+            box.Children.Add(title);
+            box.Children.Add(detail);
+            var item = new MenuItem { Header = box, ToolTip = ex.Help };
+            string key = ex.Key;
+            item.Click += (_, __) => vm.AddExampleFlow(key);
+            menu.Items.Add(item);
+        }
+        menu.IsOpen = true;
+    }
+
     public VisualFlowPage()
         {
             InitializeComponent();

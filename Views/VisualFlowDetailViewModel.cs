@@ -447,6 +447,8 @@ namespace NoCodeMotion.Views
 
         // ---- 命令 ----
         public ICommand AddStepCommand { get; }
+        /// <summary>【记为标准】：把刚测到的位置写成这一步的标准 / 基准（示教一键，免得抄错坐标）。</summary>
+        public ICommand TeachCommand { get; }
         public ICommand DeleteStepCommand { get; }
         /// <summary>「运行一次」：依次跑完整个视觉流程一遍。</summary>
         public ICommand RunCommand { get; }
@@ -720,6 +722,81 @@ namespace NoCodeMotion.Views
             SelectedStep = step;
         }
 
+        /// <summary>
+        /// 【记为标准】示教：把刚才真跑出来的实测位置写成这一步的「标准 / 基准」。
+        /// 人抄坐标是最容易出错的一步（抄错一位，之后每一片都对歪），所以给一键。
+        /// </summary>
+        public void TeachStandardFromLastRun()
+        {
+            var st = SelectedStep;
+            if (st == null) { RunStatus = "先在左边选中要示教的那一步（「两个点对位」或「照基准比」）"; return; }
+            string op = (st.Op ?? "").Trim();
+            if (op != "alignpm" && op != "aligntpl")
+            { RunStatus = "只有「两个点对位」和「照基准比」这两步能记为标准（它们才是拿实测和基准比的）"; return; }
+
+            var res = LastAlignResult(op);
+            if (res == null)
+            { RunStatus = "这一步还没跑出结果：先点【运行一次】（或这一步自己的运行按钮），再点【记为标准】"; return; }
+
+            double NumOf(string key)
+            {
+                foreach (var kv in res.Numbers) if (kv.Key == key) return kv.Value;
+                return double.NaN;
+            }
+            string I(double v) => v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+            if (op == "alignpm")
+            {
+                double a1 = NumOf("实测1X"), b1 = NumOf("实测1Y"), a2 = NumOf("实测2X"), b2 = NumOf("实测2Y");
+                if (double.IsNaN(a1) || double.IsNaN(a2))
+                { RunStatus = "这次结果里没有实测两个点的位置：先让这一步跑成功（它得先找到两个 Mark）"; return; }
+                st.SetOpParam("b1", I(a1) + "," + I(b1));
+                st.SetOpParam("b2", I(a2) + "," + I(b2));
+                RunStatus = $"已把刚才那两个实测点记为标准：第1点 ({I(a1)},{I(b1)})、第2点 ({I(a2)},{I(b2)})。以后每片都和它比。";
+            }
+            else
+            {
+                double cx = NumOf("当前X"), cy = NumOf("当前Y"), ca = NumOf("当前角度");
+                if (double.IsNaN(cx) || double.IsNaN(cy))
+                { RunStatus = "这次结果里没有实测位置：先让「照基准比」跑成功（前面要有找到 Mark 的那一步）"; return; }
+                st.SetOpParam("bx", I(cx));
+                st.SetOpParam("by", I(cy));
+                st.SetOpParam("bang", I(ca));
+                RunStatus = $"已把刚才测到的记为基准：X {I(cx)}、Y {I(cy)}、角度 {I(ca)}°。以后每片和它比。";
+            }
+            RebuildOpParams();
+        }
+
+        /// <summary>从本次运行结果里按算子白话名找最后一条（结构化取数，不从结果文字里正则抽）。</summary>
+        private VisionStepResult LastAlignResult(string opKey)
+        {
+            var spec = VisionOperators.Find(opKey);
+            if (spec == null) return null;
+            for (int i = Results.Count - 1; i >= 0; i--)
+                if (Results[i].Type == spec.Name) return Results[i];
+            return null;
+        }
+
+        /// <summary>
+        /// 一键摆好一条现成的例子（「举个例子」按钮）。例子里的参数是按「没接相机时软件自画的示例图」
+        /// 填好的，所以加完直接点【运行一次】就能看到每一步给的结果 —— 新手先看跑通的样子，再照着改成自己的。
+        /// </summary>
+        public void AddExampleFlow(string key)
+        {
+            var s = Steps;
+            var ex = FlowExamples.Find(key);
+            if (s == null || ex == null) return;
+            VisualFlowStep[] steps;
+            try { steps = ex.Build(); }
+            catch (Exception ex2) { RunStatus = "这个例子摆不出来：" + ex2.Message; return; }
+            if (steps.Length == 0) { RunStatus = "这个例子还没有内容"; return; }
+
+            int at = s.Count;
+            foreach (var step in steps) s.Add(step);
+            SelectedStep = s[at];                     // 选中例子的第一步，右边参数卡直接把它的填法摊开
+            RunStatus = $"已摆好「{ex.Name}」（{steps.Length} 步）：{ex.Help}";
+        }
+
         private readonly Progress<string> _progress;
 
         public VisualFlowDetailViewModel()
@@ -727,6 +804,7 @@ namespace NoCodeMotion.Views
             // 先把「基础步骤」的类型候选铺好（还没选步骤时下拉是灰的，但列表要有内容）
             RebuildStepTypeChoices();
             AddStepCommand = new SimpleRelayCommand(_ => AddPlainStep());
+            TeachCommand = new SimpleRelayCommand(_ => TeachStandardFromLastRun());
 
             DeleteStepCommand = new SimpleRelayCommand(_ =>
             {

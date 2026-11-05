@@ -47,9 +47,13 @@ public sealed class NgVisionExecutor
     /// <summary>本帧已执行的算子（按节点 Id 占位），供「测量」重放取特征点。</summary>
     private readonly List<(string Id, VisualFlowStep Step)> _ops = new();
 
-    public NgVisionExecutor(Action<string, double>? setVar, Action<string>? log)
+    /// <summary>取变量当前值（算子参数里写 ${变量名} 时用它换成数）；没给就一律 0。</summary>
+    private readonly Func<string, double> _getVar;
+
+    public NgVisionExecutor(Action<string, double>? setVar, Action<string>? log, Func<string, double>? getVar = null)
     {
         _setVar = setVar ?? ((_, __) => { });
+        _getVar = getVar ?? (_ => 0);
         _log = log ?? (_ => { });
         _sessionDir = Path.Combine(Path.GetTempPath(), "NoCodeMotion", "NgVision");
     }
@@ -448,7 +452,7 @@ public sealed class NgVisionExecutor
         {
             var p = node.Props.FirstOrDefault(x => x != null && x.Name == pd.Name);
             if (p == null || string.IsNullOrWhiteSpace(p.Value)) continue;      // 留空 = 用目录里的默认值
-            step.SetOpParam(pd.Key, p.Value.Trim());
+            step.SetOpParam(pd.Key, VarText(p.Value.Trim()));
         }
 
         VisionReport rep;
@@ -512,6 +516,32 @@ public sealed class NgVisionExecutor
         var digits = new string(n.Where(char.IsDigit).ToArray());
         if (int.TryParse(digits, NumberStyles.Any, CultureInfo.InvariantCulture, out int k) && k > 0) return k - 1;
         return 0;
+    }
+
+    /// <summary>
+    /// 把参数里写的 ${变量名} 换成当前变量值（例：「算对位移动量」的视觉偏差X 填 ${对位偏差X}，
+    /// 或上下对位把上一层的姿态写成 ${上层偏差X}）。写不开的一眼看出来 —— 直接留原样并报在摘要里，
+    /// 不静默当 0 用。
+    /// </summary>
+    private string VarText(string raw)
+    {
+        if (string.IsNullOrEmpty(raw) || raw.IndexOf("${", StringComparison.Ordinal) < 0) return raw;
+        var sb = new System.Text.StringBuilder();
+        int i = 0;
+        while (i < raw.Length)
+        {
+            int a = raw.IndexOf("${", i, StringComparison.Ordinal);
+            if (a < 0) { sb.Append(raw, i, raw.Length - i); break; }
+            sb.Append(raw, i, a - i);
+            int b = raw.IndexOf('}', a + 2);
+            if (b < 0) { sb.Append(raw, a, raw.Length - a); break; }
+            string name = raw.Substring(a + 2, b - a - 2).Trim();
+            double val = _getVar(name);
+            sb.Append(val.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture));
+            _log($"[视觉] 参数里的变量 {name} = {val:0.####}");
+            i = b + 1;
+        }
+        return sb.ToString();
     }
 
     private static string Prop(NgNode n, string name, string def)
