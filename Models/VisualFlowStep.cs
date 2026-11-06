@@ -87,6 +87,7 @@ namespace NoCodeMotion.Models
         private int _width = 1920;
         private int _height = 1080;
         private string _folderPath = "";
+        private int _folderIndex = 1;              // 文件夹来源用第几张（1 起，按文件名排序）
 
         // 模板匹配
         private string _templatePath = "";
@@ -170,6 +171,9 @@ namespace NoCodeMotion.Models
         public int Height { get => _height; set => Set(ref _height, value); }
         public string SourceType { get => _sourceType; set => Set(ref _sourceType, value); }
         public string FolderPath { get => _folderPath; set => Set(ref _folderPath, value); }
+
+        /// <summary>来源=文件夹时用第几张（1 起，按文件名排序；超过总数就取最后一张）。</summary>
+        public int FolderIndex { get => _folderIndex; set => Set(ref _folderIndex, value); }
 
         public string TemplatePath { get => _templatePath; set => Set(ref _templatePath, value); }
         public double ScoreThreshold { get => _scoreThreshold; set => Set(ref _scoreThreshold, value); }

@@ -457,6 +457,10 @@ namespace NoCodeMotion.Views
         public ICommand RunStepCommand { get; }
         /// <summary>【打开标定图片】：用资源管理器打开上一次标定的存图目录（9 张 xy + 5 张 rot + 配对清单）。</summary>
         public ICommand OpenCalibImagesCommand { get; }
+        /// <summary>【示例标定图】：重新生成 9 张 XY + 5 张旋转的示例图，并打开那个文件夹。</summary>
+        public ICommand DemoCalibImagesCommand { get; }
+        /// <summary>【改用示例标定图文件夹】：把当前采集步骤的来源改成「文件夹」并指向 程序目录\DemoCalib。</summary>
+        public ICommand UseDemoFolderCommand { get; }
 
         // ---------- 循环运行状态 ----------
         private bool _loopRun;
@@ -825,6 +829,8 @@ namespace NoCodeMotion.Views
             });
             RunStepCommand = new SimpleRelayCommand(p => _ = RunStepAsync(p as VisualFlowStep));
             OpenCalibImagesCommand = new SimpleRelayCommand(_ => OpenCalibImages());
+            DemoCalibImagesCommand = new SimpleRelayCommand(_ => DemoCalibImages());
+            UseDemoFolderCommand = new SimpleRelayCommand(_ => UseDemoFolder());
             BrowsePathCommand = new SimpleRelayCommand(p => BrowsePath(p as string));
             RunMatchCommand = new SimpleRelayCommand(_ => _ = RunMatchAsync());
             ClearTemplateRoiCommand = new SimpleRelayCommand(_ =>
@@ -865,6 +871,12 @@ namespace NoCodeMotion.Views
                 if (kind == nameof(VisualFlowStep.FolderPath))
                 {
                     var fdlg = new OpenFolderDialog { Title = "选择图像文件夹" };
+                    // 路径还空着就直接从示例标定图那个文件夹开始翻，省得人一层层找 bin
+                    if (string.IsNullOrWhiteSpace(step.FolderPath))
+                    {
+                        string demo = VisionEngine.EnsureDemoCalibImages();
+                        if (System.IO.Directory.Exists(demo)) fdlg.InitialDirectory = demo;
+                    }
                     if (fdlg.ShowDialog() == true) step.FolderPath = fdlg.FolderName;
                     return;
                 }
@@ -1002,6 +1014,46 @@ namespace NoCodeMotion.Views
             RunStatus = report.Matches.Count > 0
                 ? $"完成：共 {Results.Count} 步，{ok} 步成功　匹配 {report.Matches.Count} 个目标"
                 : $"完成：共 {Results.Count} 步，{ok} 步成功";
+        }
+
+        /// <summary>
+        /// 没接相机时的一步到位：来源改成「文件夹」、路径填程序目录\DemoCalib（没有就先画一套），
+        /// 并把它当成第 1 张——接着点【运行一次】就能看到图、后面几步也有东西可找。
+        /// </summary>
+        private void UseDemoFolder()
+        {
+            var s = SelectedStep;
+            if (s == null) return;
+            string dir = VisionEngine.EnsureDemoCalibImages();
+            s.SourceType = "文件夹";
+            s.FolderPath = dir;
+            s.FolderIndex = 1;
+            OnPropertyChanged(nameof(IsCameraSource));
+            OnPropertyChanged(nameof(IsFolderSource));
+            OnPropertyChanged(nameof(IsFileSource));
+            RunStatus = "已改用示例标定图文件夹：" + dir
+                      + "　里面有 9 张 XY + 5 张旋转；想看别的改「用第几张」。点【运行一次】就能出图。";
+        }
+
+        /// <summary>
+        /// 重新画一套示例标定图（9 张 XY + 5 张旋转 + 真值.txt）到程序目录\DemoCalib 并打开。
+        /// 后面接一句「怎么用它们标定」：光给图不知道该干嘛，等于没给。
+        /// </summary>
+        private void DemoCalibImages()
+        {
+            try
+            {
+                string dir = VisionEngine.EnsureDemoCalibImages(force: true);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                { FileName = dir, UseShellExecute = true });
+                RunStatus = "示例标定图已重新生成并打开：" + dir
+                          + "　里面 9 张 XY（3×3 走位）+ 5 张旋转（±40°/±20°/0°）+ 真值.txt。"
+                          + "想用它跑一遍标定：添加步骤 → 类型选「标定」→ 勾「用示例图」→ 点【运行本步】。";
+            }
+            catch (Exception ex)
+            {
+                RunStatus = "示例标定图没生成出来：" + ex.Message;
+            }
         }
 
         /// <summary>

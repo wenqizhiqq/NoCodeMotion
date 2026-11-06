@@ -292,13 +292,14 @@ namespace NoCodeMotion.Services.Vision
                     if (real != null)
                     {
                         usedSynthetic = false;
-                        string dark = FrameTooDark(real, rw, rh)
-                            ? "　⚠ 画面几乎全黑：图是拍到了，但里面什么都没有 —— 先看镜头盖有没有开、光源亮没亮、曝光是不是太短"
-                            : "";
+                        // 全黑帧不算采集成：图是拿到了，但里面没有信息，后面每一步都会红 —— 在这里就判红并说清为什么
+                        bool allBlack = FrameTooDark(real, rw, rh);
                         report.Results.Add(new VisionStepResult
                         {
-                            StepName = s.Name, Type = "图像采集", Ok = true,
-                            Summary = $"相机「{camLabel}」采集 {rw}x{rh}{dark}"
+                            StepName = s.Name, Type = "图像采集", Ok = !allBlack,
+                            Summary = allBlack
+                                ? $"相机「{camLabel}」采集 {rw}x{rh}，但画面几乎全黑：先看镜头盖有没有开、光源亮没亮、曝光是不是太短"
+                                : $"相机「{camLabel}」采集 {rw}x{rh}"
                         });
                         progress?.Report($"图像采集：相机「{camLabel}」");
                         return BgraToMat(real, rw, rh);
@@ -326,23 +327,34 @@ namespace NoCodeMotion.Services.Vision
                     AddFail(report, s, $"文件夹不存在：{folder}（不再回退测试图）");
                     return null;
                 }
-                foreach (var ext in new[] { "*.jpg", "*.jpeg", "*.png", "*.bmp", "*.tif", "*.tiff" })
+                // 所有扩展名一起排（以前按扩展名分组，.jpg 永远排在 .png 前面，选哪张全看后缀）
+                var files = new List<string>();
+                foreach (var ext in new[] { "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff" })
+                    files.AddRange(Directory.GetFiles(folder, ext, SearchOption.TopDirectoryOnly));
+                if (files.Count == 0)
                 {
-                    var files = Directory.GetFiles(folder, ext, SearchOption.TopDirectoryOnly);
-                    if (files.Length == 0) continue;
-                    var m = ImReadBgra(files[0]);
-                    if (m == null) continue;
-                    usedSynthetic = false;
-                    report.Results.Add(new VisionStepResult
-                    {
-                        StepName = s.Name, Type = "图像采集", Ok = true,
-                        Summary = $"文件夹首图 {Path.GetFileName(files[0])} {m.Width}x{m.Height}"
-                    });
-                    progress?.Report("图像采集：文件夹首图");
-                    return m;
+                    AddFail(report, s, $"文件夹内没有可读图像：{folder}（不再回退测试图）");
+                    return null;
                 }
-                AddFail(report, s, $"文件夹内没有可读图像：{folder}（不再回退测试图）");
-                return null;
+                files.Sort(StringComparer.OrdinalIgnoreCase);
+                // 「用第几张」：9 张 XY + 5 张旋转这种一趟拍一组的，就靠它一张张翻
+                int want = s.FolderIndex < 1 ? 1 : s.FolderIndex;
+                if (want > files.Count) want = files.Count;
+                string picked = files[want - 1];
+                var m = ImReadBgra(picked);
+                if (m == null)
+                {
+                    AddFail(report, s, $"文件夹里的第 {want} 张读不出来：{picked}（换一张或检查文件）");
+                    return null;
+                }
+                usedSynthetic = false;
+                report.Results.Add(new VisionStepResult
+                {
+                    StepName = s.Name, Type = "图像采集", Ok = true,
+                    Summary = $"文件夹第 {want}/{files.Count} 张：{Path.GetFileName(picked)} {m.Width}x{m.Height}"
+                });
+                progress?.Report($"图像采集：文件夹第 {want}/{files.Count} 张");
+                return m;
             }
 
             // 文件（来源=文件）
@@ -639,6 +651,57 @@ namespace NoCodeMotion.Services.Vision
         }
 
         // ============ 标定（9 点 XY 仿射 + 5 点旋转圆拟合） ============
+
+        /// <summary>示例标定图的固定目录：程序目录\DemoCalib（9 张 XY + 5 张旋转 + 真值说明）。</summary>
+        public static string DemoCalibDir => Path.Combine(AppContext.BaseDirectory, "DemoCalib");
+
+        /// <summary>
+        /// 把示例标定图备到 <see cref="DemoCalibDir"/>：xy01~xy09（3×3 走位）+ rot01~rot05（5 个角度）+ 真值.txt。
+        /// 和标定执行器走的是同一套画图代码（<see cref="Calibration.DemoCalib.Render"/>），所以这 14 张就是
+        /// 「勾了用示例图、间距 10mm、步距 20°」时它会拿去算的那些图；已有且不缺就不重画（force = 重画）。
+        /// 返回目录（生成失败也返回路径，调用方自行提示）。
+        /// </summary>
+        public static string EnsureDemoCalibImages(bool force = false)
+        {
+            string dir = DemoCalibDir;
+            try
+            {
+                Directory.CreateDirectory(dir);
+                // 文件名带序号前缀（01-xy01 … 09-xy09、10-rot01 … 14-rot05），按名字排就是「先 9 张 XY、再 5 张旋转」
+                bool complete = Directory.GetFiles(dir, "??-*.png").Length >= 14;
+                if (complete && !force) return dir;
+
+                var sim = new Calibration.DemoCalib.Sim();
+                int idx = 0;
+                // 顺序和 CalibrationRunner 的 9 点一致：y 外层、x 内层，间距 10mm
+                for (int iy = -1; iy <= 1; iy++)
+                {
+                    for (int ix = -1; ix <= 1; ix++)
+                    {
+                        sim.Move(Calibration.DemoCalib.AxisX, ix * 10.0);
+                        sim.Move(Calibration.DemoCalib.AxisY, iy * 10.0);
+                        idx++;
+                        SaveBgra(Calibration.DemoCalib.Render(sim, true), Calibration.DemoCalib.Width,
+                                 Calibration.DemoCalib.Height, Path.Combine(dir, $"{idx:00}-xy{idx:00}.png"));
+                    }
+                }
+                // 5 个角度：以当前角度为中心 ±20°、±40°（5 点、步距 20°）
+                for (int k = 0; k < 5; k++)
+                {
+                    sim.Move(Calibration.DemoCalib.AxisR, (k - 2) * 20.0);
+                    SaveBgra(Calibration.DemoCalib.Render(sim, true), Calibration.DemoCalib.Width,
+                             Calibration.DemoCalib.Height, Path.Combine(dir, $"{9 + k + 1:00}-rot{k + 1:00}.png"));
+                }
+                File.WriteAllText(Path.Combine(dir, "真值.txt"), Calibration.DemoCalib.TruthText(),
+                                  new System.Text.UTF8Encoding(true));
+                Debug.WriteLine($"[VisionEngine] 示例标定图已生成：{dir}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[VisionEngine] 示例标定图生成失败：{ex.Message}");
+            }
+            return dir;
+        }
 
         /// <summary>上一次标定把图存到了哪个目录（给「打开标定图片」按钮用；没跑过 = 空串）。</summary>
         public static string LastCalibImageDir { get; private set; } = "";

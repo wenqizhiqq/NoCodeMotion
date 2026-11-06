@@ -134,6 +134,14 @@
                             <TextBlock Text="记为标准" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <Button Command="{Binding DemoCalibImagesCommand}" Style="{StaticResource ToolButtonStyle}" Margin="0,0,8,0"
+                            ToolTip="重新生成 9 张 XY + 5 张旋转的示例标定图（程序目录\DemoCalib）并打开：没相机没轴也能先看清要标什么、图长什么样">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#128444;" FontSize="13" Margin="0,0,5,0" VerticalAlignment="Center"
+                                       Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            <TextBlock Text="示例标定图" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     <Button Command="{Binding DeleteStepCommand}" Style="{StaticResource TtDeleteBtn}">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform"
@@ -503,6 +511,26 @@
                                           IsChecked="{Binding SelectedStep.Enabled, UpdateSourceTrigger=PropertyChanged}"
                                           IsEnabled="{Binding HasStep}"/>
                                 </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <!-- 这一步的结果：只给一个红叉说不出为什么红，原因必须直接显示在这儿 -->
+                                <TextBlock FontSize="11" Margin="0,4,0,0" Foreground="{StaticResource TextSecondaryBrush}"
+                                           Text="这一步的结果（失败原因也在这儿）"/>
+                                <TextBlock FontSize="11.5" LineHeight="17" TextWrapping="Wrap" Margin="0,2,0,2">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="{Binding SelectedStep.LastResult}"/>
+                                            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedStep.LastOk}" Value="True">
+                                                    <Setter Property="Foreground" Value="#16A34A"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding SelectedStep.LastOk}" Value="False">
+                                                    <Setter Property="Foreground" Value="#DC2626"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
                         </Border>
 
@@ -570,11 +598,22 @@
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="图像采集参数"/>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <TextBlock FontSize="11" LineHeight="16" TextWrapping="Wrap" Margin="0,2,0,6"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Text="没接相机也能跑：来源选「文件夹」→ 点下面的【改用示例标定图文件夹】（程序目录\DemoCalib 里有 9 张 XY + 5 张旋转的示例图），再用「用第几张」一张张翻。接真相机时来源选回「相机」，拍回来全黑会直接判红并说明原因。"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="来源"/>
                                     <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
                                           ItemsSource="{StaticResource SourceTypes}"
                                           SelectedItem="{Binding SelectedStep.SourceType, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DockPanel>
+                                <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsCameraSource, Converter={StaticResource BoolToVis}}"/>
+                                <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsCameraSource, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="没接相机？"/>
+                                    <Button DockPanel.Dock="Right" Content="改用示例标定图文件夹" Padding="8,2"
+                                            Style="{StaticResource ToolButtonStyle}"
+                                            ToolTip="把来源改成「文件夹」并指向程序目录的 DemoCalib（9 张 XY + 5 张旋转的示例图，没有就先画一套）"
+                                            Command="{Binding UseDemoFolderCommand}"/>
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsCameraSource, Converter={StaticResource BoolToVis}}"/>
                                 <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsCameraSource, Converter={StaticResource BoolToVis}}">
@@ -598,6 +637,9 @@
                                     <TextBox Style="{StaticResource AppleTextField}"
                                          Text="{Binding SelectedStep.FolderPath, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DockPanel>
+                                <local:NumericSliderRow Label="用第几张" Unit="张" Minimum="1" Maximum="99" TickFrequency="1"
+                                                    Visibility="{Binding IsFolderSource, Converter={StaticResource BoolToVis}}"
+                                                    Value="{Binding SelectedStep.FolderIndex}"/>
                                 <Rectangle Style="{StaticResource AppleHairline}" Visibility="{Binding IsFileSource, Converter={StaticResource BoolToVis}}"/>
                                 <DockPanel Style="{StaticResource AppleRow}" Visibility="{Binding IsFileSource, Converter={StaticResource BoolToVis}}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="文件路径"/>

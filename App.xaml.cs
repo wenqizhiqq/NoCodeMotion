@@ -59,6 +59,10 @@ namespace NoCodeMotion
                 Shutdown();
                 return;
             }
+            // 没有相机、没有轴也先让人看到「9 张 XY + 5 张旋转」长什么样：后台备一份到 程序目录\DemoCalib
+            // （已有就不动；生成失败只写调试日志，绝不影响启动）
+            _ = Task.Run(() => { try { NoCodeMotion.Services.Vision.VisionEngine.EnsureDemoCalibImages(); } catch { } });
+
             base.OnStartup(e);
         }
 

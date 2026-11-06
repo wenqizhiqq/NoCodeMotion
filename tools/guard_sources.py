@@ -2772,6 +2772,68 @@ check('G51.13 说明书讲清了 9 张定 XY、5 张定旋转中心、图存在�
       '九点标定：让轴走到 9 个已知位置' in _man51 and '旋转标定（5 张定旋转中心）' in _man51
       and 'CalibImages' in _man51 and '标定配对.csv' in _man51 and '【打开标定图片】' in _man51)
 
+# ---------------------------------------------------------------------
+# G52  示例标定图：光有生成逻辑不算，得真落在程序目录、一键能打开、告诉人怎么用
+# ---------------------------------------------------------------------
+# 用户第二轮还在问「为什么没有示例图片，需要 9 张 xy、5 张旋转的图片」——
+# 上一轮只在标定步骤里按需画，他不加那一步就一张也看不见。这一轮把图备成文件 + 给按钮。
+_ve52 = (read(r"Services\Vision\VisionEngine.cs") or "").replace("\r\n", "\n")
+_app52 = (read(r"App.xaml.cs") or "").replace("\r\n", "\n")
+_vp52 = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+_vvm52 = (read(r"Views\VisualFlowDetailViewModel.cs") or "").replace("\r\n", "\n")
+_dc52 = (read(r"Services\Vision\Calibration\DemoCalib.cs") or "").replace("\r\n", "\n")
+_man52 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+
+check('G52.1 示例标定图会真备到程序目录 DemoCalib（9 张 XY + 5 张旋转 + 真值.txt），已有就不重画',
+      'public static string EnsureDemoCalibImages(bool force = false)' in _ve52
+      and '"DemoCalib"' in _ve52 and '{idx:00}-xy{idx:00}.png' in _ve52 and '{9 + k + 1:00}-rot' in _ve52
+      and '"真值.txt"' in _ve52 and 'if (complete && !force) return dir;' in _ve52)
+check('G52.2 启动时后台备一份（没有相机也永远看得见这 14 张），失败不影响启动',
+      'EnsureDemoCalibImages()' in _app52 and 'Task.Run' in _app52
+      and 'catch { }' in _app52)
+check('G52.3 工具条有【示例标定图】：重新生成 + 打开文件夹 + 说明怎么拿它跑标定',
+      'Text="示例标定图"' in _vp52 and 'DemoCalibImagesCommand' in _vp52
+      and 'VisionEngine.EnsureDemoCalibImages(force: true)' in _vvm52
+      and 'UseShellExecute = true' in _vvm52
+      and '类型选「标定」' in _vvm52 and '用示例图' in _vvm52)
+check('G52.4 相机拍回全黑帧判红并说清原因（以前给绿勾，人只看到一片黑）',
+      'bool allBlack = FrameTooDark(real, rw, rh);' in _ve52
+      and 'Ok = !allBlack' in _ve52 and '画面几乎全黑' in _ve52)
+check('G52.5 说明书里写了示例标定图在哪、怎么用',
+      '示例标定图' in _man52 and 'DemoCalib' in _man52)
+check('G52.6 示例图与标定用的是同一套画图代码（不是另画一份对不上的）',
+      'Calibration.DemoCalib.Render(sim, true)' in _ve52 and 'public static byte[] Render(Sim sim, bool darkMarker)' in _dc52)
+
+# ---------------------------------------------------------------------
+# G53  没相机就从文件夹取图：按文件名排、能翻第几张、一键指到示例标定图、失败原因看得见
+# ---------------------------------------------------------------------
+# 用户第三次在同一处卡住（截图：图像采集红叉 + 运行结果全黑），一句「应该文件夹获取吧」——
+# 文件夹来源本来有，但只取首图（还按扩展名分组）、没人告诉他示例图在哪个文件夹、红叉也不说原因。
+_st53 = (read(r"Models\VisualFlowStep.cs") or "").replace("\r\n", "\n")
+_ve53 = (read(r"Services\Vision\VisionEngine.cs") or "").replace("\r\n", "\n")
+_vp53 = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+_vvm53 = (read(r"Views\VisualFlowDetailViewModel.cs") or "").replace("\r\n", "\n")
+_man53 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+
+check('G53.1 文件夹来源按文件名统一排序，并且真的用「用第几张」（超总数取最后一张）',
+      'public int FolderIndex' in _st53
+      and 'files.Sort(StringComparer.OrdinalIgnoreCase);' in _ve53
+      and 'int want = s.FolderIndex < 1 ? 1 : s.FolderIndex;' in _ve53
+      and 'if (want > files.Count) want = files.Count;' in _ve53
+      and '文件夹第 {want}/{files.Count} 张' in _ve53)
+check('G53.2 采集卡有【改用示例标定图文件夹】：一键把来源改成文件夹并指向程序目录 DemoCalib',
+      'Text="没接相机？"' in _vp53 and 'Content="改用示例标定图文件夹"' in _vp53
+      and 'UseDemoFolderCommand' in _vp53 and 'UseDemoFolderCommand = new SimpleRelayCommand' in _vvm53
+      and 's.SourceType = "文件夹";' in _vvm53 and 's.FolderPath = dir;' in _vvm53
+      and 's.FolderIndex = 1;' in _vvm53)
+check('G53.3 浏览文件夹时默认落到示例标定图目录（省得人一层层翻 bin）',
+      'fdlg.InitialDirectory = demo' in _vvm53 and 'EnsureDemoCalibImages()' in _vvm53)
+check('G53.4 通用参数卡直接显示「这一步的结果」（红叉必须带原因，不靠猜）',
+      'Text="这一步的结果（失败原因也在这儿）"' in _vp53
+      and 'SelectedStep.LastResult' in _vp53)
+check('G53.5 采集卡顶部用大白话写了「没相机怎么从文件夹取」',
+      '没接相机也能跑：来源选「文件夹」' in _vp53 and '用第几张' in _vp53)
+
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
     print("失败清单：")
