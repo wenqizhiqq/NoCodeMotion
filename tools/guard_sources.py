@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 r"""源码文本回归守卫 —— 伺服使能极性 / Jog 失败提示 / 加减速语义 / 暂停停止守卫 / 多开退出 / 图形生成 / IO 虚拟化。
 
 为什么单独一个脚本：C# 冒烟程序从 %TEMP% 启动，读 D:\ 下的源码会被沙箱替换成无效内容
@@ -2833,6 +2833,110 @@ check('G53.4 通用参数卡直接显示「这一步的结果」（红叉必须�
       and 'SelectedStep.LastResult' in _vp53)
 check('G53.5 采集卡顶部用大白话写了「没相机怎么从文件夹取」',
       '没接相机也能跑：来源选「文件夹」' in _vp53 and '用第几张' in _vp53)
+
+# ---------------------------------------------------------------------
+# G54  从 SGamma（Halcon 那套）搬过来的算子：真在目录里、真实现、真被读参数
+# ---------------------------------------------------------------------
+# 用户要求「从 D:\视觉sgamma\视觉SGamma 把 halcon 的算子拿过来」。它的节点表里能落到 2D OpenCV 的
+# 三个是这套之前没有的：边缘搜索·点、拟合（椭）圆、整块找椭圆；另外它的「与参考线同向 / 垂直」投影也补了。
+_vo54 = (read(r"Services\Vision\VisionOperators.cs") or "").replace("\r\n", "\n")
+_vr54 = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n")
+_man54 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+
+check('G54.1 SGamma 的三个独有算子在目录里，且都有白话名 / 说明 / 输出',
+      all(f'Key = "{k}"' in _vo54 for k in ("edgept", "ellipse", "fitellipse"))
+      and 'Name = "找一个边缘点"' in _vo54 and 'Name = "找椭圆"' in _vo54 and 'Name = "把点拟成椭圆"' in _vo54)
+check('G54.2 三个算子都真接了执行分派（不是只在目录里挂个名）',
+      'case "edgept": DoEdgePoint(' in _vr54 and 'case "ellipse": DoEllipse(' in _vr54
+      and 'case "fitellipse": DoFitEllipseFromPoints(' in _vr54)
+check('G54.3 找一个边缘点：首边缘 / 最强边缘 + 明暗 + 亚像素 + 多剖面取中位数（抗噪）',
+      'bool strongest = Txt(spec, s, "pick") == "最强的边";' in _vr54
+      and 'PolarityOf(spec, s)' in _vr54 and 'Num(spec, s, "sub", 1) >= 1' in _vr54
+      and 'const int profiles = 9;' in _vr54 and 'medPos = pos[pos.Count / 2]' in _vr54)
+check('G54.4 报的是真实灰度跳变，不是梯度幅值（前者人看得懂，后者会随采样步长缩水）',
+      'double grayJump = Math.Abs(duo[1] - duo[0]);' in _vr54 and '("灰度差", grayJump)' in _vr54)
+check('G54.5 椭圆转角统一到 0~180（两类椭圆算子都要）',
+      _vr54.count('rot = ((rot % 180) + 180) % 180;') >= 2)
+check('G54.6 「两点多远」补了 SGamma 的参考线投影（沿 / 垂直），无参考线时行为不变',
+      'P("refdir", "参考方向", "choice", "无参考线"' in _vo54
+      and 'refdir == "沿参考线"' in _vr54 and '("投影距离", proj)' in _vr54
+      and 'refdir == "无参考线" ? dist : proj' in _vr54)
+check('G54.7 说明书里有这张对照表（哪些搬了、哪些本来就有、哪些不做）',
+      "二十五、SGamma（Halcon 那套）的算子对照" in _man54
+      and "边缘搜索 · 点（首边缘 / 最大边缘）" in _man54 and "面拟合" in _man54
+      and "AI" in _man54 and "找椭圆" in _man54)
+
+# ---------------------------------------------------------------------
+# G55  算子的三个来源要分开：目录有标签、界面上看得见、手册里有一列、说明书讲清楚
+# ---------------------------------------------------------------------
+# 用户：「halcon 的算子和 opencv 算子分开，说明」。这套软件从不调用 Halcon，
+# 但搬来的算子必须能一眼认出来（不然查资料/对原厂时说不清）。
+_vo55 = (read(r"Services\Vision\VisionOperators.cs") or "").replace("\r\n", "\n")
+_vm55 = (read(r"Views\VisualFlowDetailViewModel.cs") or "").replace("\r\n", "\n")
+_vp55 = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+_vpc55 = (read(r"Views\VisualFlowPage.xaml.cs") or "").replace("\r\n", "\n")
+_sheet55 = (read(r"Services\OperatorManualSheet.cs") or "").replace("\r\n", "\n")
+_man55 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+
+check('G55.1 目录有来源字段，默认 OpenCV 原生，三族常量齐全',
+      'public string Source { get; init; } = SourceOpenCv;' in _vo55
+      and 'public const string SourceOpenCv = "OpenCV 原生";' in _vo55
+      and 'public const string SourceHalcon = "Halcon 同款（SGamma）";' in _vo55
+      and 'public const string SourceWenVision = "WenVision 移植";' in _vo55)
+check('G55.2 三个 SGamma 算子标成 Halcon 同款（各自都有说明）',
+      _vo55.count('Source = VisionOpSpec.SourceHalcon,') >= 3
+      and '照 SGamma（Halcon）的' in _vo55)
+check('G55.3 十一个 WenVision 算子标成 WenVision 移植',
+      _vo55.count('Source = VisionOpSpec.SourceWenVision,') == 11
+      and '照 WenVision 的对位工具 / 坐标标定做的' in _vo55)
+check('G55.4 参数卡直接显示「来源：…」（只有搬来的才显示，不是只挂在悬停上）',
+      'public string OpSourceText' in _vm55 and 'public bool HasOpSource' in _vm55
+      and 'Text="{Binding OpSourceText}"' in _vp55
+      and 'Visibility="{Binding HasOpSource' in _vp55)
+check('G55.5 【添加步骤】菜单里搬来的算子带来源前缀',
+      '【Halcon 同款】' in _vpc55 and '【WenVision 移植】' in _vpc55
+      and 'Header = prefix + op.Name' in _vpc55)
+check('G55.6 工程里的「算子手册」表多一列「来源」，节点行也补齐了列数',
+      'dt.Columns.Add("来源");' in _sheet55
+      and 'op.Source + (op.SourceNote.Length > 0 ? "｜" + op.SourceNote : "")' in _sheet55
+      and '"流程节点",\n                    "OpenCV 原生",' in _sheet55)
+check('G55.7 说明书单开一节把三族分开讲，并说清「不调用 Halcon」',
+      "二十六、算子的三个来源" in _man55 and "不调用 Halcon" in _man55
+      and "Halcon 同款（SGamma）" in _man55 and "WenVision 移植" in _man55 and "OpenCV 原生" in _man55)
+
+# ---------------------------------------------------------------------
+# G56  Halcon 常驻算子那一批（阈值 / 形态学 / 边缘图 / 投影 / 刚体 / 转图）
+# ---------------------------------------------------------------------
+_vo56 = (read(r"Services\Vision\VisionOperators.cs") or "").replace("\r\n", "\n")
+_vr56 = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n")
+_man56 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+
+_hal56 = ("thresh", "autothresh", "dynthresh", "erode", "dilate", "open", "close",
+          "tophat", "bothat", "edges", "grayproj", "rigid", "affineimg")
+check('G56.1 13 个 Halcon 常驻算子都在目录里（阈值 3 / 形态学 6 / 边缘图 / 投影 / 刚体 / 转图）',
+      all(f'Key = "{k}"' in _vo56 for k in _hal56))
+check('G56.2 新增「分割与形态学」分类，里面正好是这 9 个',
+      'Category = "分割与形态学"' in _vo56
+      and _vo56.count('Category = "分割与形态学"') >= 9)
+check('G56.3 这批全部标成 Halcon 同款（连同前面的 3 个，一共 16 个）',
+      _vo56.count('Source = VisionOpSpec.SourceHalcon,') >= 27)
+check('G56.4 每个都有执行分派（不是只挂名）',
+      all(f'case "{k}":' in _vr56 for k in _hal56))
+check('G56.5 说明书写了这批（阈值/形态学/边缘图/灰度投影/刚体/转图）',
+      "另有 13 个 Halcon 常驻算子也搬了" in _man56
+      and "提亮细节（顶帽）" in _man56 and "灰度投影" in _man56 and "刚体换算" in _man56)
+
+# G57  批次 8：连通域 / 形状筛选 / 区域特征 / 凸包 / 轮廓线 / 一对边 / 灰度极值 / 颜色 / 反色 / 均衡 / 模糊
+_vr57 = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n")
+_vo57 = (read(r"Services\Vision\VisionOperators.cs") or "").replace("\r\n", "\n")
+_k57 = ("connect", "selectshape", "shapefeat", "convexhull", "contours", "edgepair",
+        "minmaxgray", "hueselect", "invert", "equhisto", "gaussblur")
+check('G57.1 批次 8 的 11 个算子都在目录并接了分派',
+      all(f'Key = "{k}"' in _vo57 and f'case "{k}":' in _vr57 for k in _k57))
+check('G57.2 这批也标成 Halcon 同款（总数 ≥ 27）',
+      _vo57.count('Source = VisionOpSpec.SourceHalcon,') >= 27)
+check('G57.3 连通域按 stats 表读列（面积列 4、外接宽高 2/3），不是猜的',
+      'stats.At<int>(i, 4)' in _vr57 and 'stats.At<int>(i, 2)' in _vr57)
 
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:

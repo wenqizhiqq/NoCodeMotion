@@ -546,6 +546,10 @@
                                 <TextBlock Text="{Binding OpHelp}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
                                            Foreground="{StaticResource AccentDarkBrush}"
                                            Visibility="{Binding HasOp, Converter={StaticResource BoolToVis}}"/>
+                                <!-- 来源：Halcon 同款 / WenVision 移植的算子要一眼认出来（OpenCV 原生的不显示这行） -->
+                                <TextBlock Text="{Binding OpSourceText}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"
+                                           Foreground="#7C3AED"
+                                           Visibility="{Binding HasOpSource, Converter={StaticResource BoolToVis}}"/>
                                 <ItemsControl ItemsSource="{Binding OpParams}"
                                               Visibility="{Binding HasOp, Converter={StaticResource BoolToVis}}">
                                     <ItemsControl.ItemTemplate>

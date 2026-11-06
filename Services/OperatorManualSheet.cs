@@ -24,6 +24,7 @@ namespace NoCodeMotion.Services
         {
             var dt = new DataTable(SheetName);
             dt.Columns.Add("类型");                       // 读我 / 视觉算子 / 流程节点
+            dt.Columns.Add("来源");                       // OpenCV 原生 / Halcon 同款（SGamma）/ WenVision 移植
             dt.Columns.Add("分类");
             dt.Columns.Add("名称");
             dt.Columns.Add("内部键");
@@ -33,7 +34,7 @@ namespace NoCodeMotion.Services
             dt.Columns.Add("怎么用");
 
             dt.Rows.Add(
-                "读我", "全部", "算子手册（软件每次保存自动重建）", "",
+                "读我", "全部", "全部", "算子手册（软件每次保存自动重建）", "",
                 "这张表是当前版本软件里「能用的全部算子和流程节点」，含参数名、默认值和白话说明。改工程前先读这张表，流程里只能使用这里列出的名称。",
                 "参数写法：参数名 = 默认值｜说明；一行一个参数，用换行分隔。",
                 "视觉算子写进「视觉流程」的步骤（Op 内部键 + 参数 JSON）；流程节点写进「流程」页的节点图（Kind 内部键 + 属性）。",
@@ -43,6 +44,7 @@ namespace NoCodeMotion.Services
             {
                 dt.Rows.Add(
                     "视觉算子",
+                    op.Source + (op.SourceNote.Length > 0 ? "｜" + op.SourceNote : ""),
                     op.Category,
                     op.Name,
                     op.Key,
@@ -60,6 +62,7 @@ namespace NoCodeMotion.Services
                     name += "（" + def.StdName + "）";
                 dt.Rows.Add(
                     "流程节点",
+                    "OpenCV 原生",
                     domain,
                     name,
                     def.Kind.ToString(),

@@ -184,6 +184,8 @@ namespace NoCodeMotion.Views
                 OnPropertyChanged(nameof(SelectedTypeName));
                 OnPropertyChanged(nameof(HasOp));
                 OnPropertyChanged(nameof(OpHelp));
+                OnPropertyChanged(nameof(OpSourceText));
+                OnPropertyChanged(nameof(HasOpSource));
             }
         }
 
@@ -220,6 +222,20 @@ namespace NoCodeMotion.Views
                 return spec == null ? "" : spec.Summary + "　｜　会给出：" + spec.Outputs;
             }
         }
+
+        /// <summary>这一步算子的来源。原生 OpenCV 不显示；Halcon 同款 / WenVision 移植直接写在参数卡上，
+        /// 让人一眼看出「这条是照谁做的」，不用去翻手册。</summary>
+        public string OpSourceText
+        {
+            get
+            {
+                var spec = VisionOperators.Find(SelectedStep?.Op ?? "");
+                if (spec == null || spec.Source == VisionOpSpec.SourceOpenCv) return "";
+                return "来源：" + spec.Source + (spec.SourceNote.Length > 0 ? "　·　" + spec.SourceNote : "");
+            }
+        }
+
+        public bool HasOpSource => OpSourceText.Length > 0;
 
         public ObservableCollection<VisionParamEditor> OpParams { get; } = new();
 
@@ -919,6 +935,8 @@ namespace NoCodeMotion.Views
             vm.SyncGroupToSelectedStep();
             vm.OnPropertyChanged(nameof(HasOp));
             vm.OnPropertyChanged(nameof(OpHelp));
+            vm.OnPropertyChanged(nameof(OpSourceText));
+            vm.OnPropertyChanged(nameof(HasOpSource));
             // 切换步骤时清空模板预览 / 匹配结果（不同步骤数据互不串）
             vm.TemplatePreviewImage = null;
             vm.HasTemplatePreview = false;

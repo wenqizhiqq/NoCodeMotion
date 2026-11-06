@@ -1,4 +1,4 @@
-﻿// === NoCodeMotion 视觉流程引擎（OpenCV 实现） | 作者：温​启‎志‍ ‍|⁣ ⁣微‏信‎：‏1‏8‌7‍1‌9‎3⁠6‏1​3​9‌9‌ ⁠|​ ​保‎留‍所⁠有‍权⁣利‏，⁣请‌勿‍删‎除 ===
+// === NoCodeMotion 视觉流程引擎（OpenCV 实现） | 作者：温​启‎志‍ ‍|⁣ ⁣微‏信‎：‏1‏8‌7‍1‌9‎3⁠6‏1​3​9‌9‌ ⁠|​ ​保‎留‍所⁠有‍权⁣利‏，⁣请‌勿‍删‎除 ===
 using System;
 using System.Collections.Generic;
 using System;
@@ -105,6 +105,35 @@ namespace NoCodeMotion.Services.Vision
                     case "corner": DoCorners(spec, s, gray, dst, report, ctx, progress); break;
                     case "fitline": DoFitLineFromPoints(spec, s, dst, report, ctx, progress); break;
                     case "fitcircle": DoFitCircleFromPoints(spec, s, dst, report, ctx, progress); break;
+                    case "edgept": DoEdgePoint(spec, s, gray, dst, report, ctx, progress); break;
+                    // ---- 批次 7：Halcon 常驻算子 ----
+                    case "thresh": DoMaskOp(spec, s, gray, dst, report, ctx, progress, "thresh"); break;
+                    case "autothresh": DoMaskOp(spec, s, gray, dst, report, ctx, progress, "autothresh"); break;
+                    case "dynthresh": DoMaskOp(spec, s, gray, dst, report, ctx, progress, "dynthresh"); break;
+                    case "erode": DoMaskOp(spec, s, gray, dst, report, ctx, progress, "erode"); break;
+                    case "dilate": DoMaskOp(spec, s, gray, dst, report, ctx, progress, "dilate"); break;
+                    case "open": DoMaskOp(spec, s, gray, dst, report, ctx, progress, "open"); break;
+                    case "close": DoMaskOp(spec, s, gray, dst, report, ctx, progress, "close"); break;
+                    case "tophat": DoMaskOp(spec, s, gray, dst, report, ctx, progress, "tophat"); break;
+                    case "bothat": DoMaskOp(spec, s, gray, dst, report, ctx, progress, "bothat"); break;
+                    case "edges": DoEdgeMap(spec, s, gray, dst, report, progress); break;
+                    case "grayproj": DoGrayProjection(spec, s, gray, dst, report, progress); break;
+                    case "rigid": DoRigidPoint(spec, s, dst, report, progress); break;
+                    case "affineimg": DoAffineImage(spec, s, gray, dst, report, progress); break;
+                    // ---- 批次 8 ----
+                    case "connect": DoComponents(spec, s, gray, dst, report, ctx, progress, "connect"); break;
+                    case "selectshape": DoComponents(spec, s, gray, dst, report, ctx, progress, "select"); break;
+                    case "shapefeat": DoComponents(spec, s, gray, dst, report, ctx, progress, "feat"); break;
+                    case "convexhull": DoComponents(spec, s, gray, dst, report, ctx, progress, "hull"); break;
+                    case "contours": DoContourLines(spec, s, gray, dst, report, progress); break;
+                    case "edgepair": DoEdgePair(spec, s, gray, dst, report, progress); break;
+                    case "minmaxgray": DoMinMaxGray(spec, s, gray, dst, report, progress); break;
+                    case "hueselect": DoHueSelect(spec, s, cur, dst, report, ctx, progress); break;
+                    case "invert": DoPixelMap(spec, s, gray, dst, report, "invert"); break;
+                    case "equhisto": DoPixelMap(spec, s, gray, dst, report, "equhisto"); break;
+                    case "gaussblur": DoPixelMap(spec, s, gray, dst, report, "gauss"); break;
+                    case "ellipse": DoEllipse(spec, s, gray, dst, report, ctx, progress); break;
+                    case "fitellipse": DoFitEllipseFromPoints(spec, s, dst, report, ctx, progress); break;
 
                     // ---- 批次 2：几何计算 ----
                     case "pp": DoPointPoint(spec, s, dst, report, ctx, progress); break;
@@ -526,6 +555,531 @@ namespace NoCodeMotion.Services.Vision
                 ("圆心X", fit.Cx), ("圆心Y", fit.Cy), ("半径", fit.R), ("偏差", fit.Rms), ("点数", fit.UsedPoints));
         }
 
+        /// <summary>连通域那一族（connection / select_shape / region_features / shape_trans）：统一阈值 → 拆块 → 按模式报数。</summary>
+        static void DoComponents(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, VisionOpContext ctx, IProgress<string>? progress, string mode)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            using var bin = new Cv.Mat();
+            Cv.Cv2.Threshold(sub, bin, Num(spec, s, "thr", 128), 255, Cv.ThresholdTypes.Binary);
+            using var labels = new Cv.Mat();
+            using var stats = new Cv.Mat();
+            using var cents = new Cv.Mat();
+            int n = Cv.Cv2.ConnectedComponentsWithStats(bin, labels, stats, cents);
+            {
+                int cnt = Math.Max(0, n - 1);
+                int best = -1, bestArea = 0;
+                int loA = (int)Num(spec, s, "loA", 50), hiA = (int)Num(spec, s, "hiA", 1000000);
+                double maxAspect = Num(spec, s, "maxAspect", 3), minFill = Num(spec, s, "minFill", 0.4);
+                int kept = 0;
+                for (int i = 1; i < n; i++)
+                {
+                    int a = stats.At<int>(i, 4);
+                    int bw = stats.At<int>(i, 2), bh = stats.At<int>(i, 3);
+                    double aspect = Math.Max(bw, bh) / (double)Math.Max(1, Math.Min(bw, bh));
+                    double fill = a / (double)Math.Max(1, bw * bh);
+                    if (mode == "select" && (a < loA || (hiA > 0 && a > hiA) || aspect > maxAspect || fill < minFill)) continue;
+                    if (mode == "select") kept++;
+                    if (a > bestArea) { bestArea = a; best = i; }
+                }
+                if (best < 0)
+                {
+                    Add(report, s, spec, false, "一块目标都没找到：把「分界灰度」调松（或确认目标比背景亮）");
+                    return;
+                }
+                double cx = roi.X + cents.At<double>(best, 0), cy = roi.Y + cents.At<double>(best, 1);
+                ctx.LastPoint = new Cv.Point2f((float)cx, (float)cy);
+                DrawPt(dst, ctx.LastPoint.Value);
+                if (mode == "hull")
+                {
+                    using var one = new Cv.Mat();
+                    Cv.Cv2.Compare(labels, best, one, Cv.CmpTypes.EQ);
+                    Cv.Cv2.FindContours(one, out Cv.Point[][] cs, out _, Cv.RetrievalModes.External, Cv.ContourApproximationModes.ApproxSimple);
+                    var biggest = cs.OrderByDescending(c => Cv.Cv2.ContourArea(c)).FirstOrDefault();
+                    if (biggest == null) { Add(report, s, spec, false, "最大块的轮廓提不出来"); return; }
+                    var hull = Cv.Cv2.ConvexHull(biggest);
+                    double hullArea = Cv.Cv2.ContourArea(hull);
+                    double realArea = Cv.Cv2.ContourArea(biggest);
+                    double conv = realArea > 1e-9 ? hullArea / realArea : 0;
+                    dst.Polylines(new[] { Array.ConvertAll(hull, p => new Cv.Point(p.X + roi.X, p.Y + roi.Y)) }, true, Ink, 2);
+                    Add(report, s, spec, true, $"凸包 {hullArea:F0}｜实际 {realArea:F0}｜凸性 {conv:F3}", conv, 1,
+                        ("凸包面积", hullArea), ("实际面积", realArea), ("凸性", conv));
+                    return;
+                }
+                if (mode == "feat")
+                {
+                    using var one = new Cv.Mat();
+                    Cv.Cv2.Compare(labels, best, one, Cv.CmpTypes.EQ);
+                    Cv.Cv2.FindContours(one, out Cv.Point[][] cs, out _, Cv.RetrievalModes.External, Cv.ContourApproximationModes.ApproxSimple);
+                    var biggest = cs.OrderByDescending(c => Cv.Cv2.ContourArea(c)).FirstOrDefault();
+                    if (biggest == null) { Add(report, s, spec, false, "最大块的轮廓提不出来"); return; }
+                    var rr = Cv.Cv2.MinAreaRect(biggest);
+                    double fill = bestArea / (double)Math.Max(1, stats.At<int>(best, 2) * stats.At<int>(best, 3));
+                    double major = Math.Max(rr.Size.Width, rr.Size.Height), minor = Math.Min(rr.Size.Width, rr.Size.Height);
+                    double rot = ((rr.Angle + (rr.Size.Width < rr.Size.Height ? 90 : 0)) % 180 + 180) % 180;
+                    Cv.Cv2.Circle(dst, (int)cx, (int)cy, Math.Max(2, (int)(major / 2)), InkWarn, 1);
+                    Add(report, s, spec, true,
+                        $"面积 {bestArea}｜中心 ({cx:F1},{cy:F1})｜外接 {stats.At<int>(best, 2)}×{stats.At<int>(best, 3)}｜填充 {fill:F2}｜最小外接矩形 {major:F1}×{minor:F1}@{rot:F1}°",
+                        bestArea, 1,
+                        ("面积", bestArea), ("中心X", cx), ("中心Y", cy),
+                        ("宽", stats.At<int>(best, 2)), ("高", stats.At<int>(best, 3)), ("填充率", fill),
+                        ("长", major), ("短", minor), ("角度", rot));
+                    return;
+                }
+                string head = mode == "select" ? $"合格块 {kept}/{cnt}" : $"共 {cnt} 块";
+                Add(report, s, spec, cnt > 0 && (mode != "select" || kept > 0),
+                    $"{head}｜最大块 {bestArea} 像素，中心 ({cx:F1},{cy:F1})", bestArea, cnt,
+                    ("块数", mode == "select" ? kept : cnt), ("最大块面积", bestArea),
+                    ("最大块中心X", cx), ("最大块中心Y", cy));
+            }
+        }
+
+        /// <summary>提取轮廓线（gen_contour_region_xld）：报条数、最长周长、最大面积。</summary>
+        static void DoContourLines(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, IProgress<string>? progress)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            using var bin = new Cv.Mat();
+            Cv.Cv2.Threshold(sub, bin, Num(spec, s, "thr", 128), 255, Cv.ThresholdTypes.Binary);
+            Cv.Cv2.FindContours(bin, out Cv.Point[][] cs, out _, Cv.RetrievalModes.External, Cv.ContourApproximationModes.ApproxSimple);
+            if (cs.Length == 0) { Add(report, s, spec, false, "没有轮廓：把分界灰度调松一点"); return; }
+            double bestLen = 0, bestArea = 0;
+            foreach (var c in cs)
+            {
+                double len = Cv.Cv2.ArcLength(c, true);
+                double area = Cv.Cv2.ContourArea(c);
+                if (len > bestLen) { bestLen = len; bestArea = area; }
+                dst.Polylines(new[] { Array.ConvertAll(c, p => new Cv.Point(p.X + roi.X, p.Y + roi.Y)) }, true, Ink, 1);
+            }
+            Add(report, s, spec, true, $"轮廓 {cs.Length} 条｜最长 {bestLen:F1}｜面积 {bestArea:F0}",
+                bestLen, cs.Length, ("轮廓条数", cs.Length), ("最大周长", bestLen), ("最大面积", bestArea));
+        }
+
+        /// <summary>找一对边（measure_pairs）：一条剖面上取前两条边，报位置 + 宽度 + 中心。</summary>
+        static void DoEdgePair(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, IProgress<string>? progress)
+        {
+            double cx = Num(spec, s, "cx", 0), cy = Num(spec, s, "cy", 0);
+            if (cx <= 0 && cy <= 0) { cx = gray.Cols / 2.0; cy = gray.Rows / 2.0; }
+            double width = Math.Max(8, Num(spec, s, "width", 80));
+            double a = Num(spec, s, "angle", 0) * Math.PI / 180.0;
+            double nx = -Math.Sin(a), ny = Math.Cos(a);
+            var vals = VisionCaliper.SampleProfile(gray, cx - nx * width / 2, cy - ny * width / 2,
+                                                  cx + nx * width / 2, cy + ny * width / 2, Math.Max(32, (int)width * 2));
+            double step = width / (vals.Length - 1);
+            var hits = VisionCaliper.FindEdges(vals, VisionCaliper.Polarity.Any, Num(spec, s, "minGrad", 8), step);
+            if (hits.Count < 2)
+            {
+                Add(report, s, spec, false, $"只找到 {hits.Count} 条边（要两条）：调小「最小灰度差」，或把带子挪到两条边都过的地方");
+                return;
+            }
+            var h1 = hits.OrderBy(h => h.Position).First();
+            var h2 = hits.OrderBy(h => h.Position).Skip(1).First();
+            var p1 = VisionCaliper.PointAlong(cx - nx * width / 2, cy - ny * width / 2, cx + nx * width / 2, cy + ny * width / 2, h1.Position);
+            var p2 = VisionCaliper.PointAlong(cx - nx * width / 2, cy - ny * width / 2, cx + nx * width / 2, cy + ny * width / 2, h2.Position);
+            double gap = Math.Abs(h2.Position - h1.Position);
+            DrawPt(dst, p1); DrawPt(dst, p2);
+            dst.Line((int)p1.X, (int)p1.Y, (int)p2.X, (int)p2.Y, Ink, 1);
+            Add(report, s, spec, true, $"两条边相距 {gap:F2} 像素", gap, 2,
+                ("左边位置", h1.Position), ("右边位置", h2.Position), ("宽度", gap), ("中心位置", (h1.Position + h2.Position) / 2));
+        }
+
+        /// <summary>灰度极值（min_max_gray）。</summary>
+        static void DoMinMaxGray(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, IProgress<string>? progress)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            Cv.Cv2.MinMaxLoc(sub, out double mn, out double mx, out Cv.Point mnLoc, out Cv.Point mxLoc);
+            double lo = Num(spec, s, "loL", 0), hi = Num(spec, s, "hiL", 128);
+            using var mask = new Cv.Mat();
+            Cv.Cv2.InRange(sub, new Cv.Scalar(Math.Min(lo, hi)), new Cv.Scalar(Math.Max(lo, hi)), mask);
+            int inRange = Cv.Cv2.CountNonZero(mask);
+            double ratio = 100.0 * inRange / Math.Max(1, roi.Width * roi.Height);
+            DrawPt(dst, new Cv.Point2f(mxLoc.X + roi.X, mxLoc.Y + roi.Y));
+            Add(report, s, spec, true, $"最亮 {mx:F0}｜最暗 {mn:F0}｜区间内 {ratio:F1}%", mx, 1,
+                ("最亮灰度", mx), ("最暗灰度", mn), ("最亮位置X", mxLoc.X + roi.X), ("最亮位置Y", mxLoc.Y + roi.Y),
+                ("区间占比", ratio));
+        }
+
+        /// <summary>按颜色取区域（decompose3 + 色相/饱和度阈值）。</summary>
+        static void DoHueSelect(VisionOpSpec spec, VisualFlowStep s, Cv.Mat cur, Cv.Mat dst,
+            VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var roi = RoiOf(spec, s, cur);
+            using var sub = new Cv.Mat(cur, roi);
+            using var hsv = new Cv.Mat();
+            Cv.Cv2.CvtColor(sub, hsv, Cv.ColorConversionCodes.BGR2HSV);
+            double hlo = Num(spec, s, "hlo", 0), hhi = Num(spec, s, "hhi", 10);
+            using var mask = new Cv.Mat();
+            Cv.Cv2.InRange(hsv, new Cv.Scalar(Math.Min(hlo, hhi), Num(spec, s, "slo", 80), Num(spec, s, "vlo", 40)),
+                            new Cv.Scalar(Math.Max(hlo, hhi), 255, 255), mask);
+            int count = Cv.Cv2.CountNonZero(mask);
+            var mo = Cv.Cv2.Moments(mask, false);
+            double cx = roi.X + (mo.M00 > 1e-9 ? mo.M10 / mo.M00 : roi.Width / 2.0);
+            double cy = roi.Y + (mo.M00 > 1e-9 ? mo.M01 / mo.M00 : roi.Height / 2.0);
+            double ratio = 100.0 * count / Math.Max(1, roi.Width * roi.Height);
+            ctx.LastPoint = new Cv.Point2f((float)cx, (float)cy);
+            if (count > 0) DrawPt(dst, ctx.LastPoint.Value);
+            Add(report, s, spec, count > 0,
+                count > 0 ? $"颜色块 {count} 像素（占框 {ratio:F1}%）｜中心 ({cx:F1},{cy:F1})"
+                          : "这个色相/饱和度区间里一个像素都没取到：把色相范围放宽、饱和度门槛调低",
+                count, count, ("面积", count), ("中心X", cx), ("中心Y", cy), ("占框多少", ratio));
+        }
+
+        /// <summary>整块像素变换：反色 / 直方图均衡 / 高斯模糊。</summary>
+        static void DoPixelMap(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, string mode)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            using var outp = new Cv.Mat(dst, roi);
+            if (mode == "invert") Cv.Cv2.BitwiseNot(sub, outp);
+            else if (mode == "equhisto") Cv.Cv2.EqualizeHist(sub, outp);
+            else
+            {
+                int k = Math.Max(3, (int)Math.Round(Num(spec, s, "kernel", 5))) | 1;
+                Cv.Cv2.GaussianBlur(sub, outp, new Cv.Size(k, k), 0);
+            }
+            Add(report, s, spec, true, mode == "invert" ? "已反色" : mode == "equhisto" ? "已均衡" : "已模糊",
+                dst.Cols, 1, ("图宽", dst.Cols), ("图高", dst.Rows),
+                ("核大小", mode == "gauss" ? Math.Max(3, (int)Math.Round(Num(spec, s, "kernel", 5))) | 1 : 0));
+        }
+
+        /// <summary>
+        /// 阈值 / 形态学这一族（Halcon 的 threshold、auto_threshold、dyn_threshold、erosion、dilation、opening、closing、top_hat、bottom_hat）：
+        /// 统一先得到一张「目标 = 白」的掩膜，再报面积 / 重心 / 占框比例 —— 这几个数正是下游筛选用得上的。
+        /// </summary>
+        static void DoMaskOp(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, VisionOpContext ctx, IProgress<string>? progress, string mode)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            using var bin = new Cv.Mat();
+            using var tmp = new Cv.Mat();
+            int k = Math.Max(1, (int)Math.Round(Num(spec, s, "kernel", 3)));
+            using var kernel = Cv.Cv2.GetStructuringElement(Cv.MorphShapes.Rect, new Cv.Size(k, k));
+            string how;
+            try
+            {
+                if (mode == "thresh")
+                {
+                    double lo = Num(spec, s, "loL", 0), hi = Num(spec, s, "hiL", 128);
+                    Cv.Cv2.InRange(sub, new Cv.Scalar(Math.Min(lo, hi)), new Cv.Scalar(Math.Max(lo, hi)), bin);
+                    how = $"灰度 {Math.Min(lo, hi):F0}~{Math.Max(lo, hi):F0}";
+                }
+                else if (mode == "autothresh")
+                {
+                    Cv.Cv2.GaussianBlur(sub, tmp, new Cv.Size(3, 3), 0);
+                    double cut = Cv.Cv2.Threshold(tmp, bin, 0, 255, Cv.ThresholdTypes.Binary | Cv.ThresholdTypes.Otsu);
+                    how = $"自动分界 {cut:F0}";
+                }
+                else if (mode == "dynthresh")
+                {
+                    int w = Math.Max(3, (int)Math.Round(Num(spec, s, "window", 15))) | 1;
+                    Cv.Cv2.GaussianBlur(sub, tmp, new Cv.Size(w, w), 0);
+                    using var diff = new Cv.Mat();
+                    Cv.Cv2.Absdiff(sub, tmp, diff);
+                    Cv.Cv2.Threshold(diff, bin, Num(spec, s, "offset", 8), 255, Cv.ThresholdTypes.Binary);
+                    string pick = Txt(spec, s, "pick");
+                    if (pick == "只留亮的" || pick == "只留暗的")
+                    {
+                        using var side = new Cv.Mat();
+                        Cv.Cv2.Compare(sub, tmp, side, pick == "只留亮的" ? Cv.CmpTypes.GT : Cv.CmpTypes.LT);
+                        Cv.Cv2.BitwiseAnd(bin, side, bin);
+                    }
+                    how = $"局部背景差 > {Num(spec, s, "offset", 8):F0}（窗口 {w}）";
+                }
+                else if (mode is "erode" or "dilate" or "open" or "close")
+                {
+                    Cv.Cv2.Threshold(sub, bin, Num(spec, s, "thr", 128), 255, Cv.ThresholdTypes.Binary);
+                    var mt = mode switch
+                    {
+                        "erode" => Cv.MorphTypes.Erode,
+                        "dilate" => Cv.MorphTypes.Dilate,
+                        "open" => Cv.MorphTypes.Open,
+                        _ => Cv.MorphTypes.Close,
+                    };
+                    Cv.Cv2.MorphologyEx(bin, tmp, mt, kernel);
+                    tmp.CopyTo(bin);
+                    how = $"{mode} 核 {k}";
+                }
+                else
+                {
+                    Cv.Cv2.MorphologyEx(sub, tmp, mode == "tophat" ? Cv.MorphTypes.TopHat : Cv.MorphTypes.BlackHat, kernel);
+                    Cv.Cv2.Threshold(tmp, bin, Num(spec, s, "thr", 20), 255, Cv.ThresholdTypes.Binary);
+                    how = $"{(mode == "tophat" ? "亮细节" : "暗细节")} > {Num(spec, s, "thr", 20):F0}";
+                }
+
+                int count = Cv.Cv2.CountNonZero(bin);
+                var mo = Cv.Cv2.Moments(bin, false);
+                double area = mo.M00;
+                double cx = roi.X + (area > 1e-9 ? mo.M10 / area : roi.Width / 2.0);
+                double cy = roi.Y + (area > 1e-9 ? mo.M01 / area : roi.Height / 2.0);
+                double ratio = 100.0 * count / Math.Max(1, roi.Width * roi.Height);
+                ctx.LastPoint = new Cv.Point2f((float)cx, (float)cy);
+                dst.Rectangle(roi, Ink, 1);
+                if (count > 0) DrawPt(dst, ctx.LastPoint.Value);
+                Add(report, s, spec, count > 0,
+                    count > 0
+                        ? $"{how}｜面积 {count} 像素（占框 {ratio:F1}%）｜中心 ({cx:F1}, {cy:F1})"
+                        : $"{how}｜一个目标都没取到：调松参数（灰度区间 / 分界灰度 / 偏移量）",
+                    count, count,
+                    ("面积", count), ("中心X", cx), ("中心Y", cy), ("占框多少", ratio));
+            }
+            catch (Exception ex)
+            {
+                Add(report, s, spec, false, "这一步跑不动：" + ex.Message);
+            }
+        }
+
+        /// <summary>边缘图（Halcon edges_image / Canny）：把整幅图的边缘画成细线，报边缘点占比。</summary>
+        static void DoEdgeMap(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, IProgress<string>? progress)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            using var edges = new Cv.Mat();
+            double lo = Num(spec, s, "lo", 50), hi = Math.Max(lo + 1, Num(spec, s, "hi", 150));
+            Cv.Cv2.Canny(sub, edges, lo, hi);
+            int n = Cv.Cv2.CountNonZero(edges);
+            double ratio = 100.0 * n / Math.Max(1, roi.Width * roi.Height);
+            using var mask = new Cv.Mat(dst, roi);
+            mask.SetTo(new Cv.Scalar(0, 0, 255), edges);
+            Add(report, s, spec, n > 0,
+                n > 0 ? $"边缘点 {n} 个（占框 {ratio:F2}%）" : "这条区间一个边缘点都没找到：把两个阈值都调小",
+                n, n, ("边缘点占比", ratio), ("边缘点个数", n));
+        }
+
+        /// <summary>灰度投影（Halcon gray_projections）：按行/按列压成一条曲线，找最亮和最暗的位置。</summary>
+        static void DoGrayProjection(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, IProgress<string>? progress)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            bool byRow = Txt(spec, s, "dir") != "按列投影";
+            int len = byRow ? sub.Rows : sub.Cols;
+            int span = byRow ? sub.Cols : sub.Rows;
+            var avg = new double[len];
+            for (int i = 0; i < len; i++)
+            {
+                double sum = 0;
+                for (int j = 0; j < span; j++)
+                    sum += byRow ? sub.At<byte>(i, j) : sub.At<byte>(j, i);
+                avg[i] = sum / Math.Max(1, span);
+            }
+            double best = double.MinValue, worst = double.MaxValue;
+            int bi = 0, wi = 0;
+            for (int i = 0; i < len; i++)
+            {
+                double v = avg[i];
+                if (v > best) { best = v; bi = i; }
+                if (v < worst) { worst = v; wi = i; }
+            }
+            double peak = (byRow ? roi.Y : roi.X) + bi;
+            double valley = (byRow ? roi.Y : roi.X) + wi;
+            Add(report, s, spec, true,
+                $"{(byRow ? "行" : "列")}方向｜最亮在第 {peak:F0}｜最暗在第 {valley:F0}",
+                best, len,
+                ("峰值位置", peak), ("峰值灰度", best), ("谷值位置", valley), ("谷值灰度", worst));
+        }
+
+        /// <summary>刚体换算（Halcon vector_angle_to_rigid + affine_trans_point_2d）：绕基准点转 + 平移。</summary>
+        static void DoRigidPoint(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst,
+            VisionReport report, IProgress<string>? progress)
+        {
+            double bx = Num(spec, s, "bx", 0), by = Num(spec, s, "by", 0);
+            double ang = Num(spec, s, "ang", 0) * Math.PI / 180.0;
+            double px = Num(spec, s, "px", 0), py = Num(spec, s, "py", 0);
+            double dx = px - bx, dy = py - by;
+            double x = bx + dx * Math.Cos(ang) - dy * Math.Sin(ang) + Num(spec, s, "offx", 0);
+            double y = by + dx * Math.Sin(ang) + dy * Math.Cos(ang) + Num(spec, s, "offy", 0);
+            DrawPt(dst, new Cv.Point2f((float)bx, (float)by));
+            DrawPt(dst, new Cv.Point2f((float)x, (float)y));
+            dst.Line((int)bx, (int)by, (int)x, (int)y, Ink, 1);
+            Add(report, s, spec, true,
+                $"换算后 ({x:F2}, {y:F2})｜绕 ({bx:F0},{by:F0}) 转 {Num(spec, s, "ang", 0):F1}°",
+                Math.Sqrt(dx * dx + dy * dy), 1,
+                ("换算后X", x), ("换算后Y", y), ("相对角度", Num(spec, s, "ang", 0)));
+        }
+
+        /// <summary>按角度转图（Halcon affine_trans_image / rotate_image）：绕中心转 + 缩放 + 平移，尺寸不变。</summary>
+        static void DoAffineImage(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, IProgress<string>? progress)
+        {
+            double ang = Num(spec, s, "ang", 0), scale = Math.Max(0.05, Num(spec, s, "scale", 1));
+            var center = new Cv.Point2f(gray.Cols / 2f, gray.Rows / 2f);
+            using var m = Cv.Cv2.GetRotationMatrix2D(center, ang, scale);
+            m.Set(0, 2, m.At<double>(0, 2) + Num(spec, s, "dx", 0));
+            m.Set(1, 2, m.At<double>(1, 2) + Num(spec, s, "dy", 0));
+            Cv.Cv2.WarpAffine(gray, dst, m, new Cv.Size(gray.Cols, gray.Rows));
+            Add(report, s, spec, true, $"已转 {ang:F1}°、缩放 {scale:F2}", scale, 1,
+                ("图宽", dst.Cols), ("图高", dst.Rows), ("转角", ang));
+        }
+
+        /// <summary>
+        /// 找一个边缘点（SGamma 的边缘搜索 · 点）：沿边方向均匀取 9 条剖面，每条上找「第一个」或「最强」的边，
+        /// 最后取中位数当结果 —— 只扫一条线容易被一个噪点带跑。
+        /// </summary>
+        static void DoEdgePoint(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
+        {
+            double cx = Num(spec, s, "cx", 0), cy = Num(spec, s, "cy", 0);
+            if (cx <= 0 && cy <= 0) { cx = gray.Cols / 2.0; cy = gray.Rows / 2.0; }
+            double length = Math.Max(8, Num(spec, s, "length", 120));
+            double width = Math.Max(4, Num(spec, s, "width", 60));
+            double minGrad = Math.Max(0, Num(spec, s, "minGrad", 8));
+            bool strongest = Txt(spec, s, "pick") == "最强的边";
+            bool sub = Num(spec, s, "sub", 1) >= 1;
+
+            double a = Num(spec, s, "angle", 0) * Math.PI / 180.0;
+            double ex = Math.Cos(a), ey = Math.Sin(a);          // 沿边方向
+            double nx = -ey, ny = ex;                            // 搜索方向（垂直边）
+
+            const int profiles = 9;
+            int count = Math.Max(16, (int)Math.Round(width * 2));
+            double step = width / (count - 1);
+            var pos = new List<double>();
+            var str = new List<double>();
+            for (int k = 0; k < profiles; k++)
+            {
+                double t = (k / (double)(profiles - 1) - 0.5) * length;
+                double px = cx + ex * t, py = cy + ey * t;
+                var vals = VisionCaliper.SampleProfile(gray,
+                    px - nx * width / 2, py - ny * width / 2,
+                    px + nx * width / 2, py + ny * width / 2, count);
+                var hits = VisionCaliper.FindEdges(vals, PolarityOf(spec, s), minGrad, step);
+                if (hits.Count == 0) continue;
+                var h = strongest ? hits.OrderByDescending(q => q.Strength).First()
+                                  : hits.OrderBy(q => q.Position).First();
+                pos.Add(h.Position);
+                str.Add(h.Strength);
+            }
+            if (pos.Count == 0)
+            {
+                Add(report, s, spec, false,
+                    "这条带子里没找到边：把「最小灰度差」调小、换个搜索角度，或者把带子挪到真有边的地方");
+                return;
+            }
+            pos.Sort(); str.Sort();
+            double medPos = pos[pos.Count / 2];
+            double medStr = str[str.Count / 2];
+            var p = VisionCaliper.PointAlong(cx - nx * width / 2, cy - ny * width / 2,
+                                             cx + nx * width / 2, cy + ny * width / 2, medPos);
+            if (!sub) p = new Cv.Point2f((float)Math.Round(p.X), (float)Math.Round(p.Y));
+            ctx.LastPoint = p;
+            ctx.Points.Add(p);
+
+            // 灰度差 = 边两侧各取 1.5 像素的真实灰度跳变（不是梯度幅值；梯度会随采样步长缩水）
+            var duo = VisionCaliper.SampleProfile(gray, p.X - nx * 1.5, p.Y - ny * 1.5,
+                                                   p.X + nx * 1.5, p.Y + ny * 1.5, 2);
+            double grayJump = Math.Abs(duo[1] - duo[0]);
+
+            dst.Line((int)(cx - nx * width / 2), (int)(cy - ny * width / 2),
+                     (int)(cx + nx * width / 2), (int)(cy + ny * width / 2), Ink, 1);
+            DrawPt(dst, p);
+            Add(report, s, spec, true,
+                $"边缘点 ({p.X:F2}, {p.Y:F2})｜灰度差 {grayJump:F1}｜{pos.Count}/{profiles} 条剖面找到",
+                grayJump, pos.Count,
+                ("X", p.X), ("Y", p.Y), ("灰度差", grayJump), ("边缘强度", medStr),
+                ("在剖面上的位置", medPos), ("找到几条", pos.Count));
+        }
+
+        /// <summary>找椭圆：阈值 → 外轮廓 → 逐块拟合，按面积取前几个（SGamma 的拟合（椭）圆）。</summary>
+        static void DoEllipse(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            using var bin = new Cv.Mat();
+            double thr = Num(spec, s, "thr", 128);
+            if (Txt(spec, s, "which") == "暗块") Cv.Cv2.Threshold(sub, bin, thr, 255, Cv.ThresholdTypes.BinaryInv);
+            else Cv.Cv2.Threshold(sub, bin, thr, 255, Cv.ThresholdTypes.Binary);
+            Cv.Cv2.FindContours(bin, out Cv.Point[][] contours, out _,
+                Cv.RetrievalModes.External, Cv.ContourApproximationModes.ApproxSimple);
+
+            double minArea = Math.Max(1, Num(spec, s, "minArea", 500));
+            int maxHits = Math.Max(1, (int)Math.Round(Num(spec, s, "maxHits", 1)));
+            var found = new List<(Cv.RotatedRect E, double Area)>();
+            foreach (var cc in contours)
+            {
+                if (cc.Length < 5) continue;
+                double area = Cv.Cv2.ContourArea(cc);
+                if (area < minArea) continue;
+                var shifted = Array.ConvertAll(cc, q => new Cv.Point(q.X + roi.Left, q.Y + roi.Top));
+                found.Add((Cv.Cv2.FitEllipse(shifted), area));
+            }
+            if (found.Count == 0)
+            {
+                Add(report, s, spec, false, $"框里没有面积超过 {minArea:F0} 的块：调小「太小不算」，或者把「分界灰度」调到能把目标分开");
+                return;
+            }
+            found.Sort((x, y) => y.Area.CompareTo(x.Area));
+            var best = found[0].E;
+            foreach (var f in found.Take(maxHits)) Cv.Cv2.Ellipse(dst, f.E, Ink, 2);
+            DrawPt(dst, best.Center);
+            double major = Math.Max(best.Size.Width, best.Size.Height);
+            double minor = Math.Min(best.Size.Width, best.Size.Height);
+            double rot = best.Angle;
+            if (best.Size.Width < best.Size.Height) rot += 90;   // 让「长轴角度」说得通
+            rot = ((rot % 180) + 180) % 180;                     // 统一到 0~180，别出现 -90 / 210 这种
+            ctx.LastPoint = best.Center;
+            Add(report, s, spec, true,
+                $"中心 ({best.Center.X:F1}, {best.Center.Y:F1})｜长轴 {major:F1}｜短轴 {minor:F1}｜转角 {rot:F1}°｜共 {found.Count} 个",
+                major, found.Count,
+                ("中心X", best.Center.X), ("中心Y", best.Center.Y),
+                ("长轴", major), ("短轴", minor), ("角度", rot), ("个数", found.Count));
+        }
+
+        /// <summary>把上游边缘点拟成椭圆（先整体拟一次，把最离谱的踢掉再拟一次）。</summary>
+        static void DoFitEllipseFromPoints(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst,
+            VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
+        {
+            if (ctx.Points.Count < 5)
+            {
+                Add(report, s, spec, false, "手上的点不够（拟椭圆至少 5 个）：先跑一步「找一个边缘点」/「找直边上的点」攒点");
+                return;
+            }
+            double keep = Math.Min(1, Math.Max(0.5, Num(spec, s, "keep", 0.9)));
+            var pts = ctx.Points.ToList();
+            var e = Cv.Cv2.FitEllipse(pts);
+            int keepN = Math.Max(5, (int)Math.Round(pts.Count * keep));
+            if (keepN < pts.Count)
+            {
+                var ranked = pts.OrderBy(q => EllipseResidualPx(e, q)).ToList();
+                pts = ranked.Take(keepN).ToList();
+                e = Cv.Cv2.FitEllipse(pts);
+            }
+            double rms = Math.Sqrt(pts.Average(q => Sq(EllipseResidualPx(e, q))));
+            double major = Math.Max(e.Size.Width, e.Size.Height);
+            double minor = Math.Min(e.Size.Width, e.Size.Height);
+            double rot = e.Angle;
+            if (e.Size.Width < e.Size.Height) rot += 90;
+            rot = ((rot % 180) + 180) % 180;
+            ctx.LastPoint = e.Center;
+            Cv.Cv2.Ellipse(dst, e, Ink, 2);
+            DrawPt(dst, e.Center);
+            Add(report, s, spec, true,
+                $"中心 ({e.Center.X:F1}, {e.Center.Y:F1})｜长轴 {major:F1}｜短轴 {minor:F1}｜转角 {rot:F1}°｜偏差 {rms:F2}｜用了 {pts.Count} 个点",
+                major, pts.Count,
+                ("中心X", e.Center.X), ("中心Y", e.Center.Y),
+                ("长轴", major), ("短轴", minor), ("角度", rot), ("偏差", rms), ("点数", pts.Count));
+        }
+
+        /// <summary>点到椭圆边界的近似像素距离：把偏移按半轴归一化，再乘回短半轴。</summary>
+        static double EllipseResidualPx(Cv.RotatedRect e, Cv.Point2f p)
+        {
+            double a = Math.Max(1e-6, e.Size.Width / 2), b = Math.Max(1e-6, e.Size.Height / 2);
+            double rad = -e.Angle * Math.PI / 180.0;
+            double dx = p.X - e.Center.X, dy = p.Y - e.Center.Y;
+            double u = dx * Math.Cos(rad) - dy * Math.Sin(rad);
+            double v = dx * Math.Sin(rad) + dy * Math.Cos(rad);
+            double r = Math.Sqrt((u / a) * (u / a) + (v / b) * (v / b));
+            return Math.Abs(r - 1) * Math.Min(a, b);
+        }
+
         // ===================== 批次 2：几何计算 =====================
 
         /// <summary>取一个点：手填，或用上一步找到的圆心 / 角点 / 边缘点。</summary>
@@ -591,12 +1145,24 @@ namespace NoCodeMotion.Services.Vision
             double dx = b.X - a.X, dy = b.Y - a.Y;
             double dist = Math.Sqrt(dx * dx + dy * dy);
             double ang = Math.Atan2(dy, dx) * 180 / Math.PI;
-            ctx.LastLength = dist;
+            // 参考方向：SGamma 的「与参考线同向 / 垂直」——量的是投影长度，不是直线距离
+            string refdir = Txt(spec, s, "refdir");
+            double proj = dist;
+            if (refdir == "沿参考线" || refdir == "垂直参考线")
+            {
+                double ra = Num(spec, s, "refang", 0) * Math.PI / 180.0;
+                proj = refdir == "沿参考线"
+                    ? Math.Abs(dx * Math.Cos(ra) + dy * Math.Sin(ra))
+                    : Math.Abs(-dx * Math.Sin(ra) + dy * Math.Cos(ra));
+            }
+            ctx.LastLength = refdir == "无参考线" ? dist : proj;
             DrawPt(dst, a); DrawPt(dst, b);
             dst.Line((int)a.X, (int)a.Y, (int)b.X, (int)b.Y, Ink, 1);
             Add(report, s, spec, true,
-                $"距离 {dist:F2} 像素｜X差 {dx:F1}｜Y差 {dy:F1}｜角度 {ang:F2}°", dist, 2,
-                ("距离", dist), ("X方向差", dx), ("Y方向差", dy), ("角度", ang));
+                refdir == "无参考线"
+                    ? $"距离 {dist:F2} 像素｜X差 {dx:F1}｜Y差 {dy:F1}｜角度 {ang:F2}°"
+                    : $"距离 {dist:F2}｜{refdir}的投影 {proj:F2} 像素", dist, 2,
+                ("距离", dist), ("投影距离", proj), ("X方向差", dx), ("Y方向差", dy), ("角度", ang));
         }
 
         static void DoPointLine(VisionOpSpec spec, VisualFlowStep s, Cv.Mat dst, VisionReport report,

@@ -1,4 +1,4 @@
-﻿// === NoCodeMotion 视觉流程引擎（OpenCV 实现） | 作者：温​启‎志‍ ‍|⁣ ⁣微‏信‎：‏1‏8‌7‍1‌9‎3⁠6‏1​3​9‌9‌ ⁠|​ ​保‎留‍所⁠有‍权⁣利‏，⁣请‌勿‍删‎除 ===
+// === NoCodeMotion 视觉流程引擎（OpenCV 实现） | 作者：温​启‎志‍ ‍|⁣ ⁣微‏信‎：‏1‏8‌7‍1‌9‎3⁠6‏1​3​9‌9‌ ⁠|​ ​保‎留‍所⁠有‍权⁣利‏，⁣请‌勿‍删‎除 ===
 using System;
 using System.Collections.Generic;
 using System;
@@ -38,6 +38,17 @@ namespace NoCodeMotion.Services.Vision
         /// <summary>它会给出哪些数（结果区与「存进变量」用）。</summary>
         public string Outputs { get; init; } = "";
         public VisionParamDef[] Params { get; init; } = Array.Empty<VisionParamDef>();
+
+        /// <summary>这条算子从哪儿搬来的：OpenCV 原生 / Halcon 同款（SGamma）/ WenVision 移植。
+        /// 界面、添加步骤菜单、算子手册都按它分开显示 —— 用户要能一眼看出哪些是照别人的算子做的。</summary>
+        public string Source { get; init; } = SourceOpenCv;
+
+        /// <summary>来源的一句话说明：照谁做的、底层用什么、要不要那套软件的授权。</summary>
+        public string SourceNote { get; init; } = "";
+
+        public const string SourceOpenCv = "OpenCV 原生";
+        public const string SourceHalcon = "Halcon 同款（SGamma）";
+        public const string SourceWenVision = "WenVision 移植";
 
         public VisionParamDef Find(string key) => Params.FirstOrDefault(p => p.Key == key);
     }
@@ -199,12 +210,401 @@ namespace NoCodeMotion.Services.Vision
                     P("keep", "相信几成的点", "num", "0.9", "保留多少比例的点，其余当杂点扔掉", min: 0.5, max: 1),
                 },
             },
+            new VisionOpSpec
+            {
+                Key = "edgept", Name = "找一个边缘点", Category = "找边与测量",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 SGamma（Halcon）的「边缘搜索 · 点 / 找椭圆 / 拟合椭圆」做的；底层是 OpenCV，不需要 Halcon 授权",
+                Summary = "在一条带子里只找一个边缘点：要离起点最近的那个，还是要最明显的那个；能指定边是暗到亮还是亮到暗，给亚像素坐标（SGamma 的「边缘搜索 · 点（首边缘 / 最大边缘）」）。",
+                Outputs = "X/Y/灰度差/在剖面上的位置/找到几条",
+                Params = new[]
+                {
+                    P("cx", "带子中心X", "num", "0", "搜索带中心 X（像素）。0 = 用画面中心"),
+                    P("cy", "带子中心Y", "num", "0", "搜索带中心 Y（像素）"),
+                    P("angle", "边的大概角度", "num", "0", "这条边大概朝哪个方向（度，0 = 水平边）；实际搜索方向是它的垂直方向", min: -180, max: 180),
+                    P("length", "沿边看多长", "num", "120", "沿这条边取多长一段来平均（像素）。越长越抗噪，但边是斜的/弯的就取短一点", min: 8, max: 4000),
+                    P("width", "垂直找多宽", "num", "60", "垂直方向上允许跑多远去找（像素）", min: 4, max: 2000),
+                    P("polarity", "边的明暗", "choice", "任意", "沿搜索方向看过去：灰度升高选「暗到亮」，降低选「亮到暗」；拿不准选「任意」", PolarityOptions),
+                    P("pick", "要哪个边", "choice", "第一个边", "第一个边 = 离起点最近的那个（SGamma 的点 · 首边缘）；最强的边 = 灰度差最大的那个（点 · 最大边缘）", "第一个边|最强的边"),
+                    P("minGrad", "最小灰度差", "num", "8", "两边灰度差小于这个值的不算边（越大越严；噪点多就加大）", min: 0, max: 255),
+                    P("sub", "亚像素", "bool", "1", "勾上 = 给亚像素坐标（准到 0.1 像素）；不勾 = 只到整像素"),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "ellipse", Name = "找椭圆", Category = "找边与测量",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 SGamma（Halcon）的「边缘搜索 · 点 / 找椭圆 / 拟合椭圆」做的；底层是 OpenCV，不需要 Halcon 授权",
+                Summary = "把比背景亮（或暗）的一整块拟合成椭圆，报中心、长轴、短轴和转角（对应 SGamma 辅助算法里「拟合（椭）圆」那一类活）。",
+                Outputs = "中心X/中心Y/长轴/短轴/角度/个数",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算一块", min: 1, max: 254),
+                    P("which", "找哪种", "choice", "亮块", "亮块 = 比阈值亮的一整块；暗块 = 比阈值暗的一整块", "亮块|暗块"),
+                    P("minArea", "太小不算", "num", "500", "面积小于这个像素数的块忽略（滤掉噪点）", min: 1, max: 1e7),
+                    P("maxHits", "最多找几个", "int", "1", "按面积从大到小最多报几个", min: 1, max: 20),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "fitellipse", Name = "把点拟成椭圆", Category = "找边与测量",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 SGamma（Halcon）的「边缘搜索 · 点 / 找椭圆 / 拟合椭圆」做的；底层是 OpenCV，不需要 Halcon 授权",
+                Summary = "手上有一串边缘点（至少 5 个）时，把它们拟合成椭圆：中心、长轴、短轴、转角、偏差（SGamma 的拟合椭圆）。",
+                Outputs = "中心X/中心Y/长轴/短轴/角度/偏差/点数",
+                Params = new[]
+                {
+                    P("keep", "相信几成的点", "num", "0.9", "保留多少比例的点，其余当杂点扔掉（先整体拟一次，再把离谱的点踢掉重拟）", min: 0.5, max: 1),
+                },
+            },
+
+            // ---------------- 批次 7：Halcon 常驻算子（阈值 / 形态学 / 边缘图 / 投影 / 刚体 / 转图） ----------------
+            new VisionOpSpec
+            {
+                Key = "thresh", Name = "按灰度取区域", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "把灰度落在区间里的像素取出来（Halcon 的 threshold）：给面积、重心和占框比例。",
+                Outputs = "面积/中心X/中心Y/占框多少",
+                Params = new[]
+                {
+                    Roi,
+                    P("loL", "灰底下限", "num", "0", "灰度下限（0~255）", min: 0, max: 255),
+                    P("hiL", "灰顶上限", "num", "128", "灰度上限（要取的目标落在这两个数之间）", min: 0, max: 255),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "autothresh", Name = "自动分界", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "不用你定阈值：软件按整幅图的灰度分布自动找一个分界（Halcon 的 auto_threshold / binary_threshold 思路）。",
+                Outputs = "面积/中心X/中心Y/占框多少/分界灰度",
+                Params = new[]
+                {
+                    Roi,
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "dynthresh", Name = "局部斑块", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "拿大窗口的局部均值当背景，比背景亮（或暗）出一截的像素才算目标 —— 光照不均、背景渐变时最稳（Halcon 的 dyn_threshold）。",
+                Outputs = "面积/中心X/中心Y/占框多少",
+                Params = new[]
+                {
+                    Roi,
+                    P("window", "背景窗口", "int", "15", "用多大范围估背景（像素，越大越只看大趋势）", min: 3, max: 501),
+                    P("offset", "比背景差多少算目标", "num", "8", "局部灰度差超过这个值才算（越小越灵敏）", min: 0, max: 255),
+                    P("pick", "只留哪种", "choice", "亮的和暗的都要", "亮的和暗的都要 / 只留亮的（局部亮点）/ 只留暗的（局部暗点）", "亮的和暗的都要|只留亮的|只留暗的"),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "erode", Name = "腐蚀", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "把目标边缘往里收一圈（Halcon 的 erosion）：去掉毛刺、断开细连接。",
+                Outputs = "面积/中心X/中心Y/占框多少",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算目标", min: 1, max: 254),
+                    P("kernel", "核大小", "int", "3", "腐蚀 / 膨胀用多大的核（像素，越大效果越强；3 是最常用）", min: 1, max: 99),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "dilate", Name = "膨胀", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "把目标往外扩一圈（Halcon 的 dilation）：补断口、把挨得近的连成一片。",
+                Outputs = "面积/中心X/中心Y/占框多少",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算目标", min: 1, max: 254),
+                    P("kernel", "核大小", "int", "3", "腐蚀 / 膨胀用多大的核（像素，越大效果越强；3 是最常用）", min: 1, max: 99),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "open", Name = "开运算（先腐蚀后膨胀）", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "去掉小亮点和细毛刺，大体形状不变（Halcon 的 opening）。",
+                Outputs = "面积/中心X/中心Y/占框多少",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算目标", min: 1, max: 254),
+                    P("kernel", "核大小", "int", "3", "腐蚀 / 膨胀用多大的核（像素，越大效果越强；3 是最常用）", min: 1, max: 99),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "close", Name = "闭运算（先膨胀后腐蚀）", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "填掉小暗洞、接上小断口，大体形状不变（Halcon 的 closing）。",
+                Outputs = "面积/中心X/中心Y/占框多少",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算目标", min: 1, max: 254),
+                    P("kernel", "核大小", "int", "3", "腐蚀 / 膨胀用多大的核（像素，越大效果越强；3 是最常用）", min: 1, max: 99),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "tophat", Name = "提亮细节（顶帽）", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "从图里挑出「比周围亮一截」的小块（Halcon 的 top_hat）：找亮点、划痕、凸起。",
+                Outputs = "面积/中心X/中心Y/占框多少",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "多亮才算", "num", "20", "顶帽结果里灰度超过这个数才留下（越小越灵敏）", min: 1, max: 255),
+                    P("kernel", "核大小", "int", "3", "腐蚀 / 膨胀用多大的核（像素，越大效果越强；3 是最常用）", min: 1, max: 99),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "bothat", Name = "提暗细节（底帽）", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "从图里挑出「比周围暗一截」的小块（Halcon 的 bottom_hat）：找凹坑、脏点、黑斑。",
+                Outputs = "面积/中心X/中心Y/占框多少",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "多暗才算", "num", "20", "底帽结果里灰度超过这个数才留下", min: 1, max: 255),
+                    P("kernel", "核大小", "int", "3", "腐蚀 / 膨胀用多大的核（像素，越大效果越强；3 是最常用）", min: 1, max: 99),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "edges", Name = "边缘图（细线）", Category = "找边与测量",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "把整幅图的边缘画成一张细线图（Halcon 的 edges_image / Canny）：给边缘点占比，方便看哪里是轮廓。",
+                Outputs = "边缘点占比/边缘点个数",
+                Params = new[]
+                {
+                    Roi,
+                    P("lo", "弱边阈值", "num", "50", "低于它的边缘丢掉（越大越干净、也越容易漏）", min: 0, max: 255),
+                    P("hi", "强边阈值", "num", "150", "高于它的边一定留下（比弱边阈值大）", min: 0, max: 255),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "grayproj", Name = "灰度投影", Category = "几何计算",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "把一块区域按行（或按列）压成一条灰度曲线，报最亮/最暗在第几行（列）—— 找条纹中心、边界位置常用（Halcon 的 gray_projections）。",
+                Outputs = "峰值位置/峰值灰度/谷值位置/谷值灰度",
+                Params = new[]
+                {
+                    Roi,
+                    P("dir", "往哪个方向压", "choice", "按行投影", "按行投影 = 每行平均，得到一条竖向曲线（找上下边界）；按列投影 = 每列平均（找左右边界）", "按行投影|按列投影"),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "rigid", Name = "刚体换算（绕基准转）", Category = "几何计算",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "把一个点绕基准点转一个角度、再平移一段，算出它该去哪（Halcon 的 vector_angle_to_rigid + affine_trans_point_2d）。",
+                Outputs = "换算后X/换算后Y/相对角度",
+                Params = new[]
+                {
+                    P("bx", "基准点X", "num", "0", "绕着它转的那个点 X（像素）"),
+                    P("by", "基准点Y", "num", "0", "基准点 Y"),
+                    P("ang", "转多少度", "num", "0", "逆时针为正（度）", min: -360, max: 360),
+                    P("px", "这个点X", "num", "0", "要换算的点 X"),
+                    P("py", "这个点Y", "num", "0", "要换算的点 Y"),
+                    P("offx", "再平移X", "num", "0", "转完之后再往 X 方向挪多少"),
+                    P("offy", "再平移Y", "num", "0", "转完之后再往 Y 方向挪多少"),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "affineimg", Name = "按角度转图", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的阈值 / 形态学 / 边缘那套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "把整幅图绕中心转一个角度、缩放到指定大小、再平移（Halcon 的 affine_trans_image / rotate_image）。",
+                Outputs = "图宽/图高/转角",
+                Params = new[]
+                {
+                    P("ang", "转多少度", "num", "0", "逆时针为正", min: -360, max: 360),
+                    P("scale", "缩放", "num", "1", "1 = 原大小；小于 1 缩小", min: 0.05, max: 10),
+                    P("dx", "平移X", "num", "0", "转完再往右挪多少像素"),
+                    P("dy", "平移Y", "num", "0", "转完再往下挪多少像素"),
+                },
+            },
+            // ---------------- 批次 8：Halcon 常用（连通域 / 形状筛选 / 轮廓 / 一对边 / 颜色 / 滤波） ----------------
+            new VisionOpSpec
+            {
+                Key = "connect", Name = "数连通块", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "按灰度分出目标后，把连在一起的像素拆成一块块数出来，报块数和最大块（Halcon 的 connection + area_center）。",
+                Outputs = "块数/最大块面积/最大块中心X/最大块中心Y",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算目标", min: 1, max: 254),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "selectshape", Name = "按形状筛选", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "数完块再按形状挑：面积区间、长宽比上限、填充率下限 —— 滤掉碎点和长条（Halcon 的 select_shape）。",
+                Outputs = "合格块数/最大块面积/最大块中心X/最大块中心Y",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算目标", min: 1, max: 254),
+                    P("loA", "面积至少", "num", "50", "小于这个像素数的块扔掉", min: 0, max: 1e7),
+                    P("hiA", "面积最多", "num", "1000000", "大于这个像素数的块扔掉（0 = 不限）", min: 0, max: 1e9),
+                    P("maxAspect", "长宽比最多", "num", "3", "外接矩形长边/短边超过它的当长条扔掉", min: 1, max: 100),
+                    P("minFill", "填充率至少", "num", "0.4", "面积 / 外接矩形面积，低于它的当毛刺扔掉", min: 0, max: 1),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "shapefeat", Name = "区域特征", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "量最大那一块：面积、中心、外接矩形、填充率、最小外接旋转矩形的长宽和角度（Halcon 的 region_features / smallest_rectangle2）。",
+                Outputs = "面积/中心X/中心Y/宽/高/填充率/长/短/角度",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算目标", min: 1, max: 254),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "convexhull", Name = "凸包与凸性", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "把最大那块的外形用凸包圈起来，报凸性（凸包面积 / 实际面积）—— 越接近 1 越饱满，凹陷越多越小（Halcon 的 shape_trans(convex)）。",
+                Outputs = "凸包面积/实际面积/凸性",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算目标", min: 1, max: 254),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "contours", Name = "提取轮廓线", Category = "找边与测量",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "把目标的外轮廓一条条提出来，报条数、最长那条的周长和面积（Halcon 的 gen_contour_region_xld + length_xld）。",
+                Outputs = "轮廓条数/最大周长/最大面积",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算目标", min: 1, max: 254),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "edgepair", Name = "找一对边（量宽）", Category = "找边与测量",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "一条带子里找两条边，报两条边的位置、中间宽度和中心 —— 测线宽、缝宽、料宽最常用（Halcon 的 measure_pairs）。",
+                Outputs = "左边位置/右边位置/宽度/中心位置",
+                Params = new[]
+                {
+                    P("cx", "带子中心X", "num", "0", "搜索带中心 X（像素）。0 = 用画面中心"),
+                    P("cy", "带子中心Y", "num", "0", "搜索带中心 Y"),
+                    P("angle", "边的大概角度", "num", "0", "两条边大概朝哪个方向（度，0 = 水平）；搜索方向是它的垂直方向", min: -180, max: 180),
+                    P("length", "沿边看多长", "num", "200", "沿边取多长一段来平均（像素）", min: 8, max: 4000),
+                    P("width", "垂直找多宽", "num", "80", "垂直方向上允许跑多远去找（像素）", min: 8, max: 4000),
+                    P("minGrad", "最小灰度差", "num", "8", "两边灰度差小于这个值的不算边", min: 0, max: 255),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "minmaxgray", Name = "灰度极值", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "报这一块里最亮、最暗各是多少、分别在哪儿，以及落在指定灰度区间里的像素占多少（Halcon 的 min_max_gray）。",
+                Outputs = "最亮灰度/最暗灰度/最亮位置X/最亮位置Y/区间占比",
+                Params = new[]
+                {
+                    Roi,
+                    P("loL", "灰底下限", "num", "0", "算占比用的灰度下限", min: 0, max: 255),
+                    P("hiL", "灰顶上限", "num", "128", "算占比用的灰度上限", min: 0, max: 255),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "hueselect", Name = "按颜色取区域", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "按色相和饱和度取颜色块（比如「只要红色的」），报面积、中心和占框比例（Halcon 的 decompose3 + threshold）。",
+                Outputs = "面积/中心X/中心Y/占框多少",
+                Params = new[]
+                {
+                    Roi,
+                    P("hlo", "色相下限", "num", "0", "0~180（OpenCV 的色相是 0~180）：红≈0/180，绿≈60，蓝≈120", min: 0, max: 180),
+                    P("hhi", "色相上限", "num", "10", "色相落在这个区间里才算", min: 0, max: 180),
+                    P("slo", "饱和度至少", "num", "80", "颜色太淡（发白/发灰）的不要，0~255", min: 0, max: 255),
+                    P("vlo", "亮度至少", "num", "40", "太暗的不要", min: 0, max: 255),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "invert", Name = "反色", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "黑白颠倒（Halcon 的 invert_image）：主客体对调，暗目标变亮目标，后面的阈值/形态学就能照常用。",
+                Outputs = "图宽/图高",
+                Params = new[]
+                {
+                    Roi,
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "equhisto", Name = "直方图均衡", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "把灰度的分布拉开，暗处细节被提亮（Halcon 的 equ_histo_image）：光照偏暗、对比太平时先来这一步。",
+                Outputs = "图宽/图高",
+                Params = new[]
+                {
+                    Roi,
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "gaussblur", Name = "高斯模糊", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的连通域 / 形状筛选 / 轮廓那一套做的；底层 OpenCV，不需要 Halcon 授权",
+                Summary = "柔化噪点（Halcon 的 gauss_filter）：找边 / 匹配前先用它压一压，细小噪点就不会被当成边。",
+                Outputs = "图宽/图高/核大小",
+                Params = new[]
+                {
+                    Roi,
+                    P("kernel", "核大小", "int", "5", "必须是奇数（3/5/7…），越大越糊", min: 3, max: 99),
+                },
+            },
             // ---------------- 批次 2：几何计算（吃上一步找到的线 / 圆 / 点） ----------------
             new VisionOpSpec
             {
                 Key = "pp", Name = "两点多远", Category = "几何计算",
                 Summary = "给两个点，算它们之间的距离和连线角度（孔距、引脚间距、长度抽检）。",
-                Outputs = "距离/X方向差/Y方向差/角度",
+                Outputs = "距离/投影距离/X方向差/Y方向差/角度",
                 Params = new[]
                 {
                     P("ax", "第一个点X", "num", "0", "第一个点的 X（像素）。想直接用上一步找到的点，把下面「用哪来的点」改成对应项"),
@@ -212,6 +612,8 @@ namespace NoCodeMotion.Services.Vision
                     P("bx", "第二个点X", "num", "0", "第二个点的 X（像素）"),
                     P("by", "第二个点Y", "num", "0", "第二个点的 Y（像素）"),
                     P("use", "用哪来的点", "choice", "手填", "手填 = 用上面四个数；上一步的角点 = 直接拿「找矩形四角 / 找尖角」找到的点，省得抄坐标", "手填|上一步的角点|上一步的边缘点"),
+                    P("refdir", "参考方向", "choice", "无参考线", "无参考线 = 直接两点距离（默认）；沿参考线 = 只算它在参考方向上的投影（SGamma 的「与参考线同向」）；垂直参考线 = 只算垂直方向的偏移", "无参考线|沿参考线|垂直参考线"),
+                    P("refang", "参考线角度", "num", "0", "参考方向的角度（度，0 = 水平）；只在上面选了沿 / 垂直时才用", min: -180, max: 180),
                 },
             },
             new VisionOpSpec
@@ -372,6 +774,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "caln", Name = "多点标定（图上点对机台点）", Category = "标定与换算",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "把好几对「图上的位置」和「机台上的位置」一起算，得出两者之间的完整换算关系，比例、转角、倾斜都算进去——对位全靠它（常说的九点标定就是这个）。",
                 Outputs = "每像素多少毫米/每毫米多少像素/转角/倾斜/标定误差多少毫米/用了几对点/零点X/零点Y",
                 Params = new[]
@@ -392,6 +796,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "calone", Name = "单轴标定（只走一根轴）", Category = "标定与换算",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "只让一根轴前后走几趟，看同一个标记在图上挪了多少、朝哪个方向挪，算出比例和相机与这根轴的夹角（另一根轴按垂直补齐）。",
                 Outputs = "每毫米多少像素/每像素多少毫米/图上方向角/补齐后的转角/标定误差多少毫米/用了几点/零点X/零点Y",
                 Params = new[]
@@ -410,6 +816,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "rotcenter", Name = "找旋转中心", Category = "标定与换算",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "让旋转轴转几个角度，每转一次记下同一个标记在图上的位置，就能反出旋转中心在哪——对位要绕它转，不找它转完还会偏。",
                 Outputs = "旋转中心X/旋转中心Y/转半径/标定误差多少像素/用了几点/机台旋转中心X/机台旋转中心Y",
                 Params = new[]
@@ -428,6 +836,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "calboard", Name = "标定板定比例", Category = "标定与换算",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "拍一张标定板（棋盘格或圆点板），软件自己把所有点找出来，直接定出比例、转角和倾斜，一个坐标都不用你手填。",
                 Outputs = "每像素多少毫米/每毫米多少像素/找到几个点/板子转了多少度/标定误差多少毫米",
                 Params = new[]
@@ -448,6 +858,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "lenscal", Name = "镜头畸变标定", Category = "标定与换算",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "拍一张标定板，算出镜头把直线拍弯了多少（广角、离得近时边缘最明显），顺手可以把这张图掰直——不然量的尺寸在边上会缩水。",
                 Outputs = "畸变k1/畸变k2/畸变k3/切向p1/切向p2/重投影误差/中心点X/中心点Y/焦距/每像素多少毫米",
                 Params = new[]
@@ -467,6 +879,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "lensfix", Name = "按参数把图掰直", Category = "标定与换算",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "手里已经有畸变参数（上一条算子给的、或相机厂商说明书给的），直接用它把当前图掰直或加回畸变，不用再拍标定板。",
                 Outputs = "用了k1/用了k2/用了k3/用了p1/用了p2/用了焦距/中心点X/中心点Y",
                 Params = new[]
@@ -693,6 +1107,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "alignpm", Name = "两个点对位", Category = "对位与补偿",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "拿工件上两个标记的实测位置和标准位置比一比，算出偏了多少毫米、要转多少度、该绕哪个点转——抓取、贴装的对位就靠这几个数。",
                 Outputs = "偏差X/偏差Y/合成偏差/角度偏差/旋转中心X/旋转中心Y/两点长度比/实测1X/实测1Y/实测2X/实测2Y/是否合格/每像素多少毫米",
                 Params = new[]
@@ -717,6 +1133,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "aligntpl", Name = "照基准比（一个Mark就够）", Category = "对位与补偿",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "先把标准件的Mark位置拍下来记下基准，之后每片拿「照样子找图」找到的位置和它一比，就得出 ΔX、ΔY、Δθ。只有一个Mark、拿不出两个点时用这个。",
                 Outputs = "偏差X/偏差Y/角度偏差/合成偏差/当前X/当前Y/当前角度/基准X/基准Y/是否合格/每像素多少毫米",
                 Params = new[]
@@ -742,6 +1160,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "alignrel", Name = "上下两片相对对位", Category = "对位与补偿",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "上相机拍上层物料、下相机拍下层基材，各测一个位姿（毫米 + 度）填进来，算两者相对的 ΔX、ΔY、Δθ——屏幕、玻璃贴合要的就是这个相对量。也能做复核：把纠偏前后两次测到的填进来，得出的就是还剩多少没补掉。",
                 Outputs = "相对偏差X/相对偏差Y/相对角度/合成偏差/绕哪转X/绕哪转Y/是否合格",
                 Params = new[]
@@ -764,6 +1184,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "alignrigid", Name = "按标记点换算坐标", Category = "对位与补偿",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "同一个标记：先记下它「该在哪」（示教时戳到读到的、或图纸上的坐标），再看到它现在在哪，两者一比就知道搬了多少；把这套搬动套到吸嘴当前位置上，就得到真正该去的地方。相机和吸嘴不重合时必用。",
                 Outputs = "换算后X/换算后Y/偏移X/偏移Y/标记偏差X/标记偏差Y/转角/合成偏移",
                 Params = new[]
@@ -784,6 +1206,8 @@ namespace NoCodeMotion.Services.Vision
             new VisionOpSpec
             {
                 Key = "alignout", Name = "算对位移动量", Category = "对位与补偿",
+                Source = VisionOpSpec.SourceWenVision,
+                SourceNote = "照 WenVision 的对位工具 / 坐标标定做的；底层是 OpenCV，不需要那套软件",
                 Summary = "把视觉量到的偏差、轴现在在哪、要去哪儿、吸嘴离相机多远合到一起，直接给出「X 走多少、Y 走多少、转多少度」，下游的单轴运动照它走就行。",
                 Outputs = "目标X/目标Y/目标角度/移动X/移动Y/移动角度/移动距离/在允许范围",
                 Params = new[]
@@ -820,6 +1244,16 @@ namespace NoCodeMotion.Services.Vision
 
         public static IReadOnlyList<string> Categories
             => All.Select(a => a.Category).Distinct().ToList();
+
+        /// <summary>按来源挑算子（界面/手册按来源分开列时用）。</summary>
+        public static IReadOnlyList<VisionOpSpec> BySource(string source)
+            => All.Where(a => string.Equals(a.Source, source, System.StringComparison.Ordinal)).ToList();
+
+        /// <summary>出现过的来源，固定顺序：Halcon 同款 → WenVision 移植 → OpenCV 原生。</summary>
+        public static IReadOnlyList<string> Sources { get; } = new[]
+        {
+            VisionOpSpec.SourceHalcon, VisionOpSpec.SourceWenVision, VisionOpSpec.SourceOpenCv
+        };
 
         /// <summary>所有算子的白话名（守卫与提示词用它核对界面候选）。</summary>
         public static IReadOnlyList<string> Names => All.Select(a => a.Name).ToList();
