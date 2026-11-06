@@ -198,6 +198,14 @@ namespace NoCodeMotion.Services.Vision.Calibration
         /// <summary>过程日志回调（可为 null）。</summary>
         public Action<string>? Log { get; set; }
 
+        /// <summary>
+        /// 每采到一帧就回调出去（BGRA, 宽, 高, 组名 "xy"/"rot", 组内序号），供上层把标定用的每张图落盘留证。
+        /// <para>标定的结果好不好，只有翻这十几张图才知道（标记有没有拍全、有没有跑偏出视野、是不是糊了）；
+        /// 没有图，「残差 0.01mm」就是一句没法核对的话。</para>
+        /// <para>为 null 就不管；存图失败绝不影响标定 —— 本类只包一层 try。</para>
+        /// </summary>
+        public Action<byte[], int, int, string, int>? OnFrame { get; set; }
+
         /// <summary>执行标定（按选项决定跑 9 点 / 5 点 / 两者）。</summary>
         public CalibrationRunResult Run(CalibrationRunOptions o)
         {
@@ -270,7 +278,7 @@ namespace NoCodeMotion.Services.Vision.Calibration
                     err = MoveAndSettle(o, o.YAxisName, ty);
                     if (err != null) { res.Ok = false; res.Message = err; return false; }
 
-                    var (blob, derr) = GrabMarker(o);
+                    var (blob, derr) = GrabMarker(o, "xy", idx + 1);
                     if (blob == null)
                     {
                         res.Ok = false;
@@ -333,7 +341,7 @@ namespace NoCodeMotion.Services.Vision.Calibration
                 string? err = MoveAndSettle(o, o.RotationAxisName, target);
                 if (err != null) { res.Ok = false; res.Message = err; return false; }
 
-                var (blob, derr) = GrabMarker(o);
+                var (blob, derr) = GrabMarker(o, "rot", k + 1);
                 if (blob == null)
                 {
                     res.Ok = false;
@@ -406,12 +414,18 @@ namespace NoCodeMotion.Services.Vision.Calibration
             return null;
         }
 
-        private (MarkerBlob? Blob, string Error) GrabMarker(CalibrationRunOptions o)
+        private (MarkerBlob? Blob, string Error) GrabMarker(CalibrationRunOptions o, string group, int index)
         {
             Guard?.Invoke();
             var f = GrabFrame!.Invoke();
             if (f.Bgra == null || f.Width <= 0 || f.Height <= 0)
                 return (null, "采集图像失败（相机不可用或返回空帧）");
+            // 先存图再找标记：就算这一张没找到，也要留下它长什么样（找不到标记的原因只有看图才知道）
+            if (OnFrame != null)
+            {
+                try { OnFrame(f.Bgra, f.Width, f.Height, group, index); }
+                catch (Exception ex) { Debug.WriteLine("[CalibrationRunner] 标定存图失败：" + ex.Message); }
+            }
             var blob = MarkerDetector.DetectLargest(f.Bgra, f.Width, f.Height, o.Detect, out string err);
             return (blob, err);
         }

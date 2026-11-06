@@ -455,6 +455,8 @@ namespace NoCodeMotion.Views
         /// <summary>「循环运行 / 停止循环」：反复跑整个视觉流程，再点一次即停止。</summary>
         public ICommand LoopRunCommand { get; }
         public ICommand RunStepCommand { get; }
+        /// <summary>【打开标定图片】：用资源管理器打开上一次标定的存图目录（9 张 xy + 5 张 rot + 配对清单）。</summary>
+        public ICommand OpenCalibImagesCommand { get; }
 
         // ---------- 循环运行状态 ----------
         private bool _loopRun;
@@ -822,6 +824,7 @@ namespace NoCodeMotion.Views
                 _ = LoopRunAsync();
             });
             RunStepCommand = new SimpleRelayCommand(p => _ = RunStepAsync(p as VisualFlowStep));
+            OpenCalibImagesCommand = new SimpleRelayCommand(_ => OpenCalibImages());
             BrowsePathCommand = new SimpleRelayCommand(p => BrowsePath(p as string));
             RunMatchCommand = new SimpleRelayCommand(_ => _ = RunMatchAsync());
             ClearTemplateRoiCommand = new SimpleRelayCommand(_ =>
@@ -999,6 +1002,31 @@ namespace NoCodeMotion.Views
             RunStatus = report.Matches.Count > 0
                 ? $"完成：共 {Results.Count} 步，{ok} 步成功　匹配 {report.Matches.Count} 个目标"
                 : $"完成：共 {Results.Count} 步，{ok} 步成功";
+        }
+
+        /// <summary>
+        /// 打开上一次标定的存图目录。没跑过标定不报错，说的是「先跑一次、不接相机就勾示例图」——
+        /// 让人知道图是从哪儿来的，而不是看到一个打不开的窗口。
+        /// </summary>
+        private void OpenCalibImages()
+        {
+            string dir = VisionEngine.LastCalibImageDir ?? "";
+            if (dir.Length == 0 || !System.IO.Directory.Exists(dir))
+            {
+                RunStatus = "还没有标定图片：先跑一次「标定」这一步（没接相机就勾上「用示例图」），"
+                          + "图会存到程序目录的 CalibImages 里";
+                return;
+            }
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                { FileName = dir, UseShellExecute = true });
+                RunStatus = "已打开标定图片文件夹：" + dir;
+            }
+            catch (Exception ex)
+            {
+                RunStatus = "打不开这个文件夹（" + ex.Message + "），手动去这里看：" + dir;
+            }
         }
 
         /// <summary>从首个启用步骤运行到 target（含），用于单步/分段验证，并回填该段每步的耗时与结果。</summary>

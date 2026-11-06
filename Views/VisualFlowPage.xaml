@@ -865,7 +865,7 @@
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="标定参数"/>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"
-                                       Text="标定的时候软件会自己走一遍：先把 9 个点排成 3×3 的格子，每个点拍一张图、找到标记的中心，算出「图上的 1 像素 = 机台的多少毫米」和 X / Y 的方向；做旋转标定时再按你定的步距转 5 个角度，算出旋转中心在哪。&#10;算完的结果存进工程的「标定」表，同时导出成变量（例如 标定_像素当量），之后模板匹配就能直接报出机台上的真实位置。&#10;两个要注意：标记要一直待在视野里；做旋转标定时标记不能正好压在旋转中心上，要偏出去一些，不然半径太小会算失败。"/>
+                                       Text="标定的时候软件会自己走一遍：先把 9 个点排成 3×3 的格子，每个点拍一张图、找到标记的中心，算出「图上的 1 像素 = 机台的多少毫米」和 X / Y 的方向；做旋转标定时再按你定的步距转 5 个角度，算出旋转中心在哪。&#10;算完的结果存进工程的「标定」表，同时导出成变量（例如 标定_像素当量），之后模板匹配就能直接报出机台上的真实位置。&#10;两个要注意：标记要一直待在视野里；做旋转标定时标记不能正好压在旋转中心上，要偏出去一些，不然半径太小会算失败。&#10;每拍一张都存进程序目录：CalibImages\相机名-时间\ 里有 xy01~xy09.png、rot01~rot05.png 和一份「标定配对.csv」（哪张图对应机台哪儿、标记质心在图上哪）。标得好不好别只看一句残差，翻图才知道。&#10;没接相机、没接轴也想先看这 14 张图和数是怎么来的：勾下面的「用示例图」，软件按一套已知真值自己画图，走的是同一条找标记 → 配对 → 拟合的路。"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="标定方式"/>
                                     <ComboBox DockPanel.Dock="Right" Style="{StaticResource CellComboStyle}"
@@ -944,13 +944,28 @@
                                 </DockPanel>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <DockPanel Style="{StaticResource AppleRow}">
+                                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="用示例图（不碰相机和轴）"/>
+                                    <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center"
+                                          IsChecked="{Binding SelectedStep.CalibDemo, UpdateSourceTrigger=PropertyChanged}"/>
+                                </DockPanel>
+                                <TextBlock FontSize="11" LineHeight="16" TextWrapping="Wrap" Margin="0,2,0,6"
+                                           Foreground="#0F766E"
+                                           Text="勾上：软件自己按一套已知真值画 9 张 + 5 张，走同一条标定路，用来看流程通不通、图长什么样、数能不能对上真值。这样标出来的数不会写进真实相机的「标定」表；真机标定记得取消勾选。"/>
+                                <Rectangle Style="{StaticResource AppleHairline}"/>
+                                <DockPanel Style="{StaticResource AppleRow}">
                                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="开始标定"/>
                                     <Button DockPanel.Dock="Right" Content="运行本步" Padding="10,3"
                                             Style="{StaticResource TtPillGreenBtn}"
                                             ToolTip="【只跑到这一步】= 让真机走 9 + 5 个点来完成标定。按之前先确认机台周围没人、没有东西挡着。"
                                             Command="{Binding RunStepCommand}"
                                             CommandParameter="{Binding SelectedStep}"/>
+                                    <Button DockPanel.Dock="Right" Content="打开标定图片" Padding="10,3" Margin="0,0,8,0"
+                                            Style="{StaticResource TtGrayBtn}"
+                                            Command="{Binding OpenCalibImagesCommand}"/>
                                 </DockPanel>
+                                <TextBlock FontSize="11" LineHeight="16" TextWrapping="Wrap" Margin="0,2,0,4"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Text="【打开标定图片】= 上一次跑标定存下的那 14 张图和「标定配对.csv」，逐张对着 CSV 看标记找得对不对。"/>
                                 <Rectangle Style="{StaticResource AppleHairline}"/>
                                 <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"
                                        Text="{Binding CalibCurrentText}"/>

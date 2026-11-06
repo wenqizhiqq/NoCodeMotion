@@ -148,6 +148,7 @@ namespace NoCodeMotion.Models
         private int _calibMinArea = 30;               // 标记最小面积
         private int _calibMaxArea = 400000;           // 标记最大面积
         private string _calibResultText = "";         // 上次标定结果回显（多行文本）
+        private bool _calibDemo;                       // true = 用软件画的示例图跑 9+5（不碰相机和轴）
 
         // 运行结果（每次运行后由 VisionEngine 回写）
         private double _durationMs = 0;
@@ -247,8 +248,13 @@ namespace NoCodeMotion.Models
         public int CalibMinArea { get => _calibMinArea; set => Set(ref _calibMinArea, value); }
         /// <summary>标记最大面积（像素）。</summary>
         public int CalibMaxArea { get => _calibMaxArea; set => Set(ref _calibMaxArea, value); }
-        /// <summary>上次标定结果回显（多行：像素当量 / 方向角 / 旋转中心 / 残差）。</summary>
+        /// <summary>上次标定结果回显（多行：像素当量 / 方向角 / 旋转中心 / 残差 + 图片存到哪了）。</summary>
         public string CalibResultText { get => _calibResultText; set => Set(ref _calibResultText, value); }
+        /// <summary>
+        /// 用示例图跑这条 9+5：不接相机、不接轴，拿 DemoCalib 按已知真值画出来的图走同一条链。
+        /// 默认关 —— 开着它标出来的数不会写进真实相机的标定记录，也不会被别的步骤当成真机结果。
+        /// </summary>
+        public bool CalibDemo { get => _calibDemo; set => Set(ref _calibDemo, value); }
 
         // 运行结果
         public double DurationMs { get => _durationMs; set { if (Set(ref _durationMs, value)) OnChanged(nameof(DurationText)); } }

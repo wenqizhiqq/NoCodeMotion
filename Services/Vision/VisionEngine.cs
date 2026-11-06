@@ -292,10 +292,13 @@ namespace NoCodeMotion.Services.Vision
                     if (real != null)
                     {
                         usedSynthetic = false;
+                        string dark = FrameTooDark(real, rw, rh)
+                            ? "　⚠ 画面几乎全黑：图是拍到了，但里面什么都没有 —— 先看镜头盖有没有开、光源亮没亮、曝光是不是太短"
+                            : "";
                         report.Results.Add(new VisionStepResult
                         {
                             StepName = s.Name, Type = "图像采集", Ok = true,
-                            Summary = $"相机「{camLabel}」采集 {rw}x{rh}"
+                            Summary = $"相机「{camLabel}」采集 {rw}x{rh}{dark}"
                         });
                         progress?.Report($"图像采集：相机「{camLabel}」");
                         return BgraToMat(real, rw, rh);
@@ -637,24 +640,36 @@ namespace NoCodeMotion.Services.Vision
 
         // ============ 标定（9 点 XY 仿射 + 5 点旋转圆拟合） ============
 
+        /// <summary>上一次标定把图存到了哪个目录（给「打开标定图片」按钮用；没跑过 = 空串）。</summary>
+        public static string LastCalibImageDir { get; private set; } = "";
+
         /// <summary>
-        /// 执行「标定」步骤：程序自动走 9 点（3×3）与 5 点旋转，每点取真实相机图 → 找标记质心 →
+        /// 执行「标定」步骤：程序自动走 9 点（3×3）与 5 点旋转，每点取一张图 → 找标记质心 →
         /// 与轴读回值配对 → 最小二乘求仿射（像素 → 机台 mm）与旋转中心，结果写入
         /// ProjectData.Calibrations（xlsx「标定」表）；后续「模板匹配」按它输出机台 mm 真实位置。
         ///
-        /// 标定必须真实取像：相机不可用一律明确失败，**不回退合成图** ——
-        /// 否则会悄悄标出一堆垃圾参数，比直接报错危险得多。
+        /// 两条硬规矩：
+        ///   1. 真实模式必须真实取像、真实控制卡：相机不可用一律明确失败，**不回退合成图** ——
+        ///      悄悄标出一堆垃圾参数，比直接报错危险得多。
+        ///   2. 每采的一张图都落盘（9 张 xy + 5 张 rot + 配对 CSV，在 bin\CalibImages\<相机>-<时间>），
+        ///      标得好不好要能翻图核对，不能只给一句「残差 0.01mm」。
+        ///
+        /// 「用示例图」开关（<see cref="VisualFlowStep.CalibDemo"/>）：不接相机、不接轴，
+        /// 拿 <see cref="Calibration.DemoCalib"/> 按已知真值画出来的 9+5 张图走同一条链，
+        /// 用来验证流程 + 让人第一次就看到那十几张图长什么样。示例结果**不写进真实相机名的标定记录**。
         /// </summary>
         private static void RunCalibration(VisualFlowStep s, VisionReport report, IProgress<string>? progress)
         {
+            bool demo = s.CalibDemo;
             int camIdx = ResolveCameraIndex(s.CameraId);
             string camName = CameraNameOf(camIdx);
             if (camName.Length == 0) camName = (s.CameraId ?? "").Trim();
 
             var bridge = HardwareBridge.Current;
-            if (bridge is StubHardwareBridge)
+            if (!demo && bridge is StubHardwareBridge)
             {
-                AddFail(report, s, "当前是仿真桩硬件（未连接真实控制卡），标定会驱动真实轴，已中止");
+                AddFail(report, s, "当前是仿真桩硬件（未连接真实控制卡），标定会驱动真实轴，已中止。"
+                        + "接上控制卡再跑；只想先看看 9 张 + 5 张是怎么标出来的，就把参数卡里「用示例图」勾上");
                 return;
             }
 
@@ -691,64 +706,130 @@ namespace NoCodeMotion.Services.Vision
             };
 
             // 轴名必须能在工程里找到：找不到就直接失败，绝不「拿轴 0 顶上」——那会撞机
-            var axX = FindAxis(opt.XAxisName);
-            var axY = FindAxis(opt.YAxisName);
-            var axR = FindAxis(opt.RotationAxisName);
-            if (opt.DoNinePoint && (axX == null || axY == null))
+            // （示例模式走的是软件自己仿真的三根轴，工程里不需要有它们）
+            AxisItem? axX = null, axY = null, axR = null;
+            if (demo)
             {
-                AddFail(report, s, $"标定的 X/Y 轴名在工程里找不到（X=「{opt.XAxisName}」 Y=「{opt.YAxisName}」），请先在参数卡里选轴");
-                return;
+                opt.XAxisName = Calibration.DemoCalib.AxisX;
+                opt.YAxisName = Calibration.DemoCalib.AxisY;
+                opt.RotationAxisName = Calibration.DemoCalib.AxisR;
+                if (opt.SettleMs > 0) opt.SettleMs = 0;      // 仿真轴没有稳定时间，别白等
             }
-            if (opt.DoRotation && axR == null)
+            else
             {
-                AddFail(report, s, $"标定的旋转轴名在工程里找不到（旋转轴=「{opt.RotationAxisName}」），请先在参数卡里选轴");
-                return;
+                axX = FindAxis(opt.XAxisName);
+                axY = FindAxis(opt.YAxisName);
+                axR = FindAxis(opt.RotationAxisName);
+                if (opt.DoNinePoint && (axX == null || axY == null))
+                {
+                    AddFail(report, s, $"标定的 X/Y 轴名在工程里找不到（X=「{opt.XAxisName}」 Y=「{opt.YAxisName}」），请先在参数卡里选轴");
+                    return;
+                }
+                if (opt.DoRotation && axR == null)
+                {
+                    AddFail(report, s, $"标定的旋转轴名在工程里找不到（旋转轴=「{opt.RotationAxisName}」），请先在参数卡里选轴");
+                    return;
+                }
+                // 标定前使能：真实轴上电后未使能是动不了的；已使能再调一次无副作用
+                foreach (var a in new[] { axX, axY, axR })
+                {
+                    if (a == null) continue;
+                    try { bridge.EnableAxis(a); }
+                    catch (Exception ex) { Debug.WriteLine($"[VisionEngine] 标定前使能「{a.Name}」失败：{ex.Message}"); }
+                }
             }
 
-            // 标定前使能：真实轴上电后未使能是动不了的；已使能再调一次无副作用
-            foreach (var a in new[] { axX, axY, axR })
-            {
-                if (a == null) continue;
-                try { bridge.EnableAxis(a); }
-                catch (Exception ex) { Debug.WriteLine($"[VisionEngine] 标定前使能「{a.Name}」失败：{ex.Message}"); }
-            }
+            // 每次跑一个文件夹：9 张 xy + 5 张 rot + 配对清单 + （示例模式）真值，全留在这儿
+            string? dir = MakeCalibImageDir(camName, demo);
+            LastCalibImageDir = dir ?? "";
+            int savedCount = 0;
 
+            var sim = new Calibration.DemoCalib.Sim();
             var runner = new CalibrationRunner
             {
-                ReadAxisPosition = name => { var a = FindAxis(name); return a == null ? 0 : bridge.ReadAxisPosition(a); },
+                ReadAxisPosition = name =>
+                {
+                    if (demo) return sim.Read(name);
+                    var a = FindAxis(name);
+                    return a == null ? 0 : bridge.ReadAxisPosition(a);
+                },
                 MoveAxisAbs = (name, pos) =>
                 {
+                    if (demo) { sim.Move(name, pos); return; }
                     var a = FindAxis(name);
                     if (a == null) throw new InvalidOperationException($"轴「{name}」不存在");
                     bridge.MoveAxisAbs(a, pos);
                 },
                 // 直接用桥的阻塞等待：它内部按 ≤50ms 轮询 WaitGuard，天然响应暂停/停止，也有自己的超时
-                IsAxisDone = name => { var a = FindAxis(name); if (a != null) bridge.WaitAxisDone(a); return true; },
-                SetAxisSpeed = (name, sp) => { var a = FindAxis(name); if (a != null) bridge.SetAxisSpeed(a, sp); },
+                IsAxisDone = name =>
+                {
+                    if (demo) return true;
+                    var a = FindAxis(name);
+                    if (a != null) bridge.WaitAxisDone(a);
+                    return true;
+                },
+                SetAxisSpeed = (name, sp) =>
+                {
+                    if (demo) return;
+                    var a = FindAxis(name);
+                    if (a != null) bridge.SetAxisSpeed(a, sp);
+                },
                 // 标定必须真实取像：TryGrabRealCamera 失败就返回空帧让执行器明确报错，不回退合成图
+                // （只有人明确勾了「用示例图」才换成 DemoCalib 画的那 9+5 张）
                 GrabFrame = () =>
                 {
+                    if (demo) return (Calibration.DemoCalib.Render(sim, s.CalibDarkMarker),
+                                      Calibration.DemoCalib.Width, Calibration.DemoCalib.Height);
                     var real = TryGrabRealCamera(camIdx, out int gw, out int gh, out _);
                     return real == null ? ((byte[]?)null, 0, 0) : (real, gw, gh);
                 },
                 Guard = () => HardwareBridge.WaitGuard?.Invoke(),
-                Log = m => progress?.Report(m)
+                Log = m => progress?.Report(m),
+                OnFrame = (bgra, w, h, group, index) =>
+                {
+                    if (dir == null) return;
+                    string file = Path.Combine(dir, $"{group}{index:00}.png");
+                    if (SaveBgra(bgra, w, h, file)) savedCount++;
+                }
             };
 
             var res = runner.Run(opt);
 
-            // 结果落工程（一台相机一条）：模板匹配随后据此输出机台 mm 真实位置
-            if (camName.Length > 0)
+            // 配对清单跟着图一起落盘：哪一张对应哪个机台位置，翻图的人一眼能对上
+            string dirNote = dir == null ? "" : (savedCount > 0
+                ? $"　图片 {savedCount} 张已存：{dir}"
+                : "　图片没能存盘（目录写不进去，检查权限 / 磁盘）");
+            if (dir != null)
             {
-                var rec = res.ToRecord(camName);
-                CalibrationStore.Upsert(rec);
-                // 导出为工程变量（标定_像素当量 / 标定_旋转中心X …），供流程步骤与通讯直接引用
-                int nVar = CalibVarExport.Export(rec);
-                if (nVar > 0) progress?.Report($"标定结果已导出 {nVar} 个变量（{CalibVarExport.VarPixelEquivalent} …）");
-                ProjectStore.ScheduleSave();
+                try
+                {
+                    WriteCalibPairs(dir, res, demo ? Calibration.DemoCalib.TruthText() : null);
+                }
+                catch (Exception ex) { Debug.WriteLine($"[VisionEngine] 标定配对清单写入失败：{ex.Message}"); }
             }
 
-            s.CalibResultText = BuildCalibText(res, camName);
+            // 结果落工程（一台相机一条）：模板匹配随后据此输出机台 mm 真实位置。
+            // ★ 示例图标定绝不写真实相机记录 —— 名字挂「示例·」，真机结果不会被它顶掉。
+            string storeName = demo ? "示例·" + (camName.Length > 0 ? camName : "相机") : camName;
+            if (storeName.Length > 0)
+            {
+                var rec = res.ToRecord(storeName);
+                if (demo) rec.Message = "【示例图标定，不是真机结果】" + (rec.Message ?? "");
+                if (!demo)
+                {
+                    CalibrationStore.Upsert(rec);
+                    // 导出为工程变量（标定_像素当量 / 标定_旋转中心X …），供流程步骤与通讯直接引用
+                    int nVar = CalibVarExport.Export(rec);
+                    if (nVar > 0) progress?.Report($"标定结果已导出 {nVar} 个变量（{CalibVarExport.VarPixelEquivalent} …）");
+                    ProjectStore.ScheduleSave();
+                }
+                else
+                {
+                    progress?.Report("这是示例图标定的数：没有写进「标定」表，真机请关掉「用示例图」再跑一次");
+                }
+            }
+
+            s.CalibResultText = BuildCalibText(res, demo ? "示例图（不是真机）" : camName) + Environment.NewLine + dirNote;
 
             report.Results.Add(new VisionStepResult
             {
@@ -757,12 +838,71 @@ namespace NoCodeMotion.Services.Vision
                 Ok = res.Ok,
                 Value = res.Affine?.PixelEquivalentU ?? 0,
                 Count = res.NinePoints.Count,
-                Summary = res.Ok
-                    ? $"标定成功（相机「{camName}」）：{res.Message}"
-                    : $"标定失败：{res.Message}"
+                Summary = (res.Ok
+                    ? $"标定成功（{(demo ? "示例图" : "相机「" + camName + "」")}）：{res.Message}"
+                    : $"标定失败：{res.Message}") + dirNote
             });
-            progress?.Report(res.Ok ? "标定完成" : "标定失败：" + res.Message);
+            progress?.Report(res.Ok ? $"标定完成（{savedCount} 张图已存盘）" : "标定失败：" + res.Message);
         }
+
+        /// <summary>
+        /// 建本次标定的存图目录：<c>bin\...\CalibImages\&lt;相机名&gt;-&lt;年月日-时分秒&gt;\</c>（示例模式前缀「示例-」）。
+        /// 建不出来返回 null —— 存不了图不该让标定白跑，只在结果里说明一句。
+        /// </summary>
+        static string? MakeCalibImageDir(string camName, bool demo)
+        {
+            try
+            {
+                string safe = "";
+                var bad = Path.GetInvalidFileNameChars();
+                foreach (char c in (camName ?? ""))
+                    safe += Array.IndexOf(bad, c) >= 0 || c == ' ' ? "_" : c.ToString();
+                if (safe.Length == 0) safe = "未命名相机";
+                if (safe.Length > 24) safe = safe.Substring(0, 24);
+                string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+                string dir = Path.Combine(AppContext.BaseDirectory, "CalibImages",
+                                          (demo ? "示例-" : "") + safe + "-" + stamp);
+                Directory.CreateDirectory(dir);
+                return dir;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[VisionEngine] 标定存图目录建不出来：{ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 写标定配对清单 <c>标定配对.csv</c>（UTF-8 带 BOM，Excel 直接双击不乱码）：
+        /// 每张图对应哪根轴走到哪、标记质心在图上哪、面积多大 —— 出问题时不用猜，逐行对图就行。
+        /// </summary>
+        static void WriteCalibPairs(string dir, Calibration.CalibrationRunResult res, string? truth)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("组,序号,机台X_mm,机台Y_mm,旋转角_度,图上U_像素,图上V_像素,标记面积,图片文件");
+            foreach (var p in res.NinePoints)
+                sb.AppendLine($"XY,{p.Index},{N(p.X)},{N(p.Y)},,{N(p.U)},{N(p.V)},{p.Area},xy{p.Index:00}.png");
+            int k = 0;
+            foreach (var p in res.RotationPoints)
+            {
+                k++;
+                sb.AppendLine($"旋转,{k},,,{N(p.Angle)},{N(p.U)},{N(p.V)},{p.Area},rot{k:00}.png");
+            }
+            sb.AppendLine();
+            sb.AppendLine($"仿射残差RMS,{N(res.Affine?.RmsMm ?? -1)},毫米");
+            sb.AppendLine($"旋转圆拟合残差RMS,{N(res.Circle?.RmsPx ?? -1)},像素");
+            string verdict = res.Ok ? "成功" : "失败";
+            sb.AppendLine($"结论,{verdict},{(res.Message ?? "").Replace(",", "，").Replace("\n", " ")}");
+            if (!string.IsNullOrEmpty(truth))
+            {
+                sb.AppendLine();
+                foreach (var line in truth!.Split('\n'))
+                    if (line.Trim().Length > 0) sb.AppendLine(line.Trim());
+            }
+            File.WriteAllText(Path.Combine(dir, "标定配对.csv"), sb.ToString(), new System.Text.UTF8Encoding(true));
+        }
+
+        static string N(double v) => v.ToString("0.####", CultureInfo.InvariantCulture);
 
         /// <summary>标定结果多行回显文本（视觉流程参数卡里显示）。</summary>
         private static string BuildCalibText(CalibrationRunResult res, string camName)
@@ -1176,6 +1316,19 @@ namespace NoCodeMotion.Services.Vision
             {
                 roi?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// 整幅画面是不是黑到底（每 16 个像素采一次看平均亮度，&lt; 6 就算全黑）。
+        /// 相机连上了但镜头盖没开 / 光源没亮 / 曝光太短，回来的就是这么一张图：
+        /// 采集这一步本身是成功的，所以必须当场说破，否则后面每一步都红，人只会以为软件坏了。
+        /// </summary>
+        public static bool FrameTooDark(byte[]? bgra, int w, int h)
+        {
+            if (bgra == null || w <= 0 || h <= 0) return false;
+            long sum = 0; int n = 0;
+            for (int i = 0; i + 2 < bgra.Length; i += 64) { sum += bgra[i]; n++; }
+            return n > 0 && sum / (double)n < 6;
         }
 
         /// <summary>按语言名解析 OCR 引擎；「自动」或未知 → 用户配置语言。找不到对应语言包返回 null。</summary>

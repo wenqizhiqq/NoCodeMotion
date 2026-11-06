@@ -1429,7 +1429,8 @@ else:
           and _e27.count("calib.ImageToMachineRotated(") == 2
           and "public static string CameraNameOf(int cameraIndex)" in _e27)
     check("G27.17 标定会驱动真实轴：仿真桩拒绝 + 轴名找不到就失败（绝不拿轴 0 顶上）+ 不回退合成图",
-          "if (bridge is StubHardwareBridge)" in _e27
+          # 「用示例图」那条路不碰轴，所以桩拒绝只针对真机模式（!demo）
+          "if (!demo && bridge is StubHardwareBridge)" in _e27
           and "标定会驱动真实轴，已中止" in _e27
           and "标定的 X/Y 轴名在工程里找不到" in _e27
           and "标定的旋转轴名在工程里找不到" in _e27
@@ -2707,6 +2708,69 @@ check('G50.3 节点图页顶部按钮排同样会换行（【举个流程】也�
       '<WrapPanel Grid.Column="0" HorizontalAlignment="Left">' in _ng50
       and 'Text="举个流程"' in _ngbar50 and 'Text="断点"' in _ngbar50
       and '<StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left"' not in _ng50)
+
+# ---------------------------------------------------------------------
+# G51  标定 9 张定 XY + 5 张定旋转中心：要拍得出、存得下、对得上真值、不污染真机记录
+# ---------------------------------------------------------------------
+# 用户问「怎么没有图片在 bin 里面，对位需要 9 张 xy 确定、5 张旋转确定旋转中心的」——
+# 标定这种一次性的事，只报一句「残差 0.01mm」是没法核对的：必须留下那 14 张图和配对清单，
+# 还得让人在没相机没轴的时候也能先把这条链跑一遍（但要保证示例数不会冒充真机结果）。
+_dc51 = (read(r"Services\Vision\Calibration\DemoCalib.cs") or "").replace("\r\n", "\n")
+_cr51 = (read(r"Services\Vision\Calibration\CalibrationRunner.cs") or "").replace("\r\n", "\n")
+_ve51 = (read(r"Services\Vision\VisionEngine.cs") or "").replace("\r\n", "\n")
+_st51 = (read(r"Models\VisualFlowStep.cs") or "").replace("\r\n", "\n")
+_fx51 = (read(r"Services\Vision\FlowExamples.cs") or "").replace("\r\n", "\n")
+_vp51 = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
+_vvm51 = (read(r"Views\VisualFlowDetailViewModel.cs") or "").replace("\r\n", "\n")
+_man51 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
+
+check('G51.1 示例图是真按已知真值画的（有像素当量 / 原点 / 旋转中心，画的是圆不是方）',
+      'public const double MmPerPx' in _dc51 and 'OriginU' in _dc51 and 'RotCenterU' in _dc51
+      and 'dx * dx + dy * dy > r2' in _dc51
+      and 'PxU(double mmX) => OriginU + mmX / MmPerPx' in _dc51)
+check('G51.2 示例图的标记满足检测器的形状条件（实心圆：填充率约 0.78，方圆都行）',
+      'MarkerRadiusPx' in _dc51 and 'darkMarker ? 205 : 45' in _dc51 and 'darkMarker ? 25 : 225' in _dc51)
+check('G51.3 执行器每采一帧都回调出去（xy / rot 带组内序号），存图失败不许拖垮标定',
+      'public Action<byte[], int, int, string, int>? OnFrame' in _cr51
+      and 'GrabMarker(o, "xy", idx + 1)' in _cr51 and 'GrabMarker(o, "rot", k + 1)' in _cr51
+      and 'catch (Exception ex) { Debug.WriteLine("[CalibrationRunner] 标定存图失败' in _cr51)
+check('G51.4 标定真的落盘：14 张 PNG + 标定配对.csv + 目录记着给人打开',
+      'OnFrame = (bgra, w, h, group, index) =>' in _ve51
+      and 'SaveBgra(bgra, w, h, file)' in _ve51 and '标定配对.csv' in _ve51
+      and 'public static string LastCalibImageDir' in _ve51
+      and 'CalibImages' in _ve51)
+check('G51.5 配对清单里每行都带着机台位置与图上质心（翻图能逐行核对）',
+      '组,序号,机台X_mm,机台Y_mm,旋转角_度,图上U_像素,图上V_像素,标记面积,图片文件' in _ve51
+      and 'xy{p.Index:00}.png' in _ve51 and 'rot{k:00}.png' in _ve51
+      and 'new System.Text.UTF8Encoding(true)' in _ve51)
+check('G51.6 示例标出来的数绝不写进真实相机的标定表（Upsert 被 !demo 挡着）',
+      'if (!demo)\n                {\n                    CalibrationStore.Upsert(rec);' in _ve51
+      and '"示例·"' in _ve51 and '没有写进「标定」表' in _ve51)
+check('G51.7 真机模式仍然拒绝桩硬件，并且把「想先看就勾示例图」这条路说出来',
+      'if (!demo && bridge is StubHardwareBridge)' in _ve51
+      and '仿真桩硬件' in _ve51 and '用示例图' in _ve51)
+check('G51.8 标定步骤有「用示例图」这个开关（默认关，注释写清不许冒充真机结果）',
+      'public bool CalibDemo' in _st51 and 'private bool _calibDemo;' in _st51
+      and '默认关' in _st51)
+check('G51.9 参数卡那一格直接显示大白话（不是只挂在悬停上）',
+      'SelectedStep.CalibDemo' in _vp51 and '勾上：软件自己按一套已知真值画 9 张 + 5 张' in _vp51)
+check('G51.10 【打开标定图片】是真命令：打开上次存图目录，没跑过标定说的是「先跑一次」',
+      'OpenCalibImagesCommand' in _vp51 and 'OpenCalibImagesCommand = new SimpleRelayCommand' in _vvm51
+      and 'VisionEngine.LastCalibImageDir' in _vvm51 and 'UseShellExecute = true' in _vvm51
+      and '还没有标定图片' in _vvm51)
+check('G51.11 对位例子第一步就是 9+5 自动标定（示例图模式、XY+旋转、5 个旋转点）',
+      'DemoCalibStep("① 自动拍 9 张定 XY + 5 张定旋转中心")' in _fx51
+      and 'CalibDemo = true' in _fx51 and 'CalibMode = "XY+旋转"' in _fx51
+      and 'CalibRotationCount = 5' in _fx51 and 'CalibPitchMm = 10' in _fx51)
+check('G51.12 例子里的换算关系用的是 9 对点（3×3），不是随手四对',
+      _fx51.count(';') >= 0 and '100,80=5,4;300,80=15,4;500,80=25,4' in _fx51
+      and '500,400=25,20' in _fx51)
+check('G51.14 相机拍回全黑要当场说破（采集成功≠拍到了东西，否则后面一路红没人知道为什么）',
+      'public static bool FrameTooDark' in _ve51 and 'FrameTooDark(real, rw, rh)' in _ve51
+      and '画面几乎全黑' in _ve51 and '镜头盖' in _ve51)
+check('G51.13 说明书讲清了 9 张定 XY、5 张定旋转中心、图存在哪、没相机怎么先看',
+      '九点标定：让轴走到 9 个已知位置' in _man51 and '旋转标定（5 张定旋转中心）' in _man51
+      and 'CalibImages' in _man51 and '标定配对.csv' in _man51 and '【打开标定图片】' in _man51)
 
 print(f"\n====================  {npass} PASS / {nfail} FAIL  ====================")
 if fails:
