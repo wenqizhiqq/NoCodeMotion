@@ -116,33 +116,9 @@
                             <TextBlock Text="添加步骤" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="ExampleBtn" Click="Example_Click"
-                            Style="{StaticResource ToolButtonStyle}" Margin="0,0,8,0"
-                            ToolTip="不知道从哪儿下手？点一下把一整条常用流程摆好，参数都填成了能直接跑的样子">
-                        <StackPanel Orientation="Horizontal">
-                            <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform"
-                                  Margin="0,0,5,0" VerticalAlignment="Center"
-                                  Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                            <TextBlock Text="举个例子" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding TeachCommand}" Style="{StaticResource ToolButtonStyle}" Margin="0,0,8,0"
-                            ToolTip="示教：拿标准件跑一次，点它就把刚测到的位置写成这一步的「标准 / 基准」，不用手抄坐标">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#9730;" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"
-                                       Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                            <TextBlock Text="记为标准" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding DemoCalibImagesCommand}" Style="{StaticResource ToolButtonStyle}" Margin="0,0,8,0"
-                            ToolTip="重新生成 9 张 XY + 5 张旋转的示例标定图（程序目录\DemoCalib）并打开：没相机没轴也能先看清要标什么、图长什么样">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#128444;" FontSize="13" Margin="0,0,5,0" VerticalAlignment="Center"
-                                       Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                            <TextBlock Text="示例标定图" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding DeleteStepCommand}" Style="{StaticResource TtDeleteBtn}">
+                    <!-- 2026-11-13 用户要求删掉多余按钮：已移除【举个例子】【记为标准】【示例标定图】，
+                         只留 添加步骤 / 删除步骤 / 运行一次 / 循环运行，一排不再换行。 -->
+                    <Button Command="{Binding DeleteStepCommand}" Style="{StaticResource TtDeleteBtn}" Margin="0,0,8,0">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource DeleteIcon}" Width="15" Height="15" Stretch="Uniform"
                                   Margin="0,0,5,0" VerticalAlignment="Center"

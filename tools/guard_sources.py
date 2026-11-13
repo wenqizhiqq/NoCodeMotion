@@ -2554,14 +2554,14 @@ check("G46.3 例子里每个算子都用目录里的白话名取（名字改了�
       and 'Spec("算对位移动量")' in _fe46 and 'Spec("找矩形四角")' in _fe46)
 check("G46.4 例子的铁律写在文件头上：必须点【运行一次】就能跑通",
       "例子必须" in _fe46 and "跑通" in _fe46)
-check("G46.5 页面上有看得见的【举个例子】按钮（不是藏在菜单深处或只靠悬停）",
-      'Click="Example_Click"' in _vfpage46 and 'Text="举个例子"' in _vfpage46)
-check("G46.6 例子的说明直接写在菜单里（每条第二行就是「这几步在干什么」）",
-      "FlowExamples.All" in _vfcs46 and "ex.Help" in _vfcs46 and "AddExampleFlow" in _vfcs46)
+check("G46.5 页面上不再有【举个例子】按钮（2026-11-13 用户要求删掉工具栏多余按钮，别又加回来）",
+      'Click="Example_Click"' not in _vfpage46 and 'Text="举个例子"' not in _vfpage46)
+check("G46.6 例子目录每条仍带 Help 说明、VM 的 AddExampleFlow 仍在（按钮已删，入口随时能接回来）",
+      "public string Help" in _fe46 and "AddExampleFlow" in _vfvm46)
 check("G46.7 一键摆例子会选中新加的第一步（右边参数卡立刻摊开填法）",
       "SelectedStep = s[at];" in _vfvm46 and "RunStatus = $" in _vfvm46)
-check("G46.8 说明书任务四指了【举个例子】这条捷径",
-      "【举个例子】" in (read(r"Views\OperatorManualPage.xaml.cs") or ""))
+check("G46.8 说明书不再指【举个例子】按钮（按钮已删，指了也点不到）",
+      "【举个例子】" not in (read(r"Views\OperatorManualPage.xaml.cs") or ""))
 # 例子的「整条跑通 + 每步数字对得上」是运行时断言，放在 ncm_op_test/Align5.cs 的 ExampleChecks 里
 # ---------------------------------------------------------------------
 # G47  对位这条线要能自成闭环（示教 → 判定 → 纠偏 → 复核 → 贴合）
@@ -2609,8 +2609,8 @@ check("G47.7 流程页有【举个流程】按钮，铺完的说明直接显示�
       and 'Text="{Binding TemplateHint}"' in _ngpage47 and "public void AddFlowTemplate(string key)" in _ngvm47)
 check("G47.8 铺模板不清用户已画的图（有东西就铺到下面）",
       "if (n.Y + 170 > baseY) baseY = n.Y + 170;" in _ngvm47)
-check("G47.9 示教有「记为标准」按钮，且只接实测两个点 / 照基准比这两步",
-      'Command="{Binding TeachCommand}"' in _vf47 and 'Text="记为标准"' in _vf47
+check("G47.9 示教逻辑仍在 VM（只接实测两个点 / 照基准比这两步），工具栏的【记为标准】按钮已按用户要求移除",
+      'Command="{Binding TeachCommand}"' not in _vf47 and 'Text="记为标准"' not in _vf47
       and 'op != "alignpm" && op != "aligntpl"' in _vfvm47 and "TeachStandardFromLastRun()" in _vfvm47)
 check("G47.10 记为标准取的是结构化输出量（不从结果文字里正则抽数）",
       'foreach (var kv in res.Numbers) if (kv.Key == key) return kv.Value;' in _vfvm47
@@ -2618,7 +2618,7 @@ check("G47.10 记为标准取的是结构化输出量（不从结果文字里正
 check("G47.11 没跑出结果 / 选错步骤时给的是「下一步该干什么」",
       "先点【运行一次】" in _vfvm47 and "只有「两个点对位」和「照基准比」这两步能记为标准" in _vfvm47)
 check("G47.12 说明书补齐示教 / 双Mark / 双相机上下对位 / 复核这几个词",
-      "示教（记为标准）" in _man47 and "双 Mark 对位" in _man47
+      "示教：" in _man47 and "双 Mark 对位" in _man47
       and "双相机上下对位" in _man47 and "• 复核：" in _man47 and "【举个流程】" in _man47)
 
 # ---------------------------------------------------------------------
@@ -2710,11 +2710,12 @@ _bar50 = _vf50[_vf50.index('<WrapPanel Grid.Row="0" Margin="0,0,0,8">'):_vf50.in
 check('G50.1 视觉流程页按钮排是会换行的 WrapPanel（栏宽写死也切不到按钮）',
       '<WrapPanel Grid.Row="0"' in _vf50 and '</WrapPanel>' in _bar50
       and '<StackPanel Grid.Row="0" Orientation="Horizontal"' not in _vf50
-      and _bar50.count('<Button ') >= 6)
-check('G50.2 这一排六个按钮都在 WrapPanel 里面（添加步骤/举个例子/记为标准/删除步骤/运行一次/循环运行）',
-      all('Text="' + n + '"' in _bar50 for n in ('添加步骤', '举个例子', '记为标准', '删除步骤', '运行一次'))
+      and _bar50.count('<Button ') >= 4)
+check('G50.2 这一排四个按钮都在 WrapPanel 里面（添加步骤 / 删除步骤 / 运行一次 / 循环运行），且删掉的三个没又加回来',
+      all('Text="' + n + '"' in _bar50 for n in ('添加步骤', '删除步骤', '运行一次'))
       # 「循环运行」那格文字是绑的（按钮会在 循环运行 / 停止循环 之间换字），按绑定名认
-      and 'LoopRunButtonText' in _bar50)
+      and 'LoopRunButtonText' in _bar50
+      and all('Text="' + n + '"' not in _bar50 for n in ('举个例子', '记为标准', '示例标定图')))
 _ngbar50 = _ng50[_ng50.index('<WrapPanel Grid.Column="0" HorizontalAlignment="Left">'):_ng50.index('</WrapPanel>')]
 check('G50.3 节点图页顶部按钮排同样会换行（【举个流程】也是新加的，别再挤掉「断点」）',
       '<WrapPanel Grid.Column="0" HorizontalAlignment="Left">' in _ng50
@@ -2803,11 +2804,10 @@ check('G52.1 示例标定图会真备到程序目录 DemoCalib（9 张 XY + 5 �
 check('G52.2 启动时后台备一份（没有相机也永远看得见这 14 张），失败不影响启动',
       'EnsureDemoCalibImages()' in _app52 and 'Task.Run' in _app52
       and 'catch { }' in _app52)
-check('G52.3 工具条有【示例标定图】：重新生成 + 打开文件夹 + 说明怎么拿它跑标定',
-      'Text="示例标定图"' in _vp52 and 'DemoCalibImagesCommand' in _vp52
+check('G52.3 工具栏【示例标定图】按钮已按用户要求移除，但重新生成 + 打开文件夹的逻辑仍在（命令随时能接回来）',
+      'Text="示例标定图"' not in _vp52 and 'DemoCalibImagesCommand' not in _vp52
       and 'VisionEngine.EnsureDemoCalibImages(force: true)' in _vvm52
-      and 'UseShellExecute = true' in _vvm52
-      and '类型选「标定」' in _vvm52 and '用示例图' in _vvm52)
+      and 'UseShellExecute = true' in _vvm52)
 check('G52.4 相机拍回全黑帧判红并说清原因（以前给绿勾，人只看到一片黑）',
       'bool allBlack = FrameTooDark(real, rw, rh);' in _ve52
       and 'Ok = !allBlack' in _ve52 and '画面几乎全黑' in _ve52)
