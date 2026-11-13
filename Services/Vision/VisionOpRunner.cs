@@ -70,6 +70,12 @@ namespace NoCodeMotion.Services.Vision
         /// <summary>上一条「两个点对位」量到的偏差；「算对位移动量」没填时直接拿它。</summary>
         public double AlignDX = double.NaN, AlignDY = double.NaN, AlignDR = double.NaN;
         public bool HasAlign => !double.IsNaN(AlignDX);
+
+        /// <summary>
+        /// VisionPlus 移植算子的跨步状态（深度图、颜色模板、位置跟随基准、样本库等）。
+        /// 不往 VisualFlowStep 里堆字段，工程落盘只认 ParamJson；由 VpUtil.State(ctx) 懒创建。
+        /// </summary>
+        public readonly Dictionary<string, object> Vp = new();
     }
 
     public static class VisionOpRunner
@@ -189,7 +195,12 @@ namespace NoCodeMotion.Services.Vision
                     case "twoimg": next = DoTwoImage(spec, s, cur, dst, report, progress); break;
                     case "crop": next = DoCrop(spec, s, cur, gray, dst, report, progress); break;
 
-                    default: Add(report, s, spec, false, "这个算子还没有实现：" + spec.Key); break;
+                    default:
+                        if (VpDispatch.CanRun(spec.Key))
+                            next = VpDispatch.Run(spec, s, cur, gray, dst, report, ctx, progress);
+                        else
+                            Add(report, s, spec, false, "这个算子还没有实现：" + spec.Key);
+                        break;
                 }
             }
             catch (Exception ex)

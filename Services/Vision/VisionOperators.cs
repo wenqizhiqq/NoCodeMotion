@@ -49,6 +49,8 @@ namespace NoCodeMotion.Services.Vision
         public const string SourceOpenCv = "OpenCV 原生";
         public const string SourceHalcon = "Halcon 同款（SGamma）";
         public const string SourceWenVision = "WenVision 移植";
+        /// <summary>从 VisionPlus 的算子体系逆向出的功能与参数，全部用 OpenCV / 自有数学重写，不调用其 DLL。</summary>
+        public const string SourceVisionPlus = "VisionPlus 移植";
 
         public VisionParamDef Find(string key) => Params.FirstOrDefault(p => p.Key == key);
     }
@@ -1230,6 +1232,568 @@ namespace NoCodeMotion.Services.Vision
                 },
             },
 
+            // ==================== VisionPlus 移植 · 位置跟随 / 卡尺 / 图像统计 / 几何 ====================
+            new VisionOpSpec
+            {
+                Key = "fixture", Name = "位置跟随（带着ROI走）", Category = "对位与补偿",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 RigidFixture 做的；先教一次基准位，后面每步的框都跟着工件走，底层 OpenCV",
+                Summary = "先记下标准件的位置和角度（设为基准），之后每拍一张图自动算出偏了多少、转了多少，后面的框和坐标都跟着走。",
+                Outputs = "偏移X/偏移Y/偏移角度/偏移距离/跟随状态",
+                Params = new[]
+                {
+                    P("mode", "这一步做什么", "choice", "设为基准", "第一张标准件图选「设为基准」；后面的图选「跟随当前」", "设为基准|跟随当前|清除"),
+                    P("rx", "基准位置X", "num", "0", "标准件上标记点的 X（像素）。留 0 = 用画面中心，也可以先跑一个找圆 / 找图步骤"),
+                    P("ry", "基准位置Y", "num", "0", "标准件上标记点的 Y（像素）。留 0 = 用画面中心"),
+                    P("ra", "基准角度", "num", "0", "标准件的角度（度）"),
+                    P("maxShift", "最多允许偏多少", "num", "0", "偏超过这个像素数就判不合格（防呆，免得框跑飞）。0 = 不判", min: 0, max: 5000),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "caliper", Name = "卡尺工具（单边/一对边）", Category = "找边与测量",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 CaliperTool / MvpMeasure 做的；极性、边缘对、首末最强选择都能设，底层 OpenCV",
+                Summary = "沿一条搜索带摆一排卡尺，按明暗方向和强度找边，可以只找一条边，也可以找一对边量宽度。",
+                Outputs = "边的位置/两条边的宽度/边缘幅度/找到的边数/评分/用到的点数",
+                Params = new[]
+                {
+                    Roi,
+                    P("cx", "中心X", "num", "0", "搜索带中心 X（像素）。0 = 画面中心"),
+                    P("cy", "中心Y", "num", "0", "搜索带中心 Y（像素）。0 = 画面中心"),
+                    P("angle", "边大概朝哪边", "num", "0", "边的方向（度，0 = 水平边）", min: -180, max: 180),
+                    P("length", "沿边看多长", "num", "200", "沿边方向铺多长（像素）", min: 8, max: 4000),
+                    P("width", "垂直找多宽", "num", "40", "垂直方向允许跑多远找边（像素）", min: 4, max: 2000),
+                    P("polarity", "边的明暗", "choice", "任意", "沿搜索方向看灰度升高还是降低；拿不准选「任意」", PolarityOptions),
+                    P("minGrad", "边要有多明显", "num", "8", "灰度跳变小于这个数不算边", min: 0.5, max: 200),
+                    P("calipers", "摆几个卡尺", "int", "60", "沿边方向摆多少条探针", min: 3, max: 600),
+                    P("sigma", "先抹多平", "num", "1", "找边前的高斯平滑，噪点多就调大", min: 0, max: 10),
+                    P("edgeMode", "找几条边", "choice", "单个边", "「一对边」用来量宽度 / 厚度", "单个边|一对边"),
+                    P("select", "认哪一条", "choice", "最强", "一条线上出现多个台阶时挑哪一个", "第一个|最后一个|最强|全部"),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "sharpness", Name = "清晰度评分", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 ComputeSharpness 做的；拉普拉斯方差 / Tenengrad 真实计算",
+                Summary = "给这张图打一个「清不清楚」的分，调焦或判断有没有糊片时用。",
+                Outputs = "清晰度评分/是否合格/阈值",
+                Params = new[]
+                {
+                    Roi,
+                    P("method", "怎么算", "choice", "拉普拉斯方差", "拉普拉斯方差最常用；Tenengrad 对纹理更敏感", "拉普拉斯方差|Tenengrad|梯度均值"),
+                    P("minScore", "及格线", "num", "100", "评分低于这个数判不合格（0 = 只给分不判）", min: 0, max: 100000),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "similarity", Name = "两图相似度", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 ComputeSimilarity 做的；灰度 NCC / 直方图 / 结构相似度三种真实算法",
+                Summary = "先存一张标准图，再跟当前图比，给出 0~1 的相似度，用来判断「这次拍得跟上次像不像」。",
+                Outputs = "相似度/是否合格/阈值",
+                Params = new[]
+                {
+                    P("mode", "这一步做什么", "choice", "设为参考图", "先跑一次「设为参考图」存标准件，后面跑「比对当前图」", "设为参考图|比对当前图"),
+                    Roi,
+                    P("method", "怎么比", "choice", "灰度NCC", "灰度 NCC 看纹理；直方图看明暗分布；结构相似度最接近人眼", "灰度NCC|直方图|结构相似度"),
+                    P("minScore", "及格线", "num", "0.85", "相似度低于这个值判不合格", min: 0, max: 1),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "geomcreate", Name = "按数值造点/线/圆", Category = "几何计算",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 GeometryCreation 做的；把变量或手填的坐标变成后面能用的几何对象",
+                Summary = "不用找边，直接按填的坐标造一个点、一条直线或一个圆，交给后面的交点 / 距离 / 对位算子用。",
+                Outputs = "点X/点Y/线长/角度/半径",
+                Params = new[]
+                {
+                    P("kind", "造什么", "choice", "点", "造出来的对象会存进流程上下文", "点|直线|圆"),
+                    P("x1", "第一点X", "num", "0", "点的 X，或直线的起点 X"),
+                    P("y1", "第一点Y", "num", "0", "点的 Y，或直线的起点 Y"),
+                    P("x2", "第二点X", "num", "100", "直线的终点 X（造点时不用）"),
+                    P("y2", "第二点Y", "num", "0", "直线的终点 Y（造点时不用）"),
+                    P("cx", "圆心X", "num", "0", "造圆时的圆心 X"),
+                    P("cy", "圆心Y", "num", "0", "造圆时的圆心 Y"),
+                    P("radius", "半径", "num", "50", "造圆时的半径", min: 1, max: 5000),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "geomintersect", Name = "求交点（线线/线圆/圆圆）", Category = "几何计算",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 FeatureIntersection 做的；解析几何求真交点",
+                Summary = "拿最近找到 / 造出来的两条线、两个圆求交点，也能算它们的夹角。",
+                Outputs = "交点X/交点Y/交点个数/夹角/两对象距离",
+                Params = new[]
+                {
+                    P("kind", "拿哪两种对象", "choice", "线线", "从上一步找边 / 造几何的结果里按这个组合取最近两个", "线线|线圆|圆圆"),
+                    P("fallback", "没找到时用手填", "bool", "0", "勾上就用参数里手填的坐标算，不依赖前面的步骤"),
+                    P("x1", "对象A参数1", "num", "0", "线：起点X；圆：圆心X"),
+                    P("y1", "对象A参数2", "num", "0", "线：起点Y；圆：圆心Y"),
+                    P("x2", "对象A参数3", "num", "100", "线：终点X；圆：半径"),
+                    P("y2", "对象A参数4", "num", "0", "线：终点Y；圆不用"),
+                    P("x3", "对象B参数1", "num", "0", "线：起点X；圆：圆心X"),
+                    P("y3", "对象B参数2", "num", "0", "线：起点Y；圆：圆心Y"),
+                    P("x4", "对象B参数3", "num", "100", "线：终点X；圆：半径"),
+                    P("y4", "对象B参数4", "num", "100", "线：终点Y；圆不用"),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "geomguide", Name = "几何引导线", Category = "几何计算",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 GeometryGuideLine 做的；由一点 + 角度生成参考线",
+                Summary = "按一个点和角度画一条参考线，常用来给后面的卡尺 / 找边指明方向。",
+                Outputs = "起点X/起点Y/终点X/终点Y/角度/长度",
+                Params = new[]
+                {
+                    P("cx", "过点X", "num", "0", "引导线经过的点 X。0 = 画面中心"),
+                    P("cy", "过点Y", "num", "0", "引导线经过的点 Y。0 = 画面中心"),
+                    P("angle", "线的角度", "num", "0", "角度（度，0 = 水平）", min: -180, max: 180),
+                    P("length", "线有多长", "num", "200", "总长度（像素），从中心往两边各一半", min: 4, max: 8000),
+                    P("offset", "平行挪多少", "num", "0", "沿垂直方向平移多少像素", min: -4000, max: 4000),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "hommat", Name = "仿射矩阵运算", Category = "几何计算",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 MvpHomMat2d（Compose/Rotate/Scale/Invert/Translate）做的；纯数学",
+                Summary = "搭一个平移 / 旋转 / 缩放的 2D 变换矩阵，也能求逆、把点换算过去。",
+                Outputs = "a11/a12/a13/a21/a22/a23/变换后X/变换后Y/行列式",
+                Params = new[]
+                {
+                    P("op", "做哪种变换", "choice", "平移", "求逆 / 合成是在上一步矩阵基础上继续算", "平移|旋转|缩放|求逆|合成"),
+                    P("dx", "平移X", "num", "10", "沿 X 平移多少（像素）"),
+                    P("dy", "平移Y", "num", "0", "沿 Y 平移多少（像素）"),
+                    P("angle", "旋转角度", "num", "0", "绕指定点旋转（度）", min: -360, max: 360),
+                    P("scale", "缩放倍数", "num", "1", "大于 1 放大，小于 1 缩小", min: 0.01, max: 100),
+                    P("px", "要换算的点X", "num", "0", "顺便把这个点用当前矩阵换算过去"),
+                    P("py", "要换算的点Y", "num", "0", "要换算的点 Y"),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "morphchain", Name = "形态算子链", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 BlobToolEx / AddMorphOperator 做的；一串形态操作连着跑",
+                Summary = "把腐蚀、膨胀、开、闭按你写的顺序连着做完再数白区，不用连着加好几步。",
+                Outputs = "白区面积/白区占比/连通块数/最大块面积",
+                Params = new[]
+                {
+                    Roi,
+                    P("thresh", "先按灰度切", "num", "128", "大于这个值算白（0 = 自动大津法）", min: 0, max: 255),
+                    P("chain", "操作串", "num", "", "按顺序写，用逗号隔开。例：erode:3,dilate:3,open:5,close:5", width: 220),
+                    P("minArea", "最小块面积", "num", "10", "小于这个面积的连通块不算", min: 0, max: 10000000),
+                },
+            },
+
+            // ==================== VisionPlus 移植 · 匹配 / 颜色 / 训练式工具 / 标定 ====================
+            new VisionOpSpec
+            {
+                Key = "colormatch", Name = "多区域颜色模板匹配", Category = "匹配与识别",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 ColorMatchTool 做的；逐区域学颜色直方图再逐区打分，底层 OpenCV",
+                Summary = "在标准图上框几个关键区域学颜色，之后每块单独打分，颜色换错 / 缺件一眼看出来。",
+                Outputs = "总分/区域数/最低的区分数/是否合格",
+                Params = new[]
+                {
+                    P("mode", "这一步做什么", "choice", "学习各区域", "先在标准件上「学习各区域」，再在待测图上「比对当前图」", "学习各区域|比对当前图"),
+                    P("regions", "区域列表", "num", "", "每块写成 x,y,宽,高，多块用分号隔开。留空 = 用下面那个框", width: 240),
+                    Roi,
+                    P("bins", "颜色分几档", "int", "16", "每个 H/S 通道分几档，越细越敏感", min: 4, max: 64),
+                    P("tol", "允许差多少", "num", "0.25", "单区距离超过这个值开始扣分", min: 0, max: 2),
+                    P("minScore", "及格线", "num", "0.8", "总分低于这个值判不合格", min: 0, max: 1),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "pminspect", Name = "标准图缺陷比对", Category = "匹配与识别",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 MvpPatInspect 做的；对齐后差分 + 连通域超差判定",
+                Summary = "存一张好件当标准图，之后每来一张先对齐再相减，把多出来 / 少掉的块找出来并量面积。",
+                Outputs = "缺陷处数/最大缺陷面积/缺陷总面积/是否合格",
+                Params = new[]
+                {
+                    P("mode", "这一步做什么", "choice", "设为标准图", "先存一次好件，后面跑「比对当前图」", "设为标准图|比对当前图"),
+                    Roi,
+                    P("thresh", "差多少算缺陷", "num", "28", "两图灰度差超过这个值才算差异", min: 1, max: 255),
+                    P("blur", "先抹多平", "num", "3", "相减前的高斯模糊，压掉噪点（奇数）", min: 0, max: 31),
+                    P("minArea", "最小缺陷面积", "num", "12", "小于这个面积的差异块忽略（像素）", min: 0, max: 10000000),
+                    P("align", "先对齐再比", "bool", "1", "勾上会用相位相关估计平移，工件有点歪也能比"),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "pmalign", Name = "金字塔轮廓/灰度匹配", Category = "匹配与识别",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 MvpNccMatching(PMAlign) 做的；角度范围 + 缩放范围 + 图像金字塔，底层 OpenCV",
+                Summary = "用一张模板图在画面里找工件，可以设角度范围、缩放范围和金字塔层数，转了 / 大小变了也能找到。",
+                Outputs = "命中数/最佳分数/中心X/中心Y/角度/缩放",
+                Params = new[]
+                {
+                    P("template", "模板图片路径", "num", "", "模板图文件路径（png/jpg）。留空 = 用上一步「设为标准图」存的图", width: 240),
+                    Roi,
+                    P("a0", "从几度开始找", "num", "-30", "角度搜索起点（度）", min: -180, max: 180),
+                    P("a1", "找到几度结束", "num", "30", "角度搜索终点（度）", min: -180, max: 180),
+                    P("scaleMin", "最小缩放", "num", "0.9", "允许模板缩小到多少倍", min: 0.2, max: 2),
+                    P("scaleMax", "最大缩放", "num", "1.1", "允许模板放大到多少倍", min: 0.2, max: 4),
+                    P("levels", "金字塔层数", "int", "2", "先在缩小的图上粗找再放大精找，层数越多越省时间", min: 0, max: 4),
+                    P("minScore", "及格线", "num", "0.7", "匹配分数低于这个值不算找到", min: 0, max: 1),
+                    P("maxHits", "最多找几个", "int", "1", "画面里有多个工件时最多报几个", min: 1, max: 20),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "easyline", Name = "训练式找线", Category = "找边与测量",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 EasyLineTool（TrainModel / SetRunRoi）做的；先学标准线再逐图找",
+                Summary = "先在标准件上教一次线在哪、大概什么角度，之后每来一张图按学到的模型去找并打分。",
+                Outputs = "起点X/起点Y/终点X/终点Y/角度/匹配分数/是否找到",
+                Params = new[]
+                {
+                    P("mode", "这一步做什么", "choice", "训练", "标准件上跑一次「训练」，后面跑「运行」", "训练|运行"),
+                    Roi,
+                    P("cx", "中心X", "num", "0", "搜索带中心 X。0 = 画面中心"),
+                    P("cy", "中心Y", "num", "0", "搜索带中心 Y。0 = 画面中心"),
+                    P("angle", "线大概的角度", "num", "0", "训练时记下这个角度，运行时在它附近找", min: -180, max: 180),
+                    P("length", "沿边看多长", "num", "200", "搜索带长度（像素）", min: 8, max: 4000),
+                    P("width", "垂直找多宽", "num", "40", "搜索带宽度（像素）", min: 4, max: 2000),
+                    P("polarity", "边的明暗", "choice", "任意", "沿搜索方向灰度升 / 降", PolarityOptions),
+                    P("minGrad", "边要有多明显", "num", "8", "灰度跳变阈值", min: 0.5, max: 200),
+                    P("samples", "取几条探针", "int", "60", "沿边摆多少条探针", min: 5, max: 600),
+                    P("minScore", "及格线", "num", "0.6", "分数低于这个值判没找到", min: 0, max: 1),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "easycircle", Name = "训练式找圆", Category = "找边与测量",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 EasyCircleTool 做的；先学标准圆再逐图找",
+                Summary = "先在标准件上教一次圆心和半径，之后每来一张图按学到的模型找圆并打分。",
+                Outputs = "圆心X/圆心Y/半径/直径/匹配分数/是否找到",
+                Params = new[]
+                {
+                    P("mode", "这一步做什么", "choice", "训练", "标准件上跑一次「训练」，后面跑「运行」", "训练|运行"),
+                    Roi,
+                    P("cx", "圆心X", "num", "0", "圆心大概 X。0 = 画面中心"),
+                    P("cy", "圆心Y", "num", "0", "圆心大概 Y。0 = 画面中心"),
+                    P("radius", "半径大概多少", "num", "60", "训练时记下这个半径", min: 2, max: 5000),
+                    P("tol", "半径允许差多少", "num", "20", "运行时允许半径偏差（像素）", min: 1, max: 2000),
+                    P("polarity", "边的明暗", "choice", "任意", "从圆内往外看是暗到亮还是亮到暗", PolarityOptions),
+                    P("minGrad", "边要有多明显", "num", "8", "灰度跳变阈值", min: 0.5, max: 200),
+                    P("samples", "绕一圈取几个点", "int", "120", "沿圆周放多少条径向探针", min: 8, max: 720),
+                    P("minScore", "及格线", "num", "0.6", "分数低于这个值判没找到", min: 0, max: 1),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "colorlut", Name = "颜色查找表变换", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 colorTransLUT / ConvertImage 做的；逐像素 LUT 真实变换",
+                Summary = "用查找表一次把整张图的亮度、对比度、伽马或通道顺序改掉，会换掉当前图给后面用。",
+                Outputs = "变换前均值/变换后均值/最小值/最大值",
+                Params = new[]
+                {
+                    P("mode", "怎么变", "choice", "亮度对比度", "选一种变换方式", "亮度对比度|伽马|反色|通道交换|分段拉伸"),
+                    P("gain", "对比度倍数", "num", "1", "大于 1 拉开对比，小于 1 压平", min: 0, max: 8),
+                    P("bias", "亮度加减", "num", "0", "整体加亮 / 变暗（-255~255）", min: -255, max: 255),
+                    P("gamma", "伽马", "num", "1", "小于 1 提亮暗部，大于 1 压暗", min: 0.1, max: 5),
+                    P("lo", "分段下限", "num", "0", "分段拉伸的输入下限", min: 0, max: 255),
+                    P("hi", "分段上限", "num", "255", "分段拉伸的输入上限", min: 0, max: 255),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "pixmap16", Name = "16位图/像素映射", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 PixelMapTool（UseImage16 / SetQuantization / ConvertImage_16To8）做的",
+                Summary = "把 16 位灰度图、或灰度挤在一小段里的图，拉伸 / 量化成好看好算的 8 位图，会换掉当前图。",
+                Outputs = "原图最小/原图最大/原图均值/映射后均值/用到几档",
+                Params = new[]
+                {
+                    P("mode", "怎么映射", "choice", "自动拉伸", "自动拉伸最省事；手填区间适合固定曝光", "自动拉伸|手填区间|量化|伽马压缩"),
+                    P("lo", "手填下限", "num", "0", "手填区间的输入下限（0 = 自动取图里的最小值）", min: 0, max: 65535),
+                    P("hi", "手填上限", "num", "0", "手填区间的输入上限（0 = 自动取图里的最大值）", min: 0, max: 65535),
+                    P("levels", "量化成几档", "int", "16", "量化模式的档数", min: 2, max: 256),
+                    P("gamma", "伽马", "num", "1", "伽马压缩用", min: 0.1, max: 5),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "handeye", Name = "手眼标定", Category = "标定与换算",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 HandEyeCalibTool 做的；9 点 + 0/3/5 次旋转求旋转中心与像素当量，纯数学",
+                Summary = "一点一点记下「图上点 ↔ 机台点」，够了就解出像素当量和旋转中心，之后视觉坐标能直接换成机台坐标。",
+                Outputs = "已记点数/像素当量(毫米每像素)/残差(毫米)/旋转中心X/旋转中心Y/是否可用",
+                Params = new[]
+                {
+                    P("mode", "这一步做什么", "choice", "记录一点", "逐点记录 → 求解 → 后面用「机上位置换算」算子", "记录一点|求解|清除"),
+                    P("ux", "图上点X", "num", "0", "这一拍里标记点在图上的 X（像素）"),
+                    P("uy", "图上点Y", "num", "0", "这一拍里标记点在图上的 Y（像素）"),
+                    P("mx", "机台点X", "num", "0", "拍这张图时机台的 X（毫米）"),
+                    P("my", "机台点Y", "num", "0", "拍这张图时机台的 Y（毫米）"),
+                    P("type", "相机装在哪", "choice", "相机固定", "相机装在轴上时要绕旋转中心换算", "相机固定|相机装在轴上"),
+                    P("rotNums", "转了几次", "int", "0", "标定时转了几个角度（0/3/5），装在轴上时用来求旋转中心", min: 0, max: 5),
+                    P("minPoints", "至少几个点", "int", "3", "少于这个点数不求解，避免算出垃圾参数", min: 2, max: 200),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "npointcal", Name = "N点对N点标定", Category = "标定与换算",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 NPointToNPointCalibration 做的；最小二乘仿射 / 相似 / 透视",
+                Summary = "记几组「图上坐标 ↔ 机台坐标」，解出那套换算系数，能选仿射、相似或透视。",
+                Outputs = "已记点数/残差(毫米)/a1/a2/a3/b1/b2/b3/是否可用",
+                Params = new[]
+                {
+                    P("mode", "这一步做什么", "choice", "记录一点", "逐点记录 → 求解 → 后面用「图上位置换算到机台」", "记录一点|求解|清除"),
+                    P("ux", "图上点X", "num", "0", "图上 X（像素）"),
+                    P("uy", "图上点Y", "num", "0", "图上 Y（像素）"),
+                    P("mx", "机台点X", "num", "0", "对应机台 X（毫米）"),
+                    P("my", "机台点Y", "num", "0", "对应机台 Y（毫米）"),
+                    P("kind", "用哪种模型", "choice", "仿射", "仿射最常用；透视需要至少 4 点", "仿射|相似|透视"),
+                    P("minPoints", "至少几个点", "int", "3", "仿射/相似至少 3 点，透视至少 4 点", min: 2, max: 200),
+                },
+            },
+
+            // ==================== VisionPlus 移植 · 深度图 / 3D ====================
+            new VisionOpSpec
+            {
+                Key = "zmapload", Name = "载入深度图(ZMap)", Category = "深度与3D",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 ZmapToImage / 3D 工具做的；读 16 位 PNG/TIFF 或 CSV 当作深度图",
+                Summary = "把 3D 相机给的深度图（或 16 位高度图 / CSV）读进来，后面所有 3D 算子都吃它。",
+                Outputs = "宽/高/有效点数/Z最小/Z最大/Z均值",
+                Params = new[]
+                {
+                    P("path", "深度图文件", "num", "", "16 位 PNG / TIFF，或每行一个数的 CSV。文件路径", width: 240),
+                    P("unit", "一个计数多少毫米", "num", "0.001", "深度值 × 这个系数 = 实际毫米", min: 0.000001, max: 1000),
+                    P("invalid", "无效值", "num", "0", "等于这个值的点当作没测到，不参与计算", min: -100000, max: 100000),
+                    P("cols", "CSV列数", "int", "0", "读 CSV 时填每行的列数；0 = 按第一行自动判断", min: 0, max: 10000),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "zmap2img", Name = "深度图转可视图", Category = "深度与3D",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 ZmapToImage 做的；真实深度 → 伪彩 / 灰度 / 等高线",
+                Summary = "把深度图变成人能看的伪彩图或等高线图，会换掉当前图，方便后面用 2D 算子接着处理。",
+                Outputs = "Z最小/Z最大/有效点数/无效点数",
+                Params = new[]
+                {
+                    P("mode", "显示成什么", "choice", "伪彩", "伪彩看高低最直观；等高线看台阶", "伪彩|灰度|等高线"),
+                    P("zmin", "最低按多少算", "num", "0", "0 = 自动取图里最小值", min: -100000, max: 100000),
+                    P("zmax", "最高按多少算", "num", "0", "0 = 自动取图里最大值", min: -100000, max: 100000),
+                    P("steps", "等高线几层", "int", "8", "等高线模式画几层", min: 2, max: 64),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "planefit", Name = "平面拟合", Category = "深度与3D",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 PlaneEstimator 做的；最小二乘拟合 z = a·x + b·y + c",
+                Summary = "在框里用深度点拟一个平面，给出方程系数和残差；可以存成平面A / 平面B 给夹角和厚度用。",
+                Outputs = "系数a/系数b/系数c/倾角/残差RMS/参与点数",
+                Params = new[]
+                {
+                    Roi,
+                    P("slot", "存到哪个平面", "choice", "平面A", "「面面夹角」「厚度」会读平面A和平面B", "平面A|平面B"),
+                    P("step", "隔几个点取一个", "int", "2", "深度图很大时跳着取样，加快速度", min: 1, max: 50),
+                    P("maxRms", "残差超过多少判失败", "num", "0", "0 = 不判；平面不平（有台阶/异物）时用它拦一下", min: 0, max: 10000),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "heightcalc", Name = "高度测量", Category = "深度与3D",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 HeightCalculator 做的；减去基准平面后统计高度",
+                Summary = "在框里量每个点相对基准平面的高度，给出最大、最小、平均和高度差。",
+                Outputs = "最大高度/最小高度/平均高度/高度差/参与点数",
+                Params = new[]
+                {
+                    Roi,
+                    P("ref", "拿什么当零面", "choice", "拟合平面A", "拟合平面A = 自动扣掉倾斜；固定基准 = 用填的 Z 值", "拟合平面A|固定基准"),
+                    P("baseZ", "固定基准Z", "num", "0", "拿什么当零面选「固定基准」时用", min: -100000, max: 100000),
+                    P("step", "隔几个点取一个", "int", "1", "跳着取样加快速度", min: 1, max: 50),
+                    P("maxH", "高度上限", "num", "0", "超过就判不合格（0 = 不判）", min: 0, max: 100000),
+                    P("minH", "高度下限", "num", "0", "低于就判不合格（0 = 不判）", min: -100000, max: 100000),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "volumecalc", Name = "体积计算", Category = "深度与3D",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 VolumeCalculator 做的；深度 × 像素面积积分",
+                Summary = "把框里每个像素的高度乘上它代表的实际面积再加起来，得到体积（立方毫米）。",
+                Outputs = "体积(立方毫米)/平均高度/最大高度/有效像素数",
+                Params = new[]
+                {
+                    Roi,
+                    P("baseZ", "基准面Z", "num", "0", "相对哪个高度算体积", min: -100000, max: 100000),
+                    P("pixelMm", "一个像素多少毫米", "num", "0.05", "X/Y 方向每个像素代表的实际尺寸；两个方向不一样时按这个值近似", min: 0.000001, max: 1000),
+                    P("step", "隔几个点取一个", "int", "1", "跳着取样加快速度（体积会按步长补回面积）", min: 1, max: 50),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "anglepp", Name = "面面夹角", Category = "深度与3D",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 AnglePlanePlane 做的；两个平面法向量的真实夹角",
+                Summary = "读平面A和平面B（或手填法向量），算两个面的夹角。",
+                Outputs = "夹角(度)/法向量点积/A倾角/B倾角",
+                Params = new[]
+                {
+                    P("useManual", "用手填的法向量", "bool", "0", "勾上就不读拟合结果，直接用下面六个数"),
+                    P("nax", "面A法向X", "num", "0", "手填时面A法向量的 X"),
+                    P("nay", "面A法向Y", "num", "0", "手填时面A法向量的 Y"),
+                    P("naz", "面A法向Z", "num", "1", "手填时面A法向量的 Z"),
+                    P("nbx", "面B法向X", "num", "0", "手填时面B法向量的 X"),
+                    P("nby", "面B法向Y", "num", "0", "手填时面B法向量的 Y"),
+                    P("nbz", "面B法向Z", "num", "1", "手填时面B法向量的 Z"),
+                    P("maxAngle", "夹角上限", "num", "0", "超过就判不合格（0 = 不判）", min: 0, max: 180),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "thickness", Name = "厚度测量(两平面)", Category = "深度与3D",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 ThicknessCalibration / HeightCalculator 做的；两平面间距统计",
+                Summary = "分别在上下表面拟合平面，量两个面之间的距离，给出平均、最大、最小厚度。",
+                Outputs = "平均厚度/最大厚度/最小厚度/厚度差/是否合格",
+                Params = new[]
+                {
+                    Roi,
+                    P("pixelMm", "一个像素多少毫米", "num", "0.05", "把像素换算成毫米用", min: 0.000001, max: 1000),
+                    P("target", "标准厚度", "num", "0", "填了就按下面公差判合格；0 = 只量不判", min: 0, max: 100000),
+                    P("tol", "允许差多少", "num", "0.05", "厚度偏差超过这个值判不合格", min: 0, max: 100000),
+                    P("step", "隔几个点取一个", "int", "1", "跳着取样加快速度", min: 1, max: 50),
+                },
+            },
+
+            // ==================== VisionPlus 移植 · 深度学习 / 传统学习 / 读码 ====================
+            new VisionOpSpec
+            {
+                Key = "dlclassify", Name = "ONNX图像分类", Category = "深度学习",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 ClassifyCpu/GpuTool_Infer 做的；用 OpenCV DNN 真跑 ONNX 模型，不依赖那套软件",
+                Summary = "加载一个 .onnx 分类模型，对当前图做推理，给出前几名类别和置信度。模型文件要自己准备好。",
+                Outputs = "最佳类别序号/最佳类别名/置信度/是否合格/前几名分数",
+                Params = new[]
+                {
+                    P("model", "模型文件(.onnx)", "num", "", "分类模型路径。没填会明确报「请先设置模型文件」，不会给假结果", width: 240),
+                    P("labels", "标签文件", "num", "", "一行一个类别名的 txt；留空只报类别序号", width: 240),
+                    Roi,
+                    P("size", "送进模型的边长", "int", "224", "模型输入是正方形时用它（像素）", min: 16, max: 2048),
+                    P("topk", "报前几名", "int", "3", "输出前几个类别", min: 1, max: 20),
+                    P("minScore", "置信度及格线", "num", "0", "0 = 只报分不判；填了低于它就判不合格", min: 0, max: 1),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "dldetect", Name = "ONNX目标检测", Category = "深度学习",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 DetectionCpu/GpuTool_Infer 做的；OpenCV DNN 真推理 + NMS",
+                Summary = "加载一个 .onnx 检测模型，找出画面里的目标，给出框、类别、置信度并画到结果图上。",
+                Outputs = "目标个数/最佳置信度/最佳框X/最佳框Y/最佳框宽/最佳框高",
+                Params = new[]
+                {
+                    P("model", "模型文件(.onnx)", "num", "", "检测模型路径（YOLO / SSD 等导出成 ONNX）", width: 240),
+                    P("labels", "标签文件", "num", "", "一行一个类别名的 txt；留空只报类别序号", width: 240),
+                    Roi,
+                    P("size", "送进模型的边长", "int", "640", "模型输入尺寸（像素）", min: 32, max: 4096),
+                    P("conf", "置信度门槛", "num", "0.35", "低于这个分数的框丢掉", min: 0, max: 1),
+                    P("nms", "重叠多少算同一个", "num", "0.45", "框重叠超过这个比例就合并", min: 0, max: 1),
+                    P("maxHits", "最多报几个", "int", "20", "最多保留几个框", min: 1, max: 200),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "dlsegment", Name = "ONNX图像分割", Category = "深度学习",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 SegmentCpu/GpuTool_Infer 做的；OpenCV DNN 真推理 + argmax 上色",
+                Summary = "加载一个 .onnx 分割模型，逐像素分类，输出彩色掩膜图（会换掉当前图）和各类占比。",
+                Outputs = "类别数/最大类像素数/最大类占比/有效像素数",
+                Params = new[]
+                {
+                    P("model", "模型文件(.onnx)", "num", "", "分割模型路径；输出应为 N×C×H×W 的分数图", width: 240),
+                    Roi,
+                    P("size", "送进模型的边长", "int", "512", "模型输入尺寸（像素）", min: 32, max: 2048),
+                    P("classes", "一共几类", "int", "2", "类别数（含背景）", min: 2, max: 256),
+                    P("conf", "最低分数", "num", "0", "低于这个分数的像素归为背景；0 = 直接取最大", min: 0, max: 1),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "dlocr", Name = "文字检测+识别", Category = "深度学习",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 OCRCpu/GpuTool 做的；可选 ONNX 文本检测框 + Windows 离线 OCR 识别",
+                Summary = "先（可选）用 ONNX 文本检测模型找字在哪，再逐块离线识别中英文，能跟期望文本比对判合格。",
+                Outputs = "识别到的字数/文本行数/是否合格/匹配分数",
+                Params = new[]
+                {
+                    P("model", "文本检测模型", "num", "", "可选。留空 = 直接对整张图（或框里那块）做识别", width: 240),
+                    Roi,
+                    P("lang", "识别语言", "choice", "自动", "按系统已装语言自动选，或指定中文/英文", "自动|中文|英文"),
+                    P("expected", "期望文字", "num", "", "留空 = 只识别不判；填了就按下面的方式比对", width: 200),
+                    P("match", "怎么比", "choice", "包含", "包含 = 识别结果里有这几个字就算过", "包含|完全一样|开头是|正则"),
+                    P("ignoreCase", "不分大小写", "bool", "1", "英文比对时忽略大小写"),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "elclassify", Name = "样本学习分类(无需模型)", Category = "深度学习",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 ELClassify / TrainELTool 做的；颜色+纹理特征 + kNN，自带训练不用外部模型",
+                Summary = "把好件 / 坏件的图片按文件夹分好，一步加样本、一步分类，不用准备任何模型文件。",
+                Outputs = "判定的类别/置信度/已学样本数/最近距离",
+                Params = new[]
+                {
+                    P("mode", "这一步做什么", "choice", "加样本", "先「加样本」学几张，再「分类」判当前图；「清空」重来", "加样本|分类|清空"),
+                    P("folder", "样本目录", "num", "", "每个子文件夹是一类，文件夹名就是类别名；里面放图片", width: 240),
+                    P("label", "单张样本的类别", "num", "", "不填目录时，给当前图打这个标签加进样本库", width: 160),
+                    Roi,
+                    P("bins", "颜色分几档", "int", "16", "每通道直方图档数，加上灰度均值/方差一起当特征", min: 4, max: 64),
+                    P("k", "看几个近邻", "int", "3", "kNN 里参考几个最像的样本", min: 1, max: 21),
+                    P("maxDist", "太不像就判未知", "num", "0", "最近距离超过这个值报「未知」；0 = 不判", min: 0, max: 100000),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "dmcode", Name = "读DataMatrix/点阵码", Category = "匹配与识别",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 DataCodeTool / MVPDecoder 做的；ZXing 纯托管解码 + OpenCV 预处理",
+                Summary = "读 DataMatrix、点阵 DPM 码、PDF417、Aztec，也能顺带读 QR 和一维码；可读完跟期望文本比对。",
+                Outputs = "是否读到/码制/内容长度/质量分/是否合格",
+                Params = new[]
+                {
+                    P("format", "要读哪种码", "choice", "自动", "自动 = 常见码制都试一遍；指定一种更快更准", "自动|DataMatrix|PDF417|Aztec|QR|一维码"),
+                    Roi,
+                    P("expected", "期望内容", "num", "", "留空 = 只读不判；填了就比对解码文本", width: 200),
+                    P("tryHard", "难读时多试几次", "bool", "1", "勾上会多尺度 / 反色 / 锐化再试，慢一点但更认得脏码"),
+                    P("upscale", "小码放大几倍", "num", "2", "码很小先放大再解", min: 1, max: 8),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "codegrade", Name = "码质量评级", Category = "匹配与识别",
+                Source = VisionOpSpec.SourceVisionPlus,
+                SourceNote = "照 VisionPlus 的 EMvpDataCodeISO / DPM 质量项做的；对比度、静区、模块均匀度真实测量",
+                Summary = "不解码，只量这个码印得好不好：黑白对比够不够、四周静区够不够宽、模块大小匀不匀，给出 A~F 等级。",
+                Outputs = "等级分/对比度/静区宽度(像素)/模块均匀度/是否合格",
+                Params = new[]
+                {
+                    Roi,
+                    P("minContrast", "对比度及格线", "num", "40", "黑模块与白底的灰度差至少多少", min: 0, max: 255),
+                    P("quiet", "静区至少多宽", "num", "2", "码四周留白至少几个模块宽", min: 0, max: 50),
+                    P("modules", "一边大概几个模块", "int", "16", "用来把像素折算成模块宽；DataMatrix 常见 10~32", min: 8, max: 144),
+                    P("minGrade", "等级及格线", "num", "60", "总分低于这个值判不合格", min: 0, max: 100),
+                },
+            },
+
         };
 
         /// <summary>全部算子（界面分组显示、执行器按 Key 找实现）。</summary>
@@ -1249,10 +1813,11 @@ namespace NoCodeMotion.Services.Vision
         public static IReadOnlyList<VisionOpSpec> BySource(string source)
             => All.Where(a => string.Equals(a.Source, source, System.StringComparison.Ordinal)).ToList();
 
-        /// <summary>出现过的来源，固定顺序：Halcon 同款 → WenVision 移植 → OpenCV 原生。</summary>
+        /// <summary>出现过的来源，固定顺序：Halcon 同款 → WenVision 移植 → VisionPlus 移植 → OpenCV 原生。</summary>
         public static IReadOnlyList<string> Sources { get; } = new[]
         {
-            VisionOpSpec.SourceHalcon, VisionOpSpec.SourceWenVision, VisionOpSpec.SourceOpenCv
+            VisionOpSpec.SourceHalcon, VisionOpSpec.SourceWenVision,
+            VisionOpSpec.SourceVisionPlus, VisionOpSpec.SourceOpenCv
         };
 
         /// <summary>所有算子的白话名（守卫与提示词用它核对界面候选）。</summary>

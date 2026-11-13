@@ -2079,8 +2079,19 @@ else:
 #   ③ 参数界面退回手写 → 加一个算子就要改一遍 XAML，迟早和目录对不上。
 import re as _re33
 
+# VisionPlus 移植算子的 case 分派与参数读取拆在独立明文文件里，守卫必须一并扫描，
+# 否则「目录里有、实现在别处」会被误判成没实现 / 假参数。
+VP_OPS_FILES = [
+    r"Services\Vision\VisionPlus\VpOps2D.cs",
+    r"Services\Vision\VisionPlus\VpOpsMatch.cs",
+    r"Services\Vision\VisionPlus\VpOps3D.cs",
+    r"Services\Vision\VisionPlus\VpOpsAI.cs",
+    r"Services\Vision\VisionPlus\VpOpsCode.cs",
+]
+_vp_impl = "\n".join((read(p) or "").replace("\r\n", "\n") for p in VP_OPS_FILES)
+
 _vop = (read(r"Services\Vision\VisionOperators.cs") or "").replace("\r\n", "\n")
-_vrun = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n")
+_vrun = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n") + "\n" + _vp_impl
 _veng = (read(r"Services\Vision\VisionEngine.cs") or "").replace("\r\n", "\n")
 _vxaml = (read(r"Views\VisualFlowPage.xaml") or "").replace("\r\n", "\n")
 _vvm = (read(r"Views\VisualFlowDetailViewModel.cs") or "").replace("\r\n", "\n")
@@ -2437,7 +2448,7 @@ check("G44.3 文件损坏时给中文原因，并指出可用的 .bak",
 # 而是三件事：① 把图上位置换成机台位置（标定）② 算出偏了多少、绕哪转（对位）③ 给出该走多少（补偿）。
 # 这一节守住：算子齐、参数不是摆设、标定结果落到「标定」表、毫米/像素这层单位不许来回错。
 _vop45 = (read(r"Services\Vision\VisionOperators.cs") or "").replace("\r\n", "\n")
-_vrun45 = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n")
+_vrun45 = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n") + "\n" + _vp_impl
 _man45 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
 
 _ops45 = []
@@ -2449,7 +2460,8 @@ for _b45 in _re33.split(r'\n[ ]*new VisionOpSpec\n[ ]*\{\n', _vop45)[1:]:
     if 'Roi,' in _b45 or '{ Roi }' in _b45:
         _ps45.append('roi')
     _ops45.append((_mk45.group(1), _ps45))
-_reads45 = set(_re33.findall(r'(?:Num|Num0|Txt)\(spec, s, "([a-z0-9_]+)"', _vrun45))
+# Int / Bool / Choice 也是真实的参数读取（新算子用 VpUtil.Int/Bool 读整数与勾选）
+_reads45 = set(_re33.findall(r'(?:Num|Num0|Txt|Int|Bool|Choice)\(spec, s, "([a-z0-9_]+)"', _vrun45))
 for _pa45, _pb45 in _re33.findall(r'PickPoint\(spec, s, ctx, "([a-z0-9_]+)", "([a-z0-9_]+)"', _vrun45):
     _reads45.add(_pa45)
     _reads45.add(_pb45)

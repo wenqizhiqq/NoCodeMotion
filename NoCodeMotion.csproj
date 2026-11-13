@@ -89,6 +89,10 @@
     <!-- Newtonsoft.Json：移植进来的 DMC1000S / MCN42Series / DigitalTwinCard 三个卡家族
          用 JsonConvert 做配置与状态快照的序列化，原参考实现即依赖此库。 -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <!-- ZXing.Net：纯托管条码解码（DataMatrix / PDF417 / Aztec / QR / 一维码）。
+         OpenCV 只自带 QR + 一维码检测，VisionPlus 的 DataCodeTool 那类点阵码要靠它；
+         无原生 DLL、无授权依赖，netstandard2.0 可直接被 net10 引用。 -->
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
   </ItemGroup>
 
   <ItemGroup>

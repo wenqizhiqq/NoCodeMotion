@@ -52,9 +52,10 @@ namespace NoCodeMotion.Views
             var top = new MenuItem { Header = cat };
             foreach (var op in VisionOperators.ByCategory(cat))
             {
-                // 来源不同的算子名字带前缀：Halcon 同款 / WenVision 移植的和原生 OpenCV 一眼分得开
+                // 来源不同的算子名字带前缀：搬来的和原生 OpenCV 一眼分得开
                 string prefix = op.Source == VisionOpSpec.SourceHalcon ? "【Halcon 同款】"
-                              : op.Source == VisionOpSpec.SourceWenVision ? "【WenVision 移植】" : "";
+                              : op.Source == VisionOpSpec.SourceWenVision ? "【WenVision 移植】"
+                              : op.Source == VisionOpSpec.SourceVisionPlus ? "【VisionPlus 移植】" : "";
                 var item = new MenuItem
                 {
                     Header = prefix + op.Name,
