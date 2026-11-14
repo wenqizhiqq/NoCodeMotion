@@ -390,7 +390,8 @@ namespace NoCodeMotion.ViewModels
         }
 
         /// <summary>
-        /// 覆盖基类「重命名」：流程页用「修改」对话框，可同时编辑名称与主流程/复位流程角色。
+        /// 覆盖基类「重命名」：流程页用「修改」对话框，可同时编辑名称与流程角色
+        /// （主流程 / 复位流程 / 开机循环 / 退出前执行）。
         /// </summary>
         protected override void Rename()
         {

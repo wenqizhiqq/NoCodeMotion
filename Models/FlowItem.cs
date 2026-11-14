@@ -19,13 +19,18 @@ namespace NoCodeMotion.Models
         NodeGraph = 3
     }
 
-    /// <summary>流程角色：主流程（常规运行）/ 复位流程（设备上电或急停复位后先执行）。</summary>
+    /// <summary>流程角色：主流程 / 复位流程 / 开机循环 / 退出前执行。</summary>
     public enum FlowRole
     {
-        /// <summary>主流程：常规生产运行流程。</summary>
+        /// <summary>主流程：常规生产运行流程（操作员页【启动】循环执行）。</summary>
         Main = 0,
-        /// <summary>复位流程：设备上电、急停复位后先执行的归零 / 复位流程。</summary>
-        Reset = 1
+        /// <summary>复位流程：设备上电、急停复位后先执行的归零 / 复位流程（单次）。</summary>
+        Reset = 1,
+        /// <summary>开机循环：软件启动并载入工程后自动循环执行，直到人工停止。</summary>
+        StartupLoop = 2,
+        /// <summary>退出前执行：关闭软件时先停掉其它流程，再单次执行本流程（最多等待 30 秒），
+        /// 完成后才保存工程、断开控制器。</summary>
+        BeforeExit = 3
     }
 
     /// <summary>流程运行状态（FlowRunnerService 内部维护，写入 FlowItem.Status 供列表项右侧芯片显示）。</summary>
@@ -83,7 +88,7 @@ namespace NoCodeMotion.Models
         }
 
         private FlowRole _role = FlowRole.Main;
-        /// <summary>流程角色：主流程 / 复位流程。</summary>
+        /// <summary>流程角色：主流程 / 复位流程 / 开机循环 / 退出前执行。</summary>
         public FlowRole Role
         {
             get => _role;

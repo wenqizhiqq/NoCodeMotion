@@ -745,7 +745,7 @@ namespace NoCodeMotion.Services
 
             Add("== 枚举取值参考 ==", "写入枚举列时，以下 ASCII 值或中文均可被识别。");
             Add("流程.类型标记 (Kind)", "Table=表格 / Lua=脚本 / Vision=视觉。");
-            Add("流程.角色 (Role)", "Main=主流程 / Reset=复位流程。");
+            Add("流程.角色 (Role)", "Main=主流程 / Reset=复位流程 / StartupLoop=开机循环 / BeforeExit=退出前执行（中文名也识别）。");
             Add("流程.状态 (Status)", "Idle=空闲 / Running=运行中 / Done=完成 / Error=错误。");
             Add("IO.类型", "输入 / 输出（仅展示用，不参与枚举解析）。");
 
@@ -1232,7 +1232,7 @@ namespace NoCodeMotion.Services
                 if (string.IsNullOrEmpty(n) || byName.ContainsKey(n)) continue;
                 var fl = new FlowItem { Name = n };
                 TrySet(fl, "Kind", r["类型标记"]?.ToString(), typeof(FlowKind));
-                TrySet(fl, "Role", r["角色"]?.ToString(), typeof(FlowRole));
+                fl.Role = ParseFlowRole(r["角色"]?.ToString());
                 TrySet(fl, "LuaSource", r["Lua源码"]?.ToString());
                 TrySet(fl, "GraphJson", r["节点图JSON"]?.ToString());
                 TrySet(fl, "Status", r["状态"]?.ToString(), typeof(FlowStatus));
@@ -1419,6 +1419,18 @@ namespace NoCodeMotion.Services
         {
             var v = src.GetType().GetProperty(propName)?.GetValue(src);
             return v is bool b && b;
+        }
+
+        /// <summary>流程角色解析：英文枚举名与中文名都识别（旧文件只有 Main/Reset，未知值按主流程）。</summary>
+        private static FlowRole ParseFlowRole(string? text)
+        {
+            var s = (text ?? "").Trim();
+            if (s.Length == 0) return FlowRole.Main;
+            if (s.Contains("开机")) return FlowRole.StartupLoop;
+            if (s.Contains("退出")) return FlowRole.BeforeExit;
+            if (s.Contains("复位")) return FlowRole.Reset;
+            if (s.Contains("主")) return FlowRole.Main;
+            return Enum.TryParse<FlowRole>(s, true, out var r) ? r : FlowRole.Main;
         }
 
         private static void TrySet(object target, string propName, string? value, Type? enumType = null)

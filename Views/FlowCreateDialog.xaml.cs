@@ -94,7 +94,10 @@ namespace NoCodeMotion.Views
             }
             var cur = _templateButtons.FirstOrDefault(r => r.IsChecked == true);
             SelectedTemplate = cur?.Content as string ?? "";
-            SelectedRole = ResetRadio.IsChecked == true ? FlowRole.Reset : FlowRole.Main;
+            SelectedRole =
+                StartupRadio.IsChecked == true ? FlowRole.StartupLoop :
+                ExitRadio.IsChecked == true ? FlowRole.BeforeExit :
+                ResetRadio.IsChecked == true ? FlowRole.Reset : FlowRole.Main;
             DialogResult = true;
         }
 

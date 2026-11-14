@@ -22,6 +22,8 @@ namespace NoCodeMotion.Views
             NameBox.Text = currentName;
             MainRadio.IsChecked = currentRole == FlowRole.Main;
             ResetRadio.IsChecked = currentRole == FlowRole.Reset;
+            StartupRadio.IsChecked = currentRole == FlowRole.StartupLoop;
+            ExitRadio.IsChecked = currentRole == FlowRole.BeforeExit;
             Owner = Application.Current?.MainWindow;
             Loaded += (_, __) =>
             {
@@ -35,7 +37,10 @@ namespace NoCodeMotion.Views
             var name = NameBox.Text?.Trim();
             if (string.IsNullOrEmpty(name)) return; // 空名不允许，等同于取消
             ResultName = name;
-            ResultRole = ResetRadio.IsChecked == true ? FlowRole.Reset : FlowRole.Main;
+            ResultRole =
+                StartupRadio.IsChecked == true ? FlowRole.StartupLoop :
+                ExitRadio.IsChecked == true ? FlowRole.BeforeExit :
+                ResetRadio.IsChecked == true ? FlowRole.Reset : FlowRole.Main;
             DialogResult = true;
             Close();
         }

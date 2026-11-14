@@ -590,9 +590,7 @@ namespace NoCodeMotion.Services
                 if (string.IsNullOrWhiteSpace(name)) continue;
 
                 var roleStr = Str(e, "角色", "role") ?? "主流程";
-                var fr = roleStr.Contains("复位") || roleStr.Equals("Reset", StringComparison.OrdinalIgnoreCase)
-                       ? FlowRole.Reset
-                       : FlowRole.Main;
+                var fr = ParseRole(roleStr);
 
                 // 「类型」别名必须含 type：AI 常中英混用（第一条写「类型」，后几条写 type）
                 var kindStr = Str(e, "类型", "kind", "type") ?? "";
@@ -1655,8 +1653,7 @@ namespace NoCodeMotion.Services
             if (!keepName && !string.IsNullOrWhiteSpace(name)) f.Name = name!;
 
             var roleStr = Str(e, "角色", "role") ?? "主流程";
-            f.Role = roleStr.Contains("复位") || roleStr.Equals("Reset", StringComparison.OrdinalIgnoreCase)
-                   ? FlowRole.Reset : FlowRole.Main;
+            f.Role = ParseRole(roleStr);
 
             var kindStr = Str(e, "类型", "kind", "type") ?? "";
             var lua = Str(e, "脚本", "源码", "luaSource", "script", "source");
@@ -2000,7 +1997,22 @@ namespace NoCodeMotion.Services
             _ => "运控",
         };
 
-        private static string RoleText(FlowRole r) => r == FlowRole.Reset ? "复位流程" : "主流程";
+        private static FlowRole ParseRole(string? text)
+        {
+            var s = (text ?? "").Trim();
+            if (s.Contains("开机")) return FlowRole.StartupLoop;
+            if (s.Contains("退出")) return FlowRole.BeforeExit;
+            if (s.Contains("复位") || s.Equals("Reset", StringComparison.OrdinalIgnoreCase)) return FlowRole.Reset;
+            return Enum.TryParse<FlowRole>(s, true, out var r) ? r : FlowRole.Main;
+        }
+
+        private static string RoleText(FlowRole r) => r switch
+        {
+            FlowRole.Reset => "复位流程",
+            FlowRole.StartupLoop => "开机循环",
+            FlowRole.BeforeExit => "退出前执行",
+            _ => "主流程"
+        };
 
         /// <summary>一句话描述流程内容，用于结果摘要。</summary>
         private static string DescribeFlow(FlowItem f) => f.Kind switch

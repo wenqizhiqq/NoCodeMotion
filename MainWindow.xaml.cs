@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using NoCodeMotion.Views;
 using NoCodeMotion.ViewModels;
 using NoCodeMotion.Services;
+using NoCodeMotion.Models;
 
 namespace NoCodeMotion
 {
@@ -77,12 +78,14 @@ namespace NoCodeMotion
             {
                 try
                 {
-                    dlg.Report(8, "停止运行中的流程…");
-                    AppShutdown.StopAndRelease();   // 停止流程 + 断开并关闭所有运动控制器
+                    dlg.Report(5, "停止运行中的流程…");
+                    AppShutdown.StopFlows();        // 只停流程，先不动硬件（退出前流程还要驱动轴 / IO）
                     System.Threading.Thread.Sleep(200);  // 让停止信号传播到硬件等待
-                    dlg.Report(60, "保存工程配置…");
+                    RunBeforeExitFlows(dlg);        // 单次执行「退出前执行」流程（最多 30 秒）
+                    dlg.Report(70, "保存工程配置…");
                     ProjectStore.Save();
-                    dlg.Report(85, "释放界面资源…");
+                    dlg.Report(85, "断开并关闭控制器…");
+                    AppShutdown.ReleaseControllers();
                     System.Threading.Thread.Sleep(120);
                     dlg.Report(100, "完成，正在退出…");
                     System.Threading.Thread.Sleep(150);
@@ -279,7 +282,82 @@ namespace NoCodeMotion
             finally
             {
                 LoadingService.Hide();
+                // 遮罩隐藏后：等「载入工程 → 自动连接控制卡」收尾，再启动「开机循环」流程，
+                // 避免流程在卡还没连上时就去驱动轴 / IO。
+                StartStartupFlows();
             }
+        }
+
+        /// <summary>开机循环：工程载入完成后，自动把 Role=StartupLoop 的流程按「循环运行」启动。
+        /// 只在启动时执行一次；用户之后在操作员页点【停止】即结束，不会自动重启。
+        /// 异步等待自动连接控制卡收尾（最多 10 秒），避免流程先于硬件连接启动。</summary>
+        private async void StartStartupFlows()
+        {
+            try
+            {
+                var flows = ProjectStore.Data?.Flows?
+                    .Where(f => f.Role == FlowRole.StartupLoop)
+                    .ToList();
+                if (flows == null || flows.Count == 0) return;
+
+                // 先让出一次，等遮罩隐藏触发的「自动连接」真正开始（否则这里读到的 Connecting 还是 false）
+                await System.Threading.Tasks.Task.Delay(300);
+                for (int i = 0; i < 100 && StatusBarService.ControllerConnecting; i++)
+                    await System.Threading.Tasks.Task.Delay(100);
+                if (_shuttingDown) return;   // 等待期间用户已关闭软件
+
+                foreach (var f in flows)
+                {
+                    try { FlowLoopManager.StartLoop(f); }
+                    catch (System.Exception ex) { StatusBarService.ReportException($"开机循环「{f.Name}」启动失败：{ex.Message}"); }
+                }
+                StatusBarService.ReportInfo($"开机循环：已启动 {flows.Count} 条流程（{string.Join("、", flows.Select(f => f.Name))}）。");
+            }
+            catch (System.Exception ex)
+            {
+                StatusBarService.ReportException("开机循环启动失败：" + ex.Message);
+            }
+        }
+
+        /// <summary>退出前执行：Role=BeforeExit 的流程单次跑完（最多等 30 秒），完成后才保存工程 / 断开控制器。
+        /// 在关闭进度条的后台线程里执行，不阻塞 UI。</summary>
+        private static void RunBeforeExitFlows(ClosingProgressWindow dlg)
+        {
+            var flows = ProjectStore.Data?.Flows?
+                .Where(f => f.Role == FlowRole.BeforeExit)
+                .ToList();
+            if (flows == null || flows.Count == 0) return;
+
+            const int timeoutSec = 30;
+            dlg.Report(10, $"执行退出前流程（{flows.Count} 条）：{string.Join("、", flows.Select(f => f.Name))}…");
+
+            var ctrl = new FlowRunControl();
+            ctrl.InitVars();
+            using var done = new System.Threading.ManualResetEventSlim(false);
+            FlowRunnerService.RunAllAsync(
+                ctrl,
+                (m, k) => StatusBarService.ReportInfo(m),
+                (idx, name, step) => { },
+                (idx, name) => { },
+                () => done.Set(),
+                filter: f => f.Role == FlowRole.BeforeExit,
+                forceLoop: false);
+
+            int waited = 0;
+            while (!done.Wait(1000) && waited < timeoutSec)
+            {
+                waited++;
+                dlg.Report(10 + waited, $"执行退出前流程…（已等待 {waited}s / 最多 {timeoutSec}s）");
+            }
+            if (!done.IsSet)
+            {
+                ctrl.StopRequested = true;
+                ctrl.ResumeEvent.Set();
+                done.Wait(1500);   // 留一点时间让流程线程从等待里退出，再断开硬件
+                StatusBarService.ReportException($"退出前流程超过 {timeoutSec}s 未结束，已强制中止。");
+            }
+            // 退出前流程写过的变量落回工程表，随后的 ProjectStore.Save() 才会保存它们
+            try { ctrl.WriteBackVars(); } catch { }
         }
 
         /// <summary>导航栏「在线下发」开关：开启后配置页改值实时下发到设备（仅真实硬件桥生效）。</summary>

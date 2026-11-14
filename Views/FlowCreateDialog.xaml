@@ -3,10 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:sys="clr-namespace:System.Windows;assembly=PresentationFramework"
         mc:Ignorable="d" d:DesignHeight="620" d:DesignWidth="450"
-        Height="620" Width="450" WindowStartupLocation="CenterOwner"
+        SizeToContent="Height" MaxHeight="{Binding Source={x:Static sys:SystemParameters.WorkArea}, Path=Height}"
+        Width="450" WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize" ShowInTaskbar="False"
         Background="White">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -31,7 +34,7 @@
                      BorderBrush="#E2E8F0" BorderThickness="1"/>
         </DockPanel>
 
-        <TextBlock Grid.Row="2" Text="流程类型（单选）" FontSize="13" FontWeight="SemiBold"
+        <TextBlock Grid.Row="2" Text="流程角色（单选）" FontSize="13" FontWeight="SemiBold"
                    Foreground="#334155" Margin="0,0,0,8"/>
 
         <Border Grid.Row="3" Background="#F8FAFC" Padding="10"
@@ -44,7 +47,15 @@
                 <RadioButton x:Name="ResetRadio" Content="复位流程" GroupName="RoleGroup"
                              Margin="0,2,0,2" FontSize="13"/>
                 <TextBlock Text="选「复位」：操作员点【复位】时跑这一段；所有复位流程都跑完了，才允许重新开始生产。"
-                           FontSize="11" Foreground="#94A3B8" Margin="22,0,0,2"/>
+                           FontSize="11" Foreground="#94A3B8" Margin="22,0,0,6"/>
+                <RadioButton x:Name="StartupRadio" Content="开机循环" GroupName="RoleGroup"
+                             Margin="0,2,0,2" FontSize="13"/>
+                <TextBlock Text="选「开机循环」：软件启动、工程载入完成后自动开始循环运行，直到在操作员页点【停止】。"
+                           FontSize="11" Foreground="#94A3B8" Margin="22,0,0,6" TextWrapping="Wrap"/>
+                <RadioButton x:Name="ExitRadio" Content="退出前执行" GroupName="RoleGroup"
+                             Margin="0,2,0,2" FontSize="13"/>
+                <TextBlock Text="选「退出前执行」：关闭软件时先停掉其它流程，再单次跑完这一段（最多等 30 秒），然后保存工程并断开控制器。"
+                           FontSize="11" Foreground="#94A3B8" Margin="22,0,0,2" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
 
@@ -75,4 +86,5 @@
                     Background="#2563EB" Foreground="White" BorderThickness="0"/>
         </StackPanel>
     </Grid>
+    </ScrollViewer>
 </Window>

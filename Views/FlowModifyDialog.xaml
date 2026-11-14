@@ -22,13 +22,17 @@
                          Foreground="{StaticResource TextPrimaryBrush}"/>
             </DockPanel>
             <StackPanel Margin="24,0,24,8">
-                <TextBlock Text="流程类型（单选）" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" Margin="0,0,0,6"/>
+                <TextBlock Text="流程角色（单选）" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" Margin="0,0,0,6"/>
                 <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="8" Padding="10">
                     <StackPanel>
                         <RadioButton x:Name="MainRadio" Content="主流程" GroupName="RoleGroup" FontSize="13" Margin="0,2,0,2"/>
                         <TextBlock Text="选「主流程」：操作员在「操作员」页点【启动】后，这一段会一遍接一遍一直跑，直到点【停止】。" FontSize="11" Foreground="#94A3B8" Margin="22,0,0,6"/>
                         <RadioButton x:Name="ResetRadio" Content="复位流程" GroupName="RoleGroup" FontSize="13" Margin="0,2,0,2"/>
-                        <TextBlock Text="选「复位」：操作员点【复位】时跑这一段；所有复位流程都跑完了，才允许重新开始生产。" FontSize="11" Foreground="#94A3B8" Margin="22,0,0,2"/>
+                        <TextBlock Text="选「复位」：操作员点【复位】时跑这一段；所有复位流程都跑完了，才允许重新开始生产。" FontSize="11" Foreground="#94A3B8" Margin="22,0,0,6" TextWrapping="Wrap"/>
+                        <RadioButton x:Name="StartupRadio" Content="开机循环" GroupName="RoleGroup" FontSize="13" Margin="0,2,0,2"/>
+                        <TextBlock Text="选「开机循环」：软件启动、工程载入完成后自动开始循环运行，直到在操作员页点【停止】。" FontSize="11" Foreground="#94A3B8" Margin="22,0,0,6" TextWrapping="Wrap"/>
+                        <RadioButton x:Name="ExitRadio" Content="退出前执行" GroupName="RoleGroup" FontSize="13" Margin="0,2,0,2"/>
+                        <TextBlock Text="选「退出前执行」：关闭软件时先停掉其它流程，再单次跑完这一段（最多等 30 秒），然后保存工程并断开控制器。" FontSize="11" Foreground="#94A3B8" Margin="22,0,0,2" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
             </StackPanel>

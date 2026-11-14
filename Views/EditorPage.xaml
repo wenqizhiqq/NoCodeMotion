@@ -24,6 +24,34 @@
             </Style.Triggers>
         </Style>
 
+        <!-- 开机循环角色标签：蓝色药丸，仅在 Role==StartupLoop 时显示 -->
+        <Style x:Key="FlowStartupChipStyle" TargetType="Border">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="#2563EB"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Role}" Value="{x:Static models:FlowRole.StartupLoop}">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 退出前执行角色标签：紫色药丸，仅在 Role==BeforeExit 时显示 -->
+        <Style x:Key="FlowExitChipStyle" TargetType="Border">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="#7C3AED"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Role}" Value="{x:Static models:FlowRole.BeforeExit}">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- 流程状态芯片：右侧「运行中 / 暂停 / 断点 / 异常 / 停止 / 就绪」单字符指示。
              默认可见（Idle = 浅灰「就绪」），按 Status 切色：
              Idle=浅灰 / Running=绿 / Paused=橙 / Breakpoint=红 / Exception=深红 / Stopped=深灰。
@@ -121,6 +149,12 @@
                     </Path>
                     <Border Margin="0,0,6,0" Style="{StaticResource FlowResetChipStyle}">
                         <TextBlock Text="复位" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                    </Border>
+                    <Border Margin="0,0,6,0" Style="{StaticResource FlowStartupChipStyle}">
+                        <TextBlock Text="开机" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                    </Border>
+                    <Border Margin="0,0,6,0" Style="{StaticResource FlowExitChipStyle}">
+                        <TextBlock Text="退出" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
                     </Border>
                 </StackPanel>
 
