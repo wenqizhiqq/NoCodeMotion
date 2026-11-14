@@ -654,7 +654,7 @@ namespace NoCodeMotion.ViewModels
             _stopRequested = true;
             _resumeEvent.Set();
             _flowCtrl?.StopRequested = true; _flowCtrl?.ResumeEvent.Set();
-            FlowLoopManager.StopAll();   // ★ 停掉全部托管循环运行（每条主流程一条）
+            FlowLoopManager.StopAll();   // ★ 停掉主流程循环（保留「开机循环」脚本，如温控）
             IsRunning = false;
             IsPaused = false;
             _runActive = false;
@@ -673,7 +673,7 @@ namespace NoCodeMotion.ViewModels
             _stopRequested = true;
             _resumeEvent.Set();
             _flowCtrl?.EStopRequested = true; _flowCtrl?.StopRequested = true; _flowCtrl?.ResumeEvent.Set();
-            FlowLoopManager.StopAll();   // ★ 急停 = 停掉全部托管循环运行
+            FlowLoopManager.StopAll();   // ★ 急停 = 停掉主流程（温度/环境这类开机循环脚本继续值守）
             // 立即切断所有运动：停轴 + 复位气缸 + 清输出
             var bridge = HardwareBridge.Current;
             try
@@ -707,7 +707,7 @@ namespace NoCodeMotion.ViewModels
             _resumeEvent.Set();
             _eStopRequested = false;
             _pauseRequested = false;
-            FlowLoopManager.StopAll();   // ★ 复位也停掉全部托管循环运行（之后若有复位流程则按运行一次执行）
+            FlowLoopManager.StopAll();   // ★ 复位停主流程（开机循环脚本保留；有复位流程则按运行一次执行）
             IsRunning = false;
             IsPaused = false;
             EStopped = false;

@@ -970,15 +970,18 @@ namespace NoCodeMotion.ViewModels
             }
         }
 
-        /// <summary>停止全部循环运行（操作员页「停止 / 急停 / 复位」用）。</summary>
-        public static void StopAll()
+        /// <summary>停止全部循环运行（操作员页「停止 / 急停 / 复位」用）。
+        /// <para><paramref name="includeStartup"/> 默认 false：保留「开启软件就循环执行」的流程，
+        /// 因为温控 / 环境监测这类脚本不应随生产停止而中断（退出软件时由 AppShutdown 传 true 停干净）。</para></summary>
+        public static void StopAll(bool includeStartup = false)
         {
-            foreach (var kv in _loops)
+            foreach (var kv in _loops.ToArray())
             {
+                if (!includeStartup && kv.Key.Role == FlowRole.StartupLoop) continue;
                 kv.Value.StopRequested = true;
                 kv.Value.ResumeEvent.Set();
+                _loops.TryRemove(kv.Key, out _);
             }
-            _loops.Clear();
         }
 
         /// <summary>暂停全部循环运行（操作员页「暂停」= 暂停所有流程）。</summary>

@@ -44,14 +44,22 @@ namespace NoCodeMotion.Models
         /// </summary>
         public bool ExpandSampleNames { get; init; } = true;
 
+        /// <summary>
+        /// 是否自动补一条「示例(节点图)」流程。默认 true。
+        /// <para>模板本身已经是完整的多脚本程序（如平移式分选机：主控/上料/测试/分选并发握手）时设为 false——
+        /// 那条节点图演示流程的角色也是「主流程」，会被操作员「启动」一起跑起来，去抢同一个轴和输出。</para>
+        /// </summary>
+        public bool AddNodeGraphDemo { get; init; } = true;
+
         /// <summary>构建一份模板工程（永远返回新实例，调用方可放心修改）。</summary>
         /// <remarks>
         /// 在工厂产出的内容之上，额外挂两样示范内容：
         ///   1. 一份示范用的移动条件（Services/ProjectTemplateCatalog.SeedSampleConditions），
         ///      让「新建工程」出来的示例点位自带一套条件列表可供参考；
         ///   2. 一条「示例(节点图)」节点图流程（Services.ProjectTemplateCatalog.EnsureNodeGraphFlow），
-        ///      让每个模板新建出来都能在流程页里看到节点图这类流程长什么样；
-        ///   3. 一批「工位-对象」示例名称（Services/ProjectTemplateCatalog.ExpandNameLists），
+        ///      让每个模板新建出来都能在流程页里看到节点图这类流程长什么样
+        ///      （由 <see cref="AddNodeGraphDemo"/> 控制开关）；
+        ///   3. 一批「工位-对象」示例名称（Services.ProjectTemplateCatalog.ExpandNameLists），
         ///      把轴 / IO / 气缸 / 变量 各扩到 24 个，让名称下拉框的级联二级菜单立刻可见
         ///      （由 <see cref="ExpandSampleNames"/> 控制开关）。
         /// 空白模板既没有点位表也没有轴 / IO / 相机，三道后处理都自然空转，保持「0 个流程」。
@@ -60,7 +68,7 @@ namespace NoCodeMotion.Models
         {
             var data = Factory();
             Services.ProjectTemplateCatalog.SeedSampleConditions(data);
-            Services.ProjectTemplateCatalog.EnsureNodeGraphFlow(data);
+            if (AddNodeGraphDemo) Services.ProjectTemplateCatalog.EnsureNodeGraphFlow(data);
             if (ExpandSampleNames) Services.ProjectTemplateCatalog.ExpandNameLists(data);
             return data;
         }

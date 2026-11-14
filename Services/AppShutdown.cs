@@ -11,10 +11,11 @@ namespace NoCodeMotion.Services
     /// </summary>
     public static class AppShutdown
     {
-        /// <summary>停止所有循环运行的流程（不动硬件连接，退出前流程还要用轴 / IO）。</summary>
+        /// <summary>停止所有循环运行的流程（不动硬件连接，退出前流程还要用轴 / IO）。
+        /// 退出软件时连「开启软件就循环执行」的流程一起停，否则线程会活到进程结束前一刻还在发通讯。</summary>
         public static void StopFlows()
         {
-            FlowLoopManager.StopAll();
+            FlowLoopManager.StopAll(includeStartup: true);
         }
 
         /// <summary>断开所有控制器（关闭卡并清除连接状态）——与界面「断开」按钮同一路径。</summary>

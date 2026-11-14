@@ -9,7 +9,7 @@
     // 分类：空白 / 轴运动(6) / 气缸(2) / IO(2) / 综合(9) / 半导体(3)。
     // 综合(7) 中「仿真演示」为专为 3D 仿真设计的示例：运行即可看到轴/气缸/相机动起来。
     // 半导体(3)：固晶机 / 探针台 / 平移式分选机。
-    //   平移式分选机 共用 AddSemiEquipment（3自动盘+3手动盘+上料/下空盘+2高温中转盘+16吸嘴+搬运手臂+2 Z压力测+GPIB）；
+    //   平移式分选机：按 EW 三温分选机 IO 表搭建（上料 20 轴 + 下料 25 轴、U0/U12 输入、U7/U20 输出、
     //   固晶机 / 探针台 各有专属配置（固晶头/顶针/点胶；真空吸盘/精密载台/探针Z + GPIB）。
 // 覆盖：控制器 / 轴 / IO(入+出) / 气缸 / 点位表 / 通讯 / 料盘 / 相机 / 变量 / 流程（主流程多个 + 复位流程）。
 // 流程：除空白模板外，每个模板都会经 ProjectTemplate.Build() → EnsureNodeGraphFlow() 自动补一条
@@ -2146,63 +2146,158 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             },
         };
 
-        // =================== 半导体：共用设备清单 ===================
-        // 固晶机 / 探针台 / 平移式分选机 共享的硬件配置：
-        //   3 自动盘 + 3 手动盘 + 上料盘 + 下空盘 + 2 高温中转盘（共 10 盘）
-        //   2×4 上料吸嘴 + 2×4 下料吸嘴（共 16 真空吸嘴，伸出=吸/缩回=放）
-        //   搬运料盘手臂 3 轴 + 2 个 Z 轴压力测
-        //   GPIB 测试机通讯（获取 Bin）
+        // =================== 半导体：平移式分选机设备清单（依据 EW 三温分选机 IO 表） ===================
+        // 资料对应关系：
+        //   《三温测试分选机-IO表 7.30》轴控：上料侧 20 轴（26-46，缺 38）+ 下料侧 25 轴（0-25，缺 17）
+        //     输入 U0 / U12 各 32 点，输出 U7 / U20 各 32 点
+        //   《8U_EW通讯点位》：8 台温控器，ModbusTCP 192.168.0.192:502
+        //   《Pick and Place Handler 9000 手册》：上料臂 / 测试区 / 下料臂 / 料盘仓 的模块划分
         private static void AddSemiEquipment(ProjectData d)
         {
-            d.Controllers.Add(Ctl("运动控制卡", "雷赛", "DMC5800", 0, 12, "脉冲", "PCI"));
-            d.Controllers.Add(Ctl("IO扩展卡", "雷赛", "IO扩展", 1, 0, "Modbus", "网口"));
-            d.Controllers.Add(Ctl("视觉控制卡", "雷赛", "EtherCAT主站", 2, 4, "EtherCAT", "网口"));
+            // 两个 EtherCAT 主站分别带两侧伺服；IO 用 GL20 扩展模块
+            d.Controllers.Add(Ctl("上料轴控", "雷赛", "EtherCAT主站", 0, 20, "EtherCAT", "网口"));
+            d.Controllers.Add(Ctl("下料轴控", "雷赛", "EtherCAT主站", 1, 25, "EtherCAT", "网口"));
+            d.Controllers.Add(Ctl("IO扩展卡", "雷赛", "IO扩展", 2, 0, "Modbus", "网口"));
 
-            // 搬运料盘手臂 3 轴
-            d.Axes.Add(Ax("搬运X", "运动控制卡", "脉冲", 0, "mm", 600, 0.2, 0.2));
-            d.Axes.Add(Ax("搬运Y", "运动控制卡", "脉冲", 1, "mm", 400, 0.2, 0.2));
-            d.Axes.Add(Ax("搬运Z", "运动控制卡", "脉冲", 2, "mm", 200, 0.2, 0.2));
-            // 2 个 Z 轴压力测
-            d.Axes.Add(Ax("Z压力测1", "运动控制卡", "脉冲", 3, "mm", 100, 0.2, 0.2));
-            d.Axes.Add(Ax("Z压力测2", "运动控制卡", "脉冲", 4, "mm", 100, 0.2, 0.2));
-
-            // 盘 / 料盘（共 10 个）
-            d.Trays.Add(Tray("自动盘1", 25, 25, 0, 0, 4, 4));
-            d.Trays.Add(Tray("自动盘2", 25, 25, 0, 200, 4, 4));
-            d.Trays.Add(Tray("自动盘3", 25, 25, 0, 400, 4, 4));
-            d.Trays.Add(Tray("手动盘1", 12, 12, 200, 0, 8, 8));
-            d.Trays.Add(Tray("手动盘2", 12, 12, 200, 200, 8, 8));
-            d.Trays.Add(Tray("手动盘3", 12, 12, 200, 400, 8, 8));
-            d.Trays.Add(Tray("上料盘", 20, 20, 400, 0, 6, 6));
-            d.Trays.Add(Tray("下空盘", 20, 20, 400, 200, 6, 6));
-            d.Trays.Add(Tray("高温中转盘1", 10, 10, 600, 0, 10, 10));
-            d.Trays.Add(Tray("高温中转盘2", 10, 10, 600, 200, 10, 10));
-
-            // 16 真空吸嘴：2×4 上料吸嘴 + 2×4 下料吸嘴
+            // ---------- 上料侧 20 轴（原轴号 26-46） ----------
+            d.Axes.Add(Ax("上料X轴", "上料轴控", "EtherCAT", 0, "mm", 800, 0.5, 0.5));
+            d.Axes.Add(Ax("搬运X轴", "上料轴控", "EtherCAT", 1, "mm", 1000, 0.5, 0.5));
+            d.Axes.Add(Ax("上料Y轴", "上料轴控", "EtherCAT", 2, "mm", 600, 0.5, 0.5));
+            d.Axes.Add(Ax("进料仓Z轴", "上料轴控", "EtherCAT", 3, "mm", 200, 0.3, 0.3));
+            d.Axes.Add(Ax("出盘仓Z轴", "上料轴控", "EtherCAT", 4, "mm", 200, 0.3, 0.3));
+            d.Axes.Add(Ax("空盘仓Z轴", "上料轴控", "EtherCAT", 5, "mm", 200, 0.3, 0.3));
+            d.Axes.Add(Ax("上料旋转U轴", "上料轴控", "EtherCAT", 6, "°", 360, 0.5, 0.5));
+            d.Axes.Add(Ax("上料变距X轴", "上料轴控", "EtherCAT", 7, "mm", 100, 0.2, 0.2));
+            d.Axes.Add(Ax("上料变距Y轴", "上料轴控", "EtherCAT", 8, "mm", 100, 0.2, 0.2));
+            d.Axes.Add(Ax("进料仓Y轴", "上料轴控", "EtherCAT", 9, "mm", 600, 0.5, 0.5));
+            d.Axes.Add(Ax("出盘仓Y轴", "上料轴控", "EtherCAT", 10, "mm", 600, 0.5, 0.5));
+            d.Axes.Add(Ax("空盘仓Y轴", "上料轴控", "EtherCAT", 11, "mm", 600, 0.5, 0.5));
             for (int i = 0; i < 8; i++)
-                d.Cylinders.Add(Cyl($"上料吸嘴{i + 1}", $"Y{i}", "真空检测", "真空检测", "真空吸嘴"));
+                d.Axes.Add(Ax($"上料吸嘴{i + 1}Z轴", "上料轴控", "EtherCAT", 12 + i, "mm", 100, 0.2, 0.2));
+
+            // ---------- 下料侧 25 轴（原轴号 0-25） ----------
+            d.Axes.Add(Ax("前压头Z轴", "下料轴控", "EtherCAT", 0, "mm", 100, 0.2, 0.2));
+            d.Axes.Add(Ax("后压头Z轴", "下料轴控", "EtherCAT", 1, "mm", 100, 0.2, 0.2));
+            d.Axes.Add(Ax("前压头Y轴", "下料轴控", "EtherCAT", 2, "mm", 300, 0.3, 0.3));
+            d.Axes.Add(Ax("后压头Y轴", "下料轴控", "EtherCAT", 3, "mm", 300, 0.3, 0.3));
+            d.Axes.Add(Ax("前梭车X轴", "下料轴控", "EtherCAT", 4, "mm", 1000, 0.5, 0.5));
+            d.Axes.Add(Ax("后梭车X轴", "下料轴控", "EtherCAT", 5, "mm", 1000, 0.5, 0.5));
+            d.Axes.Add(Ax("Auto1Z轴", "下料轴控", "EtherCAT", 6, "mm", 200, 0.3, 0.3));
+            d.Axes.Add(Ax("Auto2Z轴", "下料轴控", "EtherCAT", 7, "mm", 200, 0.3, 0.3));
+            d.Axes.Add(Ax("Auto3Z轴", "下料轴控", "EtherCAT", 8, "mm", 200, 0.3, 0.3));
+            d.Axes.Add(Ax("下料旋转U轴", "下料轴控", "EtherCAT", 9, "°", 360, 0.5, 0.5));
+            d.Axes.Add(Ax("下料X轴", "下料轴控", "EtherCAT", 10, "mm", 800, 0.5, 0.5));
+            d.Axes.Add(Ax("下料Y轴", "下料轴控", "EtherCAT", 11, "mm", 600, 0.5, 0.5));
+            d.Axes.Add(Ax("下料变距X轴", "下料轴控", "EtherCAT", 12, "mm", 100, 0.2, 0.2));
+            d.Axes.Add(Ax("下料变距Y轴", "下料轴控", "EtherCAT", 13, "mm", 100, 0.2, 0.2));
+            d.Axes.Add(Ax("Auto1Y轴", "下料轴控", "EtherCAT", 14, "mm", 600, 0.5, 0.5));
+            d.Axes.Add(Ax("Auto2Y轴", "下料轴控", "EtherCAT", 15, "mm", 600, 0.5, 0.5));
+            d.Axes.Add(Ax("Auto3Y轴", "下料轴控", "EtherCAT", 16, "mm", 600, 0.5, 0.5));
             for (int i = 0; i < 8; i++)
-                d.Cylinders.Add(Cyl($"下料吸嘴{i + 1}", $"Y{8 + i}", "真空检测", "真空检测", "真空吸嘴"));
+                d.Axes.Add(Ax($"下料吸嘴{i + 1}Z轴", "下料轴控", "EtherCAT", 17 + i, "mm", 100, 0.2, 0.2));
 
-            // 输入 IO（16）
-            string[] inNames = { "启动", "停止", "复位", "急停", "手自动", "暂停",
-                "上料盘到位", "下空盘到位", "高温盘1到位", "高温盘2到位",
-                "搬运原点", "真空检测", "压力报警1", "压力报警2", "安全门", "测试完成" };
-            for (int i = 0; i < inNames.Length; i++)
-                d.Inputs.Add(In(inNames[i], "动点", "IO扩展卡", 1, 0, i));
+            // ---------- 输入 IO：U0（上料）32 点 / U12（下料）32 点 ----------
+            string[] u0In = {
+                "启动", "停止", "复位", "暂停", "急停", "左前门禁", "左后门禁", "压头门禁",
+                "进料仓料盘有无", "进料仓满料感应", "进料仓料盘检测1", "进料仓料盘检测2",
+                "出空盘仓料盘有无", "出空盘仓满料感应", "进空盘仓料盘有无", "进空盘仓满料感应",
+                "料盘搬运夹爪有无感应", "治具锁定按钮",
+                "左上料真空Aa", "左上料真空Ab", "左上料真空Ac", "左上料真空Ad",
+                "左上料真空Ba", "左上料真空Bb", "左上料真空Bc", "左上料真空Bd",
+                "上料芯片旋转感应Aa", "上料芯片旋转感应Ab", "上料芯片旋转感应Ac", "上料芯片旋转感应Ad",
+                "表面电位检测1", "表面电位检测2" };
+            for (int i = 0; i < u0In.Length; i++) d.Inputs.Add(In(u0In[i], "动点", "IO扩展卡", 2, 0, i));
 
-            // 输出 IO（12）
-            string[] outNames = { "运行", "就绪", "报警", "完成", "光源", "真空总阀",
-                "蜂鸣器", "加热1", "加热2", "搬运使能", "上料阀", "下料阀" };
-            for (int i = 0; i < outNames.Length; i++)
-                d.Outputs.Add(Out(outNames[i], "动点", "IO扩展卡", 1, 0, i));
+            string[] u12In = {
+                "T.START", "缓存台1有无感应", "缓存台2有无感应", "缓存台3有无感应",
+                "上料区停止按钮", "中继区停止按钮", "下料区停止按钮",
+                "真空切换开关", "进气负压表", "右前急停信号", "右后急停信号",
+                "后压头真空Ca", "后压头真空Cb", "后压头真空Cc", "后压头真空Cd",
+                "后压头真空Da", "后压头真空Db", "后压头真空Dc", "后压头真空Dd",
+                "下料芯片旋转感应Ae", "下料芯片旋转感应Af", "下料芯片旋转感应Ag", "下料芯片旋转感应Ah",
+                "右下料真空Ae", "右下料真空Af", "右下料真空Ag", "右下料真空Ah",
+                "右下料真空Be", "右下料真空Bf", "右下料真空Bg", "右下料真空Bh",
+                "Auto1仓料盘有无感应" };
+            for (int i = 0; i < u12In.Length; i++) d.Inputs.Add(In(u12In[i], "动点", "IO扩展卡", 2, 1, i));
 
-            // GPIB 测试机（获取 Bin）
+            // ---------- 输出 IO：U7（上料）32 点 / U20（下料）32 点 ----------
+            string[] u7Out = {
+                "运行指示", "报警指示", "蜂鸣器",
+                "料盘搬运夹爪夹", "料盘搬运夹爪松", "料盘搬运上下上", "料盘搬运上下下",
+                "真空泵供电", "真空内外切换阀", "进料仓敲击",
+                "进料仓Z刹车", "出空盘仓Z刹车", "进空盘仓Z刹车", "上料照明灯",
+                "左上料吸真空Aa", "左上料吸真空Ab", "左上料吸真空Ac", "左上料吸真空Ad",
+                "左上料吸真空Ba", "左上料吸真空Bb", "左上料吸真空Bc", "左上料吸真空Bd",
+                "左上料破真空Aa", "左上料破真空Ab", "左上料破真空Ac", "左上料破真空Ad",
+                "左上料破真空Ba", "左上料破真空Bb", "左上料破真空Bc", "左上料破真空Bd",
+                "加热控制1", "加热控制2" };
+            for (int i = 0; i < u7Out.Length; i++) d.Outputs.Add(Out(u7Out[i], "动点", "IO扩展卡", 2, 2, i));
+
+            string[] u20Out = {
+                "缓存敲击", "Auto1料仓敲击", "Auto2料仓敲击", "Auto3料仓敲击", "右离子棒",
+                "Auto1料仓Z轴刹车", "Auto2料仓Z轴刹车", "Auto3料仓Z轴刹车",
+                "前压头Z刹车", "后压头Z刹车", "下料照明灯",
+                "前压头吸真空Aa", "前压头吸真空Ab", "前压头吸真空Ac", "前压头吸真空Ad",
+                "前压头破真空Aa", "前压头破真空Ab", "前压头破真空Ac", "前压头破真空Ad",
+                "后压头吸真空Ca", "后压头吸真空Cb", "后压头吸真空Cc", "后压头吸真空Cd",
+                "右下料吸真空Ae", "右下料吸真空Af", "右下料吸真空Ag", "右下料吸真空Ah",
+                "右下料吸真空Be", "右下料吸真空Bf", "右下料吸真空Bg", "右下料吸真空Bh",
+                "右下料破真空Ae" };
+            for (int i = 0; i < u20Out.Length; i++) d.Outputs.Add(Out(u20Out[i], "动点", "IO扩展卡", 2, 3, i));
+
+            // ---------- 真空吸嘴：上料 8 + 下料 8（伸出=吸，缩回=放；带真空检测） ----------
+            string[] upVac = { "左上料吸真空Aa", "左上料吸真空Ab", "左上料吸真空Ac", "左上料吸真空Ad",
+                               "左上料吸真空Ba", "左上料吸真空Bb", "左上料吸真空Bc", "左上料吸真空Bd" };
+            string[] upSense = { "左上料真空Aa", "左上料真空Ab", "左上料真空Ac", "左上料真空Ad",
+                                 "左上料真空Ba", "左上料真空Bb", "左上料真空Bc", "左上料真空Bd" };
+            for (int i = 0; i < 8; i++)
+                d.Cylinders.Add(Cyl($"上料吸嘴{i + 1}", upVac[i], upSense[i], "", "真空吸嘴"));
+
+            string[] dnVac = { "右下料吸真空Ae", "右下料吸真空Af", "右下料吸真空Ag", "右下料吸真空Ah",
+                               "右下料吸真空Be", "右下料吸真空Bf", "右下料吸真空Bg", "右下料吸真空Bh" };
+            string[] dnSense = { "右下料真空Ae", "右下料真空Af", "右下料真空Ag", "右下料真空Ah",
+                                 "右下料真空Be", "右下料真空Bf", "右下料真空Bg", "右下料真空Bh" };
+            for (int i = 0; i < 8; i++)
+                d.Cylinders.Add(Cyl($"下料吸嘴{i + 1}", dnVac[i], dnSense[i], "", "真空吸嘴"));
+
+            // 料盘搬运夹爪 / 上下（双动气缸，取自 IO 表）
+            d.Cylinders.Add(Cyl("料盘搬运夹爪", "料盘搬运夹爪夹", "料盘搬运夹爪有无感应", ""));
+            d.Cylinders.Add(Cyl("料盘搬运上下", "料盘搬运上下上", "", ""));
+
+            // ---------- 料盘：IO 表 / 工作计划中的 9 个工位 ----------
+            d.Trays.Add(Tray("进料仓盘", 25, 25, 0, 0, 4, 4));
+            d.Trays.Add(Tray("出空盘仓盘", 25, 25, 0, 200, 4, 4));
+            d.Trays.Add(Tray("进空盘仓盘", 25, 25, 0, 400, 4, 4));
+            d.Trays.Add(Tray("Auto1仓盘", 12, 12, 200, 0, 8, 8));
+            d.Trays.Add(Tray("Auto2仓盘", 12, 12, 200, 200, 8, 8));
+            d.Trays.Add(Tray("Auto3仓盘", 12, 12, 200, 400, 8, 8));
+            d.Trays.Add(Tray("缓存台1盘", 8, 8, 400, 0, 10, 10));
+            d.Trays.Add(Tray("缓存台2盘", 8, 8, 400, 200, 10, 10));
+            d.Trays.Add(Tray("缓存台3盘", 8, 8, 400, 400, 10, 10));
+
+            // ---------- 通讯：测试机 GPIB + 8 台温控器（ModbusTCP） ----------
             d.Comms.Add(Comm("测试机GPIB", "GPIB", "GPIB0::7::INSTR", 0, "无", 8, 1.0, 1000));
+            for (int i = 1; i <= 8; i++)
+                d.Comms.Add(Comm($"温控器{i}", "ModbusTCP", "192.168.0.192:502", 502, "无", 8, 1.0, 1000));
 
-            // 变量
+            // ---------- 视觉：只有 2 台「飞拍扫码」相机 ----------
+            //   小车飞拍：装在梭车上，随小车运动过程中触发采集 + 读码；
+            //   扫码：固定工位扫码（料盘 / 批次码）。
+            // 本机不做外观检测 / 对位，所以没有检测相机。
+            d.Cameras.Add(Cam("小车飞拍相机", "海康威视", "192.168.1.130", 8000, 2448, 2048, 0.5, 1.0, "梭车飞拍读码"));
+            d.Cameras.Add(Cam("扫码相机", "海康威视", "192.168.1.131", 8000, 1920, 1080, 1.0, 1.0, "固定工位扫码（料盘/批次）"));
+
+            // ---------- 变量 ----------
+            // 前 10 个为工艺/统计量；中间 8 个是脚本握手的请求/完成位与 Bin；后 8 个是 8 台温控器温度。
+            // 全部预置成行，脚本 Variable.Get 能直接读到，运行期不会因为「自动新建变量」把变量页刷乱。
             AddVars(d, ("计数", "0"), ("总数", "0"), ("良品数", "0"), ("不良品数", "0"),
-                        ("当前Bin", "0"), ("压力1", "0"), ("压力2", "0"), ("当前工序", "1"));
+                        ("当前Bin", "0"), ("目标温度", "85"), ("测试压力", "0"), ("批次号", ""),
+                        ("当前工序", "1"), ("节拍", "0"),
+                        ("上料请求", "0"), ("上料完成", "0"),
+                        ("测试请求", "0"), ("测试完成", "0"), ("测试Bin", "0"),
+                        ("分选请求", "0"), ("分选完成", "0"), ("报警信息", ""),
+                        ("当前温度1", "25"), ("当前温度2", "25"), ("当前温度3", "25"), ("当前温度4", "25"),
+                        ("当前温度5", "25"), ("当前温度6", "25"), ("当前温度7", "25"), ("当前温度8", "25"));
         }
 
         // =================== 半导体：固晶机 ===================
@@ -2399,52 +2494,261 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             Id = "transfer-handler",
             Name = "平移式分选机（Transfer Handler）",
             Category = "半导体",
-            Description = "2×4 上料吸嘴取已测件、GPIB 读取 Bin、2×4 下料吸嘴按 Bin 分选到自动盘/手动盘/下空盘/高温中转盘。",
-            Summary = "3 控制 · 5 轴 · 16 入 12 出 · 16 吸嘴 · 10 盘 · 1 GPIB · 8 变量 · 1 主流程 · 1 复位",
+            // 本模板是 7 个脚本组成的完整程序，不要自动补演示节点图：
+            // 那条演示流程也是主流程，操作员启动时会和脚本抢同一批轴/输出。
+            AddNodeGraphDemo = false,
+            Description = "依据 EW 三温测试分选机 IO 表搭建：上料 20 轴（料仓/变距/8 吸嘴）+ 下料 25 轴（压头/梭车/Auto 盘/8 吸嘴），U0/U12 输入、U7/U20 输出各 32 点，GPIB 读 Bin + 8 台 ModbusTCP 温控器。全部流程为 Lua 脚本，脚本间只用工程变量握手。",
+            Summary = "3 控制 · 45 轴 · 64 入 64 出 · 18 气缸 · 9 盘 · 2 相机 · 9 通讯 · 26 变量 · 7 脚本流程",
             Highlights = new[]
             {
-                "控制器：运动控制卡(DMC5800) + IO扩展卡 + 视觉控制卡(EtherCAT)",
-                "轴：搬运X/Y/Z 手臂 + Z压力测1/Z压力测2（辅助压合/定位）",
-                "盘：自动盘×3 / 手动盘×3 / 上料盘 / 下空盘 / 高温中转盘×2（共 10 盘）",
-                "吸嘴：2×4 上料吸嘴取料 + 2×4 下料吸嘴分选（共 16 真空吸嘴）",
-                "通讯：测试机 GPIB（获取 Bin，决定分选落点）",
-                "变量：当前Bin / 良品数 / 不良品数 / 计数 / 总数 等",
-                "主流程：上料吸嘴取料 → GPIB读Bin → 下料吸嘴按Bin分选 → 计数",
-                "复位：吸嘴缩回 + 轴归零 + 就绪",
+                "控制器：上料轴控(EtherCAT, 20 轴) + 下料轴控(EtherCAT, 25 轴) + GL20 IO 扩展",
+                "上料 20 轴：上料 X/Y、搬运 X、进/出/空盘仓 Y/Z、上料旋转 U、上料变距 XY、8 个吸嘴 Z",
+                "下料 25 轴：前/后压头 Y/Z、前/后梭车 X、Auto1-3 Y/Z、下料 X/Y/U、下料变距 XY、8 个吸嘴 Z",
+                "IO：U0/U12 输入各 32 点（启动/停止/急停/门禁/料仓/真空/旋转感应），U7/U20 输出各 32 点（指示灯/夹爪/真空/加热/刹车）",
+                "气缸：上料 8 吸嘴 + 下料 8 吸嘴（真空吸嘴，带真空检测）+ 料盘搬运夹爪/上下",
+                "盘：进料仓 / 出空盘仓 / 进空盘仓 / Auto1-3 / 缓存台1-3（共 9 盘）",
+                "通讯：测试机 GPIB（MEAS:BIN?）+ 8 台温控器 ModbusTCP 192.168.0.192:502",
+                "视觉：只有 2 台飞拍扫码相机 —— 小车飞拍（装在梭车上）+ 固定扫码（料盘/批次）",
+                "7 个脚本流程：主控 / 上料 / 测试 / 分选（主流程并发循环）+ 温控（开机循环）+ 复位 + 退出（关闭前）",
+                "变量握手：主控发 上料请求→收 上料完成；再发 测试请求→收 测试完成/测试Bin；再发 分选请求→收 分选完成",
+                "异常：每个握手 30 秒超时，主控写「报警信息」并撤销请求；温控脚本把 8 台温度写进 当前温度1..8",
             },
             Factory = () =>
             {
                 var d = new ProjectData();
                 AddSemiEquipment(d);
 
-                d.Flows.Add(TblFlow("分选循环", FlowRole.Main,
+                // ================= 全 Lua 脚本流程（变量握手） =================
+                // 角色分工：
+                //   主控脚本(Main)    ：按「上料请求/完成 → 测试请求/完成 → 分选请求/完成」串起一拍
+                //   上料/测试/分选脚本(Main)：各自循环，只认自己的请求变量，互不直接调用
+                //   温控脚本(StartupLoop)：开机后循环读 8 台温控器
+                //   复位脚本(Reset) / 退出脚本(BeforeExit)：单次执行
+                d.Flows.Add(LuaFlow("主控脚本", FlowRole.Main,
+                    """
+                    -- 主控脚本：与上料/测试/分选三个脚本用变量握手，每次循环完成一盘 8 颗
+                    -- 约定：上料请求/上料完成、测试请求/测试完成/测试Bin、分选请求/分选完成
+                    if EStop() then return end
+                    if IO.Get('启动') ~= '1' then
+                        Variable.Set('当前工序', '等待启动')
+                        return
+                    end
+                    -- 上一盘还没走完（请求仍为 1）则空转
+                    if (tonumber(Variable.Get('上料请求')) or 0) == 1 then
+                        WaitStep(100)
+                        return
+                    end
 
-                    CommentStep("分选循环" + " 流程示例"),
-                    WaitIO("启动", "1", 3000),
-                    SetIO("运行", "1"),
-                    SetIO("真空总阀", "1"),
-                    CylOut("上料吸嘴1"),
-                    WaitStep(200),
-                    CommSend("测试机GPIB", "MEAS:BIN?"),
-                    WaitIO("测试完成", "1", 5000),
-                    CylBack("上料吸嘴1"),
-                    CylOut("下料吸嘴1"),
-                    WaitStep(200),
-                    MoveAxis("搬运X", 200, 600),
-                    CylBack("下料吸嘴1"),
-                    MoveAxis("搬运Z", 0, 400),
-                    SetIO("完成", "1"),
-                    WaitStep(200)));
+                    local t0 = os.time()
+                    local tStart = t0
+                    -- 1) 上料
+                    Variable.Set('当前工序', '上料中')
+                    Variable.Set('上料完成', 0)
+                    Variable.Set('上料请求', 1)
+                    while (tonumber(Variable.Get('上料完成')) or 0) ~= 1 do
+                        if EStop() then Variable.Set('上料请求', 0); return end
+                        if os.time() - t0 > 30 then
+                            Variable.Set('报警信息', '上料超时')
+                            Variable.Set('上料请求', 0)
+                            return
+                        end
+                        WaitStep(50)
+                    end
+                    Variable.Set('上料请求', 0)
 
-                d.Flows.Add(TblFlow("分选复位", FlowRole.Reset,
+                    -- 2) 测试
+                    t0 = os.time()
+                    Variable.Set('当前工序', '测试中')
+                    Variable.Set('测试完成', 0)
+                    Variable.Set('测试请求', 1)
+                    while (tonumber(Variable.Get('测试完成')) or 0) ~= 1 do
+                        if EStop() then Variable.Set('测试请求', 0); return end
+                        if os.time() - t0 > 30 then
+                            Variable.Set('报警信息', '测试超时')
+                            Variable.Set('测试请求', 0)
+                            return
+                        end
+                        WaitStep(50)
+                    end
+                    Variable.Set('测试请求', 0)
+                    local bin = tonumber(Variable.Get('测试Bin')) or 0
+                    Variable.Set('当前Bin', bin)
 
-                    CommentStep("分选复位" + " 流程示例"),
-                    SetIO("报警", "0"),
-                    SetIO("真空总阀", "0"),
-                    CylBack("上料吸嘴1"),
-                    CylBack("下料吸嘴1"),
-                    HomeAxis("搬运X"), HomeAxis("搬运Y"), HomeAxis("搬运Z"),
-                    SetIO("就绪", "1")));
+                    -- 3) 分选
+                    t0 = os.time()
+                    Variable.Set('当前工序', '分选中')
+                    Variable.Set('分选完成', 0)
+                    Variable.Set('分选请求', 1)
+                    while (tonumber(Variable.Get('分选完成')) or 0) ~= 1 do
+                        if EStop() then Variable.Set('分选请求', 0); return end
+                        if os.time() - t0 > 30 then
+                            Variable.Set('报警信息', '分选超时')
+                            Variable.Set('分选请求', 0)
+                            return
+                        end
+                        WaitStep(50)
+                    end
+                    Variable.Set('分选请求', 0)
+
+                    -- 4) 计数
+                    local total = (tonumber(Variable.Get('总数')) or 0) + 1
+                    Variable.Set('总数', total)
+                    Variable.Set('计数', total)
+                    if bin == 1 then
+                        Variable.Set('良品数', (tonumber(Variable.Get('良品数')) or 0) + 1)
+                    else
+                        Variable.Set('不良品数', (tonumber(Variable.Get('不良品数')) or 0) + 1)
+                    end
+                    Variable.Set('当前工序', '完成')
+                    Variable.Set('报警信息', '')
+                    Variable.Set('节拍', os.time() - tStart)
+                    Print(string.format('第 %d 盘完成，Bin=%d', total, bin))
+                    WaitStep(200)
+                    """));
+
+                d.Flows.Add(LuaFlow("上料脚本", FlowRole.Main,
+                    """
+                    -- 上料脚本：等「上料请求」→ 8 个吸嘴从进料仓取料 → 搬到测试位放料
+                    if EStop() then return end
+                    if (tonumber(Variable.Get('上料请求')) or 0) ~= 1 then WaitStep(50); return end
+                    if (tonumber(Variable.Get('上料完成')) or 0) == 1 then WaitStep(50); return end
+
+                    IO.Set('运行指示', 1)
+                    IO.Set('真空泵供电', 1)
+                    IO.Set('上料照明灯', 1)
+                    if IO.Get('进料仓料盘有无') ~= '1' then
+                        Variable.Set('报警信息', '进料仓无料盘')
+                        WaitStep(200)
+                        return
+                    end
+
+                    Axis.MoveAbs('上料X轴', 0, 800); Axis.WaitDone('上料X轴')
+                    Axis.MoveAbs('上料Y轴', 0, 600); Axis.WaitDone('上料Y轴')
+                    Axis.MoveAbs('进料仓Z轴', 0, 300); Axis.WaitDone('进料仓Z轴')
+                    for i = 1, 8 do Cylinder.Out('上料吸嘴' .. i) end
+                    WaitStep(300)
+                    Axis.MoveAbs('进料仓Z轴', 50, 300); Axis.WaitDone('进料仓Z轴')
+                    Axis.MoveAbs('搬运X轴', 300, 800); Axis.WaitDone('搬运X轴')
+                    Axis.MoveAbs('前梭车X轴', 0, 800); Axis.WaitDone('前梭车X轴')
+                    for i = 1, 8 do Cylinder.Back('上料吸嘴' .. i) end
+                    WaitStep(200)
+
+                    Variable.Set('上料完成', 1)
+                    Print('上料完成：8 颗')
+                    """));
+
+                d.Flows.Add(LuaFlow("测试脚本", FlowRole.Main,
+                    """
+                    -- 测试脚本：等「测试请求」→ 前压头下压 → GPIB 读 Bin → 抬起
+                    if EStop() then return end
+                    if (tonumber(Variable.Get('测试请求')) or 0) ~= 1 then WaitStep(50); return end
+                    if (tonumber(Variable.Get('测试完成')) or 0) == 1 then WaitStep(50); return end
+
+                    Axis.MoveAbs('前压头Z轴', 0, 200); Axis.WaitDone('前压头Z轴')
+                    WaitStep(300)
+                    CommSend('测试机GPIB', 'MEAS:BIN?')
+                    WaitStep(500)
+                    local raw = CommRecv('测试机GPIB')
+                    local bin = tonumber(string.match(tostring(raw), '(%d+)')) or 0
+                    Variable.Set('测试Bin', bin)
+                    Variable.Set('测试压力', 100)
+                    Axis.MoveAbs('前压头Z轴', 20, 200); Axis.WaitDone('前压头Z轴')
+
+                    Variable.Set('测试完成', 1)
+                    Print('测试完成，Bin=' .. tostring(bin))
+                    """));
+
+                d.Flows.Add(LuaFlow("分选脚本", FlowRole.Main,
+                    """
+                    -- 分选脚本：等「分选请求」→ 按「当前Bin」选落点 → 8 个下料吸嘴放料
+                    if EStop() then return end
+                    if (tonumber(Variable.Get('分选请求')) or 0) ~= 1 then WaitStep(50); return end
+                    if (tonumber(Variable.Get('分选完成')) or 0) == 1 then WaitStep(50); return end
+
+                    local bin = tonumber(Variable.Get('当前Bin')) or 0
+                    local x, y = 200, 400      -- 默认放 Auto3（不良品）
+                    if bin == 1 then x, y = 200, 0
+                    elseif bin == 2 then x, y = 200, 200 end
+
+                    for i = 1, 8 do Cylinder.Out('下料吸嘴' .. i) end
+                    WaitStep(300)
+                    Axis.MoveAbs('下料X轴', x, 600); Axis.WaitDone('下料X轴')
+                    Axis.MoveAbs('下料Y轴', y, 600); Axis.WaitDone('下料Y轴')
+                    for i = 1, 8 do Cylinder.Back('下料吸嘴' .. i) end
+                    WaitStep(200)
+
+                    Variable.Set('分选完成', 1)
+                    Print(string.format('分选完成：Bin=%d → (%d,%d)', bin, x, y))
+                    """));
+
+                d.Flows.Add(LuaFlow("温控脚本", FlowRole.StartupLoop,
+                    """
+                    -- 温控脚本（开机循环）：读 8 台温控器当前温度 → 当前温度1..8
+                    for i = 1, 8 do
+                        CommSend('温控器' .. i, 'RH,1,0,1')
+                        local raw = CommRecv('温控器' .. i)
+                        local t = tonumber(string.match(tostring(raw), '[-%d%.]+'))
+                        if t then Variable.Set('当前温度' .. i, t) end
+                    end
+                    WaitStep(1000)
+                    """));
+
+                d.Flows.Add(LuaFlow("复位脚本", FlowRole.Reset,
+                    """
+                    -- 复位脚本：关输出 → 16 吸嘴缩回 → 上料 20 轴 + 下料 25 轴逐个回零
+                    IO.Set('运行指示', 0)
+                    IO.Set('报警指示', 0)
+                    IO.Set('真空泵供电', 0)
+                    IO.Set('上料照明灯', 0)
+                    IO.Set('下料照明灯', 0)
+                    for i = 1, 8 do
+                        Cylinder.Back('上料吸嘴' .. i)
+                        Cylinder.Back('下料吸嘴' .. i)
+                    end
+
+                    -- 上料侧 20 轴
+                    local up = { '上料X轴', '搬运X轴', '上料Y轴', '进料仓Z轴', '出盘仓Z轴', '空盘仓Z轴',
+                                 '上料旋转U轴', '上料变距X轴', '上料变距Y轴', '进料仓Y轴', '出盘仓Y轴', '空盘仓Y轴' }
+                    for _, name in ipairs(up) do Axis.Home(name); Axis.WaitDone(name) end
+                    for i = 1, 8 do
+                        local n = '上料吸嘴' .. i .. 'Z轴'
+                        Axis.Home(n); Axis.WaitDone(n)
+                    end
+
+                    -- 下料侧 25 轴
+                    local dn = { '前压头Z轴', '后压头Z轴', '前压头Y轴', '后压头Y轴', '前梭车X轴', '后梭车X轴',
+                                 'Auto1Z轴', 'Auto2Z轴', 'Auto3Z轴', '下料旋转U轴', '下料X轴', '下料Y轴',
+                                 '下料变距X轴', '下料变距Y轴', 'Auto1Y轴', 'Auto2Y轴', 'Auto3Y轴' }
+                    for _, name in ipairs(dn) do Axis.Home(name); Axis.WaitDone(name) end
+                    for i = 1, 8 do
+                        local n = '下料吸嘴' .. i .. 'Z轴'
+                        Axis.Home(n); Axis.WaitDone(n)
+                    end
+
+                    Variable.Set('当前工序', '复位完成')
+                    Variable.Set('报警信息', '')
+                    Print('复位完成：45 轴回零')
+                    """));
+
+                d.Flows.Add(LuaFlow("退出脚本", FlowRole.BeforeExit,
+                    """
+                    -- 退出脚本（关闭软件前执行）：Z 轴抬到安全位 → 吸嘴缩回 → 关真空/照明/指示
+                    Axis.MoveAbs('前压头Z轴', 20, 200); Axis.WaitDone('前压头Z轴')
+                    Axis.MoveAbs('后压头Z轴', 20, 200); Axis.WaitDone('后压头Z轴')
+                    Axis.MoveAbs('进料仓Z轴', 50, 300); Axis.WaitDone('进料仓Z轴')
+                    Axis.MoveAbs('出盘仓Z轴', 50, 300); Axis.WaitDone('出盘仓Z轴')
+                    Axis.MoveAbs('空盘仓Z轴', 50, 300); Axis.WaitDone('空盘仓Z轴')
+                    for i = 1, 8 do
+                        Cylinder.Back('上料吸嘴' .. i)
+                        Cylinder.Back('下料吸嘴' .. i)
+                    end
+                    IO.Set('真空泵供电', 0)
+                    IO.Set('上料照明灯', 0)
+                    IO.Set('下料照明灯', 0)
+                    IO.Set('运行指示', 0)
+                    Variable.Set('当前工序', '已退出')
+                    Print('退出前处理完成')
+                    """));
                 return d;
             },
         };
@@ -2524,6 +2828,10 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             return f;
         }
 
+        // 脚本流程：整段逻辑写在 LuaSource 里，脚本之间通过工程变量（Variable.Get / Variable.Set）握手
+        private static FlowItem LuaFlow(string name, FlowRole role, string lua)
+            => new() { Name = name, Kind = FlowKind.Lua, Role = role, LuaSource = lua };
+
         // 流程步骤构造助手（Name 取自首个参数：模板调用时已传入与所建对象一致的名字，
         // 这样示例流程的「名称」列直接指向真实存在的轴/IO/气缸/通讯，落库后下拉即可选中、运行器能解析）。
         private static FlowStep WaitIO(string ioName, string value, int timeoutMs)
@@ -2532,6 +2840,9 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             => new() { Logic = "就", Function = "轴", Property = "位置", Operation = "走到位置", SetValue = position.ToString("0.##"), DurationMs = durationMs, Name = axisName };
         private static FlowStep HomeAxis(string axisName)
             => new() { Logic = "就", Function = "轴", Property = "速度", Operation = "设为", SetValue = "0", Timeout = "空", Name = axisName };
+        // 真正的回零步骤：运行器 ExecAxis 按 Operation=回零 调 HomeAxis 并等待到位。
+        private static FlowStep HomeStep(string axisName)
+            => new() { Logic = "就", Function = "轴", Property = "位置", Operation = "回零", SetValue = "", Name = axisName };
         private static FlowStep CylOut(string cylId)
             => new() { Logic = "就", Function = "气缸", Property = "电磁阀", Operation = "伸出", SetValue = "伸出", Name = cylId };
         private static FlowStep CylBack(string cylId)
