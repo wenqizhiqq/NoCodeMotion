@@ -7,14 +7,14 @@
 //   改动: 仅行尾归一化为 LF、加 #nullable disable；命名空间与逻辑保持原样。
 // ────────────────────────────────────────────────────────────────
 #nullable disable
-using WenQiZhi.Domain.MotionCard.Common;
+using NoCodeMotion.Services.Hardware.Cards;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common
+namespace NoCodeMotion.Services.Hardware.Cards
 {
     internal class ProjectHardwareStruct
     {
@@ -49,7 +49,7 @@ namespace WenQiZhi.Domain.MotionCard.Common
         /// <summary>
         /// 是否为虚拟IO
         /// </summary>
-        public bool IsVitualIO { get; set; }
+        public bool IsVirtualIO { get; set; }
 
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace WenQiZhi.Domain.MotionCard.Common
         /// <summary>
         /// 是否为虚拟IO
         /// </summary>
-        public bool IsVitualIO { get; set; }
+        public bool IsVirtualIO { get; set; }
 
         /// <summary>
         /// IO端口号是从0开始还是从1开始（每种卡都可能有差别，注意看手册）
@@ -137,22 +137,22 @@ namespace WenQiZhi.Domain.MotionCard.Common
         /// <summary>
         /// 卡已经打开
         /// </summary>
-        public bool isOpen { get; set; } = false;
+        public bool IsOpen { get; set; } = false;
 
         /// <summary>
         /// 卡已经初始化
         /// </summary>
-        public bool isInit { get; set; } = false;
+        public bool IsReady { get; set; } = false;
 
         /// <summary>
         /// 同型号多卡的数量
         /// </summary>
-        public ushort CardSum { get; set; } = 1;
+        public ushort CardCount { get; set; } = 1;
 
         /// <summary>
         /// 虚拟卡，方便脱机调试
         /// </summary>
-        public bool IsVitualCard { get; set; } = false;
+        public bool IsVirtualCard { get; set; } = false;
 
 
         /// <summary>

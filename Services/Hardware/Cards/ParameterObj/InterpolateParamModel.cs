@@ -9,7 +9,7 @@
 #nullable disable
 using System.Collections.Generic;
 
-namespace WenQiZhi.Domain.MotionCard.Common
+namespace NoCodeMotion.Services.Hardware.Cards
 {
 
     /// <summary>

@@ -10,7 +10,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
+namespace NoCodeMotion.Services.Hardware.Cards.Families.HY7X00
 {
     public class HY7X00SDK
     {
@@ -64,7 +64,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public string GetErrorInfo(int errorNumber)
         {
             var msg = string.Empty;
             Dictionary<int, string> dic = new Dictionary<int, string>()
@@ -82,9 +82,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                 {24,"ERR_FIRMWARE_CARD_NOT_SUPPORT(控制器不支持的功能)" },
                 {10010,"ERR_INVALID_PARA(圆弧插补，查看给定参数是否能绘制圆弧(起点到圆心长度和终点到圆心长度不一致、三点圆弧时是否在一条直线上))" }
             };
-            if (dic.ContainsKey(ErrNum))
+            if (dic.ContainsKey(errorNumber))
             {
-                return dic[ErrNum];
+                return dic[errorNumber];
             }
             return "unkown errNum";
 
@@ -122,7 +122,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="bitno"></param>
         /// <param name="on_off">输入电平，0：低电平，1：高电平</param>
         /// <returns></returns>
-        public int SetCardWriteInBit(int CardNo, int bitno, int on_off)
+        public int SetCardWriteInBit(int cardIndex, int bitno, int on_off)
         {
             return 0;
         }
@@ -153,7 +153,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// 控制卡软复位函数
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardSoftReset(ushort CardNo)
+        public int CardSoftReset(ushort cardIndex)
         {//card待修改
             UInt16 card = 0;
             return (int)PCI400.PCI400_card_reset(card);
@@ -236,9 +236,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">卡号</param>
         /// <param name="CardVersion">返回控制卡硬件版本号 </param>
         /// <returns>错误代码</returns>
-        public int GetCardVersion(int CardNo, ref UInt32 CardVersion)
+        public int GetCardVersion(int cardIndex, ref UInt32 CardVersion)
         {
-            return (int)PCI400.PCI400_get_card_version((ushort)CardNo);
+            return (int)PCI400.PCI400_get_card_version((ushort)cardIndex);
         }
 
         /// <summary>
@@ -248,10 +248,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="FirmID">返回控制卡固件类型</param>
         /// <param name="SubFirmID"> 返回控制卡固件版本号 </param>
         /// <returns>错误代码</returns>
-        public int GetCardSoftVersion(int CardNo, ref UInt32 FirmID, ref UInt32 SubFirmID)
+        public int GetCardSoftVersion(int cardIndex, ref UInt32 FirmID, ref UInt32 SubFirmID)
         {
             ushort firemID = 0;
-            int error = (int)PCI400.PCI400_get_card_soft_version((ushort)CardNo, ref firemID, ref SubFirmID); FirmID = Convert.ToUInt32(firemID);
+            int error = (int)PCI400.PCI400_get_card_soft_version((ushort)cardIndex, ref firemID, ref SubFirmID); FirmID = Convert.ToUInt32(firemID);
             return error;
         }
 
@@ -272,9 +272,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">卡号</param>
         /// <param name="TotalAxis">返回当前卡的轴数</param>
         /// <returns>当前控制卡总轴数</returns>
-        public int GetCardTotalAxisNum(int CardNo, ref UInt32 TotalAxis)
+        public int GetAxisCount(int cardIndex, ref UInt32 totalAxisCount)
         {
-            TotalAxis = PCI400.PCI400_get_total_axes((UInt16)CardNo);
+            totalAxisCount = PCI400.PCI400_get_total_axes((UInt16)cardIndex);
             return 0;
         }
 
@@ -287,9 +287,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">卡号</param>
         /// <param name="FileName">文件路径：| 相对路径 ：参数文件名+后缀：|  绝对路径：完整描述参数文件的路径+文件名后缀</param>
         /// <returns>错误代码</returns>
-        public int GetCardDownloadConfigfile(int CardNo, string FileName = "AxisPara.ini")
+        public int GetCardDownloadConfigfile(int cardIndex, string FileName = "AxisPara.ini")
         {
-            return (int)PCI400.PCI400_LoadConfig((UInt16)CardNo, FileName);
+            return (int)PCI400.PCI400_LoadConfig((UInt16)cardIndex, FileName);
         }
 
         /// <summary>
@@ -301,7 +301,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">卡号</param>
         /// <param name="FileName">文件路径：</param>
         /// <returns>错误代码</returns>
-        public int GetCardDownloadFirmware(int CardNo, string FileName)
+        public int GetCardDownloadFirmware(int cardIndex, string FileName)
         {
             return 0;
         }
@@ -323,9 +323,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <para>5：正方向脉冲: PULSE输出端：高电平 ；DIR 输出端：低电平 | 负方向脉冲: PULSE输出端: 低电平  ；DIR 输出端:高电平</para>
         /// </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisPulseOutMode(int CardNo, int axis, int outmode)
+        public int SetCardAxisPulseOutMode(int cardIndex, int axis, int outmode)
         {
-            return (int)PCI400.PCI400_set_pulse_outmode((ushort)CardNo, (ushort)axis, (ushort)outmode);
+            return (int)PCI400.PCI400_set_pulse_outmode((ushort)cardIndex, (ushort)axis, (ushort)outmode);
         }
 
         /// <summary>
@@ -342,9 +342,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <para>5：正方向脉冲: PULSE输出端：高电平 ；DIR 输出端：低电平 | 负方向脉冲: PULSE输出端: 低电平  ；DIR 输出端:高电平</para>
         /// </param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisPulseOutMode(int CardNo, int axis, ref UInt16 outmode)
+        public int GetCardAxisPulseOutMode(int cardIndex, int axis, ref UInt16 outmode)
         {
-            return (int)PCI400.PCI400_get_pulse_outmode((ushort)CardNo, (ushort)axis, ref outmode);
+            return (int)PCI400.PCI400_get_pulse_outmode((ushort)cardIndex, (ushort)axis, ref outmode);
         }
         #endregion
 
@@ -357,7 +357,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis"></param>
         /// <param name="enable"></param>
         /// <returns></returns>
-        public int SetCardAxisHomeElReturn(int CardNo, int axis, ushort enable)
+        public int SetCardAxisHomeElReturn(int cardIndex, int axis, ushort enable)
         {
             /*
              short dmc_set_home_el_return(WORD CardNo,WORD axis,WORD enable)
@@ -383,9 +383,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="org_logic">ORG 信号有效电平，0：低有效，1：高有效 </param>
         /// <param name="filter">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHomePinLogic(int CardNo, int axis, int org_logic, double filter)
+        public int SetCardAxisHomePinLogic(int cardIndex, int axis, int org_logic, double filter)
         {
-            return (int)PCI400.PCI400_config_HOME_PIN_logic((ushort)CardNo, (ushort)axis, (ushort)org_logic, (ushort)filter);
+            return (int)PCI400.PCI400_config_HOME_PIN_logic((ushort)cardIndex, (ushort)axis, (ushort)org_logic, (ushort)filter);
         }
 
         /// <summary>
@@ -396,10 +396,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="org_logic">ORG 信号有效电平，0：低有效，1：高有效 </param>
         /// <param name="filter">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHomePinLogic(int CardNo, int axis, ref UInt16 org_logic, ref double filter)
+        public int GetCardAxisHomePinLogic(int cardIndex, int axis, ref UInt16 org_logic, ref double filter)
         {
             ushort f1 = 0;
-            int error = (int)PCI400.PCI400_get_config_HOME_PIN_logic((ushort)CardNo, (ushort)axis, ref org_logic, ref f1); filter = f1;
+            int error = (int)PCI400.PCI400_get_config_HOME_PIN_logic((ushort)cardIndex, (ushort)axis, ref org_logic, ref f1); filter = f1;
             return error;
         }
 
@@ -417,9 +417,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="mode">回零模式：0：一次回零  | 1：一次回零加回找  | 2：二次回零  | 3：一次回零后再记一个同向 EZ 脉冲进行回零  | 4：记一个 EZ 脉冲进行回零  | 5：原点加反向 EZ  | 6：原点锁存  | 7：原点锁存加同向 EZ 锁存  | 8：单独记一个 EZ 锁存  | 9：原点锁存加反向 EZ 锁存 | 10.一次限位回零 | 11.	一次限位回零加反找 | 12.	二次限位回零</param>
         /// <param name="EZ_count">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHomeMode(int CardNo, int axis, int home_dir, double vel, int mode, int EZ_count)
+        public int SetCardAxisHomeMode(int cardIndex, int axis, int home_dir, double vel, int mode, int ezCount)
         {
-            return (int)PCI400.PCI400_config_home_mode((ushort)CardNo, (ushort)axis, (ushort)home_dir, vel, (ushort)mode, (ushort)EZ_count);
+            return (int)PCI400.PCI400_config_home_mode((ushort)cardIndex, (ushort)axis, (ushort)home_dir, vel, (ushort)mode, (ushort)ezCount);
         }
 
         /// <summary>
@@ -435,9 +435,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="mode">回零模式：0：一次回零  | 1：一次回零加回找  | 2：二次回零  | 3：一次回零后再记一个同向 EZ 脉冲进行回零  | 4：记一个 EZ 脉冲进行回零  | 5：原点加反向 EZ  | 6：原点锁存  | 7：原点锁存加同向 EZ 锁存  | 8：单独记一个 EZ 锁存  | 9：原点锁存加反向 EZ 锁存 | 10.一次限位回零 | 11.	一次限位回零加反找 | 12.	二次限位回零</param>
         /// <param name="EZ_count">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHomeMode(int CardNo, int axis, ref UInt16 home_dir, ref double vel, ref UInt16 mode, ref UInt16 EZ_count)
+        public int GetCardAxisHomeMode(int cardIndex, int axis, ref UInt16 home_dir, ref double vel, ref UInt16 mode, ref UInt16 ezCount)
         {
-            return (int)PCI400.PCI400_get_config_home_mode((ushort)CardNo, (ushort)axis, ref home_dir, ref vel, ref mode, ref EZ_count);
+            return (int)PCI400.PCI400_get_config_home_mode((ushort)cardIndex, (ushort)axis, ref home_dir, ref vel, ref mode, ref ezCount);
         }
 
         /// <summary>
@@ -446,9 +446,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>错误代码</returns>
-        public int CardAxisHomeMove(int CardNo, int axis)
+        public int CardAxisHomeMove(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_home_move((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_home_move((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -458,9 +458,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis"></param>
         /// <param name="status">回零执行状态，1：回零完成，0：回零未完成</param>
         /// <returns></returns>
-        public int CardAxisGetHomeResult(int CardNo, int axis, ref ushort status)
+        public int CardAxisGetHomeResult(int cardIndex, int axis, ref ushort status)
         {
-            var homeStatus = PCI400.PCI400_home_stopreason((ushort)CardNo, (ushort)axis);
+            var homeStatus = PCI400.PCI400_home_stopreason((ushort)cardIndex, (ushort)axis);
             ushort low = (ushort)(homeStatus & 0xffff);
             ushort high = (ushort)(homeStatus >> 16);
             if (low == 0)
@@ -497,9 +497,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="logic">触发方式，0：下降沿，1：上升沿 </param>
         /// <param name="source">位置源选择，0：指令位置计数器，1：编码器计数器 </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHomelatchMode(int CardNo, int axis, UInt16 enable, UInt16 logic, UInt16 source)
+        public int SetCardAxisHomelatchMode(int cardIndex, int axis, UInt16 enable, UInt16 logic, UInt16 source)
         {
-            return (int)PCI400.PCI400_set_homelatch_mode((ushort)CardNo, (ushort)axis, enable, logic, source);
+            return (int)PCI400.PCI400_set_homelatch_mode((ushort)cardIndex, (ushort)axis, enable, logic, source);
         }
 
         /// <summary>
@@ -512,9 +512,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="logic"> 返回触发方式 ，0：下降沿，1：上升沿 </param>
         /// <param name="source">返回位置源选择，0：指令位置计数器，1：编码器计数器 </param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHomelatchMode(int CardNo, int axis, UInt16 enable, UInt16 logic, UInt16 source)
+        public int GetCardAxisHomelatchMode(int cardIndex, int axis, UInt16 enable, UInt16 logic, UInt16 source)
         {
-            return (int)PCI400.PCI400_get_homelatch_mode((ushort)CardNo, (ushort)axis, ref enable, ref logic, ref source);
+            return (int)PCI400.PCI400_get_homelatch_mode((ushort)cardIndex, (ushort)axis, ref enable, ref logic, ref source);
         }
 
         /// <summary>
@@ -523,9 +523,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>错误代码</returns>
-        public int ClearCardAxisHomelatchFlag(int CardNo, int axis)
+        public int ClearCardAxisHomelatchFlag(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_reset_homelatch_flag((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_reset_homelatch_flag((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -534,9 +534,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>原点锁存标志，0：未锁存，1：锁存 </returns>
-        public int GetCardAxisHomelatchFlag(int CardNo, int axis)
+        public int GetCardAxisHomelatchFlag(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_get_homelatch_flag((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_get_homelatch_flag((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -545,9 +545,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>锁存值，单位：pulse </returns>
-        public int GetCardAxisHomelatchValue(int CardNo, int axis)
+        public int GetCardAxisHomelatchValue(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_get_homelatch_value((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_get_homelatch_value((ushort)cardIndex, (ushort)axis);
         }
 
         #endregion
@@ -563,10 +563,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="el_logic">EL 信号的有效电平：0：正负限位低电平有效 1：正负限位高电平有效 2：正限位低有效，负限位高有效 3：正限位高有效，负限位低有效</param>
         /// <param name="el_mode">EL 制动方式：0：正负限位立即停止  1：正负限位减速停止  2：正限位立即停止，负限位减速停止</param>
         /// <returns>错误代码 </returns>
-        public int SetCardAxisELMode(int CardNo, int axis, UInt16 el_enable, UInt16 el_logic, UInt16 el_mode)
+        public int SetCardAxisELMode(int cardIndex, int axis, UInt16 el_enable, UInt16 el_logic, UInt16 el_mode)
         {
             if (el_mode != 1 || el_mode != 0) el_mode = 0;
-            return (int)PCI400.PCI400_config_EL_PIN((ushort)CardNo, (ushort)axis, el_enable, el_logic, el_mode);
+            return (int)PCI400.PCI400_config_EL_PIN((ushort)cardIndex, (ushort)axis, el_enable, el_logic, el_mode);
         }
 
         /// <summary>
@@ -578,9 +578,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="el_logic"> 返回设置的 EL 信号有效电平 </param>
         /// <param name="el_mode">返回 EL 制动方式</param>
         /// <returns>错误代码 </returns>
-        public int GetCardAxisELMode(int CardNo, int axis, ref UInt16 el_enable, ref UInt16 el_logic, ref UInt16 el_mode)
+        public int GetCardAxisELMode(int cardIndex, int axis, ref UInt16 el_enable, ref UInt16 el_logic, ref UInt16 el_mode)
         {
-            return (int)PCI400.PCI400_get_config_EL_PIN((ushort)CardNo, (ushort)axis, ref el_enable, ref el_logic, ref el_mode);
+            return (int)PCI400.PCI400_get_config_EL_PIN((ushort)cardIndex, (ushort)axis, ref el_enable, ref el_logic, ref el_mode);
         }
 
         /// <summary>
@@ -596,9 +596,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="N_limit">负限位位置，单位：pulse </param>
         /// <param name="P_limit">正限位位置，单位：pulse </param>
         /// <returns>错误代码 </returns>
-        public int SetCardAxisSoftLimit(int CardNo, int axis, UInt16 enable, UInt16 source_sel, UInt16 SL_action, Int32 N_limit, Int32 P_limit)
+        public int SetCardAxisSoftLimit(int cardIndex, int axis, UInt16 enable, UInt16 source_sel, UInt16 slActionValue, Int32 negativeLimit, Int32 positiveLimit)
         {
-            return (int)PCI400.PCI400_config_softlimit((ushort)CardNo, (ushort)axis, enable, source_sel, SL_action, N_limit, P_limit);
+            return (int)PCI400.PCI400_config_softlimit((ushort)cardIndex, (ushort)axis, enable, source_sel, slActionValue, negativeLimit, positiveLimit);
         }
 
         /// <summary>
@@ -612,9 +612,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="N_limit">返回负限位脉冲数</param>
         /// <param name="P_limit">返回正限位脉冲数</param>
         /// <returns>错误代码 </returns>
-        public int GetCardAxisSoftLimit(int CardNo, int axis, ref UInt16 enable, ref UInt16 source_sel, ref UInt16 SL_action, ref Int32 N_limit, ref Int32 P_limit)
+        public int GetCardAxisSoftLimit(int cardIndex, int axis, ref UInt16 enable, ref UInt16 source_sel, ref UInt16 slActionValue, ref Int32 negativeLimit, ref Int32 positiveLimit)
         {
-            return (int)PCI400.PCI400_get_config_softlimit((ushort)CardNo, (ushort)axis, ref enable, ref source_sel, ref SL_action, ref N_limit, ref P_limit);
+            return (int)PCI400.PCI400_get_config_softlimit((ushort)cardIndex, (ushort)axis, ref enable, ref source_sel, ref slActionValue, ref negativeLimit, ref positiveLimit);
         }
 
         #endregion
@@ -641,9 +641,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>指令脉冲位置，单位：pulse </returns>
-        public int GetCardAxisPosition(int CardNo, int axis)
+        public int GetCardAxisPosition(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_get_position((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_get_position((ushort)cardIndex, (ushort)axis);
         }
 
         #endregion
@@ -658,9 +658,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：HY7C00/7800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>指定轴的速度，单位：pulse/s</returns>
-        public double GetCardAxisCurrentSpeed(int CardNo, int axis)
+        public double GetCardAxisCurrentSpeed(int cardIndex, int axis)
         {
-            return PCI400.PCI400_read_current_speed((ushort)CardNo, (ushort)axis);
+            return PCI400.PCI400_read_current_speed((ushort)cardIndex, (ushort)axis);
         }
 
 
@@ -670,9 +670,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="State">连接状态，0：连接，1：断开</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetCardLinkState(int CardNo, ref UInt16 State)
+        public int GetCardLinkState(int cardIndex, ref UInt16 State)
         {
-            return (int)PCI400.PCI400_get_link_state((ushort)CardNo, ref State);
+            return (int)PCI400.PCI400_get_link_state((ushort)cardIndex, ref State);
         }
 
         /// <summary>
@@ -681,9 +681,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <returns>0表示指定轴正在运行，1表示指定轴已停止</returns>
-        public int GetCardAxisCheckDone(int CardNo, int axis)
+        public int GetCardAxisCheckDone(int cardIndex, int axis)
         {
-            return PCI400.PCI400_check_done((ushort)CardNo, (ushort)axis);
+            return PCI400.PCI400_check_done((ushort)cardIndex, (ushort)axis);
         }
 
 
@@ -693,9 +693,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">指定控制卡上的坐标系号（取值范围：0~1）</param>
         /// <returns>：坐标系状态，1-插补运行中 2-插补暂停 3-所有轴插补停止</returns>
-        public int GetCardCheckDoneMulticoor(int CardNo, int crd)
+        public int GetCardCheckDoneMulticoor(int cardIndex, int crd)
         {
-            var status = PCI400.PCI400_conti_state_muticoor((ushort)CardNo, (ushort)crd);
+            var status = PCI400.PCI400_conti_state_muticoor((ushort)cardIndex, (ushort)crd);
             if (status != 3)
                 return 0;
             else
@@ -721,9 +721,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <para> 11 、 EA：表示编码器信号 A 相为 ON（HY7X00 卡专用）；0：OFF</para>
         /// <para> 12 、 EB：表示编码器信号 B 相为 ON（HY7X00 卡专用）；0：OFF</para>
         /// </returns>
-        public int GetCardAxisIOStatus(int CardNo, int axis)
+        public int GetCardAxisIOStatus(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_axis_io_status((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_axis_io_status((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -733,11 +733,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <param name="stop_mode">制动方式，0：减速停止，1：紧急停止</param>
         /// <returns>错误代码</returns>
-        public int CardAxisStop(int CardNo, int axis, int stop_mode)
+        public int CardAxisStop(int cardIndex, int axis, int stop_mode)
         {
             if (stop_mode == 0) stop_mode = 1;
             else stop_mode = 0;
-            return (int)PCI400.PCI400_stop((ushort)CardNo, (ushort)axis, (ushort)stop_mode);
+            return (int)PCI400.PCI400_stop((ushort)cardIndex, (ushort)axis, (ushort)stop_mode);
         }
 
         /// <summary>
@@ -748,12 +748,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="crd">指定控制卡上的坐标系号（取值范围：0~1）</param>
         /// <param name="stop_mode">制动方式，0：减速停止，1：立即停止</param>
         /// <returns>错误代码</returns>
-        public int CardAxisStopMulticoor(int CardNo, int crd, int stop_mode)
+        public int CardAxisStopMulticoor(int cardIndex, int crd, int stop_mode)
         {
             if (stop_mode == 0)
-                return (int)PCI400.PCI400_conti_decel_stop_list_muticoor((ushort)CardNo, (ushort)crd/*, (ushort)stop_mode*/);
+                return (int)PCI400.PCI400_conti_decel_stop_list_muticoor((ushort)cardIndex, (ushort)crd/*, (ushort)stop_mode*/);
             else
-                return (int)PCI400.PCI400_conti_sudden_stop_list_muticoor((ushort)CardNo, (ushort)crd/*, (ushort)stop_mode*/);
+                return (int)PCI400.PCI400_conti_sudden_stop_list_muticoor((ushort)cardIndex, (ushort)crd/*, (ushort)stop_mode*/);
         }
 
         /// <summary>
@@ -763,9 +763,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int CardAxisEmgStop(int CardNo)
+        public int CardAxisEmgStop(int cardIndex)
         {
-            return (int)PCI400.PCI400_emg_stop((ushort)CardNo);
+            return (int)PCI400.PCI400_emg_stop((ushort)cardIndex);
         }
 
         #endregion
@@ -783,10 +783,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="Tdec">减速时间，单位：s (最小值为 0.001s)</param>
         /// <param name="stop_vel">停止速度，单位：pulse/s (最大值为 2M)</param>
         /// <returns>：错误代码</returns>
-        public int SetCardAxisProfile(int CardNo, int axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double stop_vel)
+        public int SetCardAxisProfile(int cardIndex, int axis, double minVelocity, double maxVelocity, double acceleration, double deceleration, double stop_vel)
         {
             if (stop_vel < 200) stop_vel = 200;
-            return (int)PCI400.PCI400_set_profile_ex((ushort)CardNo, (ushort)axis, Min_Vel, Max_Vel, stop_vel, Tacc, Tdec);
+            return (int)PCI400.PCI400_set_profile_ex((ushort)cardIndex, (ushort)axis, minVelocity, maxVelocity, stop_vel, acceleration, deceleration);
         }
 
         /// <summary>
@@ -800,9 +800,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="Tdec">返回减速时间，单位：s (最小值为 0.001s)</param>
         /// <param name="stop_vel">返回停止速度，单位：pulse/s (最大值为 2M)</param>
         /// <returns>：错误代码</returns>
-        public int GetCardAxisProfile(int CardNo, int axis, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double stop_vel)
+        public int GetCardAxisProfile(int cardIndex, int axis, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stop_vel)
         {
-            return (int)PCI400.PCI400_get_profile_ex((ushort)CardNo, (ushort)axis, ref Min_Vel, ref Max_Vel, ref stop_vel, ref Tacc, ref Tdec);
+            return (int)PCI400.PCI400_get_profile_ex((ushort)cardIndex, (ushort)axis, ref minVelocity, ref maxVelocity, ref stop_vel, ref acceleration, ref deceleration);
         }
 
         /// <summary>
@@ -814,9 +814,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="s_para">S 段时间，单位：s；范围：0~0.5 s</param>
         /// <returns>错误代码</returns>
         /// 如设置加速段比例为0.1，加速时间为10ms , 则S 段时间为(10*0.1/(1+0.1)) = 0.909ms,总加速时间不变
-        public int SetCardAxisSProfile(int CardNo, int axis, int s_mode, double s_para)
+        public int SetCardAxisSProfile(int cardIndex, int axis, int s_mode, double s_para)
         {
-            return (int)PCI400.PCI400_set_s_profile((ushort)CardNo, (ushort)axis, /*(ushort)s_mode,*/ s_para);
+            return (int)PCI400.PCI400_set_s_profile((ushort)cardIndex, (ushort)axis, /*(ushort)s_mode,*/ s_para);
         }
 
 
@@ -829,9 +829,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">返回设置的 S 段时间，单位：s；范围：0~0.5 s</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisSProfile(int CardNo, int axis, int s_mode, ref double s_para)
+        public int GetCardAxisSProfile(int cardIndex, int axis, int s_mode, ref double s_para)
         {
-            return (int)PCI400.PCI400_get_s_profile((ushort)CardNo, (ushort)axis, /*(ushort)s_mode,*/ ref s_para);
+            return (int)PCI400.PCI400_get_s_profile((ushort)cardIndex, (ushort)axis, /*(ushort)s_mode,*/ ref s_para);
         }
         #endregion
 
@@ -847,9 +847,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="Dist">目标位置，单位：pulse</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int CardAxisPMove(int CardNo, int axis, int Dist, int posi_mode)
+        public int CardAxisPMove(int cardIndex, int axis, int Dist, int posi_mode)
         {
-            return (int)PCI400.PCI400_pmove((ushort)CardNo, (ushort)axis, Dist, (ushort)posi_mode);
+            return (int)PCI400.PCI400_pmove((ushort)cardIndex, (ushort)axis, Dist, (ushort)posi_mode);
         }
 
 
@@ -861,9 +861,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="dir">运动方向，0：负方向，1：正方向</param>
         /// <param name="vel">vmove的速度，单位：脉冲/秒</param>
         /// <returns>错误代码</returns>
-        public int CardAxisVMove(int CardNo, int axis, int dir, double vel)
+        public int CardAxisVMove(int cardIndex, int axis, int dir, double vel)
         {
-            return (int)PCI400.PCI400_vmove((ushort)CardNo, (ushort)axis, (ushort)dir, vel);
+            return (int)PCI400.PCI400_vmove((ushort)cardIndex, (ushort)axis, (ushort)dir, vel);
         }
 
         /// <summary>
@@ -874,9 +874,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="Curr_Vel">改变后的运动速度，单位：pulse/s</param>
         /// <param name="Taccdec">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisChangeSpeed(int CardNo, int axis, double Curr_Vel, double Taccdec)
+        public int CardAxisChangeSpeed(int cardIndex, int axis, double currentVelocity, double accelerationAndDeceleration)
         {
-            return (int)PCI400.PCI400_change_pmove_speed((ushort)CardNo, (ushort)axis, Curr_Vel);
+            return (int)PCI400.PCI400_change_pmove_speed((ushort)cardIndex, (ushort)axis, currentVelocity);
         }
 
         /// <summary>
@@ -888,9 +888,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="posi_mode">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
         /// 注意：该函数以绝对位置模式改变单轴点位运动的目标位置。如果调用该函数时，轴在运动过程中，则进行在线变位置；如果该轴在停止过程中，则执行绝对坐标的点位运动。
-        public int CardAxisResetTargetPosition(int CardNo, int axis, int dist, int posi_mode)
+        public int CardAxisResetTargetPosition(int cardIndex, int axis, int dist, int posi_mode)
         {
-            return (int)PCI400.PCI400_reset_target_position((ushort)CardNo, (ushort)axis, dist/*, (ushort)posi_mode*/);
+            return (int)PCI400.PCI400_reset_target_position((ushort)cardIndex, (ushort)axis, dist/*, (ushort)posi_mode*/);
         }
 
 
@@ -903,9 +903,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="dist">目标位置，单位：pulse</param>
         /// <param name="posi_mode">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisUpdateTargetPosition(int CardNo, int axis, int dist, int posi_mode)
+        public int CardAxisUpdateTargetPosition(int cardIndex, int axis, int dist, int posi_mode)
         {
-            return (int)PCI400.PCI400_set_position((ushort)CardNo, (ushort)axis, dist);
+            return (int)PCI400.PCI400_set_position((ushort)cardIndex, (ushort)axis, dist);
         }
         #endregion
 
@@ -925,9 +925,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="Tdec">保留参数，固定值为 0</param>
         /// <param name="Stop_Vel">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardVectorProfileMulticoor(int CardNo, int Crd, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel)
+        public int SetCardVectorProfileMulticoor(int cardIndex, int crdIndex, double minVelocity, double maxVelocity, double acceleration, double deceleration, double stopVelocity)
         {
-            return (int)PCI400.PCI400_set_vector_profile_muticoor((ushort)CardNo, (ushort)Crd, Min_Vel, Max_Vel, Tacc, Tdec);
+            return (int)PCI400.PCI400_set_vector_profile_muticoor((ushort)cardIndex, (ushort)crdIndex, minVelocity, maxVelocity, acceleration, deceleration);
         }
 
         /// <summary>
@@ -941,9 +941,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="Tdec">保留参数</param>
         /// <param name="Stop_Vel">保留参数</param>
         /// <returns>错误代码</returns>
-        public int GetCardVectorProfileMulticoor(int CardNo, int Crd, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double Stop_Vel)
+        public int GetCardVectorProfileMulticoor(int cardIndex, int crdIndex, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stopVelocity)
         {
-            return (int)PCI400.PCI400_get_vector_profile_muticoor((ushort)CardNo, (ushort)Crd, ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec);
+            return (int)PCI400.PCI400_get_vector_profile_muticoor((ushort)cardIndex, (ushort)crdIndex, ref minVelocity, ref maxVelocity, ref acceleration, ref deceleration);
         }
 
         #endregion
@@ -960,10 +960,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="DistList">插补轴目标位置列表，单位：pulse</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns></returns>
-        public int CardAxisLineMulticoor(int CardNo, int Crd, int axisNum, UInt16[] axisList, int[] DistList, int posi_mode, double synendspeed, double maxVel, double tacc)
+        public int CardAxisLineMulticoor(int cardIndex, int crdIndex, int axisNum, UInt16[] axisList, int[] DistList, int posi_mode, double synendspeed, double maxVel, double tacc)
         {
             if (synendspeed < 30) synendspeed = 30;
-            return (int)PCI400.PCI400_lineN_muticoor((ushort)CardNo, (ushort)Crd, (ushort)axisNum, axisList, DistList, (int)synendspeed, (int)maxVel, tacc, (ushort)posi_mode);
+            return (int)PCI400.PCI400_lineN_muticoor((ushort)cardIndex, (ushort)crdIndex, (ushort)axisNum, axisList, DistList, (int)synendspeed, (int)maxVel, tacc, (ushort)posi_mode);
         }
 
         /// <summary>
@@ -980,12 +980,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="Arc_Dir">圆弧方向，0：顺时针，1：逆时针</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int CardAxisArcMoveMulticoor(int CardNo, int Crd, UInt16[] AxisList, int[] Target_Pos, int[] Cen_Pos, int Arc_Dir, int posi_mode, double synendspeed, double maxVel, double tacc)
+        public int CardAxisArcMoveMulticoor(int cardIndex, int crdIndex, UInt16[] axisNumbers, int[] targetPosition, int[] centerPosition, int Arc_Dir, int posi_mode, double synendspeed, double maxVel, double tacc)
         {
             if (posi_mode == 0)
-                return (int)PCI400.PCI400_rel_arc_move_muticoor((ushort)CardNo, (ushort)Crd, AxisList, Target_Pos, Cen_Pos, (ushort)Arc_Dir, (int)synendspeed, (int)maxVel, tacc);
+                return (int)PCI400.PCI400_rel_arc_move_muticoor((ushort)cardIndex, (ushort)crdIndex, axisNumbers, targetPosition, centerPosition, (ushort)Arc_Dir, (int)synendspeed, (int)maxVel, tacc);
             else
-                return (int)PCI400.PCI400_arc_move_muticoor((ushort)CardNo, (ushort)Crd, AxisList, Target_Pos, Cen_Pos, (ushort)Arc_Dir, (int)synendspeed, (int)maxVel, tacc);
+                return (int)PCI400.PCI400_arc_move_muticoor((ushort)cardIndex, (ushort)crdIndex, axisNumbers, targetPosition, centerPosition, (ushort)Arc_Dir, (int)synendspeed, (int)maxVel, tacc);
         }
 
         #endregion
@@ -1005,9 +1005,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="pTime">数据点时间数组，单位：s（精度：ms）；数组长度：count</param>
         /// <param name="pPos">数据点位置数组，单位：pulse；数组长度：count</param>
         /// <returns>错误代码</returns>
-        public int SendCardAxisPttTable(int CardNo, int axis, UInt32 count, double[] pTime, double[] pPos)
+        public int SendCardAxisPttTable(int cardIndex, int axis, UInt32 count, double[] pTime, double[] pPos)
         {
-            return (int)PCI400.PCI400_pt_fifoin((ushort)CardNo, (ushort)axis, (ushort)count, pTime, pPos);
+            return (int)PCI400.PCI400_pt_fifoin((ushort)cardIndex, (ushort)axis, (ushort)count, pTime, pPos);
         }
 
         /// <summary>
@@ -1023,7 +1023,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="pPos">数据点位置数组，单位：pulse；数组长度：count</param>
         /// <param name="pPercent">数据点百分比数组，百分比的取值范围：[0,100]；数组长度：count</param>
         /// <returns>错误代码</returns>
-        public int SendCardAxisPtsTable(int CardNo, int axis, UInt32 count, double[] pTime, double[] pPos, double[] pPercent, double[] speed, short mode)
+        public int SendCardAxisPtsTable(int cardIndex, int axis, UInt32 count, double[] pTime, double[] pPos, double[] pPercent, double[] speed, short mode)
         {
             return 0;
             //return (int)PCI400.PCI400_pvt_fifoin((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)count, pTime, pPos, speed);
@@ -1042,9 +1042,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="pPos">数据点位置数组，单位：pulse；数组长度：count</param>
         /// <param name="pVel">数据点速度数组，单位：pulse/s；数组长度：count</param>
         /// <returns>错误代码</returns>
-        public int SendCardAxisPvtTable(int CardNo, int axis, UInt32 count, double[] pTime, double[] pPos, double[] pVel, short mode)
+        public int SendCardAxisPvtTable(int cardIndex, int axis, UInt32 count, double[] pTime, double[] pPos, double[] pVel, short mode)
         {
-            return (int)PCI400.PCI400_pvt_fifoin((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)count, pTime, pPos, pVel);
+            return (int)PCI400.PCI400_pvt_fifoin((ushort)cardIndex, (ushort)axis, (ushort)mode, (ushort)count, pTime, pPos, pVel);
         }
 
         /// <summary>
@@ -1061,7 +1061,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="velBegin">设置的第一点的速度，单位：pulse/s</param>
         /// <param name="velEnd">设置的最后一点的速度，单位：pulse/s</param>
         /// <returns>错误代码</returns>
-        public int SendCardAxisPvtsTable(int CardNo, int axis, UInt32 count, double[] pTime, int[] pPos, double velBegin, double velEnd)
+        public int SendCardAxisPvtsTable(int cardIndex, int axis, UInt32 count, double[] pTime, int[] pPos, double velBegin, double velEnd)
         {
             return 0;
             //return LTDMC.dmc_PvtsTable((ushort)CardNo, (ushort)axis, count, pTime, pPos, velBegin, velEnd);
@@ -1074,9 +1074,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="fifoNo">fifo序号</param>
         /// <param name="Axis">轴列表</param>
         /// <returns>错误代码</returns>
-        public int CardAxisPvtMoveStart(int CardNo, int fifoNo, UInt16 Axis, double pPos, int mode, double minVel, double maxVel, double stopVel, double tacc, double tdcc, int mark)
+        public int CardAxisPvtMoveStart(int cardIndex, int fifoNo, UInt16 Axis, double pPos, int mode, double minVel, double maxVel, double stopVel, double tacc, double tdcc, int mark)
         {
-            return (int)PCI400.PCI400_fifo_pmove((ushort)CardNo, (ushort)fifoNo, Axis, (int)pPos, (ushort)mode, minVel, maxVel, stopVel, tacc, tdcc, (ushort)mark);
+            return (int)PCI400.PCI400_fifo_pmove((ushort)cardIndex, (ushort)fifoNo, Axis, (int)pPos, (ushort)mode, minVel, maxVel, stopVel, tacc, tdcc, (ushort)mark);
         }
 
         #endregion
@@ -1091,9 +1091,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围：HY7400/7800：0~7 </param>
         /// <param name="on_off">设置伺服使能端口电平，设定电平状态：0－低电平，对应打开伺服使能    1－高电平，对应关闭伺服使能</param>
         /// <returns>错误代码</returns>
-        public int CardAxisWriteSevonPin(int CardNo, int axis, int on_off)
+        public int CardAxisWriteSevonPin(int cardIndex, int axis, int on_off)
         {
-            return (int)PCI400.PCI400_write_SEVON_PIN((ushort)CardNo, (ushort)axis, (ushort)on_off);
+            return (int)PCI400.PCI400_write_SEVON_PIN((ushort)cardIndex, (ushort)axis, (ushort)on_off);
         }
 
         /// <summary>
@@ -1102,9 +1102,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：HY7400/7800：0~7</param>
         /// <returns>伺服使能端口电平，0：低电平，1：高电平</returns>
-        public int GetCardAxisSevonPin(int CardNo, int axis)
+        public int GetCardAxisSevonPin(int cardIndex, int axis)
         {
-            return PCI400.PCI400_read_SEVON_PIN((ushort)CardNo, (ushort)axis);
+            return PCI400.PCI400_read_SEVON_PIN((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -1113,9 +1113,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：HY7400/7800：0~7</param>
         /// <returns>RDY 端口电平，0：低电平，1：高电平</returns>
-        public int GetCardAxisRdyPin(int CardNo, int axis)
+        public int GetCardAxisRdyPin(int cardIndex, int axis)
         {
-            return PCI400.PCI400_read_RDY_PIN((ushort)CardNo, (ushort)axis);
+            return PCI400.PCI400_read_RDY_PIN((ushort)cardIndex, (ushort)axis);
         }
 
 
@@ -1129,9 +1129,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">INP 信号使能，0：禁止，1：允许</param>
         /// <param name="inp_logic">INP 信号的有效电平，0：低有效，1：高有效</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisInpMode(int CardNo, int axis, int enable, int inp_logic)
+        public int SetCardAxisInpMode(int cardIndex, int axis, int enable, int inp_logic)
         {
-            return (int)PCI400.PCI400_config_INP_PIN((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)inp_logic);
+            return (int)PCI400.PCI400_config_INP_PIN((ushort)cardIndex, (ushort)axis, (ushort)enable, (ushort)inp_logic);
         }
 
 
@@ -1143,9 +1143,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">返回 INP 信号使能状态</param>
         /// <param name="inp_logic">返回设置的 INP 信号有效电平</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisInpMode(int CardNo, int axis, ref UInt16 enable, ref UInt16 inp_logic)
+        public int GetCardAxisInpMode(int cardIndex, int axis, ref UInt16 enable, ref UInt16 inp_logic)
         {
-            return (int)PCI400.PCI400_get_config_INP_PIN((ushort)CardNo, (ushort)axis, ref enable, ref inp_logic);
+            return (int)PCI400.PCI400_get_config_INP_PIN((ushort)cardIndex, (ushort)axis, ref enable, ref inp_logic);
         }
 
 
@@ -1158,9 +1158,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="alm_logic">ALM 信号的有效电平，0：低有效，1：高有效</param>
         /// <param name="alm_action">ALM 信号的制动方式，0：立即停止（只支持该方式）</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisAlmMode(int CardNo, int axis, int enable, int alm_logic, int alm_action)
+        public int SetCardAxisAlmMode(int cardIndex, int axis, int enable, int alm_logic, int alm_action)
         {
-            return (int)PCI400.PCI400_config_ALM_PIN((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)alm_logic, (ushort)alm_action);
+            return (int)PCI400.PCI400_config_ALM_PIN((ushort)cardIndex, (ushort)axis, (ushort)enable, (ushort)alm_logic, (ushort)alm_action);
         }
 
 
@@ -1173,9 +1173,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="alm_logic">返回设置的 ALM 信号有效电平</param>
         /// <param name="alm_action">返回 ALM 信号的制动方式</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisAlmMode(int CardNo, int axis, UInt16 enable, UInt16 alm_logic, UInt16 alm_action)
+        public int GetCardAxisAlmMode(int cardIndex, int axis, UInt16 enable, UInt16 alm_logic, UInt16 alm_action)
         {
-            return (int)PCI400.PCI400_get_config_ALM_PIN((ushort)CardNo, (ushort)axis, ref enable, ref alm_logic, ref alm_action);
+            return (int)PCI400.PCI400_get_config_ALM_PIN((ushort)cardIndex, (ushort)axis, ref enable, ref alm_logic, ref alm_action);
         }
 
 
@@ -1187,9 +1187,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围：HY7400/7800：0~7</param>
         /// <param name="sel">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisWriteErcPin(int CardNo, int axis, int sel)
+        public int SetCardAxisWriteErcPin(int cardIndex, int axis, int sel)
         {
-            return (int)PCI400.PCI400_write_ERC_PIN((ushort)CardNo, (ushort)axis, (ushort)sel);
+            return (int)PCI400.PCI400_write_ERC_PIN((ushort)cardIndex, (ushort)axis, (ushort)sel);
         }
 
 
@@ -1201,9 +1201,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：HY7400/7800：0~7</param>
         /// <returns>ERC 端口电平，0：低电平，1：高电平</returns>
-        public int GetCardAxisWriteErcPin(int CardNo, int axis)
+        public int GetCardAxisWriteErcPin(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_read_ERC_PIN((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_read_ERC_PIN((ushort)cardIndex, (ushort)axis);
         }
 
 
@@ -1218,9 +1218,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="bitno">输入端口号，取值范围：HY7400:0~35   HY7600:0~29   HY7800:0~23   HY7C00:0~11</param>
         /// <returns>指定的输入端口电平：0：低电平，1：高电平</returns>
-        public int GetCardInBit(int CardNo, int bitno)
+        public int GetCardInBit(int cardIndex, int bitno)
         {
-            return PCI400.PCI400_read_inbit((ushort)CardNo, (ushort)bitno);
+            return PCI400.PCI400_read_inbit((ushort)cardIndex, (ushort)bitno);
         }
 
         /// <summary>
@@ -1234,9 +1234,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// HY7C00:0~23--OUT0-23  24~31--SVON0-7  32~39--ERC0-7</param>
         /// <param name="on_off">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int SetCardWriteOutBit(int CardNo, int bitno, int on_off)
+        public int SetCardWriteOutBit(int cardIndex, int bitno, int on_off)
         {
-            return (int)PCI400.PCI400_write_outbit((ushort)CardNo, (ushort)bitno, (ushort)on_off);
+            return (int)PCI400.PCI400_write_outbit((ushort)cardIndex, (ushort)bitno, (ushort)on_off);
         }
 
         /// <summary>
@@ -1249,9 +1249,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// HY7800:0~23--OUT0-23  24~31--SVON0-7  32~39--ERC0-7 
         /// HY7C00:0~23--OUT0-23  24~31--SVON0-7  32~39--ERC0-7</param>
         /// <returns>指定输出端口的电平，0：低电平，1：高电平</returns>
-        public int GetCardOutBit(int CardNo, int bitno)
+        public int GetCardOutBit(int cardIndex, int bitno)
         {
-            return PCI400.PCI400_read_outbit((ushort)CardNo, (ushort)bitno);
+            return PCI400.PCI400_read_outbit((ushort)cardIndex, (ushort)bitno);
         }
 
 
@@ -1266,7 +1266,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// HY7800:   iport = 0   0~23--In0-In23 ;  iport = 1   0~7--ORG0-ORG7  8~15--ALM0-ALM7  16~23--RDY0-RDY7  24~31--INP0-INP7 ;  iport = 2   0~7--EL+0-EL+7  8~15--EL-0-EL-7
         /// HY7C00:   iport = 0   0~11--In0-In11 ;  iport = 1   0~11--ORG0-ORG11  12~19--ALM0-ALM7  20~27--RDY0-RDY7 ;  iport = 2   0~7--INP0-INP7  8~19--EL+0-EL+11  20~31--EL-0-EL-11
         /// </returns>
-        public uint GetCardInPort(int CardNo, int portno)
+        public uint GetCardInPort(int cardIndex, int portno)
         {
             /**************************************************************************************************
                   功 能：读取指定控制卡的全部通用输入口的电平状态
@@ -1274,7 +1274,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                          iport （范围：0 - 2）
                   返回值：bit0 – bit31 位值分别代表第0 – 31 号输入端口值。
             **************************************************************************************************/
-            return (uint)PCI400.PCI400_read_inport((ushort)CardNo, (ushort)portno);
+            return (uint)PCI400.PCI400_read_inport((ushort)cardIndex, (ushort)portno);
         }
 
         /// <summary>
@@ -1288,9 +1288,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// HY7800:   iport = 0   0~23--Out0-Out23 ;  iport = 1   0~7--SVON0-7  8~15--ERC0-7   
         /// HY7C00:   iport = 0   0~23--Out0-Out23 ;  iport = 1   0~7--SVON0-7  8~15--ERC0-7   
         /// </returns>
-        public uint GetCardOutPort(int CardNo, int portno)
+        public uint GetCardOutPort(int cardIndex, int portno)
         {
-            return (uint)PCI400.PCI400_read_outport_ex((ushort)CardNo, (ushort)portno);
+            return (uint)PCI400.PCI400_read_outport_ex((ushort)cardIndex, (ushort)portno);
         }
 
         /******************************************************************************
@@ -1304,7 +1304,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="bitMark">输出端口值（如果掩码对应的位为0，不进行任何操作，掩码对应的位为1，将指定输出口置为on_off 相应位的值）bit0 – bit23 位值分别代表第0 – 23 号输出端口值。</param>
         /// <param name="on_off">IO 值（把对应位置0：打开输出口，对应位置1：关闭输出口）</param>
         /// <returns>错误代码</returns>
-        public int SetCardOutPort(int CardNo, int bitMark, uint on_off)
+        public int SetCardOutPort(int cardIndex, int bitMark, uint on_off)
         {
             /**************************************************************************************************
             DWORD PCI400_write_outport(WORD cardno, DWORD port_value)
@@ -1314,7 +1314,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                 bit0 – bit23 位值分别代表第0 – 23 号输出端口值。
                 例子：PCI400_write_outport(0,0xFFFFFF); //关闭 0 号卡的 OUT0-23
              **************************************************************************************************/
-            return (int)PCI400.PCI400_write_outbit_mask((ushort)CardNo, (ushort)bitMark, on_off);
+            return (int)PCI400.PCI400_write_outbit_mask((ushort)cardIndex, (ushort)bitMark, on_off);
         }
 
 
@@ -1325,7 +1325,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="bitno">输出端口号,取值范围：0~23</param>
         /// <param name="reverse_time">延时翻转时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardReverseOutBit(int CardNo, int bitno, int reverse_time)
+        public int SetCardReverseOutBit(int cardIndex, int bitno, int reverse_time)
         {
             /**************************************************************************************************
             DWORD PCI400_reverse_outbit_ex(WORD CardNo, WORD bitno, WORD state,double reversetime)
@@ -1335,7 +1335,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                 state 输出电平：0－表示输出低电平，1－表示输出高电平
                 reversetimems 输出口翻转时间（单位：ms）
              **************************************************************************************************/
-            return (int)PCI400.PCI400_reverse_outbit((ushort)CardNo, (ushort)bitno, reverse_time);
+            return (int)PCI400.PCI400_reverse_outbit((ushort)cardIndex, (ushort)bitno, reverse_time);
         }
 
         /// <summary>
@@ -1346,9 +1346,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="mode">IO 计数模式，0：电平计数，只要电平发生变化计数加一，1：下降沿计数，2：上升沿计数</param>
         /// <param name="filter_time">滤波时间，单位：ms</param>
         /// <returns>错误代码</returns>
-        public int SetCardIoCountMode(int CardNo, int bitno, int mode, double filter_time)
+        public int SetCardIoCountMode(int cardIndex, int bitno, int mode, double filter_time)
         {
-            return (int)PCI400.PCI400_set_io_count_mode((ushort)CardNo, (ushort)bitno, (ushort)mode, (ushort)filter_time);
+            return (int)PCI400.PCI400_set_io_count_mode((ushort)cardIndex, (ushort)bitno, (ushort)mode, (ushort)filter_time);
         }
 
         /// <summary>
@@ -1359,10 +1359,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="mode">IO 计数模式，0：电平计数，只要电平发生变化计数加一，1：下降沿计数，2：上升沿计数</param>
         /// <param name="filter_time">返回滤波时间，单位：ms</param>
         /// <returns>错误代码</returns>
-        public int GetCardIoCountMode(int CardNo, int bitno, ref UInt16 mode, ref double filter_time)
+        public int GetCardIoCountMode(int cardIndex, int bitno, ref UInt16 mode, ref double filter_time)
         {
             ushort time = 0;
-            var error = (int)PCI400.PCI400_get_io_count_mode((ushort)CardNo, (ushort)bitno, ref mode, ref time); filter_time = Convert.ToDouble(time);
+            var error = (int)PCI400.PCI400_get_io_count_mode((ushort)cardIndex, (ushort)bitno, ref mode, ref time); filter_time = Convert.ToDouble(time);
             return error;
         }
         /// <summary>
@@ -1372,9 +1372,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="bitno">指定输入口号,取值范围：HY7400:0~35   HY7600:0~29   HY7800:0~23   HY7C00:0~11</param>
         /// <param name="CountValue">IO 计数值</param>
         /// <returns>错误代码</returns>
-        public int SetCardIoCountValue(int CardNo, int bitno, int CountValue)
+        public int SetCardIoCountValue(int cardIndex, int bitno, int countValue)
         {
-            return (int)PCI400.PCI400_set_io_count_value((ushort)CardNo, (ushort)bitno, (uint)CountValue);
+            return (int)PCI400.PCI400_set_io_count_value((ushort)cardIndex, (ushort)bitno, (uint)countValue);
         }
 
         /// <summary>
@@ -1384,9 +1384,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="bitno">输出端口号,取值范围：0~15</param>
         /// <param name="CountValue">返回 IO 计数值</param>
         /// <returns>错误代码</returns>
-        public int SetCardIoCountValue(int CardNo, int bitno, uint CountValue)
+        public int SetCardIoCountValue(int cardIndex, int bitno, uint countValue)
         {
-            return (int)PCI400.PCI400_get_io_count_value((ushort)CardNo, (ushort)bitno, ref CountValue);
+            return (int)PCI400.PCI400_get_io_count_value((ushort)cardIndex, (ushort)bitno, ref countValue);
         }
 
         #endregion
@@ -1403,9 +1403,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="multi">手轮倍率，正数表示默认方向，负数表示与默认方向反向  计数器的计数方向及倍率设置：设置手轮的倍率, >=0 表</param>
         /// <param name="vh">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHandWhellInMode(int CardNo, int axis, int inmode, int multi, double vh)
+        public int SetCardAxisHandWhellInMode(int cardIndex, int axis, int inmode, int multi, double vh)
         {
-            return (int)PCI400.PCI400_set_handwheel_inmode((ushort)CardNo, (ushort)axis, (ushort)inmode, multi/*, vh*/);
+            return (int)PCI400.PCI400_set_handwheel_inmode((ushort)cardIndex, (ushort)axis, (ushort)inmode, multi/*, vh*/);
         }
 
 
@@ -1419,10 +1419,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="multi">返回手轮倍率，正数表示默认方向，负数表示与默认方向反向  计数器的计数方向及倍率设置：设置手轮的倍率, >=0 表</param>
         /// <param name="vh">保留参数</param>
         /// <returns></returns>
-        public int GetCardAxisHandWhellInMode(int CardNo, int axis, UInt16 inmode, int multi, double vh)
+        public int GetCardAxisHandWhellInMode(int cardIndex, int axis, UInt16 inmode, int multi, double vh)
         {
             double mul = 0;
-            var error = (int)PCI400.PCI400_get_handwheel_inmode((ushort)CardNo, (ushort)axis, ref inmode, ref mul/*, ref vh*/); multi = (int)mul;
+            var error = (int)PCI400.PCI400_get_handwheel_inmode((ushort)cardIndex, (ushort)axis, ref inmode, ref mul/*, ref vh*/); multi = (int)mul;
             return error;
         }
 
@@ -1436,9 +1436,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <returns>错误代码</returns>
-        public int CardAxisHandWhellMove(int CardNo, int axis)
+        public int CardAxisHandWhellMove(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_handwheel_move((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_handwheel_move((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -1447,9 +1447,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="index">0：高速通道  1：低速通道</param>
         /// <returns>错误代码</returns>
-        public int SetCardHandWhellChannel(int CardNo, int index)
+        public int SetCardHandWhellChannel(int cardIndex, int index)
         {
-            return LTDMC.dmc_set_handwheel_channel((ushort)CardNo, (ushort)index);
+            return LTDMC.dmc_set_handwheel_channel((ushort)cardIndex, (ushort)index);
         }
 
         /// <summary>
@@ -1458,9 +1458,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="index">返回设置的手轮通道</param>
         /// <returns>错误代码</returns>
-        public int GetCardHandWhellChannel(int CardNo, UInt16 index)
+        public int GetCardHandWhellChannel(int cardIndex, UInt16 index)
         {
-            return LTDMC.dmc_get_handwheel_channel((ushort)CardNo, ref index);
+            return LTDMC.dmc_get_handwheel_channel((ushort)cardIndex, ref index);
         }
 
 
@@ -1476,9 +1476,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="AxisList">参与手轮运动的轴号数组</param>
         /// <param name="multi">手轮倍率数组:正数表示默认方向，负数表示与默认方向反向</param>
         /// <returns>错误代码</returns>
-        public int SetCardHandWhellInModeExtern(int CardNo, UInt16 inmode, UInt16 AxisNum, UInt16[] AxisList, int[] multi)
+        public int SetCardHandWhellInModeExtern(int cardIndex, UInt16 inmode, UInt16 axisNumber, UInt16[] axisNumbers, int[] multi)
         {
-            return LTDMC.dmc_set_handwheel_inmode_extern((ushort)CardNo, inmode, AxisNum, AxisList, multi);
+            return LTDMC.dmc_set_handwheel_inmode_extern((ushort)cardIndex, inmode, axisNumber, axisNumbers, multi);
         }
 
         /// <summary>
@@ -1490,9 +1490,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="AxisList">返回参与手轮运动的轴号数组</param>
         /// <param name="multi">返回手轮倍率数组</param>
         /// <returns>错误代码</returns>
-        public int GetCardHandWhellInModeExtern(int CardNo, ref UInt16 inmode, ref UInt16 AxisNum, ref UInt16[] AxisList, ref int[] multi)
+        public int GetCardHandWhellInModeExtern(int cardIndex, ref UInt16 inmode, ref UInt16 axisNumber, ref UInt16[] axisNumbers, ref int[] multi)
         {
-            return LTDMC.dmc_get_handwheel_inmode_extern((ushort)CardNo, ref inmode, ref AxisNum, AxisList, multi);
+            return LTDMC.dmc_get_handwheel_inmode_extern((ushort)cardIndex, ref inmode, ref axisNumber, axisNumbers, multi);
         }
 
         #endregion
@@ -1506,9 +1506,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <param name="mode">编码器的计数方式：  |  0：非 A/B 相(脉冲/方向)  |   1：1×A/B  |   2：2×A/B  |   3：4×A/B</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisCounterInMode(int CardNo, int axis, int mode)
+        public int SetCardAxisCounterInMode(int cardIndex, int axis, int mode)
         {
-            return (int)PCI400.PCI400_counter_config((ushort)CardNo, (ushort)axis, (ushort)mode);
+            return (int)PCI400.PCI400_counter_config((ushort)cardIndex, (ushort)axis, (ushort)mode);
         }
 
 
@@ -1520,9 +1520,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <param name="mode">返回编码器的计数方式</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisCounterInMode(int CardNo, int axis, ref UInt16 mode)
+        public int GetCardAxisCounterInMode(int cardIndex, int axis, ref UInt16 mode)
         {
-            return (int)PCI400.PCI400_get_counter_config((ushort)CardNo, (ushort)axis, ref mode);
+            return (int)PCI400.PCI400_get_counter_config((ushort)cardIndex, (ushort)axis, ref mode);
         }
 
 
@@ -1535,9 +1535,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <param name="encoder_value">编码器计数值，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisEncoder(int CardNo, int axis, int encoder_value)
+        public int SetCardAxisEncoder(int cardIndex, int axis, int encoder_value)
         {
-            return (int)PCI400.PCI400_set_encoder((ushort)CardNo, (ushort)axis, encoder_value);
+            return (int)PCI400.PCI400_set_encoder((ushort)cardIndex, (ushort)axis, encoder_value);
         }
         /// <summary>
         /// 获取指定轴编码器脉冲计数值
@@ -1547,9 +1547,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <returns>编码器计数值，单位：pulse</returns>
-        public int GetCardAxisEncoder(int CardNo, int axis)
+        public int GetCardAxisEncoder(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_get_encoder((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_get_encoder((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -1561,9 +1561,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="ez_mode">保留参数，固定值为 0</param>
         /// <param name="filter">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisEZMode(int CardNo, int axis, int ez_logic, int ez_mode, double filter)
+        public int SetCardAxisEZMode(int cardIndex, int axis, int ez_logic, int ez_mode, double filter)
         {
-            return (int)PCI400.PCI400_config_EZ_PIN((ushort)CardNo, (ushort)axis, (ushort)ez_logic, (ushort)ez_mode/*, filter*/);
+            return (int)PCI400.PCI400_config_EZ_PIN((ushort)cardIndex, (ushort)axis, (ushort)ez_logic, (ushort)ez_mode/*, filter*/);
         }
 
 
@@ -1576,9 +1576,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="ez_mode">保留参数</param>
         /// <param name="filter">保留参数</param>
         /// <returns></returns>
-        public int GetCardAxisEZMode(int CardNo, int axis, UInt16 ez_logic, UInt16 ez_mode, double filter)
+        public int GetCardAxisEZMode(int cardIndex, int axis, UInt16 ez_logic, UInt16 ez_mode, double filter)
         {
-            return (int)PCI400.PCI400_get_config_EZ_PIN((ushort)CardNo, (ushort)axis, ref ez_logic, ref ez_mode/*, ref filter*/);
+            return (int)PCI400.PCI400_get_config_EZ_PIN((ushort)cardIndex, (ushort)axis, ref ez_logic, ref ez_mode/*, ref filter*/);
         }
         #endregion
 
@@ -1594,9 +1594,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="ltc_mode">0－EZ 信号锁存，1－原点信号锁存</param>
         /// <param name="filter">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisLtcMode(int CardNo, int axis, UInt16 ltc_logic, UInt16 ltc_mode, double filter)
+        public int SetCardAxisLtcMode(int cardIndex, int axis, UInt16 ltc_logic, UInt16 ltc_mode, double filter)
         {
-            return (int)PCI400.PCI400_config_LTC_PIN((ushort)CardNo, (ushort)axis, ltc_logic, ltc_mode/*, filter*/);
+            return (int)PCI400.PCI400_config_LTC_PIN((ushort)cardIndex, (ushort)axis, ltc_logic, ltc_mode/*, filter*/);
         }
 
         /// <summary>
@@ -1608,9 +1608,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="latch_source"></param>
         /// <param name="triger_chunnel"></param>
         /// <returns></returns>
-        public int SetCardAxisLatchMode(int CardNo, int axis, int all_enable, int latch_source, int triger_chunnel)
+        public int SetCardAxisLatchMode(int cardIndex, int axis, int all_enable, int latch_source, int triger_chunnel)
         {
-            return (int)PCI400.PCI400_config_latch_mode((ushort)CardNo, /*(ushort)axis,*/ (ushort)all_enable/*, (ushort)latch_source, (ushort)triger_chunnel*/);
+            return (int)PCI400.PCI400_config_latch_mode((ushort)cardIndex, /*(ushort)axis,*/ (ushort)all_enable/*, (ushort)latch_source, (ushort)triger_chunnel*/);
         }
         /// <summary>
         /// 获取指定轴的 LTC 信号设置
@@ -1621,9 +1621,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="ltc_mode">0－EZ 信号锁存，1－原点信号锁存</param>
         /// <param name="filter">保留参数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisLtcMode(int CardNo, int axis, ref UInt16 ltc_logic, ref UInt16 ltc_mode, ref double filter)
+        public int GetCardAxisLtcMode(int cardIndex, int axis, ref UInt16 ltc_logic, ref UInt16 ltc_mode, ref double filter)
         {
-            return (int)PCI400.PCI400_get_config_LTC_PIN((ushort)CardNo, (ushort)axis, ref ltc_logic, ref ltc_mode/*, ref filter*/);
+            return (int)PCI400.PCI400_get_config_LTC_PIN((ushort)cardIndex, (ushort)axis, ref ltc_logic, ref ltc_mode/*, ref filter*/);
         }
         /*********************************************************************************************
            注意：锁存信号接口为每一个轴的 EZ 信号或 ORG 信号，EZ 信号为 5V 信号，
@@ -1645,9 +1645,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="latch_source">锁存源，0：指令位置计数器，1：编码器计数器</param>
         /// <param name="triger_chunnel">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisLatchMode(int CardNo, int axis, UInt16 all_enable, UInt16 latch_source, UInt16 triger_chunnel)
+        public int SetCardAxisLatchMode(int cardIndex, int axis, UInt16 all_enable, UInt16 latch_source, UInt16 triger_chunnel)
         {
-            return (int)PCI400.PCI400_config_latch_mode((ushort)CardNo, /*(ushort)axis,*/
+            return (int)PCI400.PCI400_config_latch_mode((ushort)cardIndex, /*(ushort)axis,*/
         all_enable/*, latch_source, triger_chunnel*/);
         }
 
@@ -1661,9 +1661,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="latch_source">返回锁存源设置</param>
         /// <param name="triger_chunnel">保留参数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisLatchMode(int CardNo, int axis, ref UInt16 all_enable, ref UInt16 latch_source, ref UInt16 triger_chunnel)
+        public int GetCardAxisLatchMode(int cardIndex, int axis, ref UInt16 all_enable, ref UInt16 latch_source, ref UInt16 triger_chunnel)
         {
-            return (int)PCI400.PCI400_get_config_latch_mode((ushort)CardNo,/* (ushort)axis,*/ ref all_enable/*, ref latch_source, ref triger_chunnel*/);
+            return (int)PCI400.PCI400_get_config_latch_mode((ushort)cardIndex,/* (ushort)axis,*/ ref all_enable/*, ref latch_source, ref triger_chunnel*/);
         }
 
         /// <summary>
@@ -1675,7 +1675,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <param name="time">触发延时停止时间，单位：us，取值范围：1us~50ms</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisLatchStopTime(int CardNo, int axis, int time)
+        public int SetCardAxisLatchStopTime(int cardIndex, int axis, int time)
         {
             //return LTDMC.dmc_set_latch_stop_time((ushort)CardNo, (ushort)axis, time);
             return 0;
@@ -1688,7 +1688,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <param name="time">返回触发延时停止时间设置，单位：us</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisLatchStopTime(int CardNo, int axis, int time)
+        public int GetCardAxisLatchStopTime(int cardIndex, int axis, int time)
         {
             return 0;
             //return LTDMC.dmc_get_latch_stop_time((ushort)CardNo, (ushort)axis, ref time);
@@ -1703,7 +1703,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">使能状态：0：禁止，1：使能</param>
         /// <param name="bitno">通用输出 IO 口号，取值范围：0~15</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisOutMode(int CardNo, int axis, int enable, int bitno)
+        public int SetCardAxisOutMode(int cardIndex, int axis, int enable, int bitno)
         {
             return 0;
             //return LTDMC.dmc_SetLtcOutMode((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)bitno);
@@ -1717,7 +1717,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">返回使能状态：0：禁止，1：使能</param>
         /// <param name="bitno">返回设置的通用输出 IO 口号</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisOutMode(int CardNo, int axis, UInt16 enable, UInt16 bitno)
+        public int GetCardAxisOutMode(int cardIndex, int axis, UInt16 enable, UInt16 bitno)
         {
             return 0;
             //return LTDMC.dmc_GetLtcOutMode((ushort)CardNo, (ushort)axis, ref enable, ref bitno);
@@ -1731,9 +1731,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <returns>锁存值  锁存器内的编码器脉冲数，单位：脉冲</returns>
-        public int GetCardAxisLatchValue(int CardNo, int axis)
+        public int GetCardAxisLatchValue(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_get_latch_value((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_get_latch_value((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -1745,9 +1745,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <returns>详情请查看数据手册</returns>
-        public int GetCardAxisLatchFlag(int CardNo, int axis)
+        public int GetCardAxisLatchFlag(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_get_latch_flag((ushort)CardNo/*, (ushort)axis*/);
+            return (int)PCI400.PCI400_get_latch_flag((ushort)cardIndex/*, (ushort)axis*/);
         }
 
         #endregion
@@ -1760,9 +1760,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <returns></returns>
-        public int GetCardAxisReserLatchFlag(int CardNo, int axis)
+        public int GetCardAxisReserLatchFlag(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_reset_latch_flag_ex((ushort)CardNo, (ushort)axis);
+            return (int)PCI400.PCI400_reset_latch_flag_ex((ushort)cardIndex, (ushort)axis);
         }
 
 
@@ -1772,10 +1772,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7 </param>
         /// <returns></returns>
-        public int GetCardAxisLatchFlagExtern(int CardNo, int axis)
+        public int GetCardAxisLatchFlagExtern(int cardIndex, int axis)
         {
             ushort num = 0;
-            PCI400.PCI400_conti_latch_count((ushort)CardNo, (ushort)axis, ref num);
+            PCI400.PCI400_conti_latch_count((ushort)cardIndex, (ushort)axis, ref num);
             return (int)num;
         }
 
@@ -1787,10 +1787,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7</param>
         /// <param name="Index">索引号</param>
         /// <returns>锁存值</returns>
-        public int GetCardAxisLatchValueExtern(int CardNo, int axis, int Index)
+        public int GetCardAxisLatchValueExtern(int cardIndex, int axis, int Index)
         {
             //ushort num = 0;
-            int[] data = new int[32]; PCI400.PCI400_conti_latch_value((ushort)CardNo, (ushort)axis, data);
+            int[] data = new int[32]; PCI400.PCI400_conti_latch_value((ushort)cardIndex, (ushort)axis, data);
             return data[Index];
         }
 
@@ -1811,10 +1811,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="cmpEnable">使能高速比较 0-禁止 1-使能</param>
         /// <param name="cmp_source">比较源，保留参数，默认为编码器位置</param>
         /// <returns></returns>
-        public int SetCardAxisHcmp2dsetEnable(int CardNo, int hcmp, int cmpEnable, int cmp_source)
+        public int SetCardAxisHcmp2dsetEnable(int cardIndex, int hcmp, int cmpEnable, int cmp_source)
         {
             //dmc_hcmp_2d_set_enable
-            return (int)PCI400.PCI400_hcmp_config((ushort)CardNo, (ushort)hcmp, (ushort)cmpEnable, 0, (ushort)cmp_source);
+            return (int)PCI400.PCI400_hcmp_config((ushort)cardIndex, (ushort)hcmp, (ushort)cmpEnable, 0, (ushort)cmp_source);
         }
 
         /// <summary>
@@ -1826,9 +1826,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">   比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisCompareConfig(int CardNo, int axis, int enable, int cmp_source)
+        public int SetCardAxisCompareConfig(int cardIndex, int axis, int enable, int cmp_source)
         {
-            return (int)PCI400.PCI400_compare_config((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)cmp_source);
+            return (int)PCI400.PCI400_compare_config((ushort)cardIndex, (ushort)axis, (ushort)enable, (ushort)cmp_source);
         }
 
 
@@ -1840,10 +1840,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">返回比较功能状态</param>
         /// <param name="cmp_source">返回比较源</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisCompareConfig(int CardNo, int axis, ref UInt16 enable, ref UInt16 cmp_source)
+        public int GetCardAxisCompareConfig(int cardIndex, int axis, ref UInt16 enable, ref UInt16 cmp_source)
         {
             ushort Axis = (ushort)axis;
-            return (int)PCI400.PCI400_compare_get_config((ushort)CardNo, ref enable, ref Axis, ref cmp_source);
+            return (int)PCI400.PCI400_compare_get_config((ushort)cardIndex, ref enable, ref Axis, ref cmp_source);
         }
 
 
@@ -1856,9 +1856,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围HY7400/7800：0~7</param>
         /// <returns>错误代码</returns>
-        public int ClearCardAxisComparePoints(int CardNo, int axis)
+        public int ClearCardAxisComparePoints(int cardIndex, int axis)
         {
-            return (int)PCI400.PCI400_compare_clear_points((ushort)CardNo/*, (ushort)axis*/);
+            return (int)PCI400.PCI400_compare_clear_points((ushort)cardIndex/*, (ushort)axis*/);
         }
 
 
@@ -1873,7 +1873,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="action">比较点触发功能编号</param>
         /// <param name="actpara">比较点触发功能参数</param>
         /// <returns>错误代码</returns>
-        public int AddCardAxisComparePoint(int CardNo, int axis, int pos, int dir, UInt16 action, UInt32 actpara)
+        public int AddCardAxisComparePoint(int cardIndex, int axis, int pos, int dir, UInt16 action, UInt32 actpara)
         {
             /***********************************************************************
                 PCI400_compare_add_point 函数 action, actpara 参数值含义：
@@ -1889,7 +1889,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                    13                     轴号               停止指定轴
                    21                     高速输出口序号     输出指定宽度的脉冲
             ***********************************************************************/
-            return (int)PCI400.PCI400_compare_add_point((ushort)CardNo, /*(ushort)axis,*/ pos, (ushort)dir, action, (int)actpara);
+            return (int)PCI400.PCI400_compare_add_point((ushort)cardIndex, /*(ushort)axis,*/ pos, (ushort)dir, action, (int)actpara);
         }
 
         /// <summary>
@@ -1901,9 +1901,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="pos">返回当前比较点位置，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisCompareCurrentPoint(int CardNo, int axis, ref int pos)
+        public int GetCardAxisCompareCurrentPoint(int cardIndex, int axis, ref int pos)
         {
-            pos = (int)PCI400.PCI400_compare_get_current_point((ushort)CardNo/*, (ushort)axis, ref pos*/);
+            pos = (int)PCI400.PCI400_compare_get_current_point((ushort)cardIndex/*, (ushort)axis, ref pos*/);
             return 0;
         }
 
@@ -1916,9 +1916,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="pointNum">返回已经比较过的点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisComparePointsRunned(int CardNo, int axis, ref int pointNum)
+        public int GetCardAxisComparePointsRunned(int cardIndex, int axis, ref int pointNum)
         {
-            pointNum = (int)PCI400.PCI400_compare_get_points_runned((ushort)CardNo/*, (ushort)axis, ref pointNum*/);
+            pointNum = (int)PCI400.PCI400_compare_get_points_runned((ushort)cardIndex/*, (ushort)axis, ref pointNum*/);
             return 0;
         }
 
@@ -1932,9 +1932,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="pointNum">返回可以加入的比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisComparePointsRemained(int CardNo, int axis, ref int pointNum)
+        public int GetCardAxisComparePointsRemained(int cardIndex, int axis, ref int pointNum)
         {
-            pointNum = (int)PCI400.PCI400_compare_get_points_remained((ushort)CardNo/*, (ushort)axis, ref pointNum*/);
+            pointNum = (int)PCI400.PCI400_compare_get_points_remained((ushort)cardIndex/*, (ushort)axis, ref pointNum*/);
             return 0;
         }
 
@@ -1946,7 +1946,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">二维位置比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">二维位置比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int SetCardCompareConfigExtern(int CardNo, int enable, int cmp_source)
+        public int SetCardCompareConfigExtern(int cardIndex, int enable, int cmp_source)
         {
             /***********************************************
                 功 能：设置/读取比较器配置
@@ -1954,7 +1954,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                        enable 1：使能比较功能， 0：禁止比较功能
                        cmp_source 比较源， 0：比较指令位置， 1：比较编码器位置
              ***********************************************/
-            return (int)PCI400.PCI400_compare_config_extern((ushort)CardNo, (ushort)enable, (ushort)cmp_source);
+            return (int)PCI400.PCI400_compare_config_extern((ushort)cardIndex, (ushort)enable, (ushort)cmp_source);
         }
 
         /// <summary>
@@ -1964,7 +1964,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">返回比较功能状态</param>
         /// <param name="cmp_source">返回比较源</param>
         /// <returns>：错误代码</returns>
-        public int GetCardCompareConfigExtern(int CardNo, UInt16 enable, UInt16 cmp_source)
+        public int GetCardCompareConfigExtern(int cardIndex, UInt16 enable, UInt16 cmp_source)
         {
             /***********************************************
                 功 能：设置/读取比较器配置
@@ -1972,7 +1972,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                        enable 1：使能比较功能， 0：禁止比较功能
                        cmp_source 比较源， 0：比较指令位置， 1：比较编码器位置
              ***********************************************/
-            return (int)PCI400.PCI400_compare_get_config_extern((ushort)CardNo, ref enable, ref cmp_source);
+            return (int)PCI400.PCI400_compare_get_config_extern((ushort)cardIndex, ref enable, ref cmp_source);
         }
 
 
@@ -1982,13 +1982,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int ClearCardComparePointsExtern(int CardNo)
+        public int ClearCardComparePointsExtern(int cardIndex)
         {
             /***********************************************
                 功 能：清除所有比较点
                 参 数: card 控制卡卡号（通过拨码开关设置）
              ***********************************************/
-            return (int)PCI400.PCI400_compare_clear_points_extern((ushort)CardNo);
+            return (int)PCI400.PCI400_compare_clear_points_extern((ushort)cardIndex);
         }
 
 
@@ -2003,7 +2003,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="action">二维位置比较点触发功能编号</param>
         /// <param name="actpara">二维位置比较点触发功能参数</param>
         /// <returns>错误代码</returns>
-        public int AddCardComparePointExtern(int CardNo, UInt16[] axis, Int32[] pos, UInt16[] dir, UInt16 action, UInt32 actpara)
+        public int AddCardComparePointExtern(int cardIndex, UInt16[] axis, Int32[] pos, UInt16[] dir, UInt16 action, UInt32 actpara)
         {
             /***********************************************************************
                 PCI400_compare_add_point 函数 action, actpara 参数值含义：
@@ -2019,7 +2019,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                    13                     轴号               停止指定轴
                    21                     高速输出口序号     输出指定宽度的脉冲
             ***********************************************************************/
-            return (int)PCI400.PCI400_compare_add_point_extern((ushort)CardNo, axis, pos, dir, action, (int)actpara);
+            return (int)PCI400.PCI400_compare_add_point_extern((ushort)cardIndex, axis, pos, dir, action, (int)actpara);
         }
 
 
@@ -2029,9 +2029,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo"></param>
         /// <param name="pos">返回当前二维位置比较点位置</param>
         /// <returns>错误代码</returns>
-        public int GetCardCompareCurrentPointExtern(int CardNo, ref int[] pos)
+        public int GetCardCompareCurrentPointExtern(int cardIndex, ref int[] pos)
         {
-            return (int)PCI400.PCI400_compare_get_current_point_extern((ushort)CardNo, pos);
+            return (int)PCI400.PCI400_compare_get_current_point_extern((ushort)cardIndex, pos);
         }
 
 
@@ -2044,9 +2044,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="pointNum">返回已经比较过的二维位置比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardComparePointsRunnedExtern(int CardNo, ref int pointNum)
+        public int GetCardComparePointsRunnedExtern(int cardIndex, ref int pointNum)
         {
-            pointNum = (int)PCI400.PCI400_compare_get_points_runned_extern((ushort)CardNo/*, ref pointNum*/);
+            pointNum = (int)PCI400.PCI400_compare_get_points_runned_extern((ushort)cardIndex/*, ref pointNum*/);
             return 0;
         }
 
@@ -2059,9 +2059,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="pointNum">返回可以加入的二维位置比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardComparePointsRemainedExtern(int CardNo, ref int pointNum)
+        public int GetCardComparePointsRemainedExtern(int cardIndex, ref int pointNum)
         {
-            pointNum = (int)PCI400.PCI400_compare_get_points_remained_extern((ushort)CardNo/*, ref pointNum*/);
+            pointNum = (int)PCI400.PCI400_compare_get_points_remained_extern((ushort)cardIndex/*, ref pointNum*/);
             return 0;
         }
 
@@ -2082,7 +2082,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="cmp_enable">比较模式：0：禁止（默认值）| 1：等于 | 2：小于 | 3：大于 | 4：队列 | ;提供 127 个点比较空间，采用先添加先比较，比较完可追加比较点，也可一次性添加多个比较点 | 5：线性，提供起始比较点，位置增量，比较次数  </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHcmpMode(int CardNo, int hcmp, int cmp_enable)
+        public int SetCardAxisHcmpMode(int cardIndex, int hcmp, int cmp_enable)
         {
             /***********************************************
                 功 能：配置高速比较输出。
@@ -2093,7 +2093,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                        cmp_source 比较源，保留参数，默认为编码器位置
              ***********************************************/
             //return (int)PCI400.PCI400_hcmp_config((ushort)CardNo, (ushort)hcmp, (ushort)cmpEnable, 0, (ushort)cmp_source);
-            return (int)PCI400.PCI400_hcmp_config((ushort)CardNo, (ushort)hcmp, (ushort)cmp_enable, 0, 0);
+            return (int)PCI400.PCI400_hcmp_config((ushort)cardIndex, (ushort)hcmp, (ushort)cmp_enable, 0, 0);
         }
         /// <summary>
         /// 清除已添加的所有高速位置比较点
@@ -2102,9 +2102,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <returns>错误代码</returns>
-        public int ClearCardHcmpPoints(int CardNo, int hcmp)
+        public int ClearCardHcmpPoints(int cardIndex, int hcmp)
         {
-            return (int)PCI400.PCI400_hcmp_clear_points((ushort)CardNo, (ushort)hcmp);
+            return (int)PCI400.PCI400_hcmp_clear_points((ushort)cardIndex, (ushort)hcmp);
         }
         /// <summary>
         ///读取高速比较模式设置
@@ -2113,7 +2113,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="cmp_enable">返回比较模式设置</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHcmpMode(int CardNo, int hcmp, ref UInt16 cmp_enable, ref UInt16 axis, ref UInt16 cmp_source)
+        public int GetCardAxisHcmpMode(int cardIndex, int hcmp, ref UInt16 cmp_enable, ref UInt16 axis, ref UInt16 cmp_source)
         {
             /***********************************************
                 功 能：读取高速比较输出配置。
@@ -2123,7 +2123,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                        axis 保留参数
                        cmp_source 比较源，保留参数，默认为编码器位置
              ***********************************************/
-            return (int)PCI400.PCI400_hcmp_get_config((ushort)CardNo, (ushort)hcmp, ref cmp_enable, ref axis, ref cmp_source);
+            return (int)PCI400.PCI400_hcmp_get_config((ushort)cardIndex, (ushort)hcmp, ref cmp_enable, ref axis, ref cmp_source);
         }
 
         /// <summary>
@@ -2137,7 +2137,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="cmp_logic">有效电平：0：低电平，1：高电平</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us~20s</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHcmpConfig(int CardNo, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
+        public int SetCardAxisHcmpConfig(int cardIndex, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
         {
             /***********************************************
                 功 能：配置高速比较输出。
@@ -2162,7 +2162,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="cmp_logic">返回有效电平设置</param>
         /// <param name="time">返回脉冲宽度设置</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHcmpConfig(int CardNo, int hcmp, ref UInt16 axis, UInt16 cmp_source, UInt16 cmp_logic, int time)
+        public int GetCardAxisHcmpConfig(int cardIndex, int hcmp, ref UInt16 axis, UInt16 cmp_source, UInt16 cmp_logic, int time)
         {
             return 0;
             //return LTDMC.dmc_hcmp_get_config((ushort)CardNo, (ushort)hcmp, ref axis, ref cmp_source, ref cmp_logic, ref time);
@@ -2176,7 +2176,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="cmp_pos"><para>队列模式下：添加比较位置，单位：pulse</para><para>  线性模式下：更新起始比较位置，单位：pulse</para><para>其他模式下：更新比较位置，单位：pulse</para></param>
         /// <returns>错误代码</returns>
-        public int AddCardHcmpPoint(int CardNo, int hcmp, int cmp_pos, int pulseWidth)
+        public int AddCardHcmpPoint(int cardIndex, int hcmp, int cmp_pos, int pulseWidth)
         {
             /***********************************************
                 功 能：添加高速位置比较点
@@ -2188,7 +2188,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                        actpara 比较输出的脉冲宽度（单位：微秒）
              ***********************************************/
             ushort dir = 0; ushort action = 0;
-            return (int)PCI400.PCI400_hcmp_add_point((ushort)CardNo, (ushort)hcmp, cmp_pos, dir, action, pulseWidth);
+            return (int)PCI400.PCI400_hcmp_add_point((ushort)cardIndex, (ushort)hcmp, cmp_pos, dir, action, pulseWidth);
         }
 
         /// <summary>
@@ -2200,7 +2200,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="Increment">位置增量值，单位：pulse（正值表示位置递增，负值表示位置递减）</param>
         /// <param name="Count">比较次数，取值范围：1~32767</param>
         /// <returns>错误代码</returns>
-        public int SetCardHcmpLiner(int CardNo, int hcmp, int Increment, int Count)
+        public int SetCardHcmpLiner(int cardIndex, int hcmp, int increment, int Count)
         {
             //不支持
             return 0;
@@ -2215,7 +2215,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="Increment">返回位置增量值设置</param>
         /// <param name="Count">返回比较次数设置</param>
         /// <returns>错误代码</returns>
-        public int GetCardHcmpLiner(int CardNo, int hcmp, ref int Increment, ref int Count)
+        public int GetCardHcmpLiner(int cardIndex, int hcmp, ref int increment, ref int Count)
         {
             //不支持
             return 0;
@@ -2233,11 +2233,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="current_point">返回当前比较点位置，单位：pulse</param>
         /// <param name="runned_points">返回已比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardHcmpCurrentState(int CardNo, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
+        public int GetCardHcmpCurrentState(int cardIndex, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
         {
-            current_point = (int)PCI400.PCI400_hcmp_get_current_point((ushort)CardNo, (ushort)hcmp);
-            remained_points = (int)PCI400.PCI400_hcmp_get_points_remained((ushort)CardNo, (ushort)hcmp);
-            runned_points = (int)PCI400.PCI400_hcmp_get_points_remained((ushort)CardNo, (ushort)hcmp);
+            current_point = (int)PCI400.PCI400_hcmp_get_current_point((ushort)cardIndex, (ushort)hcmp);
+            remained_points = (int)PCI400.PCI400_hcmp_get_points_remained((ushort)cardIndex, (ushort)hcmp);
+            runned_points = (int)PCI400.PCI400_hcmp_get_points_remained((ushort)cardIndex, (ushort)hcmp);
             return 0;
             //return LTDMC.dmc_hcmp_get_current_state((ushort)CardNo, (ushort)hcmp, ref remained_points, ref current_point, ref runned_points);
         }
@@ -2251,9 +2251,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="on_off">设置 CMP 端口电平，0：低电平，1：高电平</param>
         /// <returns>：错误代码</returns>
-        public int SetCardHcmpCmpPin(int CardNo, int hcmp, int on_off)
+        public int SetCardHcmpCmpPin(int cardIndex, int hcmp, int on_off)
         {
-            return (int)PCI400.PCI400_write_cmp_pin((ushort)CardNo, (ushort)hcmp, (ushort)on_off);
+            return (int)PCI400.PCI400_write_cmp_pin((ushort)cardIndex, (ushort)hcmp, (ushort)on_off);
         }
 
         /// <summary>
@@ -2263,9 +2263,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <returns>CMP 端口电平</returns>
-        public int GetCardHcmpCmpPin(int CardNo, int hcmp)
+        public int GetCardHcmpCmpPin(int cardIndex, int hcmp)
         {
-            return (int)PCI400.PCI400_read_cmp_pin((ushort)CardNo, (ushort)hcmp);
+            return (int)PCI400.PCI400_read_cmp_pin((ushort)cardIndex, (ushort)hcmp);
         }
         #endregion
 
@@ -2281,9 +2281,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">允许/禁止信号功能，0：禁止，1：允许</param>
         /// <param name="emg_logic">EMG 信号有效电平，0：低有效，1：高有效  </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisEmgMode(int CardNo, int axis, int enable, int emg_logic)
+        public int SetCardAxisEmgMode(int cardIndex, int axis, int enable, int emg_logic)
         {
-            return (int)PCI400.PCI400_config_EMG_PIN((ushort)CardNo, /*(ushort)axis,*/ (ushort)enable, (ushort)emg_logic);
+            return (int)PCI400.PCI400_config_EMG_PIN((ushort)cardIndex, /*(ushort)axis,*/ (ushort)enable, (ushort)emg_logic);
         }
 
         /// <summary>
@@ -2295,9 +2295,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">返回 EMG 信号功能状态</param>
         /// <param name="emg_logic">错误代码</param>
         /// <returns></returns>
-        public int GetCardAxisEmgMode(int CardNo, int axis, ref UInt16 enable, UInt16 emg_logic)
+        public int GetCardAxisEmgMode(int cardIndex, int axis, ref UInt16 enable, UInt16 emg_logic)
         {
-            return (int)PCI400.PCI400_get_config_EMG_PIN((ushort)CardNo,/* (ushort)axis, */ref enable, ref emg_logic);
+            return (int)PCI400.PCI400_get_config_EMG_PIN((ushort)cardIndex,/* (ushort)axis, */ref enable, ref emg_logic);
         }
 
         /// <summary>
@@ -2310,7 +2310,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">允许/禁止硬件信号功能，0：禁止，1：允许</param>
         /// <param name="logic">外部减速停止信号有效电平，0：低有效，1：高有效</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisIODstpMode(int CardNo, int axis, int enable, int logic)
+        public int SetCardAxisIODstpMode(int cardIndex, int axis, int enable, int logic)
         {
             return 0;
             //return LTDMC.dmc_set_io_dstp_mode((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)logic);
@@ -2324,7 +2324,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="enable">返回 DSTP 硬件信号功能状态</param>
         /// <param name="logic">返回设置的外部减速停止信号有效电平</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisIODstpMode(int CardNo, int axis, ref UInt16 enable, ref UInt16 logic)
+        public int GetCardAxisIODstpMode(int cardIndex, int axis, ref UInt16 enable, ref UInt16 logic)
         {
             return 0;
             //return LTDMC.dmc_get_io_dstp_mode((ushort)CardNo, (ushort)axis, ref enable, ref logic);
@@ -2339,7 +2339,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A： 0~3</param>
         /// <param name="stop_time">减速时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisDecStopTime(int CardNo, int axis, double stop_time)
+        public int SetCardAxisDecStopTime(int cardIndex, int axis, double stop_time)
         {
             return 0;
             //return LTDMC.dmc_set_dec_stop_time((ushort)CardNo, (ushort)axis, stop_time);
@@ -2352,7 +2352,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A： 0~3</param>
         /// <param name="stop_time">返回设置的减速时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisDecStopTime(int CardNo, int axis, ref double stop_time)
+        public int SetCardAxisDecStopTime(int cardIndex, int axis, ref double stop_time)
         {
             return 0;
             //return LTDMC.dmc_get_dec_stop_time((ushort)CardNo, (ushort)axis, ref stop_time);
@@ -2391,9 +2391,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="MapIoIndex">轴 IO 映射索引号：<para>1）当轴 IO 映射类型设置为 6 时，此参数可设置为 0~15 整数，表示该映射对应的具体通用输入端口号</para><para>2）当轴 IO 映射类型设置为 0~5 时，此参数可设置 0~7 整数，表示该映射所对应的具体轴号</para></param>
         /// <param name="Filter">轴 IO 信号滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisIOMap(int CardNo, int axis, int IoType, int MapIoType, int MapIoIndex, double Filter)
+        public int SetCardAxisIOMap(int cardIndex, int axis, int IoType, int mapIoType, int mapIoIndex, double Filter)
         {
-            return LTDMC.dmc_set_axis_io_map((ushort)CardNo, (ushort)axis, (ushort)IoType, (ushort)MapIoType, (ushort)MapIoIndex, Filter);
+            return LTDMC.dmc_set_axis_io_map((ushort)cardIndex, (ushort)axis, (ushort)IoType, (ushort)mapIoType, (ushort)mapIoIndex, Filter);
         }
 
         /// <summary>
@@ -2406,9 +2406,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="MapIoIndex">返回轴 IO 映射索引号</param>
         /// <param name="Filter">返回轴 IO 信号滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisIOMap(int CardNo, int axis, int IoType, ref UInt16 MapIoType, ref UInt16 MapIoIndex, double Filter)
+        public int GetCardAxisIOMap(int cardIndex, int axis, int IoType, ref UInt16 mapIoType, ref UInt16 mapIoIndex, double Filter)
         {
-            return LTDMC.dmc_get_axis_io_map((ushort)CardNo, (ushort)axis, (ushort)IoType, ref MapIoType, ref MapIoIndex, ref Filter);
+            return LTDMC.dmc_get_axis_io_map((ushort)cardIndex, (ushort)axis, (ushort)IoType, ref mapIoType, ref mapIoIndex, ref Filter);
         }
 
         /// <summary>
@@ -2417,9 +2417,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="Filter">轴 IO 信号滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardSpecialInPutFilter(int CardNo, double Filter)
+        public int SetCardSpecialInputFilter(int cardIndex, double Filter)
         {
-            return LTDMC.dmc_set_special_input_filter((ushort)CardNo, Filter);
+            return LTDMC.dmc_set_special_input_filter((ushort)cardIndex, Filter);
         }
 
         #endregion
@@ -2450,9 +2450,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// </param>
         /// <param name="Filter">虚拟 IO 信号滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardIOMapVirtual(int CardNo, int bitno, int MapIoType, int MapIoIndex, double Filter)
+        public int SetCardIOMapVirtual(int cardIndex, int bitno, int mapIoType, int mapIoIndex, double Filter)
         {
-            return LTDMC.dmc_set_io_map_virtual((ushort)CardNo, (ushort)bitno, (ushort)MapIoType, (ushort)MapIoIndex, Filter);
+            return LTDMC.dmc_set_io_map_virtual((ushort)cardIndex, (ushort)bitno, (ushort)mapIoType, (ushort)mapIoIndex, Filter);
         }
 
         /// <summary>
@@ -2467,9 +2467,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="MapIoIndex">返回虚拟 IO 映射索引号</param>
         /// <param name="filter_time">返回虚拟 IO 信号滤波时间，单位：s</param>
         /// <returns></returns>
-        public int GetCardIOMapVirtual(int CardNo, int bitno, ref UInt16 MapIoType, ref UInt16 MapIoIndex, ref double filter_time)
+        public int GetCardIOMapVirtual(int cardIndex, int bitno, ref UInt16 mapIoType, ref UInt16 mapIoIndex, ref double filter_time)
         {
-            return LTDMC.dmc_get_io_map_virtual((ushort)CardNo, (ushort)bitno, ref MapIoType, ref MapIoIndex, ref filter_time);
+            return LTDMC.dmc_get_io_map_virtual((ushort)cardIndex, (ushort)bitno, ref mapIoType, ref mapIoIndex, ref filter_time);
         }
 
         /// <summary>
@@ -2478,9 +2478,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="bitno">虚拟 IO 口号,取值范围：0~15</param>
         /// <returns>指定的虚拟 IO 口电平：0：低电平，1：高电平</returns>
-        public int GetCardInBitVirtual(int CardNo, int bitno)
+        public int GetCardInBitVirtual(int cardIndex, int bitno)
         {
-            return LTDMC.dmc_read_inbit_virtual((ushort)CardNo, (ushort)bitno);
+            return LTDMC.dmc_read_inbit_virtual((ushort)cardIndex, (ushort)bitno);
         }
         #endregion
 
@@ -2495,9 +2495,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="factor">编码器系数</param>
         /// <param name="error">位置误差带，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisFactorError(int CardNo, int axis, double factor, int error)
+        public int SetCardAxisFactorError(int cardIndex, int axis, double factor, int error)
         {
-            return LTDMC.dmc_set_factor_error((ushort)CardNo, (ushort)axis, factor, error);
+            return LTDMC.dmc_set_factor_error((ushort)cardIndex, (ushort)axis, factor, error);
         }
 
         /// <summary>
@@ -2508,9 +2508,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="factor">返回编码器系数设置</param>
         /// <param name="error">返回位置误差带设置</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisFactorError(int CardNo, int axis, ref double factor, int error)
+        public int GetCardAxisFactorError(int cardIndex, int axis, ref double factor, int error)
         {
-            return LTDMC.dmc_get_factor_error((ushort)CardNo, (ushort)axis, ref factor, ref error);
+            return LTDMC.dmc_get_factor_error((ushort)cardIndex, (ushort)axis, ref factor, ref error);
         }
 
         /// <summary>
@@ -2519,9 +2519,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A： 0~3</param>
         /// <returns>0：表示指令位置在设定的目标位置的误差带之外 ；1：表示指令位置在设定的目标位置的误差带之内</returns>
-        public int SetCardAxisCheckSuccessPulse(int CardNo, int axis)
+        public int SetCardAxisCheckSuccessPulse(int cardIndex, int axis)
         {
-            return LTDMC.dmc_check_success_pulse((ushort)CardNo, (ushort)axis);
+            return LTDMC.dmc_check_success_pulse((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2530,9 +2530,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A： 0~3</param>
         /// <returns>0：表示编码器位置在设定的目标位置的误差带之外；1：表示编码器位置在设定的目标位置的误差带之内</returns>
-        public int SetCardAxisCheckSuccessEncoder(int CardNo, int axis)
+        public int SetCardAxisCheckSuccessEncoder(int cardIndex, int axis)
         {
-            return LTDMC.dmc_check_success_encoder((ushort)CardNo, (ushort)axis);
+            return LTDMC.dmc_check_success_encoder((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2561,7 +2561,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="NodeNum">返回 CAN 节点数</param>
         /// <param name="state">返回 CAN-IO 通讯状态，0：断开，1：连接，2：异常</param>
         /// <returns>错误代码</returns>
-        public int GetCard_CANIO_ConnectState(int CardNo, UInt16 NodeNum, ref UInt16 state)
+        public int GetCard_CANIO_ConnectState(int cardIndex, UInt16 nodeCount, ref UInt16 state)
         {
             /*******************************************************
              功 能：读取CAN IO 扩展模块的连接状态
@@ -2570,7 +2570,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     statelink 是否连接(0-断开，1-连接
              *******************************************************/
 
-            return (int)PCI400.PCI400_canio_linkstate((ushort)CardNo, NodeNum, ref state);
+            return (int)PCI400.PCI400_canio_linkstate((ushort)cardIndex, nodeCount, ref state);
         }
         /// <summary>
         /// 设置指定 CAN-IO 扩展模块的某个输出端口的电平
@@ -2580,7 +2580,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int SetCard_CANIO_OutBit(int CardNo, int NodeID, int IoBit, int IoValue)
+        public int SetCard_CANIO_OutBit(int cardIndex, int nodeId, int ioBit, int ioValue)
         {
             /*******************************************************
              功 能：设置CAN IO 输出口的状态
@@ -2589,7 +2589,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     bitno 指定输出口位号（取值范围：0－19）
                     state 输出电平：0－表示输出低电平，1－表示输出高电平
              *******************************************************/
-            return (int)PCI400.PCI400_canio_writeoutbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, (ushort)IoValue);
+            return (int)PCI400.PCI400_canio_writeoutbit((ushort)cardIndex, (ushort)nodeId, (ushort)ioBit, (ushort)ioValue);
         }
 
         /// <summary>
@@ -2600,7 +2600,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>指定输出端口的电平，0：低电平，1：高电平</returns>
-        public int GetCard_CANIO_OutBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public int GetCard_CANIO_OutBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
             /*******************************************************
             功 能：读取CAN IO 指定输出口状态
@@ -2609,7 +2609,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                    bitno 指定输出口位号（取值范围：0－19）
            返回值：0 表示低电平；1 表示高电平
             *******************************************************/
-            IoValue = (ushort)PCI400.PCI400_canio_readoutbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit/*, ref IoValue*/);
+            ioValue = (ushort)PCI400.PCI400_canio_readoutbit((ushort)cardIndex, (ushort)nodeId, (ushort)ioBit/*, ref IoValue*/);
             return 0;
         }
 
@@ -2621,7 +2621,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="IoBit">输入端口号</param>
         /// <param name="IoValue">指定输入端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int GetCard_CANIO_InBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public int GetCard_CANIO_InBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
             /*******************************************************
              功 能：读取CAN IO 输入口状态
@@ -2630,7 +2630,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     bitno 指定输入口位号（取值范围：0－19）
             返回值：0 表示低电平；1 表示高电平
              *******************************************************/
-            return (int)PCI400.PCI400_canio_readinbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit/*, ref IoValue*/);
+            return (int)PCI400.PCI400_canio_readinbit((ushort)cardIndex, (ushort)nodeId, (ushort)ioBit/*, ref IoValue*/);
         }
 
 
@@ -2643,7 +2643,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">state bit0 – bi19 位值分别代表第1–20 号输出端口值。</param>
         /// <param name="IoValue">输出值，bit0~bit32 的值分别代表第 0~32 号输出口的电平</param>
         /// <returns>错误代码</returns>
-        public int SetCard_CANIO_OutPort(int CardNo, int NodeID, int PortNo, int IoValue)
+        public int SetCard_CANIO_OutPort(int cardIndex, int nodeId, int portIndex, int ioValue)
         {
             /*******************************************************
              功 能：设置CAN IO 输出端口的值
@@ -2652,7 +2652,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     state bit0 – bi19 位值分别代表第1–20 号输出端口值。
             返回值：错误码
              *******************************************************/
-            return (int)PCI400.PCI400_canio_writeoutport((ushort)CardNo, (ushort)NodeID, (uint)PortNo/*, (uint)IoValue*/);
+            return (int)PCI400.PCI400_canio_writeoutport((ushort)cardIndex, (ushort)nodeId, (uint)portIndex/*, (uint)IoValue*/);
         }
 
 
@@ -2666,7 +2666,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">state bit0 – bi19 位值分别代表第1–20 号输出端口值。</param>
         /// <param name="IoValue">输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平 </param>
         /// <returns></returns>
-        public int GetCard_CANIO_OutPort(int CardNo, int NodeID, int PortNo, ref UInt32 IoValue)
+        public int GetCard_CANIO_OutPort(int cardIndex, int nodeId, int portIndex, ref UInt32 ioValue)
         {
             /*******************************************************
              功 能：读取所有CAN IO 输出口的状态
@@ -2675,7 +2675,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
              返回值：通过读取该函数返回值的第 0-19 位分别获取 CANIO 模块硬件上的
              OUT1-OUT20 的状态。
              *******************************************************/
-            IoValue = (uint)PCI400.PCI400_canio_readoutport((ushort)CardNo, (ushort)NodeID/*, (ushort)PortNo*//*, ref IoValue*/);
+            ioValue = (uint)PCI400.PCI400_canio_readoutport((ushort)cardIndex, (ushort)nodeId/*, (ushort)PortNo*//*, ref IoValue*/);
             return 0;
         }
 
@@ -2687,7 +2687,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平 </param>
         /// <returns>错误代码</returns>
-        public int GetCard_CANIO_InPort(int CardNo, int NodeID, int PortNo, ref UInt32 IoValue)
+        public int GetCard_CANIO_InPort(int cardIndex, int nodeId, int portIndex, ref UInt32 ioValue)
         {
             /*******************************************************
              功 能：读取CAN IO 输入端口的值
@@ -2696,7 +2696,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
              返回值：通过读取该函数返回值的第 0-19 位分别获取 CANIO 模块硬件上的
              IN1-IN20 的状态。
              *******************************************************/
-            IoValue = (uint)PCI400.PCI400_canio_readinport((ushort)CardNo, (ushort)NodeID/*, (ushort)PortNo, ref IoValue*/);
+            ioValue = (uint)PCI400.PCI400_canio_readinport((ushort)cardIndex, (ushort)nodeId/*, (ushort)PortNo, ref IoValue*/);
             return 0;
         }
 
@@ -2711,7 +2711,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="enable">DA 使能状态，0：禁止，1：使能</param>
         /// <returns>错误代码</returns>
-        public int SetCardDAEnable(int CardNo, int NodeID, int enable, int type)
+        public int SetCardDAEnable(int cardIndex, int nodeId, int enable, int type)
         {
             /*******************************************************
              功 能：初始化CAN 模拟量扩展模块
@@ -2722,7 +2722,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     2- 使用 C3400 和C4400 模拟量模块
              返回值：错误码
              *******************************************************/
-            return (int)PCI400.PCI400_init_can_analog((ushort)CardNo, (ushort)NodeID, (ushort)enable, (ushort)type);
+            return (int)PCI400.PCI400_init_can_analog((ushort)cardIndex, (ushort)nodeId, (ushort)enable, (ushort)type);
             //return LTDMC.dmc_set_da_enable((ushort)CardNo, (ushort)enable);
         }
         /// <summary>
@@ -2731,7 +2731,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="enable">DA 使能状态，0：禁止，1：使能</param>
         /// <returns>错误代码</returns>
-        public int GetCardDAEnable(int CardNo, ref UInt16 enable)
+        public int GetCardDAEnable(int cardIndex, ref UInt16 enable)
         {
             //该控制卡不存在模拟DA功能,扩展模块有模拟DA功能
             return 0;
@@ -2745,7 +2745,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="channel">DA 输出口号，取值范围 0~3</param>
         /// <param name="Vout">DA 输出电压，输出电压范围 -10V ~ 10V</param>
         /// <returns>错误代码</returns>
-        public int SetCardDAOutPut(int CardNo, int NodeID, int channel, double Vout)
+        public int SetCardDAOutput(int cardIndex, int nodeId, int channel, double voltageOut)
         {
             /*******************************************************
              功 能：设置CAN 模块的指定通道号DA（模拟量输出）
@@ -2756,7 +2756,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     出：0～20mA 或 4～20mA； DAC 分辨率：12 位）
              返回值：错误码
              *******************************************************/
-            return (int)PCI400.PCI400_canio_set_aout((ushort)CardNo, (ushort)NodeID, (ushort)channel, (ushort)Vout);
+            return (int)PCI400.PCI400_canio_set_aout((ushort)cardIndex, (ushort)nodeId, (ushort)channel, (ushort)voltageOut);
             //return LTDMC.dmc_set_da_output((ushort)CardNo, (ushort)channel, Vout);
         }
 
@@ -2767,7 +2767,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="channel">DA 输出口号，取值范围 0、1</param>
         /// <param name="Vout">DA 输出电压，输出电压范围 -10V ~ 10V</param>
         /// <returns>错误代码</returns>
-        public int GetCardDAOutPut(int CardNo, int NodeID, int channel, ref double Vout)
+        public int GetCardDAOutput(int cardIndex, int nodeId, int channel, ref double voltageOut)
         {
             /*******************************************************
              功 能：读取CAN 模块的指定通道号DA（模拟量输出）
@@ -2776,7 +2776,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     channel 通道号（范围：0-3）
              返回值：指定通道号的DA 值
              *******************************************************/
-            Vout = (double)PCI400.PCI400_canio_read_aout((ushort)CardNo, (ushort)NodeID, (ushort)channel/*, (ushort)Vout*/);
+            voltageOut = (double)PCI400.PCI400_canio_read_aout((ushort)cardIndex, (ushort)nodeId, (ushort)channel/*, (ushort)Vout*/);
             return 0;
             //return LTDMC.dmc_get_da_output((ushort)CardNo, (ushort)channel, ref Vout);
         }
@@ -2788,7 +2788,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="channel">AD 输入口号，取值范围 0 ~ 7</param>
         /// <param name="Vout">AD 输入电压，输入电压范围 -10V ~ 10V</param>
         /// <returns>错误代码</returns>
-        public int GetCardDAInPut(int CardNo, int NodeID, int channel, ref double Vout)
+        public int GetCardDAInput(int cardIndex, int nodeId, int channel, ref double voltageOut)
         {
             /*******************************************************
              功 能：读取CAN 模块的指定通道号AD（模拟量输入）
@@ -2797,7 +2797,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     channel 通道号（范围：0-3）
              返回值：指定通道号的AD 值
              *******************************************************/
-            Vout = (double)PCI400.PCI400_canio_read_ain((ushort)CardNo, (ushort)NodeID, (ushort)channel/*, (ushort)Vout*/);
+            voltageOut = (double)PCI400.PCI400_canio_read_ain((ushort)cardIndex, (ushort)nodeId, (ushort)channel/*, (ushort)Vout*/);
             return 0;
             //return LTDMC.dmc_get_ad_input((ushort)CardNo, (ushort)channel, ref Vout);
         }
@@ -2815,9 +2815,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo"> 控制卡卡号</param>
         /// <param name="new_sn">新密码，密码长度不大于 255 个字符</param>
         /// <returns>错误代码</returns>
-        public int SetCardNewPassWord(int CardNo, UInt32 new_sn)
+        public int SetCardNewPassWord(int cardIndex, UInt32 new_sn)
         {
-            return (int)PCI400.PCI400_write_user_password((ushort)CardNo, new_sn);
+            return (int)PCI400.PCI400_write_user_password((ushort)cardIndex, new_sn);
         }
 
         /// <summary>
@@ -2826,7 +2826,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="check_sn">旧密码</param>
         /// <returns>校验状态，0：失败，1：成功</returns>
-        public int CardCheckPassWord(int CardNo, string check_sn)
+        public int CardCheckPassWord(int cardIndex, string check_sn)
         {
             return 0;
             //return LTDMC.dmc_check_sn((ushort)CardNo, check_sn);
@@ -2840,7 +2840,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="CardNo">打印输出模式，0：只打印报错函数，1：全部打印，2：全部不打印</param>
         /// <param name="FileName">文件保存路径：参数文件名+后缀：相对路径 ；完整描述参数文件的路径+文件名后缀：绝对路径</param>
         /// <returns>错误代码</returns>
-        public int SetCardDebugMode(int CardNo, string FileName)
+        public int SetCardDebugMode(int cardIndex, string FileName)
         {
             return 0;
             //return LTDMC.dmc_set_debug_mode((ushort)CardNo, FileName);
@@ -2875,7 +2875,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="state">设置通讯状态，0：断开，1：连接</param>
         /// <param name="baud">设置控制卡波特率：波特率参数：0,1,2,3,4,5；对特率：1000Kbps，800Kbps,500Kbps,250Kbps,125Kbps,100Kbps</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandIOConnectState(int CardNo, int NodeNum, int state, int baud)
+        public int SetExpandIOConnectState(int cardIndex, int nodeCount, int state, int baud)
         {
             /*******************************************************
              功 能：初始化CAN IO 扩展模块
@@ -2885,7 +2885,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     baudrate 保留参数
              返回值：错误码
              *******************************************************/
-            return PCI400.PCI400_init_canio((ushort)CardNo, (ushort)NodeNum, (ushort)state, (ushort)baud);
+            return PCI400.PCI400_init_canio((ushort)cardIndex, (ushort)nodeCount, (ushort)state, (ushort)baud);
         }
 
         /// <summary>
@@ -2896,7 +2896,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="state"></param>
         /// <param name="baud"></param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOConnectState(int CardNo, ushort NodeNum, ref ushort state)
+        public int GetExpandIOConnectState(int cardIndex, ushort nodeCount, ref ushort state)
         {
             /*******************************************************
              功 能：读取CAN IO 扩展模块的连接状态
@@ -2904,7 +2904,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     canid can io 扩展模块的ID 号，(取值范围：1－4)
                     statelink 是否连接(0-断开，1-连接
              *******************************************************/
-            return (int)PCI400.PCI400_canio_linkstate((ushort)CardNo, NodeNum, ref state);
+            return (int)PCI400.PCI400_canio_linkstate((ushort)cardIndex, nodeCount, ref state);
         }
 
         //*********************************************************************************************************************
@@ -2921,7 +2921,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandIOOutBit(int CardNo, int NodeID, int IoBit, int IoValue)
+        public int SetExpandIOOutBit(int cardIndex, int nodeId, int ioBit, int ioValue)
         {
             /*******************************************************
              功 能：设置CAN IO 输出口的状态
@@ -2930,7 +2930,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     bitno 指定输出口位号（取值范围：0－19）
                     state 输出电平：0－表示输出低电平，1－表示输出高电平
              *******************************************************/
-            return (int)PCI400.PCI400_canio_writeoutbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, (ushort)IoValue);
+            return (int)PCI400.PCI400_canio_writeoutbit((ushort)cardIndex, (ushort)nodeId, (ushort)ioBit, (ushort)ioValue);
         }
 
         /// <summary>
@@ -2941,7 +2941,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOOutBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public int GetExpandIOOutBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
             /*******************************************************
              功 能：读取CAN IO 指定输出口状态
@@ -2950,7 +2950,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     bitno 指定输出口位号（取值范围：0－19）
             返回值：0 表示低电平；1 表示高电平
              *******************************************************/
-            IoValue = (ushort)PCI400.PCI400_canio_readoutbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit/*, ref IoValue*/);
+            ioValue = (ushort)PCI400.PCI400_canio_readoutbit((ushort)cardIndex, (ushort)nodeId, (ushort)ioBit/*, ref IoValue*/);
             return 0;
         }
 
@@ -2963,7 +2963,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit32 的值分别代表第 0~32 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandIOPortNoOutBit(int CardNo, int NodeID, int PortNo, int IoValue)
+        public int SetExpandIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, int ioValue)
         {
             /*******************************************************
              功 能：设置CAN IO 输出端口的值
@@ -2972,7 +2972,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
                     state bit0 – bi19 位值分别代表第1–20 号输出端口值。
             返回值：错误码
              *******************************************************/
-            return (int)PCI400.PCI400_canio_writeoutport((ushort)CardNo, (ushort)NodeID, (uint)PortNo/*, (uint)IoValue*/);
+            return (int)PCI400.PCI400_canio_writeoutport((ushort)cardIndex, (ushort)nodeId, (uint)portIndex/*, (uint)IoValue*/);
         }
 
         /// <summary>
@@ -2983,7 +2983,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit31 的值分别代表第 0~31 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOPortNoOutBit(int CardNo, int NodeID, int PortNo, ref uint IoValue)
+        public int GetExpandIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, ref uint ioValue)
         {
             /*******************************************************
              功 能：读取所有CAN IO 输出口的状态
@@ -2992,7 +2992,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
              返回值：通过读取该函数返回值的第 0-19 位分别获取 CANIO 模块硬件上的
              OUT1-OUT20 的状态。
              *******************************************************/
-            IoValue = (uint)PCI400.PCI400_canio_readoutport((ushort)CardNo, (ushort)NodeID/*, (ushort)PortNo*//*, ref IoValue*/);
+            ioValue = (uint)PCI400.PCI400_canio_readoutport((ushort)cardIndex, (ushort)nodeId/*, (ushort)PortNo*//*, ref IoValue*/);
             return 0;
         }
 
@@ -3005,7 +3005,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandADDAIOPortNoOutBit(int CardNo, int NodeID, int PortNo, double IoValue)
+        public int SetExpandADDAIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, double ioValue)
         {
             ///*******************************************************
             // 功 能：设置CAN 模块的指定通道号DA（模拟量输出）
@@ -3028,7 +3028,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOPortNoOutBit(int CardNo, int NodeID, int PortNo, ref double IoValue)
+        public int GetExpandADDAIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, ref double ioValue)
         {
             /*******************************************************
              功 能：设置CAN 模块的指定通道号DA（模拟量输出）
@@ -3053,7 +3053,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandADDAIOOutPortNoMode(int CardNo, int NodeID, int PortNo, int mode, uint buffer_nums)
+        public int SetExpandADDAIOOutPortNoMode(int cardIndex, int nodeId, int portIndex, int mode, uint buffer_nums)
         {
             //该扩展模块不支持模拟输出IO电平功能
             return 0;
@@ -3071,7 +3071,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOOutPortNoMode(int CardNo, int NodeID, int PortNo, ref ushort mode, uint buffer_nums)
+        public int GetExpandADDAIOOutPortNoMode(int cardIndex, int nodeId, int portIndex, ref ushort mode, uint buffer_nums)
         {
             //该扩展模块不支持模拟输出IO电平功能
             return 0;
@@ -3090,7 +3090,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOInBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public int GetExpandIOInBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
             //该扩展模块不支持模拟输出IO电平功能
             return 0;
@@ -3107,7 +3107,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit31 的值分别代表第 0~31 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOPortNoInBit(int CardNo, int NodeID, int PortNo, ref uint IoValue)
+        public int GetExpandIOPortNoInBit(int cardIndex, int nodeId, int portIndex, ref uint ioValue)
         {
             //该扩展模块不支持模拟输出IO电平功能
             return 0;
@@ -3122,7 +3122,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOPortNoInBit(int CardNo, int NodeID, int PortNo, ref double IoValue)
+        public int GetExpandADDAIOPortNoInBit(int cardIndex, int nodeId, int portIndex, ref double ioValue)
         {
             //该扩展模块不支持模拟输出IO电平功能
             return 0;
@@ -3138,7 +3138,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandADDAIOInPortNoMode(int CardNo, int NodeID, int PortNo, int mode, uint buffer_nums = 999)
+        public int SetExpandADDAIOInPortNoMode(int cardIndex, int nodeId, int portIndex, int mode, uint buffer_nums = 999)
         {
             //该扩展模块不支持模拟输出IO电平功能
             return 0;
@@ -3155,7 +3155,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOInPortNoMode(int CardNo, int NodeID, int PortNo, ref ushort mode, uint buffer_nums = 999)
+        public int GetExpandADDAIOInPortNoMode(int cardIndex, int nodeId, int portIndex, ref ushort mode, uint buffer_nums = 999)
         {
             //该扩展模块不支持模拟输出IO电平功能
             return 0;
@@ -3175,7 +3175,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNum">保留参数，设为 0</param>
         /// <param name="NodeNum">节点号，1-8</param>
         /// <returns>返回值：错误代码</returns>
-        public int SaveExpandIoToFlash(int CardNo, int PortNum, int NodeNum)
+        public int SaveExpandIoToFlash(int cardIndex, int portCount, int nodeCount)
         {
             //该扩展模块不支持模拟输出IO电平功能
             return 0;

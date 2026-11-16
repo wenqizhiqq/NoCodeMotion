@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Runtime.InteropServices;
 
-namespace WenQiZhi.Domain.MotionCard.Common
+namespace NoCodeMotion.Services.Hardware.Cards
 {
     public class Dmc1000
     {

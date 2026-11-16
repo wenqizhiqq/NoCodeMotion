@@ -17,7 +17,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace MotionCardRes.DigitalTwinCard
+namespace NoCodeMotion.Services.Hardware.Cards.Families.DigitalTwinCard
 {
     public class ModubsComm
     {

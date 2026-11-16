@@ -31,8 +31,8 @@ namespace NoCodeMotion.Services.Hardware
 
     /// <summary>
     /// 主流运动控制卡 / 总线主站厂商信息。用于「添加控制器」下拉与「自动识别硬件」扫描。
-    /// 新增一种卡：在此加一条记录，并在 HardwareSetup / 对应 Bridge 里实现对接即可，
-    /// UI 与自动识别会自动识别该品牌与总线类型。
+    /// <para>品牌登记只描述厂商本身；某品牌下具体有哪些卡族，由 <c>Cards/Modules</c> 下的
+    /// 卡族模块各自声明，两边不需要手工同步。</para>
     /// </summary>
     public sealed class CardVendorInfo
     {
@@ -50,23 +50,12 @@ namespace NoCodeMotion.Services.Hardware
         public bool HasLiveBridge { get; set; }
         /// <summary>备注 / 对接说明。</summary>
         public string Note { get; set; }
-
-        /// <summary>
-        /// 该品牌下已移植的运动控制卡族键（对应 <see cref="Cards.CardFamilyCatalog"/> 的 Key）。
-        /// 空数组表示该品牌只有厂商登记、还没有可用的实时对接实现。
-        /// </summary>
-        public string[] Families { get; set; } = new string[0];
-
-        /// <summary>
-        /// 该品牌下可供选择的「卡型号」候选（写入控制器「卡型号」列即可匹配到对应卡族）。
-        /// 注意「卡型号」列是自由文本，这里只是给操作员的参考清单，不做下拉限制。
-        /// </summary>
-        public string[] CardTypes { get; set; } = new string[0];
     }
 
     /// <summary>
     /// 主流运动控制卡厂商登记表（脉冲型 + 总线型全覆盖）。
-    /// 这是“支持更多类型控制卡”的中央数据源：添加控制器下拉、自动识别、总线分类都读这里。
+    /// 这是“支持更多品牌”的中央数据源：添加控制器下拉、自动识别、总线分类都读这里。
+    /// 各品牌下已移植的卡族不在这里维护 —— 见 <c>Cards/Modules</c> 下各卡族模块。
     ///
     /// ★ 品牌划分与卡族对应关系来自 WenQiZhiMotion / SMotorse 参考实现自己的枚举与分组规则：
     ///     ShareData/ShareDatastruct.cs 的 CardTypeEnum = { 模拟卡, 雷赛, 升立德, 恒昱, 研控 }
@@ -85,18 +74,13 @@ namespace NoCodeMotion.Services.Hardware
                 // 而 Catalog.BusTypeNames 是从这里生成的 —— 不声明就会写出下拉框候选之外的值、渲染成空白。
                 BusTypes = new[] { CardBusType.Pulse, CardBusType.EtherCAT, CardBusType.CANopen, CardBusType.Other },
                 DllNames = new[] { "LTDMC.dll", "LTDmcCom.dll", "Dmc1000.dll" }, HasLiveBridge = true,
-                Families = new[] { "DMC_E3032_EtherCAT", "DMC3400A", "DMC1000S", "DMC2210" },
-                CardTypes = new[] { "DMC_E3032_EtherCAT", "DMC3400A", "DMC1000S", "DMC2210" },
                 Note = "DMC 系列脉冲卡 + EtherCAT/CANopen 总线主站。默认走自有 LtdmcCard 封装（诊断更全）；"
-                     + "把「卡型号」写成上表里的卡族键即可改用移植进来的卡族实现。" },
+                     + "把「卡型号」写成 Cards/Modules 下登记的卡族键即可改用移植进来的卡族实现。" },
 
             new CardVendorInfo {
                 Vendor = "升立德", DisplayName = "升立德 SLD", Category = "综合型（脉冲+IO+总线）",
                 BusTypes = new[] { CardBusType.Pulse, CardBusType.EtherCAT, CardBusType.CANopen, CardBusType.Other },
                 DllNames = new[] { "sldmv.dll", "PCI1230.dll", "Pci9014.dll", "Pci9016.dll", "SLD9014PTP.dll", "ecat_motion.dll" }, HasLiveBridge = true,
-                Families = new[] { "E64IOSeries", "SLD1230", "SLD1232", "PCI9014", "PCI9016", "RT3316", "EC600" },
-                CardTypes = new[] { "SLD1230", "SLD1232", "PCI9014", "PCI9016", "RT3316", "EC600",
-                                    "E6432", "E6416", "E6364", "E6316", "E6564", "E6516" },
                 Note = "SLD1230/1232 PCIe 脉冲卡、PCI9014/9016/RT3316 脉冲卡、E64 系列 IO 卡、EC600 EtherCAT 总线主站；"
                      + "扩展 IO 走 CAN / EtherCAT 模块。底层库：sldmv.dll / PCI1230.dll / Pci9014.dll / Pci9016.dll / ecat_motion.dll。" },
 
@@ -104,8 +88,6 @@ namespace NoCodeMotion.Services.Hardware
                 Vendor = "恒昱", DisplayName = "恒昱 HY", Category = "脉冲卡",
                 BusTypes = new[] { CardBusType.Pulse, CardBusType.CANopen, CardBusType.Other },
                 DllNames = new[] { "MCX08.dll", "PCI400.dll", "LTDMC.dll" }, HasLiveBridge = true,
-                Families = new[] { "HY7X00", "HYMC608" },
-                CardTypes = new[] { "HY7X00", "HY7400", "HY7600", "HY7800", "HY7C00", "HYMC608" },
                 Note = "HY7X00 系列（7400/7600/7800/7C00）与 MC608 脉冲卡；HY7X00 主驱动走 PCI400.dll，"
                      + "MC608 走 MCX08.dll。支持 HY_CAN_In20Out20 扩展模块。" },
 
@@ -113,10 +95,6 @@ namespace NoCodeMotion.Services.Hardware
                 Vendor = "研控", DisplayName = "研控 YK", Category = "综合型（脉冲+总线）",
                 BusTypes = new[] { CardBusType.Pulse, CardBusType.EtherCAT, CardBusType.CANopen, CardBusType.Other },
                 DllNames = new[] { "MCC800S.dll", "MCCE135.dll", "MCN420.dll", "MCC1C00.dll", "MCC.dll" }, HasLiveBridge = true,
-                Families = new[] { "YKMCC400P", "YKMCC400S", "YKMCC800P", "YKMCC800S",
-                                   "YKMCC1600P", "YMCC1200P", "YKMCCE3032", "MCN42Series", "MCC141C" },
-                CardTypes = new[] { "YKMCC400P", "YKMCC400S", "YKMCC800P", "YKMCC800S",
-                                    "YKMCC1600P", "MCC1200P", "YKMCCE3032", "MCN42Series", "MCC141C" },
                 Note = "MCC 系列脉冲 / 总线卡（400P/400S/800P/800S/1600P/1200P/E3032）、MCN42 系列与 MCC141C。"
                      + "底层库：MCC800S.dll / MCCE135.dll / MCN420.dll / MCC1C00.dll；"
                      + "MCC.dll 参考实现未随附，400P/800P/1600P/1200P 需另取该库。" },
@@ -125,8 +103,6 @@ namespace NoCodeMotion.Services.Hardware
                 Vendor = "模拟卡", DisplayName = "模拟卡（虚拟 / 数字孪生）", Category = "仿真",
                 BusTypes = new[] { CardBusType.Pulse, CardBusType.EtherCAT, CardBusType.ModbusTcp, CardBusType.Other },
                 DllNames = new string[0], HasLiveBridge = true,
-                Families = new[] { "VirtualMotionCard", "DigitalTwinCard" },
-                CardTypes = new[] { "VirtualMotionCard", "DigitalTwinCard" },
                 Note = "纯内存仿真，不驱动任何硬件，用于先写流程后接设备。"
                      + "数字孪生卡另带 Modbus/TCP，可接外部仿真模型。" },
 
@@ -136,16 +112,12 @@ namespace NoCodeMotion.Services.Hardware
                 Vendor = "虚拟", DisplayName = "虚拟（仿真，旧品牌名）", Category = "仿真",
                 BusTypes = new[] { CardBusType.Pulse, CardBusType.EtherCAT, CardBusType.ModbusTcp },
                 DllNames = new string[0], HasLiveBridge = true,
-                Families = new[] { "VirtualMotionCard", "DigitalTwinCard" },
-                CardTypes = new[] { "VirtualMotionCard", "DigitalTwinCard" },
                 Note = "老工程沿用的品牌代号，等价于「模拟卡」。新工程建议直接用「模拟卡」。" },
 
             new CardVendorInfo {
                 Vendor = "未分类", DisplayName = "未分类（参考实现未标注品牌）", Category = "综合型",
                 BusTypes = new[] { CardBusType.Pulse, CardBusType.EtherCAT, CardBusType.CANopen, CardBusType.Other },
                 DllNames = new[] { "PLT.dll", "WMX3Api_CLRLib.dll" }, HasLiveBridge = true,
-                Families = new[] { "PLTEI400H", "SoftServo" },
-                CardTypes = new[] { "PLTEI400H", "SoftServo" },
                 Note = "这 2 个卡族在参考实现里没有品牌归属（它的分组规则按前缀匹配，"
                      + "「PLT…」和「SoftServo」两个前缀都没覆盖到），因此按型号单独登记，不臆造厂商名。"
                      + "底层库：PLT.dll / WMX3Api_CLRLib.dll（SoftServo 为托管程序集，需另装 WMX3 运行环境）。" },
@@ -224,20 +196,6 @@ namespace NoCodeMotion.Services.Hardware
         /// <summary>按品牌代号取厂商信息；找不到回退到第一条（雷赛）。</summary>
         public static CardVendorInfo ByVendor(string vendor) =>
             Vendors.FirstOrDefault(x => x.Vendor == (vendor ?? string.Empty)) ?? Vendors[0];
-
-        /// <summary>
-        /// 该品牌下已移植卡族的原生库是否都在程序目录里可见（自动识别用）。
-        /// 没有登记卡族的品牌返回 false。
-        /// </summary>
-        public static bool FamilyDllPresent(CardVendorInfo v)
-        {
-            if (v.Families == null || v.Families.Length == 0) return false;
-            return v.Families.Any(key =>
-            {
-                var f = Cards.CardFamilyCatalog.ByKey(key);
-                return f != null && f.DllPresent;
-            });
-        }
     }
 }
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓​⁣​

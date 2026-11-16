@@ -146,7 +146,7 @@ namespace NoCodeMotion.Services.Hardware
 
             var present = CardFamilyCatalog.DetectPresent();
             StatusMessage = present.Count > 0
-                ? $"已移植卡族已就绪：底层库可见的卡族 {present.Count}/{CardFamilyCatalog.Families.Length} 个"
+                ? $"已移植卡族已就绪：底层库可见的卡族 {present.Count}/{CardFamilyCatalog.Families.Count} 个"
                   + $"（{string.Join("、", present.Select(f => f.Key))}）；控制器首次动作时初始化；"
                   + "通讯（串口 / 网口 / Modbus）可正常使用"
                 : "已移植卡族已装配，但没扫到任何卡族的底层库：轴 / IO 只记录日志；"

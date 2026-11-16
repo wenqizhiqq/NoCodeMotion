@@ -15,7 +15,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MotionCardRes.DMC1000S
+namespace NoCodeMotion.Services.Hardware.Cards.Families.DMC1000S
 {
     public class dmc1000SConfig
     {
@@ -53,7 +53,7 @@ namespace MotionCardRes.DMC1000S
             {
                 var fpath = $"{ProductModePath}\\{filename}";
                 var str1 = Newtonsoft.Json.JsonConvert.SerializeObject(confidata);
-                WenQiZhi.Domain.MotionCard.Common.FileData data = new WenQiZhi.Domain.MotionCard.Common.FileData(fpath);
+                NoCodeMotion.Services.Hardware.Cards.FileData data = new NoCodeMotion.Services.Hardware.Cards.FileData(fpath);
                 data.SaveData(str1);
             }
             catch (Exception ex)
@@ -70,7 +70,7 @@ namespace MotionCardRes.DMC1000S
         public CardConfigData LoadConfig(string filename)
         {
             var fpath = $"{ProductModePath}\\{filename}";
-            WenQiZhi.Domain.MotionCard.Common.FileData data = new WenQiZhi.Domain.MotionCard.Common.FileData(fpath);
+            NoCodeMotion.Services.Hardware.Cards.FileData data = new NoCodeMotion.Services.Hardware.Cards.FileData(fpath);
             var str1 = data.ReadData();
 
             try

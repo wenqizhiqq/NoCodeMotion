@@ -9,7 +9,8 @@
 #nullable disable
 
 
-using WenQiZhi.Domain.MotionCard.Common.VirtualMotionCard;
+using NoCodeMotion.Services.Hardware.Cards.Families.VirtualMotionCard;
+    using NoCodeMotion.Hardware.Motion;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -20,13 +21,13 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
+namespace NoCodeMotion.Services.Hardware.Cards.Families.YKMCCE3032
 {
 
     /// <summary>
     /// DMC_E3032_EtherCAT 的ICard实现类
     /// </summary>
-    public class CardRealization : ICard
+    public class CardRealization : MotionCardBase
     {
 
         //[DisplayName("运动控制卡的配置文件名字"), Description("运动控制卡的配置文件名字"), Category("卡参数设置")]
@@ -37,38 +38,38 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// <summary>
         /// 卡已经打开
         /// </summary>
-        public bool isOpen { get; set; } = false;
+        public override bool IsOpen { get; set; } = false;
 
         [DisplayName("卡是否初始化"), Description("true为已经初始化状态"), Category("卡参数设置")]
         /// <summary>
         /// 卡已经初始化
         /// </summary>
-        public bool isInit { get; set; } = false;
+        public override bool IsReady { get; set; } = false;
 
         [DisplayName("卡是否为虚拟卡"), Description("true则置卡为虚拟运动卡，以方便调试"), Category("卡参数设置")]
         /// <summary>
         /// 同型号多卡的数量
         /// </summary>
-        public ushort CardSum { get; set; } = 1;
+        public override ushort CardCount { get; set; } = 1;
 
         [DisplayName("多少张卡"), Description("注意指的是同型号多张卡的数量"), Category("卡参数设置")]
         /// <summary>
         /// 虚拟卡，方便脱机调试
         /// </summary>
-        public bool IsVitualCard { get; set; } = false;
+        public override bool IsVirtualCard { get; set; } = false;
 
 
         [DisplayName("运动卡输出IO的数量"), Description("运动卡输出IO的数量"), Category("卡参数设置")]
         /// <summary>
         /// 运动卡输出IO的数量
         /// </summary>
-        public int CardOutputIOSum { get; set; } = 6;
+        public override int OutputPointCount { get; set; } = 6;
 
         [DisplayName("运动卡输入IO的数量"), Description("运动卡输入IO的数量"), Category("卡参数设置")]
         /// <summary>
         /// 运动卡输入IO的数量
         /// </summary>
-        public int CardInputIOSum { get; set; } = 4;
+        public override int InputPointCount { get; set; } = 4;
 
 
         [DisplayName("拓展IO模块节点值"), Description("如果是CAN总线IO扩展卡，要指定节点号，如果有多张用逗号分隔"), Category("扩展IO参数设置")]
@@ -95,15 +96,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// <summary>
         /// 硬件名字,这里用枚举，以方便程序中轮询卡
         /// </summary>
-        public SystemSupportMotionCardEnum HardwareName { get; set; } = SystemSupportMotionCardEnum.MCCE332;
+        public override SystemSupportMotionCardEnum HardwareName { get; set; } = SystemSupportMotionCardEnum.MCCE332;
 
 
         [DisplayName("卡状态"), Description("卡状态，反馈卡是否在线模式"), Category("Online设置"), ReadOnly(true)]
         /// <summary>
         /// 判断是否为离线模式
         /// </summary>
-        public bool IsOffineMode { get; set; } = false;
-        bool TestIsOffineMode = true;
+        public override bool IsOfflineMode { get; set; } = false;
+        bool TestIsOfflineMode = true;
         public CardRealization()
         {
             //因为在调用同OpenCard()之前，还不知道电脑里有多少张同型号卡
@@ -139,7 +140,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         //public List<CardParamModel> ListCardParam { get { return _ListCardParam; } set { _ListCardParam = value; } }
         //private List<CardParamModel> _ListCardParam = new List<CardParamModel>();
 
-        public List<CardParamModel> ListCardParam { get; set; } = new List<CardParamModel>();
+        public override List<CardParamModel> ListCardParam { get; set; } = new List<CardParamModel>();
 
 
 
@@ -147,17 +148,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// 控制卡初始化函数
         /// </summary>
         /// <returns>卡的数量</returns>
-        public int InitCard()
+        public override int Initialize()
         {
-            if (IsVitualCard)
+            if (IsVirtualCard)
             {
-                isInit = true;
+                IsReady = true;
                 return 1;
             }
             var num = YK_MCCE3032SDK.Instance.DmcInitCard();
             if (YK_MCCE3032SDK.Instance.IsInit)
             {
-                isInit = true;
+                IsReady = true;
                 if (FirstFlagInit)
                 {
                     FirstFlagInit = false;
@@ -168,10 +169,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
                 }
                 return num;
             }
-            isInit = true;
-            IsOffineMode = true;
+            IsReady = true;
+            IsOfflineMode = true;
             return 1;
-            //isInit = false;
+            //IsReady = false;
             //return -1;
         }
         bool FirstFlagInit = true;
@@ -184,17 +185,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// <param name="cardtypes">返回控制卡固件类型数组</param>
         /// <param name="CardID">返回控制卡硬件 ID 号数组，卡号按从小到大顺序排列  </param>
         /// <returns>错误代码，返回零为成功，大于0的数表示第几张卡打开出错</returns>
-        public int OpenCard(ref ushort cardnum, ref uint[] cardtypes, ref ushort[] CardID)
+        public override int Open(ref ushort cardnum, ref uint[] cardtypes, ref ushort[] cardId)
         {
             //dmc_get_CardInfList(ref cardnum, cardtypes, CardIdList);
-            int res = YK_MCCE3032SDK.Instance.DmcGetCardInList(ref cardnum, ref cardtypes, ref CardID);
+            int res = YK_MCCE3032SDK.Instance.DmcGetCardInList(ref cardnum, ref cardtypes, ref cardId);
             if (res != 0 || cardnum == 0)
             { 
                 cardnum = 1;
                 cardtypes[0] = 2020;
-                CardID[0] = 0;
-                isOpen = true;
-                IsOffineMode = true;
+                cardId[0] = 0;
+                IsOpen = true;
+                IsOfflineMode = true;
                 return 0;
             }
 
@@ -234,7 +235,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
                         uint compareValue = 0;
                         if (uint.TryParse(base_str.Trim(), out compareValue))
                         {
-                            YK_MCCE3032SDK.Instance.DmcGetCardReleaseVersion(CardID[i], ref FirmwareVersion);
+                            YK_MCCE3032SDK.Instance.DmcGetCardReleaseVersion(cardId[i], ref FirmwareVersion);
                             if (!IsDateAboveSeptember2nd(base_str.Trim(), FirmwareVersion))
                             {
                                 var msg = $"OpenCard打开控制卡失败，smc.exe.config配置文件，FirmwareVersion填写固件版本过低,SMotorse最低固件版本【{base_str}】，当前固件版本【{FirmwareVersion}】。";
@@ -258,21 +259,21 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
                     //    case 0x13032:
                     //cardConfigFname = configFiles.ToList().Find(s => s.ToUpper().IndexOf("E3032") >= 0);
                     //string iniName = $"E3032_{CardID[i]}";  //todo:获取对应卡号的站号配置文件
-                    string iniName = $"MCCE3032INI_{CardID[i]}.XML";  //todo:获取对应卡号的站号配置文件 ----2024/07/31 轴载入进行 
-                    string eniName = $"MCCE3032ENI_{CardID[i]}.XML";  //todo:获取对应卡号的站号配置文件 ----2024/07/31 轴载入进行 
+                    string iniName = $"MCCE3032INI_{cardId[i]}.XML";  //todo:获取对应卡号的站号配置文件 ----2024/07/31 轴载入进行 
+                    string eniName = $"MCCE3032ENI_{cardId[i]}.XML";  //todo:获取对应卡号的站号配置文件 ----2024/07/31 轴载入进行 
                     cardOFAxisConfigFname = configFiles.ToList().Find(s => s.ToUpper().IndexOf(iniName) >= 0);
                     cardOFStationsConfigFname = configFiles.ToList().Find(s => s.ToUpper().IndexOf(eniName) >= 0);
                     //        break;
                     //}
                     bool isOK = false;
                     ushort errnum = 1;
-                    var res2 = YK_MCCE3032SDK.Instance.NmcGetCardErrcode(CardID[i], 2, ref errnum);
+                    var res2 = YK_MCCE3032SDK.Instance.NmcGetCardErrcode(cardId[i], 2, ref errnum);
                     ushort sta = 1;
-                    MCCE135.ecc_get_card_errcode((ushort)CardID[i], ref sta);
+                    MCCE135.ecc_get_card_errcode((ushort)cardId[i], ref sta);
                     if (errnum != 0 || sta != 0)//总线报错
                     {
-                        res1 = YK_MCCE3032SDK.Instance.GetCardDownloadMemfile(CardID[i], cardOFStationsConfigFname);     //下载配置文件
-                        res = MCCE135.ecc_reset_ecat(CardID[i], 0);
+                        res1 = YK_MCCE3032SDK.Instance.GetCardDownloadMemfile(cardId[i], cardOFStationsConfigFname);     //下载配置文件
+                        res = MCCE135.ecc_reset_ecat(cardId[i], 0);
                         if (res != 0)//热复位失败
                         {
                             res = MCCE135.mcc_board_cold_reset();//冷复位失败
@@ -290,7 +291,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
                         for (int j = 0; j < 15; j++)
                         {
                             ushort err = 1;
-                            res = MCCE135.ecc_get_master_state_machine(CardID[i], ref err);
+                            res = MCCE135.ecc_get_master_state_machine(cardId[i], ref err);
                             if (res == 0)
                             {
                                 if (err == 8)//总线复位正常完成
@@ -330,7 +331,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
                         byte[] fileincontrol = Encoding.UTF8.GetBytes("");
                         ushort filetype = 201;
                         //res1 = YK_MCCE3032SDK.Instance.GetCardDownloadMemfile(CardID[i], buffer, fileincontrol, filetype);     //下载配置文件
-                        res1 = YK_MCCE3032SDK.Instance.GetCardDownloadMemfile(CardID[i], cardOFStationsConfigFname);     //下载配置文件
+                        res1 = YK_MCCE3032SDK.Instance.GetCardDownloadMemfile(cardId[i], cardOFStationsConfigFname);     //下载配置文件
                         if (res1 != 0)
                         {
                             CMessage.Instance.AddTipsMessage(DeviceMessageTypeEnum.报警消息窗口, $"卡 [{HardwareName}] 载入配置文件 [{AppDomain.CurrentDomain.BaseDirectory + cardOFStationsConfigFname}] 出错！");
@@ -341,7 +342,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
                     }
                     for (int j = 0; j < 15; j++)
                     {
-                        res1 = YK_MCCE3032SDK.Instance.GetCardDownloadConfigfile(CardID[i], cardOFAxisConfigFname);
+                        res1 = YK_MCCE3032SDK.Instance.GetCardDownloadConfigfile(cardId[i], cardOFAxisConfigFname);
                         if (res1 == 0)
                         {
                             isOK = true;
@@ -367,7 +368,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
 
                 }
             }
-            isOpen = true;
+            IsOpen = true;
             #region Salve Readly
             if (false)
             {
@@ -384,15 +385,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
             return res;
 
             /*
-            if (IsVitualCard)
+            if (IsVirtualCard)
             {
-                isOpen = true;
+                IsOpen = true;
                 return 0;
             }
             int res = YK_MCCE3032SDK.Instance.DmcGetCardInList(ref cardnum, ref cardtypes, ref CardID);
             if (res != 0)
             {
-                isOpen = false;
+                IsOpen = false;
                 return res;
             }
 
@@ -409,7 +410,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
 
                 }
             }
-            isOpen = true;
+            IsOpen = true;
             return res;
             */
         }
@@ -435,9 +436,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// </summary>
         /// <param name="LibVer">返回库版本号</param>
         /// <returns>错误代码</returns>
-        public int GetCardLibVersion(int CardID, ref int LibVer, ref int pDriver_ver, ref int pLogic_ver)
+        public override int GetCardLibVersion(int cardId, ref int LibVer, ref int pDriver_ver, ref int pLogic_ver)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0;
                 try
@@ -485,14 +486,14 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// <param name="NodeCnt">参数不明等待回应</param>
         /// <param name="MasterId">参数不明等待回应</param>
         /// <returns>错误代码</returns>
-        public int SetCardMasterParam(int CardNo, int PortNum, int Baudrate, int NodeCnt, int MasterId)
+        public override int SetCardMasterParam(int cardIndex, int portCount, int baudRate, int nodeCount, int masterId)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0;
                 return -1;
             }
-            return YK_MCCE3032SDK.Instance.NmcSetCardMasterPara((ushort)CardNo, (ushort)PortNum, (ushort)Baudrate, (ushort)NodeCnt, (ushort)MasterId);
+            return YK_MCCE3032SDK.Instance.NmcSetCardMasterPara((ushort)cardIndex, (ushort)portCount, (ushort)baudRate, (ushort)nodeCount, (ushort)masterId);
         }
 
         /// <summary>
@@ -504,9 +505,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// <param name="NodeCnt">参数不明等待回应</param>
         /// <param name="MasterId">参数不明等待回应</param>
         /// <returns>错误代码</returns>
-        public int GetCardMasterParam(int CardNo, int PortNum, ref ushort Baudrate, ref uint NodeCnt, ref ushort MasterId)
+        public override int GetCardMasterParam(int cardIndex, int portCount, ref ushort baudRate, ref uint nodeCount, ref ushort masterId)
         {
-            return YK_MCCE3032SDK.Instance.NmcGetCardMasterPara((ushort)CardNo, (ushort)PortNum, ref Baudrate, ref NodeCnt, ref MasterId);
+            return YK_MCCE3032SDK.Instance.NmcGetCardMasterPara((ushort)cardIndex, (ushort)portCount, ref baudRate, ref nodeCount, ref masterId);
         }
 
         ///// <summary>
@@ -526,10 +527,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// <param name="SlaveAddr">EtherCAT 总线轴地址</param>
         /// <param name="Sub_SlaveAddr">EtherCAT 总线轴子地址</param>
         /// <returns>错误代码</returns>
-        public int GetCardSlaveStationConfig(int CardNo, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
+        public override int GetCardSlaveStationConfig(int cardIndex, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
         {
             //return YK_MCCE3032SDK.Instance.NmcGetCardAxisNodeAddress((ushort)CardNo, (ushort)axis, lenght, ref SlaveAddr, ref Sub_SlaveAddr, ref value); NmcGetCardNodeOD
-            return YK_MCCE3032SDK.Instance.NmcGetCardNodeOD((ushort)CardNo, 0, (ushort)axis, SlaveAddr, Sub_SlaveAddr, lenght, ref value);
+            return YK_MCCE3032SDK.Instance.NmcGetCardNodeOD((ushort)cardIndex, 0, (ushort)axis, SlaveAddr, Sub_SlaveAddr, lenght, ref value);
         }
 
         /// <summary>
@@ -539,14 +540,14 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// <param name="Fieldbustype">  EtherCAT 端口号，固定为 2</param>
         /// <param name="CycleTime">CAT 总线循环周期，单位：us，支持 250/500/1000/</param>
         /// <returns>错误代码</returns>
-        public int SetCardMasterScanCycleTime(int CardNo, int FieldbusType, int CycleTime)
+        public override int SetCardMasterScanCycleTime(int cardIndex, int fieldbusType, int CycleTime)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0;
                 return -1;
             }
-            return YK_MCCE3032SDK.Instance.NmcSetCardCycleTime((ushort)CardNo, (ushort)FieldbusType, CycleTime);
+            return YK_MCCE3032SDK.Instance.NmcSetCardCycleTime((ushort)cardIndex, (ushort)fieldbusType, CycleTime);
         }
 
         /// <summary>
@@ -556,14 +557,14 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// <param name="FieldbusType">EtherCAT 端口号，固定为 2</param>
         /// <param name="CyclFieldbusTypeeTime">EtherCAT 总线循环周期，单位：us，支持 250/500/1000/2000</param>
         /// <returns>错误代码</returns>
-        public int GetCardMasterScanCycleTime(int CardNo, int FieldbusType, ref int CyclFieldbusTypeeTime)
+        public override int GetCardMasterScanCycleTime(int cardIndex, int fieldbusType, ref int CyclFieldbusTypeeTime)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0;
                 return -1;
             }
-            return YK_MCCE3032SDK.Instance.NmcGetCardCydleTime((ushort)CardNo, (ushort)FieldbusType, ref CyclFieldbusTypeeTime);
+            return YK_MCCE3032SDK.Instance.NmcGetCardCydleTime((ushort)cardIndex, (ushort)fieldbusType, ref CyclFieldbusTypeeTime);
         }
 
         /// <summary>
@@ -571,23 +572,23 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int CardReset(int CardNo)
+        public override int CardReset(int cardIndex)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0;
                 return -1;
             }
-            return YK_MCCE3032SDK.Instance.DmcCardOriginalReset((ushort)CardNo);
+            return YK_MCCE3032SDK.Instance.DmcCardOriginalReset((ushort)cardIndex);
         }
 
         /// <summary>
         ///硬件复位（适用于所有脉冲/总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardBoardReset()
+        public override int CardBoardReset()
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0;
             }
@@ -598,41 +599,41 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// 控制卡热复位（适用于EtherCAT、RTEX总线卡）  
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardSoftReset(ushort CardNo)
+        public override int CardSoftReset(ushort cardIndex)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0;
             }
-            return YK_MCCE3032SDK.Instance.DmcCardSoftReset(CardNo);
+            return YK_MCCE3032SDK.Instance.DmcCardSoftReset(cardIndex);
         }
 
         /// <summary>
         /// 控制卡冷复位（适用于所有脉冲/总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardCoolReset(ushort CardNo)//todo:2022.11.26
+        public override int CardCoolReset(ushort cardIndex)//todo:2022.11.26
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0;
                 return -1;
             }
 
-            var res = YK_MCCE3032SDK.Instance.DmcCardCoolReset(CardNo);//复位总线错误
+            var res = YK_MCCE3032SDK.Instance.DmcCardCoolReset(cardIndex);//复位总线错误
             if (res != 0)
             {
                 CMessage.Instance.AddTipsMessage(DeviceMessageTypeEnum.报警消息窗口, $"dmc_soft_reset(复位总线错误) == {res.ToString()}\r\n {YK_MCCE3032SDK.Instance.GetEtherCATErrorInfo(res)}");
                 return -1;
             }
-            SetCardCANIOConnectState(CardNo, 2, 1, 1);
+            SetCardCANIOConnectState(cardIndex, 2, 1, 1);
 
             CMessage.Instance.AddTipsMessage(DeviceMessageTypeEnum.报警消息窗口, $"总线复位中... ");
 
             for (int i = 0; i < 15; i++)
             {
                 ushort err = 1;
-                res = MCCE135.ecc_get_master_state_machine(CardNo, ref err);
+                res = MCCE135.ecc_get_master_state_machine(cardIndex, ref err);
                 if (res == 0)
                 {
                     if (err == 8)//总线复位正常完成
@@ -655,20 +656,20 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// 关闭控制卡（适用于所有脉冲/总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CloseCard()
+        public override int Close()
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0;
             }
             return YK_MCCE3032SDK.Instance.DmcCardBoardClose();
         }
 
-        public int SetCardCANIOConnectState(int CardNo, int NodeNum, int state, int baud)
+        public override int SetCardCANIOConnectState(int cardIndex, int nodeCount, int state, int baud)
         {
-            if (IsOffineMode == true)
+            if (IsOfflineMode == true)
             {
-                NodeNum = 8;
+                nodeCount = 8;
                 state = 1;
                 return 0;
             }
@@ -677,40 +678,40 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
             {
                 Directory.CreateDirectory(cardConfigPath);
             }
-            var configFiles = Directory.GetFiles(cardConfigPath); string eniName = $"MCCE3032ENI_{CardNo}.XML";  //todo:获取对应卡号的站号配置文件 ----2024/07/31 轴载入进行 
+            var configFiles = Directory.GetFiles(cardConfigPath); string eniName = $"MCCE3032ENI_{cardIndex}.XML";  //todo:获取对应卡号的站号配置文件 ----2024/07/31 轴载入进行 
             var cardOFStationsConfigFname = configFiles.ToList().Find(s => s.ToUpper().IndexOf(eniName) >= 0);
 
-            return YK_MCCE3032SDK.Instance.GetCardDownloadMemfile(CardNo, cardOFStationsConfigFname);     //下载配置文件
+            return YK_MCCE3032SDK.Instance.GetCardDownloadMemfile(cardIndex, cardOFStationsConfigFname);     //下载配置文件
 
 
             throw new NotImplementedException();
         }
 
-        public int GetCardCANIOConnectState(int CardNo, ref ushort NodeNum, ref ushort state)
+        public override int GetCardCANIOConnectState(int cardIndex, ref ushort nodeCount, ref ushort state)
         {
-            if (IsOffineMode == true)
+            if (IsOfflineMode == true)
             {
-                NodeNum = 8;
+                nodeCount = 8;
                 state = 1;
                 return 0;
             }
-            MCCE135.ecc_get_card_errcode((ushort)CardNo, ref state);
+            MCCE135.ecc_get_card_errcode((ushort)cardIndex, ref state);
             if (state == 0) state = 1;
             //throw new NotImplementedException();
             return 0;
         }
 
 
-        public int GetCardTotalAxisNum(int CardNo, ref uint TotalAxis)
+        public override int GetAxisCount(int cardIndex, ref uint totalAxisCount)
         {
-            if (IsOffineMode == true)
+            if (IsOfflineMode == true)
             {
-                TotalAxis = 32;
+                totalAxisCount = 32;
                 return 0;
             }
             //throw new NotImplementedException();
             if (ListCardParam.Count < 1) return 0;
-            TotalAxis = ListCardParam[0].CardSuportAxisNum;
+            totalAxisCount = ListCardParam[0].CardSuportAxisNum;
             return 0;
         }
 
@@ -719,13 +720,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public override string GetErrorInfo(int errorNumber)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
-                return VirtualMotionCardSDK.Instance.GetErrorInfo(ErrNum);
+                return VirtualMotionCardSDK.Instance.GetErrorInfo(errorNumber);
             }
-            var res = YK_MCCE3032SDK.Instance.GetErrorInfo(ErrNum);
+            var res = YK_MCCE3032SDK.Instance.GetErrorInfo(errorNumber);
             return res;
         }
 
@@ -734,13 +735,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetEtherCATErrorInfo(int ErrNum)
+        public override string GetEtherCATErrorInfo(int errorNumber)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return ""; 
             }
-            return YK_MCCE3032SDK.Instance.GetEtherCATErrorInfo(ErrNum);
+            return YK_MCCE3032SDK.Instance.GetEtherCATErrorInfo(errorNumber);
         }
 
         /// <summary>
@@ -749,20 +750,20 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="channel">EtherCAT 总线端口号，固定为 2</param>
         /// <returns></returns>
-        public int GetCardCurrentState(int CardNo, int channel)
+        public override int GetCardCurrentState(int cardIndex, int channel)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0; 
             }
             ushort errnum = 1;
-            var res = YK_MCCE3032SDK.Instance.NmcGetCardErrcode(CardNo, channel, ref errnum);
+            var res = YK_MCCE3032SDK.Instance.NmcGetCardErrcode(cardIndex, channel, ref errnum);
             return errnum;
         }
 
-        public int DMCEventData(DMC_CacheMemory_Struct m_Obj)
+        public override int DMCEventData(DMC_CacheMemory_Struct m_Obj)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0;
                 throw new NotImplementedException();
@@ -821,13 +822,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC_E3032_EtherCAT
             throw new NotImplementedException();
         }
 
-        public int ConfigureEMGConfig(int CardNo, ushort[] io_Port, ushort enable = 1, ushort emg_logic = 1, ushort stop_mode = 1, double filter_time = 5)
+        public override int ConfigureEMGConfig(int cardIndex, ushort[] io_Port, ushort enable = 1, ushort emg_logic = 1, ushort stop_mode = 1, double filter_time = 5)
         {
-            if (IsOffineMode)
+            if (IsOfflineMode)
             {
                 return 0; 
             }
-            return YK_MCCE3032SDK.Instance.ConfigureEMGMapping(CardNo, io_Port, enable, emg_logic, stop_mode, filter_time);
+            return YK_MCCE3032SDK.Instance.ConfigureEMGMapping(cardIndex, io_Port, enable, emg_logic, stop_mode, filter_time);
         }
     }
 }

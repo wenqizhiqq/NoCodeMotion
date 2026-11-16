@@ -13,7 +13,7 @@ using System.Linq;
 using System.Text;
 
 
-namespace WenQiZhi.Domain.MotionCard.Common.HYMC608
+namespace NoCodeMotion.Services.Hardware.Cards.Families.HYMC608
 {
     //MCX08 重新封装类
     class MCCtrlAPI

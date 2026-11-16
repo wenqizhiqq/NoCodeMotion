@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace WenQiZhi.Domain.MotionCard.Common
+namespace NoCodeMotion.Services.Hardware.Cards
 {
     // ────────────────────────────────────────────────────────────────
     // 应用内核服务兼容层（本工程自行实现，非厂商源码）

@@ -1,15 +1,34 @@
 # 本目录（Services/Hardware/Cards）是从 WenQiZhiMotion / SMotorse 参考实现
-# 整体移植进来的运动控制卡层：6 个接口 + 10 个原生 DLL 包装类 + 26 个卡家族，
-# 共约 19 万行第三方既有代码，逐字节保持原样（只把行尾归一化为 LF、加了
-# #nullable disable），目的是将来仍能与参考实现对照。
+# 移植进来的运动控制卡层。2026-11 已按本项目要求完成底层改造：
+#   · 6 个接口 → 6 个抽象基类（Abstraction/），26 个卡族全部改为继承 + override；
+#   · 公共成员统一 PascalCase、修正 Vitual/Offine/InPut/OutPut 等拼写；
+#   · 参数、私有字段、局部变量按下述命名规则统一。
+# Native/ 与各卡族 *SDK.cs 中的 P/Invoke 声明保持原样（EntryPoint 不能改）。
 #
-# 因此这里保留的厂商写法会触发一批噪音警告。它们全部来自厂商代码，
-# 不是本项目的缺陷，且对 26 个卡家族逐个改写风险远大于收益，故在本目录内
-# 关闭这些规则；工程其余部分的告警基线（590 条 CA1416）不受影响。
-#
-# 本文件只作用于 Services/Hardware/Cards/ 及其子目录（不设 root，
-# 以便将来工程根目录若新增 .editorconfig 时仍能向下继承）。
+# 本文件只作用于 Services/Hardware/Cards/ 及其子目录（不设 root）。
 [*.cs]
+
+# ── 命名规范 ──
+dotnet_naming_rule.parameters_camel.symbols = parameters
+dotnet_naming_rule.parameters_camel.style = camel_case
+dotnet_naming_rule.parameters_camel.severity = warning
+
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_camel
+dotnet_naming_rule.private_fields_underscore.severity = warning
+
+dotnet_naming_rule.locals_camel.symbols = locals
+dotnet_naming_rule.locals_camel.style = camel_case
+dotnet_naming_rule.locals_camel.severity = warning
+
+dotnet_naming_symbols.parameters.applicable_kinds = parameter
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_symbols.locals.applicable_kinds = local
+
+dotnet_naming_style.camel_case.capitalization = camel_case
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+dotnet_naming_style.underscore_camel.required_prefix = _
 
 # ── 厂商代码遗留 ──
 # CS0162 检测到无法访问的代码

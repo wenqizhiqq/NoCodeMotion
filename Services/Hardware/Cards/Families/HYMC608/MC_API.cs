@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Runtime.InteropServices;
 
-namespace WenQiZhi.Domain.MotionCard.Common.HYMC608
+namespace NoCodeMotion.Services.Hardware.Cards.Families.HYMC608
 {
     //
     // 连接类型, MC系列可以用串口与网口链接

@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using System.Threading;
 using RtMotionApiNET;
 
-namespace WenQiZhi.Domain.MotionCard.Common.RT3316
+namespace NoCodeMotion.Services.Hardware.Cards.Families.RT3316
 {
     public class RT3316SDK
     {
@@ -71,7 +71,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public string GetErrorInfo(int errorNumber)
         {
             var msg = string.Empty;
             Dictionary<int, string> dic = new Dictionary<int, string>()
@@ -105,9 +105,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
                 {210,"RC_DIST_SMALL" }
             };
 
-            if (dic.ContainsKey(ErrNum))
+            if (dic.ContainsKey(errorNumber))
             {
-                return dic[ErrNum];
+                return dic[errorNumber];
             }
             return "unkown errNum";
         }
@@ -120,7 +120,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <param name="bitno"></param>
         /// <param name="on_off">输入电平，0：低电平，1：高电平</param>
         /// <returns></returns>
-        public int SetCardWriteInBit(int CardNo, int bitno, int on_off)
+        public int SetCardWriteInBit(int cardIndex, int bitno, int on_off)
         {
             return 0;
         }
@@ -132,7 +132,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <param name="card_id">有*existCards 个元素的数组，包含查找到的卡 的 ID 号，建议使用含 有 16 个元素的 I32 类型数组作为该参数 </param>
         /// <param name="card_count">查到的 PCI-9014 数目</param>
         /// <returns>正常返回 0； 出现错误时返回非 0 值;</returns>
-        public int InitCard(ref int[] card_id, ref int card_count)
+        public int Initialize(ref int[] card_id, ref int card_count)
         {
             card_id = new int[16];
             try
@@ -193,7 +193,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// 关闭卡
         /// </summary>
         /// <returns>正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int CloseCard()
+        public int Close()
         {
             try
             {

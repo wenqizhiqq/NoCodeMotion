@@ -31,7 +31,7 @@ using System.Runtime.InteropServices;
 
 
 
-namespace WenQiZhi.Domain.MotionCard.Common
+namespace NoCodeMotion.Services.Hardware.Cards
 {
 	public class sldmv
 	{

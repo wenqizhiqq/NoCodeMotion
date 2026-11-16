@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.Text;
 
 
-namespace WenQiZhi.Domain.MotionCard.Common.SLD1232
+namespace NoCodeMotion.Services.Hardware.Cards.Families.SLD1232
 {
 
     public class CPcie1232

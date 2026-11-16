@@ -21,7 +21,7 @@ using System.Linq;
 using System.Text;
 using System.Runtime.InteropServices;               //使用C#导入dll必须的
 
-namespace WenQiZhi.Domain.MotionCard.Common
+namespace NoCodeMotion.Services.Hardware.Cards
 {
     public class MCCE135
     {

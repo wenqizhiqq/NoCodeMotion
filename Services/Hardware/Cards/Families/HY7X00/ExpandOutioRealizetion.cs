@@ -8,37 +8,38 @@
 // ────────────────────────────────────────────────────────────────
 #nullable disable
 using System;
+    using NoCodeMotion.Hardware.Motion;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
+namespace NoCodeMotion.Services.Hardware.Cards.Families.HY7X00
 {
     /// <summary>
     /// 外部输出IO
     /// </summary>
-    public class ExpandOutioRealizetion : IEIOOutPut
+    public class ExpandOutioRealizetion : ExpansionOutputBase
     {
         /// <summary>
         /// IO的初始电平为高电平
         /// </summary>
-        public bool EDefaultLevelIsHigh { get; set; } = false;
+        public override bool ActiveHighByDefault { get; set; } = false;
 
         /// <summary>
         /// 硬件卡拥有的输出IO的数量
         /// </summary>
-        public ushort EOutIONums { get; set; } = 64;
+        public override ushort PointCount { get; set; } = 64;
 
         /// <summary>
         /// 输入IO所属卡的名字
         /// </summary>
-        public string EOutIOName { get; set; }
+        public override string ChannelName { get; set; }
 
         /// <summary>
         /// 卡号（即这个输出IO对象是属于第几张卡的）
         /// </summary>
-        public int ECardNo { get; set; }
+        public override int ECardNo { get; set; }
 
 
         /// <summary>
@@ -50,9 +51,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandADDAIOOutPortNoMode(int CardNo, int NodeID, int PortNo, int mode, uint buffer_nums)
+        public override int ESetExpandADDAIOOutPortNoMode(int cardIndex, int nodeId, int portIndex, int mode, uint buffer_nums)
         {
-            return HY7X00SDK.Instance.SetExpandADDAIOOutPortNoMode(CardNo, NodeID, PortNo, mode, buffer_nums);
+            return HY7X00SDK.Instance.SetExpandADDAIOOutPortNoMode(cardIndex, nodeId, portIndex, mode, buffer_nums);
         }
 
         /// <summary>
@@ -64,9 +65,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandADDAIOOutPortNoMode(int CardNo, int NodeID, int PortNo, ref ushort mode, uint buffer_nums)
+        public override int EGetExpandADDAIOOutPortNoMode(int cardIndex, int nodeId, int portIndex, ref ushort mode, uint buffer_nums)
         {
-            return HY7X00SDK.Instance.GetExpandADDAIOOutPortNoMode(CardNo, NodeID, PortNo, ref mode, buffer_nums);
+            return HY7X00SDK.Instance.GetExpandADDAIOOutPortNoMode(cardIndex, nodeId, portIndex, ref mode, buffer_nums);
         }
 
         /// <summary>
@@ -77,9 +78,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandADDAIOPortNoOutBit(int CardNo, int NodeID, int PortNo, ref double IoValue)
+        public override int EGetExpandADDAIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, ref double ioValue)
         {
-            return HY7X00SDK.Instance.GetExpandADDAIOPortNoOutBit(CardNo, NodeID, PortNo, ref IoValue);
+            return HY7X00SDK.Instance.GetExpandADDAIOPortNoOutBit(cardIndex, nodeId, portIndex, ref ioValue);
         }
 
         /// <summary>
@@ -94,15 +95,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="state"></param>
         /// <param name="baud"></param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandIOConnectState(int CardNo, ref ushort NodeNum, ref ushort state)
+        public override int EGetExpandIOConnectState(int cardIndex, ref ushort nodeCount, ref ushort state)
         {
             var error = 0;
             for (int i = 0; i < number; i++)
             {
-                error = HY7X00SDK.Instance.GetExpandIOConnectState(CardNo, (ushort)i, ref state);
+                error = HY7X00SDK.Instance.GetExpandIOConnectState(cardIndex, (ushort)i, ref state);
                 if (error != 0) break;
             }
-            NodeNum = (ushort)number;
+            nodeCount = (ushort)number;
             return error;
             //return HY7X00SDK.Instance.GetExpandIOConnectState(CardNo, ref NodeNum, ref state);
         }
@@ -115,9 +116,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandIOOutBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public override int EGetExpandIOOutBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
-            return HY7X00SDK.Instance.GetExpandIOOutBit(CardNo, NodeID, IoBit, ref IoValue);
+            return HY7X00SDK.Instance.GetExpandIOOutBit(cardIndex, nodeId, ioBit, ref ioValue);
         }
 
         /// <summary>
@@ -128,9 +129,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit31 的值分别代表第 0~31 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandIOPortNoOutBit(int CardNo, int NodeID, int PortNo, ref uint IoValue)
+        public override int EGetExpandIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, ref uint ioValue)
         {
-            return HY7X00SDK.Instance.GetExpandIOPortNoOutBit(CardNo, NodeID, PortNo, ref IoValue);
+            return HY7X00SDK.Instance.GetExpandIOPortNoOutBit(cardIndex, nodeId, portIndex, ref ioValue);
         }
 
         /// <summary>
@@ -141,9 +142,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandADDAIOPortNoOutBit(int CardNo, int NodeID, int PortNo, double IoValue)
+        public override int ESetExpandADDAIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, double ioValue)
         {
-            return HY7X00SDK.Instance.SetExpandADDAIOPortNoOutBit(CardNo, NodeID, PortNo, IoValue);
+            return HY7X00SDK.Instance.SetExpandADDAIOPortNoOutBit(cardIndex, nodeId, portIndex, ioValue);
         }
 
         /// <summary>
@@ -158,10 +159,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="state">设置通讯状态，0：断开，1：连接</param>
         /// <param name="baud">设置控制卡波特率：波特率参数：0,1,2,3,4,5；对特率：1000Kbps，800Kbps,500Kbps,250Kbps,125Kbps,100Kbps</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandIOConnectState(int CardNo, int NodeNum, int state, int baud)
+        public override int ESetExpandIOConnectState(int cardIndex, int nodeCount, int state, int baud)
         {
-            number = NodeNum;
-            return HY7X00SDK.Instance.SetExpandIOConnectState(CardNo, NodeNum, state, baud);
+            number = nodeCount;
+            return HY7X00SDK.Instance.SetExpandIOConnectState(cardIndex, nodeCount, state, baud);
         }
 
         /// <summary>
@@ -172,9 +173,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandIOOutBit(int CardNo, int NodeID, int IoBit, int IoValue)
+        public override int ESetExpandIOOutBit(int cardIndex, int nodeId, int ioBit, int ioValue)
         {
-            return HY7X00SDK.Instance.SetExpandIOOutBit(CardNo, NodeID, IoBit, IoValue);
+            return HY7X00SDK.Instance.SetExpandIOOutBit(cardIndex, nodeId, ioBit, ioValue);
         }
 
         /// <summary>
@@ -185,9 +186,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit32 的值分别代表第 0~32 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandIOPortNoOutBit(int CardNo, int NodeID, int PortNo, int IoValue)
+        public override int ESetExpandIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, int ioValue)
         {
-            return HY7X00SDK.Instance.SetExpandIOPortNoOutBit(CardNo, NodeID, PortNo, IoValue);
+            return HY7X00SDK.Instance.SetExpandIOPortNoOutBit(cardIndex, nodeId, portIndex, ioValue);
         }
 
         /// <summary>
@@ -200,9 +201,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNum">保留参数，设为 0</param>
         /// <param name="NodeNum">节点号，1-8</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESaveExpandIoToFlash(int CardNo, int PortNum, int NodeNum)
+        public override int ESaveExpandIoToFlash(int cardIndex, int portCount, int nodeCount)
         {
-            return HY7X00SDK.Instance.SaveExpandIoToFlash(CardNo, PortNum, NodeNum);
+            return HY7X00SDK.Instance.SaveExpandIoToFlash(cardIndex, portCount, nodeCount);
         }
     }
 }

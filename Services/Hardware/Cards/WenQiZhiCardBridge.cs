@@ -2,9 +2,9 @@
 // ◆温⁠启‎志‎◆‎编⁠写​◇⁣微‌信⁠﹕‍1‎8‎7‌◆‏1​9‌3‍6‍◇‏1‌3‌9‏9‌　​※⁣保‌留‏所‏有⁣权‏利⁠请⁠勿‏删‎除‎◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ────────────────────────────────────────────────────────────────
-// 运动控制卡对接实现：把移植进来的 WenQiZhi.Domain.MotionCard.Common 卡族层
-// （CardRealization : ICard / AxisRealization : IAxis / InioRealization : IIOInPut /
-//   OutioRealization : IIOOutPut / Expand* : IEIOInPut / IEIOOutPut）
+// 运动控制卡对接实现：把移植进来的 NoCodeMotion.Services.Hardware.Cards 卡族层
+// （CardRealization : MotionCardBase / AxisRealization : MotionAxisBase / InioRealization : DigitalInputBase /
+//   OutioRealization : DigitalOutputBase / Expand* : ExpansionInputBase / ExpansionOutputBase）
 // 接到 NoCodeMotion 的 IHardwareBridge 上，让 Lua 的 AxisMove / SetIO 等真正下发到卡。
 //
 // 与 LeadshineHardwareBridge 的分工：
@@ -18,6 +18,7 @@
 // ────────────────────────────────────────────────────────────────
 #nullable disable
 using System;
+using NoCodeMotion.Hardware.Motion;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -28,7 +29,7 @@ using MoonSharp.Interpreter;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services.Hardware.Comm;
 using NoCodeMotion.Services.Hardware.Leadshine;   // HardwareOperationException
-using WenQiZhi.Domain.MotionCard.Common;
+using NoCodeMotion.Services.Hardware.Cards;
 
 namespace NoCodeMotion.Services.Hardware.Cards
 {
@@ -90,7 +91,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             public CardFamilyDescriptor Family;
             public CardFamilyRuntime Runtime;
 
-            /// <summary>是否已成功初始化（InitCard + OpenCard）。</summary>
+            /// <summary>是否已成功初始化（Initialize + Open）。</summary>
             public bool Ready;
 
             /// <summary>初始化结果说明（成功 / 失败原因），用于界面与日志。</summary>
@@ -100,9 +101,9 @@ namespace NoCodeMotion.Services.Hardware.Cards
             public int CardNo;
 
             /// <summary>轴号 → 轴实现实例。每个轴一个实例（AxisID / AxisWhichCardNo 是实例字段）。</summary>
-            public readonly Dictionary<int, IAxis> Axes = new Dictionary<int, IAxis>();
+            public readonly Dictionary<int, MotionAxisBase> Axes = new Dictionary<int, MotionAxisBase>();
 
-            /// <summary>该槽位的初始化串行锁：让慢初始化（InitCard / OpenCard）在 <c>_gate</c> 之外执行，
+            /// <summary>该槽位的初始化串行锁：让慢初始化（Initialize / Open）在 <c>_gate</c> 之外执行，
             /// 避免 UI 线程读 IsControllerReady / ControllerStatus 时被一起卡住（连接时界面卡死的根因）。</summary>
             public readonly object InitLock = new object();
         }
@@ -119,8 +120,10 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <summary>轴号越界（轴号 ≥ 卡族轴数）只提示一次，避免每个动作都刷屏。</summary>
         private bool _warnedAxisNoRange;
         /// <summary>「同一控制器下两根轴用了同一个轴号」只提示一次（键 = 控制器名#轴号）。</summary>
-        private readonly HashSet<string> _warnedAxisDuplicate = new HashSet<string>(StringComparer.Ordinal);
-
+        private readonly HashSet<string> _warnedAxisDuplicate = new HashSet<string>(StringComparer.Ordinal);
+
+
+
         /// <summary>
         /// ★ 等待闸：由流程运行器（FlowRunnerService / FlowLoopManager）绑定到当前运行的
         /// FlowRunControl。所有阻塞等待（轴到位 / 回零到位 / 等待输入 / 气缸到位）在轮询时都会调它——
@@ -161,14 +164,15 @@ namespace NoCodeMotion.Services.Hardware.Cards
             // 只查「停止 / 急停」（不阻塞暂停）。停止时这里抛出的 OperationCanceledException
             // 由调用点（CylinderMove 的脉宽 try/catch）先复位输出电平再上抛，避免电磁阀常通。
             HardwareBridge.WaitGuard?.Invoke();
-        }
+        }
+
 
 
         public WenQiZhiCardBridge(Action<string> log = null)
         {
             _log = log;
             _comm.Log = Log;   // 未传回调时统一走 HardwareLog（Lua 运行期会指向输出面板）
-            Log("[卡族] 已加载 " + CardFamilyCatalog.Families.Length + " 个已移植运动控制卡族："
+            Log("[卡族] 已加载 " + CardFamilyCatalog.Families.Count + " 个已移植运动控制卡族："
                 + string.Join("、", CardFamilyCatalog.Families.Select(f => f.Key)));
         }
 
@@ -243,7 +247,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             return slot;
         }
 
-        /// <summary>初始化一个控制器：匹配卡族 → new 实现类 → InitCard → OpenCard。</summary>
+        /// <summary>初始化一个控制器：匹配卡族 → new 实现类 → Initialize → Open。</summary>
         private void Initialize(CardSlot slot, string what)
         {
             var ctl = slot.Config;
@@ -289,12 +293,12 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
             slot.CardNo = Math.Max(ctl.CardNo, 0);
 
-            // 模拟卡族的 CardRealization 在 IsVitualCard = true 时会跳过真实的初始化 / 打开卡，
+            // 模拟卡族的 CardRealization 在 IsVirtualCard = true 时会跳过真实的初始化 / 打开卡，
             // 直接置位并返回成功 —— 脱机调试时正是我们要的。
             bool isSimulation = family.Key == "VirtualMotionCard" || family.Key == "DigitalTwinCard";
-            try { slot.Runtime.Card.IsVitualCard = isSimulation; } catch { /* 少数卡族该属性只读 */ }
+            try { slot.Runtime.Card.IsVirtualCard = isSimulation; } catch { /* 少数卡族该属性只读 */ }
 
-            // ★ 预置卡参数表：部分卡族（如 DMC3400A 的 DMC3000 系列分支）在 OpenCard 里会按下标
+            // ★ 预置卡参数表：部分卡族（如 DMC3400A 的 DMC3000 系列分支）在 Open 里会按下标
             //   访问 ListCardParam[i]，表是空的话直接 IndexOutOfRange，卡根本打不开。
             //   参考实现是在它自己的硬件配置界面里填这张表的，NoCodeMotion 没有那个界面，
             //   所以这里按控制器上配的「轴数量」补一份最小可用表（卡号 + 轴数）。
@@ -304,12 +308,12 @@ namespace NoCodeMotion.Services.Hardware.Cards
             int initRes;
             try
             {
-                initRes = slot.Runtime.Card.InitCard();
+                initRes = slot.Runtime.Card.Initialize();
             }
             catch (Exception ex)
             {
                 slot.Ready = false;
-                slot.Status = "InitCard 异常：" + ex.Message;
+                slot.Status = "Initialize 异常：" + ex.Message;
                 Log($"[卡族] 控制器「{ctl.Name}」（{family.Key}）初始化失败：{ex.Message}，{what} 只记录不执行。");
                 return;
             }
@@ -321,11 +325,11 @@ namespace NoCodeMotion.Services.Hardware.Cards
             int openRes = -1;
             try
             {
-                openRes = slot.Runtime.Card.OpenCard(ref cardNum, ref cardTypes, ref cardIds);
+                openRes = slot.Runtime.Card.Open(ref cardNum, ref cardTypes, ref cardIds);
             }
             catch (Exception ex)
             {
-                // 部分卡族在没插卡时 OpenCard 会抛（数组越界 / 句柄无效），按「打不开」处理。
+                // 部分卡族在没插卡时 Open 会抛（数组越界 / 句柄无效），按「打不开」处理。
                 Log($"[卡族] 控制器「{ctl.Name}」（{family.Key}）打开卡时异常：{ex.Message}");
             }
 
@@ -335,7 +339,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             slot.Ready = initRes >= 0 && openRes == 0;
             slot.Status = slot.Ready
                 ? $"已连接（卡族 {family.Key}，卡号 {slot.CardNo}，共 {cardNum} 张卡）"
-                : $"未就绪（卡族 {family.Key}，InitCard={initRes}，OpenCard={openRes}）";
+                : $"未就绪（卡族 {family.Key}，Initialize={initRes}，Open={openRes}）";
 
             Log($"[卡族] 控制器「{ctl.Name}」{slot.Status}。{family.Note}");
             if (slot.Ready && cardTypes != null && cardTypes.Length > 0 && cardTypes[0] != 0)
@@ -383,7 +387,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         }
 
         /// <summary>取某个轴对应的 (卡槽, 轴实现)；不可用时返回 (卡槽, null)。</summary>
-        private (CardSlot slot, IAxis axis) AxisOf(AxisItem axis)
+        private (CardSlot slot, MotionAxisBase axis) AxisOf(AxisItem axis)
         {
             if (axis == null) return (null, null);
 
@@ -411,7 +415,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 if (slot.Axes.TryGetValue(no, out var existing))
                 {
                     // ★ 这根「轴号」已经被另一根轴占用了。slot.Axes 以轴号为键，所以第二根轴会
-                    //   悄悄复用第一根的 IAxis 实例（AxisID / AxisWhichCardNo 是实例字段，
+                    //   悄悄复用第一根的 MotionAxisBase 实例（AxisID / AxisWhichCardNo 是实例字段，
                     //   且卡族的读位置 / 回零 / 读状态都不带轴号参数）—— 两根轴会指向同一个物理通道，
                     //   卡内缓冲被互相抢占 → Jog 报 8194「普通缓冲满」。
                     //   名称与轴号是同一个数：轴0、轴1、轴2…（和 IO 序号一样从 0 开始）。
@@ -431,7 +435,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                     return (slot, existing);
                 }
 
-                IAxis a;
+                MotionAxisBase a;
                 try { a = slot.Runtime.NewAxis(); }
                 catch (Exception ex)
                 {
@@ -448,7 +452,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 a.AxisWhichcardType = slot.Config?.CardType ?? string.Empty;
                 a.AxisID = no;
                 a.Online = true;
-                a.IsVitualCard = slot.Family.Key == "VirtualMotionCard" || slot.Family.Key == "DigitalTwinCard";
+                a.IsVirtualCard = slot.Family.Key == "VirtualMotionCard" || slot.Family.Key == "DigitalTwinCard";
                 slot.Axes[no] = a;
                 return (slot, a);
             }
@@ -579,7 +583,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
         /// <summary>
         /// 多轴直线插补（LV Studio「直线插补」对应实现）：轴号与目标位置填进卡族模型后交给
-        /// <see cref="IAxis.CardAxesLineUnit"/>。返回 null = 已下发；非 null = 给用户看的原因。
+        /// <see cref="MotionAxisBase.CardAxesLineUnit"/>。返回 null = 已下发；非 null = 给用户看的原因。
         /// <para>★ 速度 / 加减速时间写在模型里，但是否生效**取决于卡族**：部分卡只认卡内插补参数
         /// （见各卡族 SetCardAxisInterpolateVectorProfile），这时速度参数不参与。</para>
         /// </summary>
@@ -590,7 +594,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             var axes = new int[targets.Count];
             var pos = new double[targets.Count];
             int cardNo = -1;
-            IAxis impl = null;
+            MotionAxisBase impl = null;
             for (int i = 0; i < targets.Count; i++)
             {
                 var target = targets[i];
@@ -787,7 +791,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             if (axis == null) { raw.Message = "无轴"; return false; }
 
             CardSlot slot = null;
-            IAxis a = null;
+            MotionAxisBase a = null;
             try { (slot, a) = AxisOf(axis); }
             catch (Exception ex) { raw.Message = "寻址失败：" + ex.Message; return false; }
             if (a == null) { raw.Message = "控制器未连接或轴号越界"; return false; }
@@ -853,9 +857,9 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <summary>
         /// 取「轴状态字」（dmc_axis_io_status 位布局）。
         /// 卡族的 AxisRealization 里有一个无参的 <c>GetAxisCurrentState()</c> 返回该字，但它不在
-        /// <see cref="IAxis"/> 接口上，所以这里用反射取（结果按类型缓存）；取不到返回 false —— 界面显示「—」，不猜。
+        /// <see cref="MotionAxisBase"/> 接口上，所以这里用反射取（结果按类型缓存）；取不到返回 false —— 界面显示「—」，不猜。
         /// </summary>
-        private static bool TryReadIoWord(IAxis a, out uint word)
+        private static bool TryReadIoWord(MotionAxisBase a, out uint word)
         {
             word = 0;
             if (a == null) return false;
@@ -908,7 +912,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         private static double EquivOf(AxisItem axis) => axis != null && axis.PulsePerUnit > 0 ? axis.PulsePerUnit : 1;
 
         /// <summary>
-        /// 把工程里该轴的「脉冲当量」真正下发到控制卡（卡族层走 <see cref="IAxis.SetCardAxisPulseEquival"/>）。
+        /// 把工程里该轴的「脉冲当量」真正下发到控制卡（卡族层走 <see cref="MotionAxisBase.SetCardAxisPulseEquival"/>）。
         ///
         /// <para>★ 为什么必须下发：卡族的轴接口全部是 <b>unit 版</b>（研控 MCN420 的 <c>YK_vmove</c> /
         /// <c>YK_pmove</c> / <c>YK_set_command_position</c> …），卡内要靠「指令位置比率」
@@ -921,7 +925,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// 雷赛层也不需要：<c>LeadshineHardwareBridge</c> 在每次运动前会走 <c>ApplyAxisProfile</c>
         /// 一起下发当量，卡族层原本漏了这一步。</para>
         /// </summary>
-        private void EnsureAxisRatio(CardSlot slot, IAxis a, AxisItem axis)
+        private void EnsureAxisRatio(CardSlot slot, MotionAxisBase a, AxisItem axis)
         {
             if (slot == null || a == null || axis == null) return;
             if (IsSimulation(slot)) return;
@@ -969,7 +973,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             int done = 0;
             foreach (var ax in axes)
             {
-                IAxis a = null;
+                MotionAxisBase a = null;
                 try { (_, a) = AxisOf(ax); } catch { continue; }
                 if (a == null) continue;
                 EnsureAxisRatio(slot, a, ax);
@@ -1010,7 +1014,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <c>Mcn420ErrorCode.xml</c>（与该卡族使用的 MCN420.dll 同版本）。卡族没提供 / 查不到时
         /// 返回空串 —— 不猜、不编。</para>
         /// </summary>
-        private static string CardCodeText(IAxis a, int code)
+        private static string CardCodeText(MotionAxisBase a, int code)
         {
             if (a == null || code == 0) return string.Empty;
             var mi = _errInfoMethods.GetOrAdd(a.GetType(), t =>
@@ -1054,7 +1058,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <para>★ 不要再把 8194 / 20480 归因成「脉冲当量为 0」—— 卡手册里
         /// 8194 = 普通缓冲满出错、20480 = 0 通道轴未运动完成，都与当量无关。</para>
         /// </summary>
-        private static string AxisFailHint(AxisItem axis, IAxis a, int code)
+        private static string AxisFailHint(AxisItem axis, MotionAxisBase a, int code)
         {
             var sb = new StringBuilder("。");
             string meaning = CardCodeText(a, code);
@@ -1138,7 +1142,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// 模拟卡每次运动前的准备：首次给该轴设宽行程，每次都把速度曲线写进仿真器的参数缓冲
         /// （模拟卡里 <c>SetCardAxisTProfile</c> 才是真正生效的设速接口）。
         /// </summary>
-        private void EnsureSimReady(CardSlot slot, IAxis a, AxisItem axis, MotionParamModel mpm)
+        private void EnsureSimReady(CardSlot slot, MotionAxisBase a, AxisItem axis, MotionParamModel mpm)
         {
             int axisNo = Math.Max(axis.AxisNo, 0);
             string key = (slot != null ? slot.ControllerName : "?") + "#" + axisNo;
@@ -1159,7 +1163,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// 下发一次点位（相对 / 绝对）运动。模拟卡与真实卡的距离 / 速度换算不同，这里统一收口。
         /// posiMode：0 = 相对坐标，1 = 绝对坐标。返回底层返回码（0 = 成功，模拟卡恒为 0）。
         /// </summary>
-        private int SendPointMove(CardSlot slot, IAxis a, AxisItem axis, double target, int posiMode, double speed)
+        private int SendPointMove(CardSlot slot, MotionAxisBase a, AxisItem axis, double target, int posiMode, double speed)
         {
             if (IsSimulation(slot))
             {
@@ -1183,7 +1187,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// 真实卡族不受影响：<c>CardAxisPointMovement</c> 会把 posi_mode 原样传给 SDK
         /// （如 MCN420 的 <c>DmcCardAxisPMoveUnit(card, axis, Dist, posi_mode)</c>），相对/绝对都正确。
         /// </summary>  
-        private static double SimAbsoluteTarget(IAxis a, AxisItem axis, double target, int posiMode)
+        private static double SimAbsoluteTarget(MotionAxisBase a, AxisItem axis, double target, int posiMode)
         {
             if (posiMode != 0) return target;                       // 本来就是绝对目标
 
@@ -1201,7 +1205,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         public string InchAxis(AxisItem axis, double distance, double speed)
         {
             if (axis == null) return "无轴";
-            CardSlot slot = null; IAxis a = null;
+            CardSlot slot = null; MotionAxisBase a = null;
             try { (slot, a) = AxisOf(axis); }
             catch (Exception ex) { return "寻址失败：" + ex.Message; }
             if (a == null) { WarnNoAxis(axis, "点动"); return "控制器未连接或轴号越界"; }
@@ -1247,7 +1251,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         public string StartAxisJog(AxisItem axis, bool positive, double speed)
         {
             if (axis == null) return "无轴";
-            CardSlot slot = null; IAxis a = null;
+            CardSlot slot = null; MotionAxisBase a = null;
             try { (slot, a) = AxisOf(axis); }
             catch (Exception ex) { return "寻址失败：" + ex.Message; }
             if (a == null) { WarnNoAxis(axis, "Jog"); return "控制器未连接或轴号越界"; }
@@ -1315,7 +1319,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <c>YK_get_cmd_list_buf_num(card, channel)</c> 可读；读得到就把证据留在日志里，
         /// 免得每次都靠猜。非研控卡族没有这个符号，反射取不到就静默跳过。</para>
         /// </summary>
-        private void ClearBufferHint(CardSlot slot, IAxis a, AxisItem axis)
+        private void ClearBufferHint(CardSlot slot, MotionAxisBase a, AxisItem axis)
         {
             if (a == null || axis == null) return;
             try
@@ -1351,7 +1355,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         public string SetAxisZero(AxisItem axis)
         {
             if (axis == null) return "无轴";
-            CardSlot slot = null; IAxis a = null;
+            CardSlot slot = null; MotionAxisBase a = null;
             try { (slot, a) = AxisOf(axis); }
             catch (Exception ex) { return "寻址失败：" + ex.Message; }
             if (a == null) { WarnNoAxis(axis, "设零点"); return "控制器未连接或轴号越界"; }
@@ -1412,8 +1416,8 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
         /// <summary>
         /// 连接后从底层硬件真实读取该控制器的轴数量与主板 IO 数量。
-        /// <para>轴数走 <see cref="ICard.GetCardTotalAxisNum"/>；IO 数取自卡族实现维护的
-        /// <see cref="IIOInPut.InIONums"/> / <see cref="IIOOutPut.OutIONums"/>（硬件卡实际拥有的 IO 数）。</para>
+        /// <para>轴数走 <see cref="MotionCardBase.GetAxisCount"/>；IO 数取自卡族实现维护的
+        /// <see cref="DigitalInputBase.PointCount"/> / <see cref="DigitalOutputBase.PointCount"/>（硬件卡实际拥有的 IO 数）。</para>
         /// <para>卡未就绪时不再直接返回 false：仍按控制器配置解析卡族，给出目录里人工核对过的设计容量；
         /// 连卡族都匹配不上（且未就绪）时三个 out 均为 0、返回 false，调用方回退到工程配置值。</para>
         /// </summary>
@@ -1432,13 +1436,13 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 {
                     uint total = 0;
                     int r = -1;
-                    if (slot.Runtime.Card != null) r = slot.Runtime.Card.GetCardTotalAxisNum(slot.CardNo, ref total);
+                    if (slot.Runtime.Card != null) r = slot.Runtime.Card.GetAxisCount(slot.CardNo, ref total);
                     if (r == 0 && total > 0) axisCount = (int)total;
                 }
                 catch (Exception ex) { Log($"[卡族] 读取轴总数失败：{ex.Message}"); }
 
-                try { if (slot.Runtime.InIo != null) inIo = slot.Runtime.InIo.InIONums; } catch { /* 部分卡族未维护该字段 */ }
-                try { if (slot.Runtime.OutIo != null) outIo = slot.Runtime.OutIo.OutIONums; } catch { /* 部分卡族未维护该字段 */ }
+                try { if (slot.Runtime.InIo != null) inIo = slot.Runtime.InIo.PointCount; } catch { /* 部分卡族未维护该字段 */ }
+                try { if (slot.Runtime.OutIo != null) outIo = slot.Runtime.OutIo.PointCount; } catch { /* 部分卡族未维护该字段 */ }
             }
 
             // ② 卡族标准规格兜底：移植卡族的底层 API 经常不回报容量
@@ -1458,7 +1462,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
         /// <summary>
         /// 立即「连接」某个控制器（供「控制器」页的连接按钮调用）：匹配卡族 → 创建实现 →
-        /// InitCard / OpenCard，并把结果写入该控制器的状态。<para>返回是否就绪；<paramref name="status"/> 为中文状态说明。</para>
+        /// Initialize / Open，并把结果写入该控制器的状态。<para>返回是否就绪；<paramref name="status"/> 为中文状态说明。</para>
         /// <para>与 <see cref="SlotOf"/> 的懒加载共用同一份 slot 状态，连接后轴 / IO 动作会直接复用，不会重复初始化。</para>
         /// </summary>
         public bool TryConnect(AxisControllerItem ctl, out string status)
@@ -1476,7 +1480,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 }
             }
 
-            // ★ 初始化（InitCard / OpenCard）是慢硬件操作：放到 _gate 之外、按槽位串行执行。
+            // ★ 初始化（Initialize / Open）是慢硬件操作：放到 _gate 之外、按槽位串行执行。
             //   否则连接期间 UI 线程读 IsControllerReady / ControllerStatus 会一起等 _gate → 界面整个卡住。
             lock (slot.InitLock)
             {
@@ -1499,7 +1503,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                 if (_slots.TryGetValue(ctl.Name, out slot)) _slots.Remove(ctl.Name);
             }
             // ★ 关卡是硬件操作：放到 _gate 之外，避免持锁卡住 UI 线程的状态查询。
-            try { slot?.Runtime?.Card?.CloseCard(); } catch { /* 关闭失败不影响断开 */ }
+            try { slot?.Runtime?.Card?.Close(); } catch { /* 关闭失败不影响断开 */ }
             Log($"[卡族] 控制器「{ctl.Name}」已断开连接。");
         }
 
@@ -1535,7 +1539,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             // ★ 关卡是硬件操作：放到 _gate 之外，避免持锁卡住 UI 线程的状态查询。
             foreach (var s in old)
             {
-                try { s.Runtime?.Card?.CloseCard(); } catch { /* 关闭失败不影响重置 */ }
+                try { s.Runtime?.Card?.Close(); } catch { /* 关闭失败不影响重置 */ }
             }
             Log("[卡族] 已重置全部控制器连接状态，下次动作会重新初始化。");
         }
@@ -1941,7 +1945,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         /// <para>注意各卡族 GetCardAxisAlarmState 的语义并不统一：有的返回伺服报警码，
         /// 有的返回整字轴 IO 状态位。所以文案里把「读到的值」和「怎么解读」分开说，不硬说成报警码。</para>
         /// </summary>
-        private void ReportBusAxisState(string axisName, CardSlot slot, IAxis a)
+        private void ReportBusAxisState(string axisName, CardSlot slot, MotionAxisBase a)
         {
             try
             {
@@ -1959,7 +1963,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
         }
 
         /// <summary>轴超时 / 不动时的现场诊断串，直接拼进异常消息，让操作员一眼看到该查什么。</summary>
-        private string DiagnoseAxis(AxisItem axis, CardSlot slot, IAxis a)
+        private string DiagnoseAxis(AxisItem axis, CardSlot slot, MotionAxisBase a)
         {
             var sb = new StringBuilder("请检查伺服是否使能、是否报警、目标位置是否超出行程。");
             int no = Math.Max(axis.AxisNo, 0);
@@ -2066,7 +2070,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             {
                 foreach (var s in _slots.Values)
                 {
-                    try { s.Runtime?.Card?.CloseCard(); } catch { /* 释放失败不抛 */ }
+                    try { s.Runtime?.Card?.Close(); } catch { /* 释放失败不抛 */ }
                 }
                 _slots.Clear();
             }

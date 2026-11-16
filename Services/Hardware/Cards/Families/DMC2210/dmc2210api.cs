@@ -13,7 +13,7 @@ using System.Text;
 using System.Runtime.InteropServices;
  
 
-namespace WenQiZhi.Domain.MotionCard.Common.DMC2210
+namespace NoCodeMotion.Services.Hardware.Cards.Families.DMC2210
 {
     public class Dmc2210
     {
@@ -23,7 +23,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC2210
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public string GetErrorInfo(int errorNumber)
         {
             return "";
         }
@@ -215,15 +215,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC2210
         private static extern void write_outport(UInt16 cardno, UInt32 port_value);
 
         //制动函数
-        public static void d2210_decel_stop(UInt16 axis, double Tdec)
+        public static void d2210_decel_stop(UInt16 axis, double deceleration)
         {
             lock (objLock)
             {
-                decel_stop(axis, Tdec);
+                decel_stop(axis, deceleration);
             }
         }
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_decel_stop", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        private static extern void decel_stop(UInt16 axis, double Tdec);
+        private static extern void decel_stop(UInt16 axis, double deceleration);
 
         public static void d2210_imd_stop(UInt16 axis)
         {
@@ -324,7 +324,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC2210
 
         //速度设置
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_variety_speed_range", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern void d2210_variety_speed_range(UInt16 axis, UInt16 chg_enable, double Max_Vel);
+        public static extern void d2210_variety_speed_range(UInt16 axis, UInt16 chg_enable, double maxVelocity);
 
         public static double d2210_read_current_speed(UInt16 axis)
         {
@@ -336,41 +336,41 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC2210
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_read_current_speed", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         private static extern double read_current_speed(UInt16 axis);
 
-        public static void d2210_change_speed(UInt16 axis, double Curr_Vel)
+        public static void d2210_change_speed(UInt16 axis, double currentVelocity)
         {
             lock (objLock)
             {
-                change_speed(axis, Curr_Vel);
+                change_speed(axis, currentVelocity);
             }
         }
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_change_speed", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        private static extern void change_speed(UInt16 axis, double Curr_Vel);
+        private static extern void change_speed(UInt16 axis, double currentVelocity);
 
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_set_vector_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern void d2210_set_vector_profile(double Min_Vel, double Max_Vel, double Tacc, double Tdec);
+        public static extern void d2210_set_vector_profile(double minVelocity, double maxVelocity, double acceleration, double deceleration);
 
-        public static void d2210_set_profile(UInt16 axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec)
+        public static void d2210_set_profile(UInt16 axis, double minVelocity, double maxVelocity, double acceleration, double deceleration)
         {
             lock (objLock)
             {
-                set_profile(axis, Min_Vel, Max_Vel, Tacc, Tdec);
+                set_profile(axis, minVelocity, maxVelocity, acceleration, deceleration);
             }
         }
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_set_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        private static extern void set_profile(UInt16 axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec);
+        private static extern void set_profile(UInt16 axis, double minVelocity, double maxVelocity, double acceleration, double deceleration);
 
-        public static void d2210_set_s_profile(UInt16 axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, Int32 Sacc, Int32 Sdec)
+        public static void d2210_set_s_profile(UInt16 axis, double minVelocity, double maxVelocity, double acceleration, double deceleration, Int32 Sacc, Int32 Sdec)
         {
             lock (objLock)
             {
-                set_s_profile(axis, Min_Vel, Max_Vel, Tacc, Tdec, Sacc, Sdec);
+                set_s_profile(axis, minVelocity, maxVelocity, acceleration, deceleration, Sacc, Sdec);
             }
         }
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_set_s_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        private static extern void set_s_profile(UInt16 axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, Int32 Sacc, Int32 Sdec);
+        private static extern void set_s_profile(UInt16 axis, double minVelocity, double maxVelocity, double acceleration, double deceleration, Int32 Sacc, Int32 Sdec);
 
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_set_st_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern void d2210_set_st_profile(UInt16 axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Tsacc, double Tsdec);
+        public static extern void d2210_set_st_profile(UInt16 axis, double minVelocity, double maxVelocity, double acceleration, double deceleration, double Tsacc, double Tsdec);
 
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_reset_target_position", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern void d2210_reset_target_position(UInt16 axis, Int32 dist);
@@ -453,15 +453,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC2210
         public static extern void d2210_handwheel_move(UInt16 axis, double vh);
 
         //找原点
-        public static void d2210_config_home_mode(UInt16 axis, UInt16 mode, UInt16 EZ_count)
+        public static void d2210_config_home_mode(UInt16 axis, UInt16 mode, UInt16 ezCount)
         {
             lock (objLock)
             {
-                config_home_mode(axis, mode, EZ_count);
+                config_home_mode(axis, mode, ezCount);
             }
         }
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_config_home_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        private static extern void config_home_mode(UInt16 axis, UInt16 mode, UInt16 EZ_count);
+        private static extern void config_home_mode(UInt16 axis, UInt16 mode, UInt16 ezCount);
 
         public static void d2210_home_move(UInt16 axis, UInt16 home_mode, UInt16 vel_mode)
         {
@@ -507,7 +507,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC2210
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_write_CMP_PIN", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern void d2210_write_CMP_PIN(UInt16 axis, UInt16 on_off);
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_config_comparator", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern void d2210_config_comparator(UInt16 axis, UInt16 cmp1_condition, UInt16 cmp2_condition, UInt16 source_sel, UInt16 SL_action);
+        public static extern void d2210_config_comparator(UInt16 axis, UInt16 cmp1_condition, UInt16 cmp2_condition, UInt16 source_sel, UInt16 slActionValue);
         [DllImport("Dmc2210.dll", EntryPoint = "d2210_set_comparator_data", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern void d2210_set_comparator_data(UInt16 axis, UInt32 cmp1_data, UInt32 cmp2_data);
 

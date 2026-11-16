@@ -19,7 +19,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace WenQiZhi.Domain.MotionCard.Common.RT3316 //命名空间根据应用程序修改
+namespace NoCodeMotion.Services.Hardware.Cards.Families.RT3316 //命名空间根据应用程序修改
 {
     public class CPci9014
     {      

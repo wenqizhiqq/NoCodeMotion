@@ -8,6 +8,7 @@
 // ────────────────────────────────────────────────────────────────
 #nullable disable
 using System;
+    using NoCodeMotion.Hardware.Motion;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -15,9 +16,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
+namespace NoCodeMotion.Services.Hardware.Cards.Families.YKMCC400S
 {
-    public class CardRealization : ICard
+    public class CardRealization : MotionCardBase
     {
 
         //[DisplayName("运动控制卡的配置文件名字"), Description("运动控制卡的配置文件名字"), Category("卡参数设置")]
@@ -28,37 +29,37 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <summary>
         /// 运动卡输出IO的数量
         /// </summary>
-        public int CardOutputIOSum { get; set; } = 16;
+        public override int OutputPointCount { get; set; } = 16;
 
         [DisplayName("运动卡输入IO的数量"), Description("运动卡输入IO的数量"), Category("卡参数设置")]
         /// <summary>
         /// 运动卡输入IO的数量
         /// </summary>
-        public int CardInputIOSum { get; set; } = 16;
+        public override int InputPointCount { get; set; } = 16;
 
         [DisplayName("卡是否打开"), Description("true为打开状态"), Category("卡参数设置")]
         /// <summary>
         /// 卡已经打开
         /// </summary>
-        public bool isOpen { get; set; } = false;
+        public override bool IsOpen { get; set; } = false;
 
         [DisplayName("卡是否初始化"), Description("true为已经初始化状态"), Category("卡参数设置")]
         /// <summary>
         /// 卡已经初始化
         /// </summary>
-        public bool isInit { get; set; } = false;
+        public override bool IsReady { get; set; } = false;
 
         [DisplayName("卡是否为虚拟卡"), Description("true则置卡为虚拟运动卡，以方便调试"), Category("卡参数设置")]
         /// <summary>
         /// 虚拟卡，方便脱机调试
         /// </summary>
-        public bool IsVitualCard { get; set; } = false;
+        public override bool IsVirtualCard { get; set; } = false;
 
         [DisplayName("多少张卡"), Description("注意指的是同型号多张卡的数量"), Category("卡参数设置")]
         /// <summary>
         /// 同型号多卡的数量
         /// </summary>
-        public ushort CardSum { get; set; } = 1;
+        public override ushort CardCount { get; set; } = 1;
 
 
         [DisplayName("拓展IO模块节点值"), Description("如果是CAN总线IO扩展卡，要指定节点号，如果有多张用逗号分隔"), Category("扩展IO参数设置")]
@@ -87,20 +88,20 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <summary>
         /// 判断是否为离线模式
         /// </summary>
-        public bool IsOffineMode { get; set; } = false;
+        public override bool IsOfflineMode { get; set; } = false;
 
 
 
         /// <summary>
         /// 硬件名字,这里用枚举，以方便程序中轮询卡
         /// </summary>
-        public SystemSupportMotionCardEnum HardwareName { get; set; } = SystemSupportMotionCardEnum.MCC400S;
+        public override SystemSupportMotionCardEnum HardwareName { get; set; } = SystemSupportMotionCardEnum.MCC400S;
 
 
         /// <summary>
         /// 卡参数列表
         /// </summary>
-        public List<CardParamModel> ListCardParam { get ; set ; } = new List<CardParamModel>();
+        public override List<CardParamModel> ListCardParam { get ; set ; } = new List<CardParamModel>();
 
 
      
@@ -132,8 +133,8 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
             //        Axes = default(AxisParamModel[])
             //    });
             //}
-            //CardInputIOSum = 16;
-            //CardOutputIOSum = 16;
+            //InputPointCount = 16;
+            //OutputPointCount = 16;
 
         }
 
@@ -143,7 +144,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         ///硬件复位
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardBoardReset()
+        public override int CardBoardReset()
         {
             return YKMCC400SSDK.Instance.CardBoardReset();
         }
@@ -152,7 +153,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// 控制卡冷复位
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardCoolReset(ushort CardNo)
+        public override int CardCoolReset(ushort cardIndex)
         {
             return -1;
         }
@@ -162,7 +163,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int CardReset(int CardNo)
+        public override int CardReset(int cardIndex)
         {
             return -1 ;
         }
@@ -171,9 +172,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// 控制卡热复位
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardSoftReset(ushort CardNo)
+        public override int CardSoftReset(ushort cardIndex)
         {
-            return YKMCC400SSDK.Instance.CardSoftReset(CardNo);
+            return YKMCC400SSDK.Instance.CardSoftReset(cardIndex);
         }
 
         /// <summary>
@@ -182,16 +183,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <param name="CardNo">卡号</param>
         /// <param name="TotalAxis">返回当前卡的轴数</param>
         /// <returns>错误代码</returns>
-        public int GetCardTotalAxisNum(int CardNo, ref UInt32 TotalAxis)
+        public override int GetAxisCount(int cardIndex, ref UInt32 totalAxisCount)
         {
-            return YKMCC400SSDK.Instance.GetCardTotalAxisNum(CardNo, ref TotalAxis);
+            return YKMCC400SSDK.Instance.GetAxisCount(cardIndex, ref totalAxisCount);
         }
 
         /// <summary>
         /// 关闭控制卡
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CloseCard()
+        public override int Close()
         {
             return YKMCC400SSDK.Instance.CloseBoardCard();
         }
@@ -204,7 +205,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <param name="pDriver_ver">驱动程序版本，其中的 bit0~7 为副版本号， bit8~15 为主版本号；</param>
         /// <param name="pLogic_ver">逻辑软件版本，其中的 bit0~7 为副版本号， bit8~15 为主版本号； </param>
         /// <returns>   正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int GetCardLibVersion(int CardID, ref int LibVer, ref int pDriver_ver, ref int pLogic_ver)
+        public override int GetCardLibVersion(int cardId, ref int LibVer, ref int pDriver_ver, ref int pLogic_ver)
         {
             try
             {
@@ -234,7 +235,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <param name="NodeCnt">参数不明等待回应</param>
         /// <param name="MasterId">参数不明等待回应</param>
         /// <returns>错误代码</returns>
-        public int GetCardMasterParam(int CardNo, int PortNum, ref ushort Baudrate, ref uint NodeCnt, ref ushort MasterId)
+        public override int GetCardMasterParam(int cardIndex, int portCount, ref ushort baudRate, ref uint nodeCount, ref ushort masterId)
         {
             return -1;
         }
@@ -246,7 +247,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <param name="FieldbusType">EtherCAT 端口号，固定为 2</param>
         /// <param name="CyclFieldbusTypeeTime">EtherCAT 总线循环周期，单位：us，支持 250/500/1000/2000</param>
         /// <returns>错误代码</returns>
-        public int GetCardMasterScanCycleTime(int CardNo, int FieldbusType, ref int CyclFieldbusTypeeTime)
+        public override int GetCardMasterScanCycleTime(int cardIndex, int fieldbusType, ref int CyclFieldbusTypeeTime)
         {
             return -1;
         }
@@ -259,7 +260,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <param name="SlaveAddr">EtherCAT 总线轴地址</param>
         /// <param name="Sub_SlaveAddr">EtherCAT 总线轴子地址</param>
         /// <returns>错误代码</returns>
-        public int GetCardSlaveStationConfig(int CardNo, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
+        public override int GetCardSlaveStationConfig(int cardIndex, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
         {
             return -1;
         }
@@ -276,15 +277,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <param name="state">设置通讯状态，0：断开，1：连接</param>
         /// <param name="baud">设置控制卡波特率<para>波特率参数：0,1,2,3,4,5</para><para>对应波特率：1000Kbps，800Kbps,500Kbps,250Kbps,125Kbps,100Kbps</para></param>
         /// <returns></returns>
-        public int SetCardCANIOConnectState(int CardNo, int NodeNum, int state, int baud)
+        public override int SetCardCANIOConnectState(int cardIndex, int nodeCount, int state, int baud)
         {
-            if (IsOffineMode == true)
+            if (IsOfflineMode == true)
             {
-                NodeNum = 8;
+                nodeCount = 8;
                 state = 1;
                 return 0;
             }
-            return YKMCC400SSDK.Instance.SetExpandIOConnectState/*SetCard_CANIO_ConnectState*/((ushort)CardNo, (ushort)NodeNum, (ushort)state, (ushort)baud);
+            return YKMCC400SSDK.Instance.SetExpandIOConnectState/*SetCard_CANIO_ConnectState*/((ushort)cardIndex, (ushort)nodeCount, (ushort)state, (ushort)baud);
         }
 
         /// <summary>
@@ -294,39 +295,39 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <param name="NodeNum">返回 CAN 节点数</param>
         /// <param name="state">返回 CAN-IO 通讯状态，0：断开，1：连接，2：异常</param>
         /// <returns>错误代码</returns>
-        public int GetCardCANIOConnectState(int CardNo, ref UInt16 NodeNum, ref UInt16 state)
+        public override int GetCardCANIOConnectState(int cardIndex, ref UInt16 nodeCount, ref UInt16 state)
         {
-            if (IsOffineMode == true)
+            if (IsOfflineMode == true)
             {
-                NodeNum = 8;
+                nodeCount = 8;
                 state = 1;
                 return 0;
             }
-            return  YKMCC400SSDK.Instance.GetCard_CANIO_ConnectState(CardNo,ref NodeNum, ref state);
+            return  YKMCC400SSDK.Instance.GetCard_CANIO_ConnectState(cardIndex,ref nodeCount, ref state);
         }
 
         /// <summary>
         /// 控制卡初始化函数，返回卡的数量
         /// </summary>
         /// <returns>卡的数量</returns>
-        public int InitCard()
+        public override int Initialize()
         {
-            //if (IsVitualCard)
+            //if (IsVirtualCard)
             //{
-            //    isInit = true;
+            //    IsReady = true;
             //    return 1;
             //}
             //var num2=DMC3400ASDK.Instance.CloseBoardCard();
             var num = YKMCC400SSDK.Instance.InitBoardCard();
             if (num>0)
             {
-                isInit = true;
+                IsReady = true;
                 return num;
             }
-                isInit = true;
-                IsOffineMode = true;
+                IsReady = true;
+                IsOfflineMode = true;
                 return 1;
-            //isInit = false;
+            //IsReady = false;
             //return -1;
         }
 
@@ -337,24 +338,24 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <param name="cardtypes">返回控制卡固件类型数组</param>
         /// <param name="CardID">返回控制卡硬件 ID 号数组，卡号按从小到大顺序排列  </param>
         /// <returns>错误代码，返回0表示成功</returns>
-        public int OpenCard(ref ushort cardnum, ref uint[] cardtypes, ref ushort[] CardID)
+        public override int Open(ref ushort cardnum, ref uint[] cardtypes, ref ushort[] cardId)
         {
-            if (IsVitualCard)
+            if (IsVirtualCard)
             {
-                isOpen = true;
+                IsOpen = true;
                 return 0;
             }
             //取卡的硬件ID号
-            int res = YKMCC400SSDK.Instance.GetCardInfList(ref cardnum, ref cardtypes, ref CardID);
+            int res = YKMCC400SSDK.Instance.GetCardInfList(ref cardnum, ref cardtypes, ref cardId);
             if (res != 0||cardnum ==0)
             {
                 cardnum = 1;
                 cardtypes[0] = 0x8076;
-                CardID[0] = 0;
-                isOpen = true;
-                IsOffineMode = true;
+                cardId[0] = 0;
+                IsOpen = true;
+                IsOfflineMode = true;
                 return 0;
-                //isOpen = false;
+                //IsOpen = false;
                 //return res;
             }
 
@@ -413,7 +414,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
                         break;
 
                 }
-                int res1 = YKMCC400SSDK.Instance.GetCardDownloadConfigfile(CardID[i],
+                int res1 = YKMCC400SSDK.Instance.GetCardDownloadConfigfile(cardId[i],
                          /*cardConfigPath + "\\" + */ cardConfigFname /*20210811.ini"*/);
                 if (res1 != 0)
                 {
@@ -423,7 +424,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
                 }
                 break;
             }
-            isOpen = true;
+            IsOpen = true;
             return res;
         }
 
@@ -436,7 +437,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <param name="NodeCnt">参数不明等待回应</param>
         /// <param name="MasterId">参数不明等待回应</param>
         /// <returns>错误代码</returns>
-        public int SetCardMasterParam(int CardID, int PortNum, int Baudrate, int NodeCnt, int MasterId)
+        public override int SetCardMasterParam(int cardId, int portCount, int baudRate, int nodeCount, int masterId)
         {
             return -1;
         }
@@ -448,32 +449,32 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC400S
         /// <param name="Fieldbustype">  EtherCAT 端口号，固定为 2</param>
         /// <param name="CycleTime">CAT 总线循环周期，单位：us，支持 250/500/1000/</param>
         /// <returns>错误代码</returns>
-        public int SetCardMasterScanCycleTime(int CardNo, int FieldbusType, int CycleTime)
+        public override int SetCardMasterScanCycleTime(int cardIndex, int fieldbusType, int CycleTime)
         {
             return -1;
         }
 
-        public string GetEtherCATErrorInfo(int ErrNum)
+        public override string GetEtherCATErrorInfo(int errorNumber)
         {
             return "";
         }
 
-        public string GetErrorInfo(int ErrNum)
+        public override string GetErrorInfo(int errorNumber)
         {
-            return YKMCC400SSDK.Instance.GetErrorInfo(ErrNum);
+            return YKMCC400SSDK.Instance.GetErrorInfo(errorNumber);
         }
 
-        public int GetCardCurrentState(int CardNo, int channel)
+        public override int GetCardCurrentState(int cardIndex, int channel)
         {
             return 0;
         }
 
-        public int DMCEventData(DMC_CacheMemory_Struct m_Obj)
+        public override int DMCEventData(DMC_CacheMemory_Struct m_Obj)
         {
             throw new NotImplementedException();
         }
 
-        public int ConfigureEMGConfig(int CardNo, ushort[] io_Port, ushort enable, ushort emg_logic, ushort stop_mode, double filter_time)
+        public override int ConfigureEMGConfig(int cardIndex, ushort[] io_Port, ushort enable, ushort emg_logic, ushort stop_mode, double filter_time)
         {
             return 0;
         }

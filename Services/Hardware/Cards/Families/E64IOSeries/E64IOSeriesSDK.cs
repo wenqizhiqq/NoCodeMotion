@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
+namespace NoCodeMotion.Services.Hardware.Cards.Families.E64IOSeries
 {
     public class SLDIOE64SDK
     {
@@ -39,7 +39,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public string GetErrorInfo(int errorNumber)
         {
             var msg = string.Empty;
             Dictionary<int, string> dic = new Dictionary<int, string>()
@@ -49,9 +49,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
                 {2,"PCI1232InvalidParam" },
                 {3,"PCI1232DevNotFind" }
             };
-            if (dic.ContainsKey(ErrNum))
+            if (dic.ContainsKey(errorNumber))
             {
-                return dic[ErrNum];
+                return dic[errorNumber];
             }
             return "unkown errNum";
 
@@ -87,7 +87,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="bitno"></param>
         /// <param name="on_off">输入电平，0：低电平，1：高电平</param>
         /// <returns></returns>
-        public int SetCardWriteInBit(int CardNo, int bitno, int on_off)
+        public int SetCardWriteInBit(int cardIndex, int bitno, int on_off)
         {
             return 0;
         }
@@ -153,7 +153,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// 控制卡软复位函数
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardSoftReset(ushort CardNo)
+        public int CardSoftReset(ushort cardIndex)
         {
             return 0;
             //return sldmv.dmc_soft_reset(CardNo);
@@ -228,7 +228,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">卡号</param>
         /// <param name="CardVersion">返回控制卡硬件版本号 </param>
         /// <returns>错误代码</returns>
-        public int GetCardVersion(int CardNo, ref UInt32 CardVersion)
+        public int GetCardVersion(int cardIndex, ref UInt32 CardVersion)
         {
             return 0;
             //return sldmv.dmc_get_card_version((ushort)CardNo, ref CardVersion);
@@ -241,7 +241,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="FirmID">返回控制卡固件类型</param>
         /// <param name="SubFirmID"> 返回控制卡固件版本号 </param>
         /// <returns>错误代码</returns>
-        public int GetCardSoftVersion(int CardNo, ref UInt32 FirmID, ref UInt32 SubFirmID)
+        public int GetCardSoftVersion(int cardIndex, ref UInt32 FirmID, ref UInt32 SubFirmID)
         {
             return 0;
             //return sldmv.dmc_get_card_soft_version((ushort)CardNo, ref FirmID, ref SubFirmID);
@@ -264,9 +264,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">卡号</param>
         /// <param name="TotalAxis">返回当前卡的轴数</param>
         /// <returns>错误代码</returns>
-        public int GetCardTotalAxisNum(int CardNo, ref UInt32 TotalAxis)
+        public int GetAxisCount(int cardIndex, ref UInt32 totalAxisCount)
         {
-            TotalAxis = 0;
+            totalAxisCount = 0;
             return 0;
             //return sldmv.dmc_get_total_axes((ushort)CardNo, ref TotalAxis);
         }
@@ -280,7 +280,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">卡号</param>
         /// <param name="FileName">文件路径：| 相对路径 ：参数文件名+后缀：|  绝对路径：完整描述参数文件的路径+文件名后缀</param>
         /// <returns>错误代码</returns>
-        public int GetCardDownloadConfigfile(int CardNo, string FileName = "AxisPara.ini")
+        public int GetCardDownloadConfigfile(int cardIndex, string FileName = "AxisPara.ini")
         {
             return 0;
             //return sldmv.dmc_download_configfile((ushort)CardNo, FileName);
@@ -295,7 +295,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">卡号</param>
         /// <param name="FileName">文件路径：</param>
         /// <returns>错误代码</returns>
-        public int GetCardDownloadFirmware(int CardNo, string FileName)
+        public int GetCardDownloadFirmware(int cardIndex, string FileName)
         {
             return 0;
             //return sldmv.dmc_download_firmware((ushort)CardNo, FileName);
@@ -318,7 +318,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <para>5：正方向脉冲: PULSE输出端：高电平 ；DIR 输出端：低电平 | 负方向脉冲: PULSE输出端: 低电平  ；DIR 输出端:高电平</para>
         /// </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisPulseOutMode(int CardNo, int axis, int outmode)
+        public int SetCardAxisPulseOutMode(int cardIndex, int axis, int outmode)
         {
             return 0;
             //return sldmv.dmc_set_pulse_outmode((ushort)CardNo, (ushort)axis, (ushort)outmode);
@@ -338,7 +338,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <para>5：正方向脉冲: PULSE输出端：高电平 ；DIR 输出端：低电平 | 负方向脉冲: PULSE输出端: 低电平  ；DIR 输出端:高电平</para>
         /// </param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisPulseOutMode(int CardNo, int axis, ref UInt16 outmode)
+        public int GetCardAxisPulseOutMode(int cardIndex, int axis, ref UInt16 outmode)
         {
             return 0;
             //return sldmv.dmc_get_pulse_outmode((ushort)CardNo, (ushort)axis, ref outmode);
@@ -354,7 +354,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis"></param>
         /// <param name="enable"></param>
         /// <returns></returns>
-        public int SetCardAxisHomeElReturn(int CardNo, int axis, ushort enable)
+        public int SetCardAxisHomeElReturn(int cardIndex, int axis, ushort enable)
         {
             /*
              short dmc_set_home_el_return(WORD CardNo,WORD axis,WORD enable)
@@ -380,7 +380,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="org_logic">ORG 信号有效电平，0：低有效，1：高有效 </param>
         /// <param name="filter">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHomePinLogic(int CardNo, int axis, int org_logic, double filter)
+        public int SetCardAxisHomePinLogic(int cardIndex, int axis, int org_logic, double filter)
         {
             return 0;
             //return sldmv.dmc_set_home_pin_logic((ushort)CardNo, (ushort)axis, (ushort)org_logic, filter);
@@ -394,7 +394,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="org_logic">ORG 信号有效电平，0：低有效，1：高有效 </param>
         /// <param name="filter">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHomePinLogic(int CardNo, int axis, ref UInt16 org_logic, ref double filter)
+        public int GetCardAxisHomePinLogic(int cardIndex, int axis, ref UInt16 org_logic, ref double filter)
         {
             return 0;
             //return sldmv.dmc_get_home_pin_logic((ushort)CardNo, (ushort)axis, ref org_logic, ref filter);
@@ -414,7 +414,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="mode">回零模式：0：一次回零  | 1：一次回零加回找  | 2：二次回零  | 3：一次回零后再记一个同向 EZ 脉冲进行回零  | 4：记一个 EZ 脉冲进行回零  | 5：原点加反向 EZ  | 6：原点锁存  | 7：原点锁存加同向 EZ 锁存  | 8：单独记一个 EZ 锁存  | 9：原点锁存加反向 EZ 锁存 | 10.一次限位回零 | 11.	一次限位回零加反找 | 12.	二次限位回零</param>
         /// <param name="EZ_count">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHomeMode(int CardNo, int axis, int home_dir, double vel, int mode, int EZ_count)
+        public int SetCardAxisHomeMode(int cardIndex, int axis, int home_dir, double vel, int mode, int ezCount)
         {
             return 0;
             //return sldmv.dmc_set_homemode((ushort)CardNo, (ushort)axis, (ushort)home_dir, vel, (ushort)mode, (ushort)EZ_count);
@@ -433,7 +433,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="mode">回零模式：0：一次回零  | 1：一次回零加回找  | 2：二次回零  | 3：一次回零后再记一个同向 EZ 脉冲进行回零  | 4：记一个 EZ 脉冲进行回零  | 5：原点加反向 EZ  | 6：原点锁存  | 7：原点锁存加同向 EZ 锁存  | 8：单独记一个 EZ 锁存  | 9：原点锁存加反向 EZ 锁存 | 10.一次限位回零 | 11.	一次限位回零加反找 | 12.	二次限位回零</param>
         /// <param name="EZ_count">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHomeMode(int CardNo, int axis, ref UInt16 home_dir, ref double vel, ref UInt16 mode, ref UInt16 EZ_count)
+        public int GetCardAxisHomeMode(int cardIndex, int axis, ref UInt16 home_dir, ref double vel, ref UInt16 mode, ref UInt16 ezCount)
         {
             return 0;
             //return sldmv.dmc_get_homemode((ushort)CardNo, (ushort)axis, ref home_dir, ref vel, ref mode, ref EZ_count);
@@ -445,7 +445,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>错误代码</returns>
-        public int CardAxisHomeMove(int CardNo, int axis)
+        public int CardAxisHomeMove(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_home_move((ushort)CardNo, (ushort)axis);
@@ -458,7 +458,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis"></param>
         /// <param name="status">回零执行状态，1：回零完成，0：回零未完成</param>
         /// <returns></returns>
-        public int CardAxisGetHomeResult(int CardNo, int axis, ref ushort status)
+        public int CardAxisGetHomeResult(int cardIndex, int axis, ref ushort status)
         {
             return 0;
             //return sldmv.dmc_get_home_result((ushort)CardNo, (ushort)axis, ref status);
@@ -478,7 +478,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="logic">触发方式，0：下降沿，1：上升沿 </param>
         /// <param name="source">位置源选择，0：指令位置计数器，1：编码器计数器 </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHomelatchMode(int CardNo, int axis, UInt16 enable, UInt16 logic, UInt16 source)
+        public int SetCardAxisHomelatchMode(int cardIndex, int axis, UInt16 enable, UInt16 logic, UInt16 source)
         {
             return 0;
             //return sldmv.dmc_set_homelatch_mode((ushort)CardNo, (ushort)axis, enable, logic, source);
@@ -494,7 +494,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="logic"> 返回触发方式 ，0：下降沿，1：上升沿 </param>
         /// <param name="source">返回位置源选择，0：指令位置计数器，1：编码器计数器 </param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHomelatchMode(int CardNo, int axis, UInt16 enable, UInt16 logic, UInt16 source)
+        public int GetCardAxisHomelatchMode(int cardIndex, int axis, UInt16 enable, UInt16 logic, UInt16 source)
         {
             return 0;
             //return sldmv.dmc_get_homelatch_mode((ushort)CardNo, (ushort)axis, ref enable, ref logic, ref source);
@@ -506,7 +506,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>错误代码</returns>
-        public int ClearCardAxisHomelatchFlag(int CardNo, int axis)
+        public int ClearCardAxisHomelatchFlag(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_reset_homelatch_flag((ushort)CardNo, (ushort)axis);
@@ -518,7 +518,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>原点锁存标志，0：未锁存，1：锁存 </returns>
-        public int GetCardAxisHomelatchFlag(int CardNo, int axis)
+        public int GetCardAxisHomelatchFlag(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_get_homelatch_flag((ushort)CardNo, (ushort)axis);
@@ -530,7 +530,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>锁存值，单位：pulse </returns>
-        public int GetCardAxisHomelatchValue(int CardNo, int axis)
+        public int GetCardAxisHomelatchValue(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_get_homelatch_value((ushort)CardNo, (ushort)axis);
@@ -549,7 +549,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="el_logic">EL 信号的有效电平：0：正负限位低电平有效 1：正负限位高电平有效 2：正限位低有效，负限位高有效 3：正限位高有效，负限位低有效</param>
         /// <param name="el_mode">EL 制动方式：0：正负限位立即停止  1：正负限位减速停止  2：正限位立即停止，负限位减速停止</param>
         /// <returns>错误代码 </returns>
-        public int SetCardAxisELMode(int CardNo, int axis, UInt16 el_enable, UInt16 el_logic, UInt16 el_mode)
+        public int SetCardAxisELMode(int cardIndex, int axis, UInt16 el_enable, UInt16 el_logic, UInt16 el_mode)
         {
             return 0;
             //return sldmv.dmc_set_el_mode((ushort)CardNo, (ushort)axis, el_enable, el_logic, el_mode);
@@ -564,7 +564,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="el_logic"> 返回设置的 EL 信号有效电平 </param>
         /// <param name="el_mode">返回 EL 制动方式</param>
         /// <returns>错误代码 </returns>
-        public int GetCardAxisELMode(int CardNo, int axis, ref UInt16 el_enable, ref UInt16 el_logic, ref UInt16 el_mode)
+        public int GetCardAxisELMode(int cardIndex, int axis, ref UInt16 el_enable, ref UInt16 el_logic, ref UInt16 el_mode)
         {
             return 0;
             //return sldmv.dmc_get_el_mode((ushort)CardNo, (ushort)axis, ref el_enable, ref el_logic, ref el_mode);
@@ -583,7 +583,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="N_limit">负限位位置，单位：pulse </param>
         /// <param name="P_limit">正限位位置，单位：pulse </param>
         /// <returns>错误代码 </returns>
-        public int SetCardAxisSoftLimit(int CardNo, int axis, UInt16 enable, UInt16 source_sel, UInt16 SL_action, Int32 N_limit, Int32 P_limit)
+        public int SetCardAxisSoftLimit(int cardIndex, int axis, UInt16 enable, UInt16 source_sel, UInt16 slActionValue, Int32 negativeLimit, Int32 positiveLimit)
         {
             return 0;
             //return sldmv.dmc_set_softlimit((ushort)CardNo, (ushort)axis, enable, source_sel, SL_action, N_limit, P_limit);
@@ -600,7 +600,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="N_limit">返回负限位脉冲数</param>
         /// <param name="P_limit">返回正限位脉冲数</param>
         /// <returns>错误代码 </returns>
-        public int GetCardAxisSoftLimit(int CardNo, int axis, ref UInt16 enable, ref UInt16 source_sel, ref UInt16 SL_action, ref Int32 N_limit, ref Int32 P_limit)
+        public int GetCardAxisSoftLimit(int cardIndex, int axis, ref UInt16 enable, ref UInt16 source_sel, ref UInt16 slActionValue, ref Int32 negativeLimit, ref Int32 positiveLimit)
         {
             return 0;
             //return sldmv.dmc_get_softlimit((ushort)CardNo, (ushort)axis, ref enable, ref source_sel, ref SL_action, ref N_limit, ref P_limit);
@@ -631,7 +631,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>指令脉冲位置，单位：pulse </returns>
-        public int GetCardAxisPosition(int CardNo, int axis)
+        public int GetCardAxisPosition(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_get_position((ushort)CardNo, (ushort)axis);
@@ -649,7 +649,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>指定轴的速度，单位：pulse/s</returns>
-        public double GetCardAxisCurrentSpeed(int CardNo, int axis)
+        public double GetCardAxisCurrentSpeed(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_read_current_speed((ushort)CardNo, (ushort)axis);
@@ -662,7 +662,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="State">连接状态，0：连接，1：断开</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetCardLinkState(int CardNo, ref UInt16 State)
+        public int GetCardLinkState(int cardIndex, ref UInt16 State)
         {
             return 0;
             //return sldmv.dmc_LinkState((ushort)CardNo, ref State);
@@ -674,7 +674,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <returns>0：指定轴正在运行，1：指定轴已停止</returns>
-        public int GetCardAxisCheckDone(int CardNo, int axis)
+        public int GetCardAxisCheckDone(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_check_done((ushort)CardNo, (ushort)axis);
@@ -687,7 +687,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">指定控制卡上的坐标系号（取值范围：0~1）</param>
         /// <returns>：坐标系状态，0：正在使用中，1：正常停止</returns>
-        public int GetCardCheckDoneMulticoor(int CardNo, int crd)
+        public int GetCardCheckDoneMulticoor(int cardIndex, int crd)
         {
             return 0;
             //return sldmv.dmc_check_done_multicoor((ushort)CardNo, (ushort)crd);
@@ -711,7 +711,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <para> 10 、 RDY 1：表示伺服准备信号 RDY 为 ON（DMC3800 卡专用）；0：OFF</para>
         /// <para> 11 、 DSTP1：表示减速停止信号 DSTP 为 ON（DMC3800 卡专用）；0：OFF</para>
         /// </returns>
-        public int GetCardAxisIOStatus(int CardNo, int axis)
+        public int GetCardAxisIOStatus(int cardIndex, int axis)
         {
             return 0;
             //return (int)sldmv.dmc_axis_io_status((ushort)CardNo, (ushort)axis);
@@ -724,7 +724,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <param name="stop_mode">制动方式，0：减速停止，1：紧急停止</param>
         /// <returns>错误代码</returns>
-        public int CardAxisStop(int CardNo, int axis, int stop_mode)
+        public int CardAxisStop(int cardIndex, int axis, int stop_mode)
         {
             return 0;
             //return (int)sldmv.dmc_stop((ushort)CardNo, (ushort)axis, (ushort)stop_mode);
@@ -738,7 +738,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="crd">指定控制卡上的坐标系号（取值范围：0~1）</param>
         /// <param name="stop_mode">制动方式，0：减速停止，1：立即停止</param>
         /// <returns>错误代码</returns>
-        public int CardAxisStopMulticoor(int CardNo, int crd, int stop_mode)
+        public int CardAxisStopMulticoor(int cardIndex, int crd, int stop_mode)
         {
             return 0;
             //return (int)sldmv.dmc_stop_multicoor((ushort)CardNo, (ushort)crd, (ushort)stop_mode);
@@ -751,7 +751,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int CardAxisEmgStop(int CardNo)
+        public int CardAxisEmgStop(int cardIndex)
         {
             return 0;
             //return (int)sldmv.dmc_emg_stop((ushort)CardNo);
@@ -772,7 +772,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="Tdec">减速时间，单位：s (最小值为 0.001s)</param>
         /// <param name="stop_vel">停止速度，单位：pulse/s (最大值为 2M)</param>
         /// <returns>：错误代码</returns>
-        public int SetCardAxisProfile(int CardNo, int axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double stop_vel)
+        public int SetCardAxisProfile(int cardIndex, int axis, double minVelocity, double maxVelocity, double acceleration, double deceleration, double stop_vel)
         {
             return 0;
             //return sldmv.dmc_set_profile((ushort)CardNo, (ushort)axis, Min_Vel, Max_Vel, Tacc, Tdec, stop_vel);
@@ -789,7 +789,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="Tdec">返回减速时间，单位：s (最小值为 0.001s)</param>
         /// <param name="stop_vel">返回停止速度，单位：pulse/s (最大值为 2M)</param>
         /// <returns>：错误代码</returns>
-        public int GetCardAxisProfile(int CardNo, int axis, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double stop_vel)
+        public int GetCardAxisProfile(int cardIndex, int axis, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stop_vel)
         {
             return 0;
             //return sldmv.dmc_get_profile((ushort)CardNo, (ushort)axis, ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref stop_vel);
@@ -803,7 +803,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">S 段时间，单位：s；范围：0~0.5 s</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisSProfile(int CardNo, int axis, int s_mode, double s_para)
+        public int SetCardAxisSProfile(int cardIndex, int axis, int s_mode, double s_para)
         {
             return 0;
             //return sldmv.dmc_set_s_profile((ushort)CardNo, (ushort)axis, (ushort)s_mode, s_para);
@@ -819,7 +819,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">返回设置的 S 段时间，单位：s；范围：0~0.5 s</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisSProfile(int CardNo, int axis, int s_mode, ref double s_para)
+        public int GetCardAxisSProfile(int cardIndex, int axis, int s_mode, ref double s_para)
         {
             return 0;
             //return sldmv.dmc_get_s_profile((ushort)CardNo, (ushort)axis, (ushort)s_mode, ref s_para);
@@ -838,7 +838,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="Dist">目标位置，单位：pulse</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int CardAxisPMove(int CardNo, int axis, int Dist, int posi_mode)
+        public int CardAxisPMove(int cardIndex, int axis, int Dist, int posi_mode)
         {
             return 0;
             //return sldmv.dmc_pmove((ushort)CardNo, (ushort)axis, Dist, (ushort)posi_mode);
@@ -852,7 +852,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <param name="dir">运动方向，0：负方向，1：正方向</param>
         /// <returns>错误代码</returns>
-        public int CardAxisVMove(int CardNo, int axis, int dir)
+        public int CardAxisVMove(int cardIndex, int axis, int dir)
         {
             return 0;
             //return sldmv.dmc_vmove((ushort)CardNo, (ushort)axis, (ushort)dir);
@@ -866,7 +866,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="Curr_Vel">改变后的运动速度，单位：pulse/s</param>
         /// <param name="Taccdec">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisChangeSpeed(int CardNo, int axis, double Curr_Vel, double Taccdec)
+        public int CardAxisChangeSpeed(int cardIndex, int axis, double currentVelocity, double accelerationAndDeceleration)
         {
             return 0;
             //return sldmv.dmc_change_speed((ushort)CardNo, (ushort)axis, Curr_Vel, Taccdec);
@@ -880,7 +880,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="dist">目标位置，单位：pulse</param>
         /// <param name="posi_mode">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisResetTargetPosition(int CardNo, int axis, int dist, int posi_mode)
+        public int CardAxisResetTargetPosition(int cardIndex, int axis, int dist, int posi_mode)
         {
             return 0;
             //return sldmv.dmc_reset_target_position((ushort)CardNo, (ushort)axis, dist, (ushort)posi_mode);
@@ -896,7 +896,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="dist">目标位置，单位：pulse</param>
         /// <param name="posi_mode">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisUpdateTargetPosition(int CardNo, int axis, int dist, int posi_mode)
+        public int CardAxisUpdateTargetPosition(int cardIndex, int axis, int dist, int posi_mode)
         {
             return 0;
             //return sldmv.dmc_update_target_position((ushort)CardNo, (ushort)axis, dist, (ushort)posi_mode);
@@ -919,7 +919,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="Tdec">保留参数，固定值为 0</param>
         /// <param name="Stop_Vel">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardVectorProfileMulticoor(int CardNo, int Crd, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel)
+        public int SetCardVectorProfileMulticoor(int cardIndex, int crdIndex, double minVelocity, double maxVelocity, double acceleration, double deceleration, double stopVelocity)
         {
             return 0;
             //return sldmv.dmc_set_vector_profile_multicoor((ushort)CardNo, (ushort)Crd, Min_Vel, Max_Vel, Tacc, Tdec, Stop_Vel);
@@ -936,7 +936,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="Tdec">保留参数</param>
         /// <param name="Stop_Vel">保留参数</param>
         /// <returns>错误代码</returns>
-        public int GetCardVectorProfileMulticoor(int CardNo, int Crd, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double Stop_Vel)
+        public int GetCardVectorProfileMulticoor(int cardIndex, int crdIndex, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stopVelocity)
         {
             return 0;
             //return sldmv.dmc_get_vector_profile_multicoor((ushort)CardNo, (ushort)Crd, ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref Stop_Vel);
@@ -956,7 +956,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="DistList">插补轴目标位置列表，单位：pulse</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns></returns>
-        public int CardAxisLineMulticoor(int CardNo, int Crd, int axisNum, UInt16[] axisList, int[] DistList, int posi_mode)
+        public int CardAxisLineMulticoor(int cardIndex, int crdIndex, int axisNum, UInt16[] axisList, int[] DistList, int posi_mode)
         {
             return 0;
             //return sldmv.dmc_line_multicoor((ushort)CardNo, (ushort)Crd, (ushort)axisNum, axisList, DistList, (ushort)posi_mode);
@@ -976,7 +976,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="Arc_Dir">圆弧方向，0：顺时针，1：逆时针</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int CardAxisArcMoveMulticoor(int CardNo, int Crd, UInt16[] AxisList, int[] Target_Pos, int[] Cen_Pos, int Arc_Dir, int posi_mode)
+        public int CardAxisArcMoveMulticoor(int cardIndex, int crdIndex, UInt16[] axisNumbers, int[] targetPosition, int[] centerPosition, int Arc_Dir, int posi_mode)
         {
             return 0;
             //return sldmv.dmc_arc_move_multicoor((ushort)CardNo, (ushort)Crd, AxisList, Target_Pos, Cen_Pos, (ushort)Arc_Dir, (ushort)posi_mode);
@@ -999,7 +999,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="pTime">数据点时间数组，单位：s（精度：ms）；数组长度：count</param>
         /// <param name="pPos">数据点位置数组，单位：pulse；数组长度：count</param>
         /// <returns>错误代码</returns>
-        public int SendCardAxisPttTable(int CardNo, int axis, UInt32 count, double[] pTime, int[] pPos)
+        public int SendCardAxisPttTable(int cardIndex, int axis, UInt32 count, double[] pTime, int[] pPos)
         {
             return 0;
             //return sldmv.dmc_PttTable((ushort)CardNo, (ushort)axis, count, pTime, pPos);
@@ -1018,7 +1018,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="pPos">数据点位置数组，单位：pulse；数组长度：count</param>
         /// <param name="pPercent">数据点百分比数组，百分比的取值范围：[0,100]；数组长度：count</param>
         /// <returns>错误代码</returns>
-        public int SendCardAxisPtsTable(int CardNo, int axis, UInt32 count, double[] pTime, int[] pPos, double[] pPercent)
+        public int SendCardAxisPtsTable(int cardIndex, int axis, UInt32 count, double[] pTime, int[] pPos, double[] pPercent)
         {
             return 0;
             //return sldmv.dmc_PtsTable((ushort)CardNo, (ushort)axis, count, pTime, pPos, pPercent);
@@ -1037,7 +1037,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="pPos">数据点位置数组，单位：pulse；数组长度：count</param>
         /// <param name="pVel">数据点速度数组，单位：pulse/s；数组长度：count</param>
         /// <returns>错误代码</returns>
-        public int SendCardAxisPvtTable(int CardNo, int axis, UInt32 count, double[] pTime, int[] pPos, double[] pVel)
+        public int SendCardAxisPvtTable(int cardIndex, int axis, UInt32 count, double[] pTime, int[] pPos, double[] pVel)
         {
             return 0;
             //return sldmv.dmc_PvtTable((ushort)CardNo, (ushort)axis, count, pTime, pPos, pVel);
@@ -1057,7 +1057,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="velBegin">设置的第一点的速度，单位：pulse/s</param>
         /// <param name="velEnd">设置的最后一点的速度，单位：pulse/s</param>
         /// <returns>错误代码</returns>
-        public int SendCardAxisPvtsTable(int CardNo, int axis, UInt32 count, double[] pTime, int[] pPos, double velBegin, double velEnd)
+        public int SendCardAxisPvtsTable(int cardIndex, int axis, UInt32 count, double[] pTime, int[] pPos, double velBegin, double velEnd)
         {
             return 0;
             //return sldmv.dmc_PvtsTable((ushort)CardNo, (ushort)axis, count, pTime, pPos, velBegin, velEnd);
@@ -1070,7 +1070,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axisnum">轴数</param>
         /// <param name="AxisList">轴列表</param>
         /// <returns>错误代码</returns>
-        public int CardAxisPvtMoveStart(int CardNo, int axisnum, UInt16[] AxisList)
+        public int CardAxisPvtMoveStart(int cardIndex, int axisnum, UInt16[] axisNumbers)
         {
             return 0;
             //return sldmv.dmc_PvtMove((ushort)CardNo, (ushort)axisnum, AxisList);
@@ -1088,7 +1088,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <param name="on_off">设置伺服使能端口电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int CardAxisWriteSevonPin(int CardNo, int axis, int on_off)
+        public int CardAxisWriteSevonPin(int cardIndex, int axis, int on_off)
         {
             return 0;
             //return sldmv.dmc_write_sevon_pin((ushort)CardNo, (ushort)axis, (ushort)on_off);
@@ -1100,7 +1100,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <returns>伺服使能端口电平，0：低电平，1：高电平</returns>
-        public int GetCardAxisSevonPin(int CardNo, int axis)
+        public int GetCardAxisSevonPin(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_read_sevon_pin((ushort)CardNo, (ushort)axis);
@@ -1112,7 +1112,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <returns>RDY 端口电平，0：低电平，1：高电平</returns>
-        public int GetCardAxisRdyPin(int CardNo, int axis)
+        public int GetCardAxisRdyPin(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_read_rdy_pin((ushort)CardNo, (ushort)axis);
@@ -1129,7 +1129,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">INP 信号使能，0：禁止，1：允许</param>
         /// <param name="inp_logic">INP 信号的有效电平，0：低有效，1：高有效</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisInpMode(int CardNo, int axis, int enable, int inp_logic)
+        public int SetCardAxisInpMode(int cardIndex, int axis, int enable, int inp_logic)
         {
             return 0;
             //return sldmv.dmc_set_inp_mode((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)inp_logic);
@@ -1144,7 +1144,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">返回 INP 信号使能状态</param>
         /// <param name="inp_logic">返回设置的 INP 信号有效电平</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisInpMode(int CardNo, int axis, ref UInt16 enable, ref UInt16 inp_logic)
+        public int GetCardAxisInpMode(int cardIndex, int axis, ref UInt16 enable, ref UInt16 inp_logic)
         {
             return 0;
             //return sldmv.dmc_get_inp_mode((ushort)CardNo, (ushort)axis, ref enable, ref inp_logic);
@@ -1160,7 +1160,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="alm_logic">ALM 信号的有效电平，0：低有效，1：高有效</param>
         /// <param name="alm_action">ALM 信号的制动方式，0：立即停止（只支持该方式）</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisAlmMode(int CardNo, int axis, int enable, int alm_logic, int alm_action)
+        public int SetCardAxisAlmMode(int cardIndex, int axis, int enable, int alm_logic, int alm_action)
         {
             return 0;
             //return sldmv.dmc_set_alm_mode((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)alm_logic, (ushort)alm_action);
@@ -1176,7 +1176,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="alm_logic">返回设置的 ALM 信号有效电平</param>
         /// <param name="alm_action">返回 ALM 信号的制动方式</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisAlmMode(int CardNo, int axis, UInt16 enable, UInt16 alm_logic, UInt16 alm_action)
+        public int GetCardAxisAlmMode(int cardIndex, int axis, UInt16 enable, UInt16 alm_logic, UInt16 alm_action)
         {
             return 0;
             //return sldmv.dmc_get_alm_mode((ushort)CardNo, (ushort)axis, ref enable, ref alm_logic, ref alm_action);
@@ -1191,7 +1191,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <param name="sel">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisWriteErcPin(int CardNo, int axis, int sel)
+        public int SetCardAxisWriteErcPin(int cardIndex, int axis, int sel)
         {
             return 0;
             //return sldmv.dmc_write_erc_pin((ushort)CardNo, (ushort)axis, (ushort)sel);
@@ -1206,7 +1206,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <returns>ERC 端口电平，0：低电平，1：高电平</returns>
-        public int GetCardAxisWriteErcPin(int CardNo, int axis)
+        public int GetCardAxisWriteErcPin(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_read_erc_pin((ushort)CardNo, (ushort)axis);
@@ -1224,13 +1224,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">无意义</param>
         /// <param name="bitno">输入端口号，取值范围：0~N，视插了多少张1230卡为准</param>
         /// <returns>指定的输入端口电平：0：低电平，1：高电平, 2 api错误</returns>
-        public int GetCardInBit(int CardNo, int bitno)
+        public int GetCardInBit(int cardIndex, int bitno)
         {
             //var d1 = (int)(bitno / 32);
             //var d2 = bitno % 32;
             uint data = 1;
             //if (sldmv.PCI1232Success == sldmv.Pci1230ReadDiBit(CardNo, bitno, ref data))
-            if (0 == sldmv.SLDM_Get_InBit((uint)CardNo, (uint)CardNo, (uint)bitno, ref data))
+            if (0 == sldmv.SLDM_Get_InBit((uint)cardIndex, (uint)cardIndex, (uint)bitno, ref data))
             {
                 var restatus = data == 0 ? 1 : 0;
                 return (int)restatus;
@@ -1245,7 +1245,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="bitno">输入端口号，取值范围：0~15</param>
         /// <param name="on_off">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int SetCardWriteOutBit(int CardNo, int bitno, int on_off)
+        public int SetCardWriteOutBit(int cardIndex, int bitno, int on_off)
         {
             //var d1 = (int)(bitno / 32);
             //var d2 = bitno % 32;
@@ -1253,7 +1253,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
 
             //因为升立德1230卡 0是高电平，1是低电平，是反的，这里要反转一下
             var res = on_off == 0 ? 1 : 0;
-            if (0 == sldmv.SLDM_Set_OutBit((uint)CardNo, (uint)CardNo, (uint)bitno, (uint)res))
+            if (0 == sldmv.SLDM_Set_OutBit((uint)cardIndex, (uint)cardIndex, (uint)bitno, (uint)res))
             //if (sldmv.PCI1232Success == sldmv.Pci1230WriteDoBit(CardNo, bitno, (ushort)res))
             {
                 return 0;
@@ -1267,12 +1267,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="bitno">输入端口号，取值范围：0~15</param>
         /// <returns>指定输出端口的电平，0：低电平，1：高电平, 2: api错误</returns>
-        public int GetCardOutBit(int CardNo, int bitno)
+        public int GetCardOutBit(int cardIndex, int bitno)
         {
             //var d1 = (int)(bitno / 32);
             //var d2 = bitno % 32;
             uint data = 2;
-            if (0 == sldmv.SLDM_Get_OutBit((uint)CardNo, (uint)CardNo, (uint)bitno, ref data))
+            if (0 == sldmv.SLDM_Get_OutBit((uint)cardIndex, (uint)cardIndex, (uint)bitno, ref data))
             //if (sldmv.PCI1232Success == sldmv.Pci1230ReadDoBit(CardNo, bitno, ref data))
             {
                 var resdata = data == 1 ? 0 : 1;
@@ -1288,12 +1288,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="portno">IO 组号，取值范围：0、1</param>
         /// <returns>：bit0~bit31</returns>
-        public uint GetCardInPort(int CardNo, int portno)
+        public uint GetCardInPort(int cardIndex, int portno)
         {
             uint data = 0;
             //CardNo = 7;
             //if (sldmv.PCI1232Success == sldmv.SLDM_Get_InDWord(CardNo, ref data))
-            if (0 == sldmv.SLDM_Get_InDWord((uint)CardNo, (uint)CardNo, (uint)portno, ref data))
+            if (0 == sldmv.SLDM_Get_InDWord((uint)cardIndex, (uint)cardIndex, (uint)portno, ref data))
             {
                 //data = 1;
                 //由于1230卡的Pci1230Read函数取得的结果中，0是高电平，1是低电平，所以整体结果必须取反
@@ -1314,7 +1314,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="portno">保留参数，固定值为 0</param>
         /// <returns>bit0~bit31</returns>
-        public uint GetCardOutPort(int CardNo, int portno)
+        public uint GetCardOutPort(int cardIndex, int portno)
         {
             //var data = $"{alarmStatus}{elpStatus}{eldStatus}{imgSignal}{homeStatus}{softElPStatus}{softElDStatus}{inpStatus}{ezStatus}{sdStatus}00000";
 
@@ -1343,7 +1343,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
             uint data = 0;
             //CardNo = 7;
             //if (sldmv.PCI1232Success == sldmv.SLDM_Get_InDWord(CardNo, ref data))
-            if (0 == sldmv.SLDM_Get_OutDWord((uint)CardNo, (uint)CardNo, (uint)portno, ref data))
+            if (0 == sldmv.SLDM_Get_OutDWord((uint)cardIndex, (uint)cardIndex, (uint)portno, ref data))
             {
                 //data = 1;
                 //由于1230卡的Pci1230Read函数取得的结果中，0是高电平，1是低电平，所以整体结果必须取反
@@ -1367,7 +1367,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="portno">保留参数，固定值为 0</param>
         /// <param name="outport_val"> bit0 ~bit31</param>
         /// <returns>错误代码</returns>
-        public int SetCardOutPort(int CardNo, int portno, uint outport_val)
+        public int SetCardOutPort(int cardIndex, int portno, uint outport_val)
         {
             //1230--IO Port输出机制问题 
             #region 转换
@@ -1385,7 +1385,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
             }
             #endregion
             //var res = sldmv.Pci1230Write((ushort)CardNo, outport_val);
-            var res = sldmv.SLDM_Set_OutDWord((uint)CardNo, (uint)CardNo, (uint)portno, value);
+            var res = sldmv.SLDM_Set_OutDWord((uint)cardIndex, (uint)cardIndex, (uint)portno, value);
 
             return res;
         }
@@ -1398,7 +1398,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="bitno">输出端口号,取值范围：0~15</param>
         /// <param name="reverse_time">延时翻转时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardReverseOutBit(int CardNo, int bitno, int reverse_time)
+        public int SetCardReverseOutBit(int cardIndex, int bitno, int reverse_time)
         {
             return 0;
             //return sldmv.dmc_reverse_outbit((ushort)CardNo, (ushort)bitno, reverse_time);
@@ -1412,7 +1412,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="mode">IO 计数模式，0：禁用，1：上升沿计数，2：下降沿计数</param>
         /// <param name="filter_time">滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardIoCountMode(int CardNo, int bitno, int mode, double filter_time)
+        public int SetCardIoCountMode(int cardIndex, int bitno, int mode, double filter_time)
         {
             return 0;
             //return sldmv.dmc_set_io_count_mode((ushort)CardNo, (ushort)bitno, (ushort)mode, filter_time);
@@ -1426,7 +1426,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="mode">返回 IO 计数模式</param>
         /// <param name="filter_time">返回滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int GetCardIoCountMode(int CardNo, int bitno, ref UInt16 mode, ref double filter_time)
+        public int GetCardIoCountMode(int cardIndex, int bitno, ref UInt16 mode, ref double filter_time)
         {
             return 0;
             //return sldmv.dmc_get_io_count_mode((ushort)CardNo, (ushort)bitno, ref mode, ref filter_time);
@@ -1438,7 +1438,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="bitno">输出端口号,取值范围：0~15</param>
         /// <param name="CountValue">IO 计数值</param>
         /// <returns>错误代码</returns>
-        public int SetCardIoCountValue(int CardNo, int bitno, int CountValue)
+        public int SetCardIoCountValue(int cardIndex, int bitno, int countValue)
         {
             return 0;
             //return sldmv.dmc_set_io_count_value((ushort)CardNo, (ushort)bitno, (uint)CountValue);
@@ -1451,7 +1451,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="bitno">输出端口号,取值范围：0~15</param>
         /// <param name="CountValue">返回 IO 计数值</param>
         /// <returns>错误代码</returns>
-        public int SetCardIoCountValue(int CardNo, int bitno, uint CountValue)
+        public int SetCardIoCountValue(int cardIndex, int bitno, uint countValue)
         {
             return 0;
             //return sldmv.dmc_get_io_count_value((ushort)CardNo, (ushort)bitno, ref CountValue);
@@ -1471,7 +1471,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="multi">手轮倍率，正数表示默认方向，负数表示与默认方向反向</param>
         /// <param name="vh">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHandWhellInMode(int CardNo, int axis, int inmode, int multi, double vh)
+        public int SetCardAxisHandWhellInMode(int cardIndex, int axis, int inmode, int multi, double vh)
         {
             return 0;
             //return sldmv.dmc_set_handwheel_inmode((ushort)CardNo, (ushort)axis, (ushort)inmode, multi, vh);
@@ -1488,7 +1488,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="multi">返回手轮倍率</param>
         /// <param name="vh">保留参数</param>
         /// <returns></returns>
-        public int GetCardAxisHandWhellInMode(int CardNo, int axis, UInt16 inmode, int multi, double vh)
+        public int GetCardAxisHandWhellInMode(int cardIndex, int axis, UInt16 inmode, int multi, double vh)
         {
             return 0;
             //return sldmv.dmc_get_handwheel_inmode((ushort)CardNo, (ushort)axis, ref inmode, ref multi, ref vh);
@@ -1504,7 +1504,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5DMC3400A：0~3</param>
         /// <returns>错误代码</returns>
-        public int CardAxisHandWhellMove(int CardNo, int axis)
+        public int CardAxisHandWhellMove(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_handwheel_move((ushort)CardNo, (ushort)axis);
@@ -1516,7 +1516,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="index">0：高速通道  1：低速通道</param>
         /// <returns>错误代码</returns>
-        public int SetCardHandWhellChannel(int CardNo, int index)
+        public int SetCardHandWhellChannel(int cardIndex, int index)
         {
             return 0;
             //return sldmv.dmc_set_handwheel_channel((ushort)CardNo, (ushort)index);
@@ -1528,7 +1528,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="index">返回设置的手轮通道</param>
         /// <returns>错误代码</returns>
-        public int GetCardHandWhellChannel(int CardNo, UInt16 index)
+        public int GetCardHandWhellChannel(int cardIndex, UInt16 index)
         {
             return 0;
             //return sldmv.dmc_get_handwheel_channel((ushort)CardNo, ref index);
@@ -1547,7 +1547,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="AxisList">参与手轮运动的轴号数组</param>
         /// <param name="multi">手轮倍率数组:正数表示默认方向，负数表示与默认方向反向</param>
         /// <returns>错误代码</returns>
-        public int SetCardHandWhellInModeExtern(int CardNo, UInt16 inmode, UInt16 AxisNum, UInt16[] AxisList, int[] multi)
+        public int SetCardHandWhellInModeExtern(int cardIndex, UInt16 inmode, UInt16 axisNumber, UInt16[] axisNumbers, int[] multi)
         {
             return 0;
             //return sldmv.dmc_set_handwheel_inmode_extern((ushort)CardNo, inmode, AxisNum, AxisList, multi);
@@ -1562,7 +1562,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="AxisList">返回参与手轮运动的轴号数组</param>
         /// <param name="multi">返回手轮倍率数组</param>
         /// <returns>错误代码</returns>
-        public int GetCardHandWhellInModeExtern(int CardNo, ref UInt16 inmode, ref UInt16 AxisNum, ref UInt16[] AxisList, ref int[] multi)
+        public int GetCardHandWhellInModeExtern(int cardIndex, ref UInt16 inmode, ref UInt16 axisNumber, ref UInt16[] axisNumbers, ref int[] multi)
         {
             return 0;
             //return sldmv.dmc_get_handwheel_inmode_extern((ushort)CardNo, ref inmode, ref AxisNum, AxisList, multi);
@@ -1579,7 +1579,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~7，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <param name="mode">编码器的计数方式：  |  0：非 A/B 相(脉冲/方向)  |   1：1×A/B  |   2：2×A/B  |   3：4×A/B</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisCounterInMode(int CardNo, int axis, int mode)
+        public int SetCardAxisCounterInMode(int cardIndex, int axis, int mode)
         {
             return 0;
             //return sldmv.dmc_set_counter_inmode((ushort)CardNo, (ushort)axis, (ushort)mode);
@@ -1594,7 +1594,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~7，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <param name="mode">返回编码器的计数方式</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisCounterInMode(int CardNo, int axis, ref UInt16 mode)
+        public int GetCardAxisCounterInMode(int cardIndex, int axis, ref UInt16 mode)
         {
             return 0;
             //return sldmv.dmc_get_counter_inmode((ushort)CardNo, (ushort)axis, ref mode);
@@ -1610,7 +1610,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~7，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <param name="encoder_value">编码器计数值，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisEncoder(int CardNo, int axis, int encoder_value)
+        public int SetCardAxisEncoder(int cardIndex, int axis, int encoder_value)
         {
             return 0;
             //return sldmv.dmc_set_encoder((ushort)CardNo, (ushort)axis, encoder_value);
@@ -1623,7 +1623,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~7，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <returns>编码器计数值，单位：pulse</returns>
-        public int GetCardAxisEncoder(int CardNo, int axis)
+        public int GetCardAxisEncoder(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_get_encoder((ushort)CardNo, (ushort)axis);
@@ -1638,7 +1638,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="ez_mode">保留参数，固定值为 0</param>
         /// <param name="filter">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisEZMode(int CardNo, int axis, int ez_logic, int ez_mode, double filter)
+        public int SetCardAxisEZMode(int cardIndex, int axis, int ez_logic, int ez_mode, double filter)
         {
             return 0;
             //return sldmv.dmc_set_ez_mode((ushort)CardNo, (ushort)axis, (ushort)ez_logic, (ushort)ez_mode, filter);
@@ -1654,7 +1654,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="ez_mode">保留参数</param>
         /// <param name="filter">保留参数</param>
         /// <returns></returns>
-        public int GetCardAxisEZMode(int CardNo, int axis, UInt16 ez_logic, UInt16 ez_mode, double filter)
+        public int GetCardAxisEZMode(int cardIndex, int axis, UInt16 ez_logic, UInt16 ez_mode, double filter)
         {
             return 0;
             //return sldmv.dmc_get_ez_mode((ushort)CardNo, (ushort)axis, ref ez_logic, ref ez_mode, ref filter);
@@ -1673,12 +1673,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="ltc_mode">保留参数，固定值为 0</param>
         /// <param name="filter">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisLtcMode(int CardNo, int axis, UInt16 ltc_logic, UInt16 ltc_mode, double filter)
+        public int SetCardAxisLtcMode(int cardIndex, int axis, UInt16 ltc_logic, UInt16 ltc_mode, double filter)
         {
             return 0;
             //return sldmv.dmc_set_ltc_mode((ushort)CardNo, (ushort)axis, ltc_logic, ltc_mode, filter);
         }
-        public int SetCardAxisLatchMode(int CardNo, int axis, int all_enable, int latch_source, int triger_chunnel)
+        public int SetCardAxisLatchMode(int cardIndex, int axis, int all_enable, int latch_source, int triger_chunnel)
         {
             return 0;
             //return sldmv.dmc_set_latch_mode((ushort)CardNo, (ushort)axis, (ushort)all_enable, (ushort)latch_source, (ushort)triger_chunnel);
@@ -1692,7 +1692,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="ltc_mode">保留参数</param>
         /// <param name="filter">保留参数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisLtcMode(int CardNo, int axis, ref UInt16 ltc_logic, ref UInt16 ltc_mode, ref double filter)
+        public int GetCardAxisLtcMode(int cardIndex, int axis, ref UInt16 ltc_logic, ref UInt16 ltc_mode, ref double filter)
         {
             return 0;
             //return sldmv.dmc_get_ltc_mode((ushort)CardNo, (ushort)axis, ref ltc_logic, ref ltc_mode, ref filter);
@@ -1710,7 +1710,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="latch_source">锁存源，0：指令位置计数器，1：编码器计数器</param>
         /// <param name="triger_chunnel">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisLatchMode(int CardNo, int axis, UInt16 all_enable, UInt16 latch_source, UInt16 triger_chunnel)
+        public int SetCardAxisLatchMode(int cardIndex, int axis, UInt16 all_enable, UInt16 latch_source, UInt16 triger_chunnel)
         {
             return 0;
             //return sldmv.dmc_set_latch_mode((ushort)CardNo, (ushort)axis, all_enable, latch_source, triger_chunnel);
@@ -1726,7 +1726,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="latch_source">返回锁存源设置</param>
         /// <param name="triger_chunnel">保留参数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisLatchMode(int CardNo, int axis, ref UInt16 all_enable, ref UInt16 latch_source, ref UInt16 triger_chunnel)
+        public int GetCardAxisLatchMode(int cardIndex, int axis, ref UInt16 all_enable, ref UInt16 latch_source, ref UInt16 triger_chunnel)
         {
             return 0;
             //return sldmv.dmc_get_latch_mode((ushort)CardNo, (ushort)axis, ref all_enable, ref latch_source, ref triger_chunnel);
@@ -1741,7 +1741,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3400A：0，DMC3C00/3800/3600：0、4</param>
         /// <param name="time">触发延时停止时间，单位：us，取值范围：1us~50ms</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisLatchStopTime(int CardNo, int axis, int time)
+        public int SetCardAxisLatchStopTime(int cardIndex, int axis, int time)
         {
             return 0;
             //return sldmv.dmc_set_latch_stop_time((ushort)CardNo, (ushort)axis, time);
@@ -1754,7 +1754,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3400A：0，DMC3C00/3800/3600：0、4</param>
         /// <param name="time">返回触发延时停止时间设置，单位：us</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisLatchStopTime(int CardNo, int axis, int time)
+        public int GetCardAxisLatchStopTime(int cardIndex, int axis, int time)
         {
             return 0;
             //return sldmv.dmc_get_latch_stop_time((ushort)CardNo, (ushort)axis, ref time);
@@ -1769,7 +1769,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">使能状态：0：禁止，1：使能</param>
         /// <param name="bitno">通用输出 IO 口号，取值范围：0~15</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisOutMode(int CardNo, int axis, int enable, int bitno)
+        public int SetCardAxisOutMode(int cardIndex, int axis, int enable, int bitno)
         {
             return 0;
             //return sldmv.dmc_SetLtcOutMode((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)bitno);
@@ -1783,7 +1783,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">返回使能状态：0：禁止，1：使能</param>
         /// <param name="bitno">返回设置的通用输出 IO 口号</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisOutMode(int CardNo, int axis, UInt16 enable, UInt16 bitno)
+        public int GetCardAxisOutMode(int cardIndex, int axis, UInt16 enable, UInt16 bitno)
         {
             return 0;
             //return sldmv.dmc_GetLtcOutMode((ushort)CardNo, (ushort)axis, ref enable, ref bitno);
@@ -1797,7 +1797,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns>锁存值</returns>
-        public int GetCardAxisLatchValue(int CardNo, int axis)
+        public int GetCardAxisLatchValue(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_get_latch_value((ushort)CardNo, (ushort)axis);
@@ -1809,7 +1809,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns>0：未触发锁存，1：已触发锁存</returns>
-        public int GetCardAxisLatchFlag(int CardNo, int axis)
+        public int GetCardAxisLatchFlag(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_get_latch_flag((ushort)CardNo, (ushort)axis);
@@ -1825,7 +1825,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns></returns>
-        public int GetCardAxisReserLatchFlag(int CardNo, int axis)
+        public int GetCardAxisReserLatchFlag(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_reset_latch_flag((ushort)CardNo, (ushort)axis);
@@ -1838,7 +1838,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns></returns>
-        public int GetCardAxisLatchFlagExtern(int CardNo, int axis)
+        public int GetCardAxisLatchFlagExtern(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_get_latch_flag_extern((ushort)CardNo, (ushort)axis);
@@ -1852,7 +1852,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="Index">索引号</param>
         /// <returns>锁存值</returns>
-        public int GetCardAxisLatchValueExtern(int CardNo, int axis, int Index)
+        public int GetCardAxisLatchValueExtern(int cardIndex, int axis, int Index)
         {
             return 0;
             //return sldmv.dmc_get_latch_value_extern((ushort)CardNo, (ushort)axis, (ushort)Index);
@@ -1871,7 +1871,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="hcmp"></param>
         /// <param name="cmpEnable"></param>
         /// <returns></returns>
-        public int SetCardAxisHcmp2dsetEnable(int CardNo, int hcmp, int cmpEnable)
+        public int SetCardAxisHcmp2dsetEnable(int cardIndex, int hcmp, int cmpEnable)
         {
             //dmc_hcmp_2d_set_enable
             return 0;
@@ -1887,7 +1887,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">   比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisCompareConfig(int CardNo, int axis, int enable, int cmp_source)
+        public int SetCardAxisCompareConfig(int cardIndex, int axis, int enable, int cmp_source)
         {
             return 0;
             //return sldmv.dmc_compare_set_config((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)cmp_source);
@@ -1902,7 +1902,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">返回比较功能状态</param>
         /// <param name="cmp_source">返回比较源</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisCompareConfig(int CardNo, int axis, ref UInt16 enable, ref UInt16 cmp_source)
+        public int GetCardAxisCompareConfig(int cardIndex, int axis, ref UInt16 enable, ref UInt16 cmp_source)
         {
             return 0;
             //return sldmv.dmc_compare_get_config((ushort)CardNo, (ushort)axis, ref enable, ref cmp_source);
@@ -1918,7 +1918,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns>错误代码</returns>
-        public int ClearCardAxisComparePoints(int CardNo, int axis)
+        public int ClearCardAxisComparePoints(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_compare_clear_points((ushort)CardNo, (ushort)axis);
@@ -1936,7 +1936,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="action">比较点触发功能编号</param>
         /// <param name="actpara">比较点触发功能参数</param>
         /// <returns>错误代码</returns>
-        public int AddCardAxisComparePoint(int CardNo, int axis, int pos, int dir, UInt16 action, UInt32 actpara)
+        public int AddCardAxisComparePoint(int cardIndex, int axis, int pos, int dir, UInt16 action, UInt32 actpara)
         {
             return 0;
             //return sldmv.dmc_compare_add_point((ushort)CardNo, (ushort)axis, pos, (ushort)dir, action, actpara);
@@ -1949,7 +1949,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="pos">返回当前比较点位置，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisCompareCurrentPoint(int CardNo, int axis, ref int pos)
+        public int GetCardAxisCompareCurrentPoint(int cardIndex, int axis, ref int pos)
         {
             return 0;
             //return sldmv.dmc_compare_get_current_point((ushort)CardNo, (ushort)axis, ref pos);
@@ -1962,7 +1962,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="pointNum">返回已经比较过的点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisComparePointsRunned(int CardNo, int axis, ref int pointNum)
+        public int GetCardAxisComparePointsRunned(int cardIndex, int axis, ref int pointNum)
         {
             return 0;
             //return sldmv.dmc_compare_get_points_runned((ushort)CardNo, (ushort)axis, ref pointNum);
@@ -1976,7 +1976,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="pointNum">返回可以加入的比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisComparePointsRemained(int CardNo, int axis, ref int pointNum)
+        public int GetCardAxisComparePointsRemained(int cardIndex, int axis, ref int pointNum)
         {
             return 0;
             //return sldmv.dmc_compare_get_points_remained((ushort)CardNo, (ushort)axis, ref pointNum);
@@ -1990,7 +1990,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">二维位置比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">二维位置比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int SetCardCompareConfigExtern(int CardNo, int enable, int cmp_source)
+        public int SetCardCompareConfigExtern(int cardIndex, int enable, int cmp_source)
         {
             return 0;
             //return sldmv.dmc_compare_set_config_extern((ushort)CardNo, (ushort)enable, (ushort)cmp_source);
@@ -2003,7 +2003,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">返回比较功能状态</param>
         /// <param name="cmp_source">返回比较源</param>
         /// <returns>：错误代码</returns>
-        public int GetCardCompareConfigExtern(int CardNo, UInt16 enable, UInt16 cmp_source)
+        public int GetCardCompareConfigExtern(int cardIndex, UInt16 enable, UInt16 cmp_source)
         {
             return 0;
             //return sldmv.dmc_compare_get_config_extern((ushort)CardNo, ref enable, ref cmp_source);
@@ -2016,7 +2016,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int ClearCardComparePointsExtern(int CardNo)
+        public int ClearCardComparePointsExtern(int cardIndex)
         {
             return 0;
             //return sldmv.dmc_compare_clear_points_extern((ushort)CardNo);
@@ -2034,7 +2034,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="action">二维位置比较点触发功能编号</param>
         /// <param name="actpara">二维位置比较点触发功能参数</param>
         /// <returns>错误代码</returns>
-        public int AddCardComparePointExtern(int CardNo, UInt16[] axis, Int32[] pos, UInt16[] dir, UInt16 action, UInt32 actpara)
+        public int AddCardComparePointExtern(int cardIndex, UInt16[] axis, Int32[] pos, UInt16[] dir, UInt16 action, UInt32 actpara)
         {
             return 0;
             //return sldmv.dmc_compare_add_point_extern((ushort)CardNo, axis, pos, dir, action, actpara);
@@ -2047,7 +2047,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo"></param>
         /// <param name="pos">返回当前二维位置比较点位置</param>
         /// <returns>错误代码</returns>
-        public int GetCardCompareCurrentPointExtern(int CardNo, ref int[] pos)
+        public int GetCardCompareCurrentPointExtern(int cardIndex, ref int[] pos)
         {
             return 0;
             //return sldmv.dmc_compare_get_current_point_extern((ushort)CardNo, pos);
@@ -2061,7 +2061,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="pointNum">返回已经比较过的二维位置比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardComparePointsRunnedExtern(int CardNo, ref int pointNum)
+        public int GetCardComparePointsRunnedExtern(int cardIndex, ref int pointNum)
         {
             return 0;
             //return sldmv.dmc_compare_get_points_runned_extern((ushort)CardNo, ref pointNum);
@@ -2074,7 +2074,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="pointNum">返回可以加入的二维位置比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardComparePointsRemainedExtern(int CardNo, ref int pointNum)
+        public int GetCardComparePointsRemainedExtern(int cardIndex, ref int pointNum)
         {
             return 0;
             //return sldmv.dmc_compare_get_points_remained_extern((ushort)CardNo, ref pointNum);
@@ -2098,7 +2098,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="cmp_enable">比较模式：0：禁止（默认值）| 1：等于 | 2：小于 | 3：大于 | 4：队列 | ;提供 127 个点比较空间，采用先添加先比较，比较完可追加比较点，也可一次性添加多个比较点 | 5：线性，提供起始比较点，位置增量，比较次数  </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHcmpMode(int CardNo, int hcmp, int cmp_enable)
+        public int SetCardAxisHcmpMode(int cardIndex, int hcmp, int cmp_enable)
         {
             return 0;
             //return sldmv.dmc_hcmp_set_mode((ushort)CardNo, (ushort)hcmp, (ushort)cmp_enable);
@@ -2109,7 +2109,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <returns>错误代码</returns>
-        public int ClearCardHcmpPoints(int CardNo, int hcmp)
+        public int ClearCardHcmpPoints(int cardIndex, int hcmp)
         {
             return 0;
             //return sldmv.dmc_hcmp_clear_points((ushort)CardNo, (ushort)hcmp);
@@ -2121,7 +2121,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="cmp_enable">返回比较模式设置</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHcmpMode(int CardNo, int hcmp, ref UInt16 cmp_enable)
+        public int GetCardAxisHcmpMode(int cardIndex, int hcmp, ref UInt16 cmp_enable)
         {
             return 0;
             //return sldmv.dmc_hcmp_get_mode((ushort)CardNo, (ushort)hcmp, ref cmp_enable);
@@ -2138,7 +2138,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="cmp_logic">有效电平：0：低电平，1：高电平</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us~20s</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHcmpConfig(int CardNo, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
+        public int SetCardAxisHcmpConfig(int cardIndex, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
         {
             return 0;
             //return sldmv.dmc_hcmp_set_config((ushort)CardNo, (ushort)hcmp, (ushort)axis, (ushort)cmp_source, (ushort)cmp_logic, time);
@@ -2154,7 +2154,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="cmp_logic">返回有效电平设置</param>
         /// <param name="time">返回脉冲宽度设置</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHcmpConfig(int CardNo, int hcmp, ref UInt16 axis, UInt16 cmp_source, UInt16 cmp_logic, int time)
+        public int GetCardAxisHcmpConfig(int cardIndex, int hcmp, ref UInt16 axis, UInt16 cmp_source, UInt16 cmp_logic, int time)
         {
             return 0;
             //return sldmv.dmc_hcmp_get_config((ushort)CardNo, (ushort)hcmp, ref axis, ref cmp_source, ref cmp_logic, ref time);
@@ -2167,7 +2167,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="cmp_pos"><para>队列模式下：添加比较位置，单位：pulse</para><para>  线性模式下：更新起始比较位置，单位：pulse</para><para>其他模式下：更新比较位置，单位：pulse</para></param>
         /// <returns>错误代码</returns>
-        public int AddCardHcmpPoint(int CardNo, int hcmp, int cmp_pos)
+        public int AddCardHcmpPoint(int cardIndex, int hcmp, int cmp_pos)
         {
             return 0;
             //return sldmv.dmc_hcmp_add_point((ushort)CardNo, (ushort)hcmp, cmp_pos);
@@ -2181,7 +2181,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="Increment">位置增量值，单位：pulse（正值表示位置递增，负值表示位置递减）</param>
         /// <param name="Count">比较次数，取值范围：1~32767</param>
         /// <returns>错误代码</returns>
-        public int SetCardHcmpLiner(int CardNo, int hcmp, int Increment, int Count)
+        public int SetCardHcmpLiner(int cardIndex, int hcmp, int increment, int Count)
         {
             return 0;
             //return sldmv.dmc_hcmp_set_liner((ushort)CardNo, (ushort)hcmp, Increment, Count);
@@ -2195,7 +2195,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="Increment">返回位置增量值设置</param>
         /// <param name="Count">返回比较次数设置</param>
         /// <returns>错误代码</returns>
-        public int GetCardHcmpLiner(int CardNo, int hcmp, ref int Increment, ref int Count)
+        public int GetCardHcmpLiner(int cardIndex, int hcmp, ref int increment, ref int Count)
         {
             return 0;
             //return sldmv.dmc_hcmp_get_liner((ushort)CardNo, (ushort)hcmp, ref Increment, ref Count);
@@ -2211,7 +2211,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="current_point">返回当前比较点位置，单位：pulse</param>
         /// <param name="runned_points">返回已比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardHcmpCurrentState(int CardNo, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
+        public int GetCardHcmpCurrentState(int cardIndex, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
         {
             return 0;
             //return sldmv.dmc_hcmp_get_current_state((ushort)CardNo, (ushort)hcmp, ref remained_points, ref current_point, ref runned_points);
@@ -2225,7 +2225,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="on_off">设置 CMP 端口电平，0：低电平，1：高电平</param>
         /// <returns>：错误代码</returns>
-        public int SetCardHcmpCmpPin(int CardNo, int hcmp, int on_off)
+        public int SetCardHcmpCmpPin(int cardIndex, int hcmp, int on_off)
         {
             return 0;
             //return sldmv.dmc_write_cmp_pin((ushort)CardNo, (ushort)hcmp, (ushort)on_off);
@@ -2237,7 +2237,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <returns>CMP 端口电平</returns>
-        public int GetCardHcmpCmpPin(int CardNo, int hcmp)
+        public int GetCardHcmpCmpPin(int cardIndex, int hcmp)
         {
             return 0;
             //return sldmv.dmc_read_cmp_pin((ushort)CardNo, (ushort)hcmp);
@@ -2256,7 +2256,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">允许/禁止信号功能，0：禁止，1：允许</param>
         /// <param name="emg_logic">EMG 信号有效电平，0：低有效，1：高有效  </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisEmgMode(int CardNo, int axis, int enable, int emg_logic)
+        public int SetCardAxisEmgMode(int cardIndex, int axis, int enable, int emg_logic)
         {
             return 0;
             //return sldmv.dmc_set_emg_mode((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)emg_logic);
@@ -2270,7 +2270,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">返回 EMG 信号功能状态</param>
         /// <param name="emg_logic">错误代码</param>
         /// <returns></returns>
-        public int GetCardAxisEmgMode(int CardNo, int axis, ref UInt16 enable, UInt16 emg_logic)
+        public int GetCardAxisEmgMode(int cardIndex, int axis, ref UInt16 enable, UInt16 emg_logic)
         {
             return 0;
             //return sldmv.dmc_get_emg_mode((ushort)CardNo, (ushort)axis, ref enable, ref emg_logic);
@@ -2286,7 +2286,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">允许/禁止硬件信号功能，0：禁止，1：允许</param>
         /// <param name="logic">外部减速停止信号有效电平，0：低有效，1：高有效</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisIODstpMode(int CardNo, int axis, int enable, int logic)
+        public int SetCardAxisIODstpMode(int cardIndex, int axis, int enable, int logic)
         {
             return 0;
             //return sldmv.dmc_set_io_dstp_mode((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)logic);
@@ -2300,7 +2300,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="enable">返回 DSTP 硬件信号功能状态</param>
         /// <param name="logic">返回设置的外部减速停止信号有效电平</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisIODstpMode(int CardNo, int axis, ref UInt16 enable, ref UInt16 logic)
+        public int GetCardAxisIODstpMode(int cardIndex, int axis, ref UInt16 enable, ref UInt16 logic)
         {
             return 0;
             //return sldmv.dmc_get_io_dstp_mode((ushort)CardNo, (ushort)axis, ref enable, ref logic);
@@ -2315,7 +2315,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A： 0~3</param>
         /// <param name="stop_time">减速时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisDecStopTime(int CardNo, int axis, double stop_time)
+        public int SetCardAxisDecStopTime(int cardIndex, int axis, double stop_time)
         {
             return 0;
             //return sldmv.dmc_set_dec_stop_time((ushort)CardNo, (ushort)axis, stop_time);
@@ -2328,7 +2328,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A： 0~3</param>
         /// <param name="stop_time">返回设置的减速时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisDecStopTime(int CardNo, int axis, ref double stop_time)
+        public int SetCardAxisDecStopTime(int cardIndex, int axis, ref double stop_time)
         {
             return 0;
             //return sldmv.dmc_get_dec_stop_time((ushort)CardNo, (ushort)axis, ref stop_time);
@@ -2367,7 +2367,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="MapIoIndex">轴 IO 映射索引号：<para>1）当轴 IO 映射类型设置为 6 时，此参数可设置为 0~15 整数，表示该映射对应的具体通用输入端口号</para><para>2）当轴 IO 映射类型设置为 0~5 时，此参数可设置 0~7 整数，表示该映射所对应的具体轴号</para></param>
         /// <param name="Filter">轴 IO 信号滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisIOMap(int CardNo, int axis, int IoType, int MapIoType, int MapIoIndex, double Filter)
+        public int SetCardAxisIOMap(int cardIndex, int axis, int IoType, int mapIoType, int mapIoIndex, double Filter)
         {
             return 0;
             //return sldmv.dmc_set_axis_io_map((ushort)CardNo, (ushort)axis, (ushort)IoType, (ushort)MapIoType, (ushort)MapIoIndex, Filter);
@@ -2383,7 +2383,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="MapIoIndex">返回轴 IO 映射索引号</param>
         /// <param name="Filter">返回轴 IO 信号滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisIOMap(int CardNo, int axis, int IoType, ref UInt16 MapIoType, ref UInt16 MapIoIndex, double Filter)
+        public int GetCardAxisIOMap(int cardIndex, int axis, int IoType, ref UInt16 mapIoType, ref UInt16 mapIoIndex, double Filter)
         {
             return 0;
             //return sldmv.dmc_get_axis_io_map((ushort)CardNo, (ushort)axis, (ushort)IoType, ref MapIoType, ref MapIoIndex, ref Filter);
@@ -2395,7 +2395,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="Filter">轴 IO 信号滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardSpecialInPutFilter(int CardNo, double Filter)
+        public int SetCardSpecialInputFilter(int cardIndex, double Filter)
         {
             return 0;
             //return sldmv.dmc_set_special_input_filter((ushort)CardNo, Filter);
@@ -2429,7 +2429,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// </param>
         /// <param name="Filter">虚拟 IO 信号滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardIOMapVirtual(int CardNo, int bitno, int MapIoType, int MapIoIndex, double Filter)
+        public int SetCardIOMapVirtual(int cardIndex, int bitno, int mapIoType, int mapIoIndex, double Filter)
         {
             return 0;
             //return sldmv.dmc_set_io_map_virtual((ushort)CardNo, (ushort)bitno, (ushort)MapIoType, (ushort)MapIoIndex, Filter);
@@ -2447,7 +2447,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="MapIoIndex">返回虚拟 IO 映射索引号</param>
         /// <param name="filter_time">返回虚拟 IO 信号滤波时间，单位：s</param>
         /// <returns></returns>
-        public int GetCardIOMapVirtual(int CardNo, int bitno, ref UInt16 MapIoType, ref UInt16 MapIoIndex, ref double filter_time)
+        public int GetCardIOMapVirtual(int cardIndex, int bitno, ref UInt16 mapIoType, ref UInt16 mapIoIndex, ref double filter_time)
         {
             return 0;
             //return sldmv.dmc_get_io_map_virtual((ushort)CardNo, (ushort)bitno, ref MapIoType, ref MapIoIndex, ref filter_time);
@@ -2459,7 +2459,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="bitno">虚拟 IO 口号,取值范围：0~15</param>
         /// <returns>指定的虚拟 IO 口电平：0：低电平，1：高电平</returns>
-        public int GetCardInBitVirtual(int CardNo, int bitno)
+        public int GetCardInBitVirtual(int cardIndex, int bitno)
         {
             return 0;
             //return sldmv.dmc_read_inbit_virtual((ushort)CardNo, (ushort)bitno);
@@ -2477,7 +2477,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="factor">编码器系数</param>
         /// <param name="error">位置误差带，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisFactorError(int CardNo, int axis, double factor, int error)
+        public int SetCardAxisFactorError(int cardIndex, int axis, double factor, int error)
         {
             return 0;
             //return sldmv.dmc_set_factor_error((ushort)CardNo, (ushort)axis, factor, error);
@@ -2491,7 +2491,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="factor">返回编码器系数设置</param>
         /// <param name="error">返回位置误差带设置</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisFactorError(int CardNo, int axis, ref double factor, int error)
+        public int GetCardAxisFactorError(int cardIndex, int axis, ref double factor, int error)
         {
             return 0;
             //return sldmv.dmc_get_factor_error((ushort)CardNo, (ushort)axis, ref factor, ref error);
@@ -2503,7 +2503,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A： 0~3</param>
         /// <returns>0：表示指令位置在设定的目标位置的误差带之外 ；1：表示指令位置在设定的目标位置的误差带之内</returns>
-        public int SetCardAxisCheckSuccessPulse(int CardNo, int axis)
+        public int SetCardAxisCheckSuccessPulse(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_check_success_pulse((ushort)CardNo, (ushort)axis);
@@ -2515,7 +2515,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A： 0~3</param>
         /// <returns>0：表示编码器位置在设定的目标位置的误差带之外；1：表示编码器位置在设定的目标位置的误差带之内</returns>
-        public int SetCardAxisCheckSuccessEncoder(int CardNo, int axis)
+        public int SetCardAxisCheckSuccessEncoder(int cardIndex, int axis)
         {
             return 0;
             //return sldmv.dmc_check_success_encoder((ushort)CardNo, (ushort)axis);
@@ -2546,7 +2546,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="NodeNum">返回 CAN 节点数</param>
         /// <param name="state">返回 CAN-IO 通讯状态，0：断开，1：连接，2：异常</param>
         /// <returns>错误代码</returns>
-        public int GetCard_CANIO_ConnectState(int CardNo, ref UInt16 NodeNum, ref UInt16 state)
+        public int GetCard_CANIO_ConnectState(int cardIndex, ref UInt16 nodeCount, ref UInt16 state)
         {
             return 0;
             //return sldmv.nmc_get_connect_state((ushort)CardNo, ref NodeNum, ref state);
@@ -2559,7 +2559,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int SetCard_CANIO_OutBit(int CardNo, int NodeID, int IoBit, int IoValue)
+        public int SetCard_CANIO_OutBit(int cardIndex, int nodeId, int ioBit, int ioValue)
         {
             return 0;
             //return sldmv.nmc_write_outbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, (ushort)IoValue);
@@ -2573,7 +2573,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>指定输出端口的电平，0：低电平，1：高电平</returns>
-        public int GetCard_CANIO_OutBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public int GetCard_CANIO_OutBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
             return 0;
             //return sldmv.nmc_read_outbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, ref IoValue);
@@ -2587,7 +2587,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="IoBit">输入端口号</param>
         /// <param name="IoValue">指定输入端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int GetCard_CANIO_InBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public int GetCard_CANIO_InBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
             return 0;
             //return sldmv.nmc_read_inbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, ref IoValue);
@@ -2602,7 +2602,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit32 的值分别代表第 0~32 号输出口的电平</param>
         /// <returns>错误代码</returns>
-        public int SetCard_CANIO_OutPort(int CardNo, int NodeID, int PortNo, int IoValue)
+        public int SetCard_CANIO_OutPort(int cardIndex, int nodeId, int portIndex, int ioValue)
         {
             return 0;
             //return sldmv.nmc_write_outport((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, (uint)IoValue);
@@ -2618,7 +2618,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平 </param>
         /// <returns></returns>
-        public int GetCard_CANIO_OutPort(int CardNo, int NodeID, int PortNo, ref UInt32 IoValue)
+        public int GetCard_CANIO_OutPort(int cardIndex, int nodeId, int portIndex, ref UInt32 ioValue)
         {
             return 0;
             //return sldmv.nmc_read_outport((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref IoValue);
@@ -2632,7 +2632,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平 </param>
         /// <returns>错误代码</returns>
-        public int GetCard_CANIO_InPort(int CardNo, int NodeID, int PortNo, ref UInt32 IoValue)
+        public int GetCard_CANIO_InPort(int cardIndex, int nodeId, int portIndex, ref UInt32 ioValue)
         {
             return 0;
             //return sldmv.nmc_read_inport((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref IoValue);
@@ -2649,7 +2649,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="enable">DA 使能状态，0：禁止，1：使能</param>
         /// <returns>错误代码</returns>
-        public int SetCardDAEnable(int CardNo, int enable)
+        public int SetCardDAEnable(int cardIndex, int enable)
         {
             return 0;
             //return sldmv.dmc_set_da_enable((ushort)CardNo, (ushort)enable);
@@ -2660,7 +2660,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="enable">DA 使能状态，0：禁止，1：使能</param>
         /// <returns>错误代码</returns>
-        public int GetCardDAEnable(int CardNo, ref UInt16 enable)
+        public int GetCardDAEnable(int cardIndex, ref UInt16 enable)
         {
             return 0;
             //return sldmv.dmc_get_da_enable((ushort)CardNo, ref enable);
@@ -2673,7 +2673,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="channel">DA 输出口号，取值范围 0、1</param>
         /// <param name="Vout">DA 输出电压，输出电压范围 -10V ~ 10V</param>
         /// <returns>错误代码</returns>
-        public int SetCardDAOutPut(int CardNo, int channel, double Vout)
+        public int SetCardDAOutput(int cardIndex, int channel, double voltageOut)
         {
             return 0;
             //return sldmv.dmc_set_da_output((ushort)CardNo, (ushort)channel, Vout);
@@ -2686,7 +2686,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="channel">DA 输出口号，取值范围 0、1</param>
         /// <param name="Vout">DA 输出电压，输出电压范围 -10V ~ 10V</param>
         /// <returns>错误代码</returns>
-        public int GetCardDAOutPut(int CardNo, int channel, ref double Vout)
+        public int GetCardDAOutput(int cardIndex, int channel, ref double voltageOut)
         {
             return 0;
             //return sldmv.dmc_get_da_output((ushort)CardNo, (ushort)channel, ref Vout);
@@ -2699,7 +2699,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="channel">AD 输入口号，取值范围 0 ~ 7</param>
         /// <param name="Vout">AD 输入电压，输入电压范围 -10V ~ 10V</param>
         /// <returns>错误代码</returns>
-        public int GetCardDAInPut(int CardNo, int channel, ref double Vout)
+        public int GetCardDAInput(int cardIndex, int channel, ref double voltageOut)
         {
             return 0;
             //return sldmv.dmc_get_ad_input((ushort)CardNo, (ushort)channel, ref Vout);
@@ -2718,7 +2718,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo"> 控制卡卡号</param>
         /// <param name="new_sn">新密码，密码长度不大于 255 个字符</param>
         /// <returns>错误代码</returns>
-        public int SetCardNewPassWord(int CardNo, string new_sn)
+        public int SetCardNewPassWord(int cardIndex, string new_sn)
         {
             return 0;
             //return sldmv.dmc_write_sn((ushort)CardNo, new_sn);
@@ -2730,7 +2730,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="check_sn">旧密码</param>
         /// <returns>校验状态，0：失败，1：成功</returns>
-        public int CardCheckPassWord(int CardNo, string check_sn)
+        public int CardCheckPassWord(int cardIndex, string check_sn)
         {
             return 0;
             //return sldmv.dmc_check_sn((ushort)CardNo, check_sn);
@@ -2744,7 +2744,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="CardNo">打印输出模式，0：只打印报错函数，1：全部打印，2：全部不打印</param>
         /// <param name="FileName">文件保存路径：参数文件名+后缀：相对路径 ；完整描述参数文件的路径+文件名后缀：绝对路径</param>
         /// <returns>错误代码</returns>
-        public int SetCardDebugMode(int CardNo, string FileName)
+        public int SetCardDebugMode(int cardIndex, string FileName)
         {
             return 0;
             //return sldmv.dmc_set_debug_mode((ushort)CardNo, FileName);
@@ -2779,7 +2779,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="state">设置通讯状态，0：断开，1：连接</param>
         /// <param name="baud">设置控制卡波特率：波特率参数：0,1,2,3,4,5；对特率：1000Kbps，800Kbps,500Kbps,250Kbps,125Kbps,100Kbps</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandIOConnectState(int CardNo, int NodeNum, int state, int baud)
+        public int SetExpandIOConnectState(int cardIndex, int nodeCount, int state, int baud)
         {
             return 0;
             //return sldmv.nmc_set_connect_state((ushort)CardNo, (ushort)NodeNum, (ushort)state, (ushort)baud);
@@ -2793,7 +2793,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="state"></param>
         /// <param name="baud"></param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOConnectState(int CardNo, ref ushort NodeNum, ref ushort state)
+        public int GetExpandIOConnectState(int cardIndex, ref ushort nodeCount, ref ushort state)
         {
             return 0;
             //return sldmv.nmc_get_connect_state((ushort)CardNo, ref NodeNum, ref state);
@@ -2813,7 +2813,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandIOOutBit(int CardNo, int NodeID, int IoBit, int IoValue)
+        public int SetExpandIOOutBit(int cardIndex, int nodeId, int ioBit, int ioValue)
         {
             return 0;
             //return sldmv.nmc_write_outbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, (ushort)IoValue);
@@ -2827,7 +2827,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOOutBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public int GetExpandIOOutBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
             return 0;
             //return sldmv.nmc_read_outbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, ref IoValue);
@@ -2841,7 +2841,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit32 的值分别代表第 0~32 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandIOPortNoOutBit(int CardNo, int NodeID, int PortNo, int IoValue)
+        public int SetExpandIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, int ioValue)
         {
             return 0;
             //return sldmv.nmc_write_outport((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, (ushort)IoValue);
@@ -2855,7 +2855,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit31 的值分别代表第 0~31 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOPortNoOutBit(int CardNo, int NodeID, int PortNo, ref uint IoValue)
+        public int GetExpandIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, ref uint ioValue)
         {
             return 0;
             //return sldmv.nmc_read_outport((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref IoValue);
@@ -2870,7 +2870,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandADDAIOPortNoOutBit(int CardNo, int NodeID, int PortNo, double IoValue)
+        public int SetExpandADDAIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, double ioValue)
         {
             return 0;
             //return sldmv.nmc_set_da_output((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, IoValue);
@@ -2884,7 +2884,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOPortNoOutBit(int CardNo, int NodeID, int PortNo, ref double IoValue)
+        public int GetExpandADDAIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, ref double ioValue)
         {
             return 0;
             //return sldmv.nmc_get_da_output((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref IoValue);
@@ -2899,7 +2899,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandADDAIOOutPortNoMode(int CardNo, int NodeID, int PortNo, int mode, uint buffer_nums)
+        public int SetExpandADDAIOOutPortNoMode(int cardIndex, int nodeId, int portIndex, int mode, uint buffer_nums)
         {
             return 0;
             //return sldmv.nmc_set_da_mode((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, (ushort)mode, buffer_nums);
@@ -2916,7 +2916,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOOutPortNoMode(int CardNo, int NodeID, int PortNo, ref ushort mode, uint buffer_nums)
+        public int GetExpandADDAIOOutPortNoMode(int cardIndex, int nodeId, int portIndex, ref ushort mode, uint buffer_nums)
         {
             return 0;
             //return sldmv.nmc_get_da_mode((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref mode, buffer_nums);
@@ -2934,7 +2934,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOInBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public int GetExpandIOInBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
             return 0;
             //return sldmv.nmc_read_inbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, ref IoValue);
@@ -2950,7 +2950,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit31 的值分别代表第 0~31 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOPortNoInBit(int CardNo, int NodeID, int PortNo, ref uint IoValue)
+        public int GetExpandIOPortNoInBit(int cardIndex, int nodeId, int portIndex, ref uint ioValue)
         {
             return 0;
             //return sldmv.nmc_read_inport((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref IoValue);
@@ -2964,7 +2964,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOPortNoInBit(int CardNo, int NodeID, int PortNo, ref double IoValue)
+        public int GetExpandADDAIOPortNoInBit(int cardIndex, int nodeId, int portIndex, ref double ioValue)
         {
             return 0;
             //return sldmv.nmc_get_ad_input((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref IoValue);
@@ -2979,7 +2979,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandADDAIOInPortNoMode(int CardNo, int NodeID, int PortNo, int mode, uint buffer_nums = 999)
+        public int SetExpandADDAIOInPortNoMode(int cardIndex, int nodeId, int portIndex, int mode, uint buffer_nums = 999)
         {
             return 0;
             //return sldmv.nmc_set_ad_mode((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, (ushort)mode, buffer_nums);
@@ -2995,7 +2995,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOInPortNoMode(int CardNo, int NodeID, int PortNo, ref ushort mode, uint buffer_nums = 999)
+        public int GetExpandADDAIOInPortNoMode(int cardIndex, int nodeId, int portIndex, ref ushort mode, uint buffer_nums = 999)
         {
             return 0;
             //return sldmv.nmc_get_ad_mode((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref mode, buffer_nums);
@@ -3014,7 +3014,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.SLDIOE64
         /// <param name="PortNum">保留参数，设为 0</param>
         /// <param name="NodeNum">节点号，1-8</param>
         /// <returns>返回值：错误代码</returns>
-        public int SaveExpandIoToFlash(int CardNo, int PortNum, int NodeNum)
+        public int SaveExpandIoToFlash(int cardIndex, int portCount, int nodeCount)
         {
             return 0;
             //return sldmv.nmc_write_to_flash((ushort)CardNo, (ushort)PortNum, (ushort)NodeNum);

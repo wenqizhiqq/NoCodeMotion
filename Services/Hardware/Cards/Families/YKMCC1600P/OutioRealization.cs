@@ -8,44 +8,45 @@
 // ────────────────────────────────────────────────────────────────
 #nullable disable
 using System;
+    using NoCodeMotion.Hardware.Motion;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
+namespace NoCodeMotion.Services.Hardware.Cards.Families.YKMCC1600P
 {
-    public class OutioRealization : IIOOutPut
+    public class OutioRealization : DigitalOutputBase
     {
         /// <summary>
         /// IO的初始电平为高电平
         /// </summary>
-        public bool DefaultLevelIsHigh { get; set; } = false;
+        public override bool ActiveHighByDefault { get; set; } = false;
         /// <summary>
         /// 硬件卡拥有的输出IO的数量
         /// </summary>
-        public ushort OutIONums { get; set; } = 64;
+        public override ushort PointCount { get; set; } = 64;
 
         /// <summary>
         /// 输入IO的名字
         /// </summary>
-        public string OutIOName { get; set; }
+        public override string ChannelName { get; set; }
 
         /// <summary>
         /// 卡号（即这个输出IO对象是属于第几张卡的）
         /// </summary>
-        public int CardNo { get; set; }
+        public override int CardNo { get; set; }
 
 
         /// <summary>
         /// 是否为虚拟IO
         /// </summary>
-        public bool IsVitualIO { get; set; } = false;
+        public override bool IsVirtualIO { get; set; } = false;
 
         /// <summary>
         /// IO端口号是从0开始还是从1开始（每种卡都可能有差别，注意看手册）
         /// </summary>
-        public int IOIndexStart { get; set; } = 0;
+        public override int IndexStart { get; set; } = 0;
 
         /// <summary>
         /// 读取指定控制卡的全部输出口的电平
@@ -64,7 +65,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <para>函数返回值的 bit：7 ；输入口号： 7 ；输入口名称：OUT7</para>
         /// <para>函数返回值的 bit：8-31 8-31 ；输入口名称：扩展输入口</para>
         /// </returns>
-        public uint GetCardOutState(int CardNo, int portno)
+        public override uint GetCardOutState(int CardNo, int portno)
         {
             return YKMCC1600PSDK.Instance.GetCardOutPort(CardNo, portno);
         }
@@ -77,7 +78,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平 </param>
         /// <returns></returns>
-        public uint GetCardCANIOOutPort(int CardNo, int NodeID, int PortNo, ref UInt32 IoValue)
+        public override uint GetCardCANIOOutPort(int CardNo, int nodeId, int portIndex, ref UInt32 ioValue)
         {
             //uint IoValue1 = 0;
             //YKMCC1600PSDK.Instance.GetCard_CANIO_OutPort(CardNo, NodeID, PortNo, ref IoValue1);
@@ -87,19 +88,19 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
             List<byte> temp = new List<byte>();
             int readbytes = 0;  //读2个字节，还是读4个字节
             int startbyte = 0;  //起始字节
-            if (PortNo == 0)
+            if (portIndex == 0)
             {
                 temp.Add(0); temp.Add(0); temp.Add(0); temp.Add(0); readbytes = 2;
-                startbyte = NodeID * 2 - 2;
+                startbyte = nodeId * 2 - 2;
             }
-            else if (PortNo == 1)
+            else if (portIndex == 1)
             {
                 temp.Add(0); temp.Add(0); temp.Add(0); temp.Add(0); readbytes = 4;
-                startbyte = NodeID * 4 - 2;
+                startbyte = nodeId * 4 - 2;
             }
             byte[] buffer = temp.ToArray();
             var res1 = YKMCC1600PSDK.Instance.CardAxisLocalcatIoReadOutbyte(CardNo, startbyte, readbytes, buffer);
-            IoValue = BitConverter.ToUInt32(buffer, 0);
+            ioValue = BitConverter.ToUInt32(buffer, 0);
             return (uint)res1;
         }
 
@@ -109,7 +110,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="bitno">输入端口号，取值范围： 0~7，如果扩展 IO 模块，依次往后累加 </param>
         /// <returns>指定输出端口的电平，0：低电平，1：高电平</returns>
-        public int GetCardPortNoOutState(int CardNo, int bitno)
+        public override int GetCardPortNoOutState(int CardNo, int bitno)
         {
             return YKMCC1600PSDK.Instance.GetCardOutBit(CardNo, bitno);
         }
@@ -118,7 +119,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// 获取位置比较输出口状态
         /// </summary>
         /// <returns></returns>
-        public int GetLocationIsOutNoState()
+        public override int GetLocationIsOutNoState()
         {
             return -1;
         }
@@ -130,7 +131,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <param name="bitno"></param>
         /// <param name="on_off"></param>
         /// <returns></returns>
-        public int SetCardBitNoInBit(int CardNo, int bitno, int on_off)
+        public override int SetCardBitNoInBit(int CardNo, int bitno, int on_off)
         {
             return YKMCC1600PSDK.Instance.SetCardWriteOutBit(CardNo, bitno, on_off);
         }
@@ -143,11 +144,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int SetCardCANIOOutBit(int CardNo, int NodeID, int IoBit, int IoValue)
+        public override int SetCardCANIOOutBit(int CardNo, int nodeId, int ioBit, int ioValue)
         {
             //IoBit = 0;
             //IoValue = 1;
-            return YKMCC1600PSDK.Instance.SetCard_CANIO_OutBit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, (ushort)IoValue);
+            return YKMCC1600PSDK.Instance.SetCard_CANIO_OutBit((ushort)CardNo, (ushort)nodeId, (ushort)ioBit, (ushort)ioValue);
         }
 
         /// <summary>
@@ -157,7 +158,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <param name="bit_no">对应的位(bit)号， 范围 0~15,分别对应端子上的 DO0~DO15。</param>
         /// <param name="data">对应 DO 端子输出值:  <para>1  对应端子输出截止；</para> <para>0  对应端子输出导通；</para></param>
         /// <returns>  正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int SetCardDOBitState(int card_no, int bit_no, int data)
+        public override int SetCardDOBitState(int card_no, int bit_no, int data)
         {
             return -1;
         }
@@ -168,7 +169,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <param name="CardNo">卡号</param>
         /// <param name="Data">状态输出值，其中的 bit 0 ~15 分别对应端子上的 DO0~DO15 <para>当 data 中的位为 0 时，对应端子输出导通；</para> <para>当 data 中的位为 1 时，对应端子输出截止；</para></param>
         /// <returns> 正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int GetCardDOState(int card_no, ref int pData)
+        public override int GetCardDOState(int card_no, ref int pData)
         {
             return -1;
         }
@@ -176,12 +177,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <summary>
         /// 读取指定输出端口的状态
         /// </summary>
-        public uint NmcGetCardReadOutBit(int CardNo, int Channel, int NoteID, int IoBit, ref ushort IoValue)
+        public override uint NmcGetCardReadOutBit(int CardNo, int Channel, int noteId, int ioBit, ref ushort ioValue)
         {
             int iovalue1 = 3;
-            var res1 = YKMCC1600PSDK.Instance.CardAxisLocalcatIoReadOutbit(CardNo, (NoteID - 1) * 16 + IoBit, ref iovalue1);
-            IoValue = (ushort)iovalue1;
-            return (uint)IoValue;
+            var res1 = YKMCC1600PSDK.Instance.CardAxisLocalcatIoReadOutbit(CardNo, (noteId - 1) * 16 + ioBit, ref iovalue1);
+            ioValue = (ushort)iovalue1;
+            return (uint)ioValue;
 
             //var error = (uint)YKMCC1600PSDK.Instance.GetCard_CANIO_OutBit(CardNo, NoteID, IoBit, ref IoValue);
             //return IoValue;
@@ -194,7 +195,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <param name="card_no">卡号</param>
         /// <param name="data">状态输出值，其中的 bit 0 ~15 分别对应端子上的 DO0~DO15 <para>当 data 中的位为 0 时，对应端子输出导通；</para> <para>当 data 中的位为 1 时，对应端子输出截止；</para></param>
         /// <returns> 正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int SetCardDOOut(int CardNo, int data)
+        public override int SetCardDOOut(int CardNo, int data)
         {
             return -1;
         }
@@ -206,7 +207,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <param name="portno"></param>
         /// <param name="outport_val"></param>
         /// <returns></returns>
-        public int SetCardPortNoOutPort(int CardNo, int portno, uint outport_val)
+        public override int SetCardPortNoOutPort(int CardNo, int portno, uint outport_val)
         {
             return YKMCC1600PSDK.Instance.SetCardOutPort(CardNo, portno, outport_val);
         }
@@ -215,35 +216,35 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// 设置位置比较输出口状态
         /// </summary>
         /// <returns></returns>
-        public int SetLocationIsOutNoState()
+        public override int SetLocationIsOutNoState()
         {
             return -1;
         }
 
 
-        public int NmcReadOutportExtern(int CardNo, int Channel, int NoteID, int PortNo, ref uint IoValue)
+        public override int NmcReadOutportExtern(int CardNo, int Channel, int noteId, int portIndex, ref uint ioValue)
         {
             //throw new NotImplementedException();
             List<byte> temp = new List<byte>();
             int readbytes = 0;  //读2个字节，还是读4个字节
             int startbyte = 0;  //起始字节
-            if (PortNo == 0)
+            if (portIndex == 0)
             {
                 temp.Add(0); temp.Add(0); readbytes = 2;
-                startbyte = NoteID * 2 - 1;
+                startbyte = noteId * 2 - 1;
             }
-            else if (PortNo == 1)
+            else if (portIndex == 1)
             {
                 temp.Add(0); temp.Add(0); temp.Add(0); temp.Add(0); readbytes = 4;
-                startbyte = NoteID * 4 - 1;
+                startbyte = noteId * 4 - 1;
             }
             byte[] buffer = temp.ToArray();
             var res1 = YKMCC1600PSDK.Instance.CardAxisLocalcatIoReadOutbyte(CardNo, startbyte, readbytes, buffer);
-            IoValue = BitConverter.ToUInt32(buffer, 0);
+            ioValue = BitConverter.ToUInt32(buffer, 0);
             return res1;
         }
 
-        public int NmcWriteOutbitExtern(int CardNo, int Channel, int NoteID, int IoBit, ushort IoValue)
+        public override int NmcWriteOutbitExtern(int CardNo, int Channel, int noteId, int ioBit, ushort ioValue)
         {
             throw new NotImplementedException();
         }
@@ -256,7 +257,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
         /// <param name="portno">输出组号（32 位一组，从 0 开始，如 0 表示 0-31 位，1 表示 32-63位）</param>
         /// <param name="Iovalue">输出组各输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平，1：低电平，0：高电平</param>
         /// <returns></returns>
-        public int NmcWriteOutPortExtern(int CardNo, int Channel, int NodeID, ushort portno, uint Iovalue)
+        public override int NmcWriteOutPortExtern(int CardNo, int Channel, int nodeId, ushort portno, uint Iovalue)
         {
 
             //throw new NotImplementedException();
@@ -301,7 +302,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1600P
             byte low = Extract8Bits(Iovalue, 8);
             byte[] buffer = new byte[2] { high, low };
             //return YKMCC1600PSDK.Instance.CardAxisLocalcatIoWriteOutbyte(CardNo, startbyte-1, 1, buffer);
-            return YKMCC1600PSDK.Instance.CardAxisLocalcatIoWriteOutbyte(CardNo, (int)(2 * (NodeID - 1)), 2, buffer);
+            return YKMCC1600PSDK.Instance.CardAxisLocalcatIoWriteOutbyte(CardNo, (int)(2 * (nodeId - 1)), 2, buffer);
         }
 
         byte Extract8Bits(uint value, int startBit)

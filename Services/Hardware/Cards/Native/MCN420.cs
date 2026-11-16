@@ -13,7 +13,7 @@ using System.Linq;
 using System.Text;
 using System.Runtime.InteropServices;      //使用C#导入dll必须的
 
-namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
+namespace NoCodeMotion.Services.Hardware.Cards.Families.MCN42Series
 {
     public class MCN420
     {

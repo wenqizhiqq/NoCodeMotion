@@ -9,93 +9,94 @@
 #nullable disable
 
 using System;
+    using NoCodeMotion.Hardware.Motion;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
+namespace NoCodeMotion.Services.Hardware.Cards.Families.EC600
 {
-    public class AxisRealization : IAxis
+    public class AxisRealization : MotionAxisBase
     {
         /// <summary>
         /// 轴名字
         /// </summary>
-        public string AxisName { get; set; }
+        public override string AxisName { get; set; }
 
         /// <summary>
         /// 这个轴功能的注释
         /// </summary>
-        public string AxisNotes { get; set; }
+        public override string AxisNotes { get; set; }
 
         /// <summary>
         /// 轴功能的注释
         /// </summary>
-        public string AxisNotes2 { get; set; }
+        public override string AxisNotes2 { get; set; }
 
         /// <summary>
         /// 轴所属的卡号（在多卡的时候轴所属的卡号就不再是0了）
         /// </summary>
-        public int AxisWhichCardNo { get; set; }
+        public override int AxisWhichCardNo { get; set; }
 
         /// <summary>
         /// 轴所属卡的名字。
         /// </summary>
-        public string AxisWhichCardName { get; set; }
+        public override string AxisWhichCardName { get; set; }
 
         /// <summary>
         /// 轴所属卡的类型（有些系列卡，可以用此属性区分具体是哪一种卡）
         /// </summary>
-        public string AxisWhichcardType { get; set; }
+        public override string AxisWhichcardType { get; set; }
 
         /// <summary>
         /// 轴的运动方式状态
         /// </summary>
-        public MotionParamModel AxisMotionStatus { get; set; }
+        public override MotionParamModel AxisMotionStatus { get; set; }
 
         /// <summary>
         /// 回原标志--上电默认标志为false，伺服必须进行一次复位
         /// </summary>
-        public bool HomeFlag { get; set; } = false;
+        public override bool HomeFlag { get; set; } = false;
 
 
         /// <summary>
         /// 轴是否在线
         /// </summary>
-        public bool Online { get; set; }
+        public override bool Online { get; set; }
         /// <summary>
         /// 轴ID，用于控制卡SDK函数识别运动轴号
         /// </summary>
-        public int AxisID { get; set; }
+        public override int AxisID { get; set; }
 
         /// <summary>
         /// 虚拟卡(当用户勾选虚拟卡后，轴对象这里需要知道当前是虚拟卡)
         /// </summary>
-        public bool IsVitualCard { get; set; } = false;
+        public override bool IsVirtualCard { get; set; } = false;
 
 
         /// <summary>
         /// 是否允许编码器
         /// </summary>
-        public bool EncodeEnable { get; set; } = false;
+        public override bool EncodeEnable { get; set; } = false;
 
 
         /// <summary>
         /// 用户定义的运动目标位置
         /// </summary>
-        public double TargetPos { get; set; } = 0.0;
+        public override double TargetPos { get; set; } = 0.0;
 
 
         /// <summary>
         /// 用户定义的运动目标位置
         /// </summary>
-        public double TargetVel { get; set; } = 0.0;
+        public override double TargetVel { get; set; } = 0.0;
 
 
         /// <summary>
         /// 轴状态, 0轴停止,1轴运行中
         /// </summary>
-        public int AxisStatus
+        public override int AxisStatus
         {
             get
             {
@@ -110,7 +111,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <summary>
         /// 正极限信号，1表示正限位有效， 0表示无效
         /// </summary>
-        public int AxisPEL
+        public override int AxisPEL
         {
             get
             {
@@ -133,7 +134,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <summary>
         /// 负极限信号，1表示负限位有效， 0表示无效
         /// </summary>
-        public int AxisMEL
+        public override int AxisMEL
         {
             get
             {
@@ -155,7 +156,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <summary>
         /// 原点信号，1表示原点有效， 0表示无效
         /// </summary>
-        public int AxisORG
+        public override int AxisORG
         {
             get
             {
@@ -177,7 +178,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <summary>
         /// Index信号，1表示EZ为高电平， 0表示为低电平
         /// </summary>
-        public int AxisEZ
+        public override int AxisEZ
         {
             get
             {
@@ -199,7 +200,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <summary>
         /// EMG信号，1表示EMG输入为高， 0表示输入为低；该信号为低电平有效。
         /// </summary>
-        public int AxisEMG
+        public override int AxisEMG
         {
             get
             {
@@ -243,7 +244,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <summary>
         /// 获取轴的报警信息（如果有硬件接入的情况下）
         /// </summary>
-        public int AxisAlarm
+        public override int AxisAlarm
         {
             get
             {
@@ -263,7 +264,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
             }
         }
 
-        public CAxisParameter AxisParameter { get; set; } = new CAxisParameter();
+        public override CAxisParameter AxisParameter { get; set; } = new CAxisParameter();
 
 
         /// <summary>
@@ -273,9 +274,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="crd"></param>
         /// <param name="stop_mode"></param>
         /// <returns></returns>
-        public int CardAxisStopMulticoor(int CardNo, int crd, int stop_mode)
+        public override int CardAxisStopMulticoor(int cardIndex, int crd, int stop_mode)
         {
-            return EC600SDK.Instance.DmcCardCrdStopMulticoor(CardNo, crd, stop_mode);//todo:2022.11.26
+            return EC600SDK.Instance.DmcCardCrdStopMulticoor(cardIndex, crd, stop_mode);//todo:2022.11.26
         }
 
         /// <summary>
@@ -294,9 +295,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// 读取轴的初速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisInitVel(/*int CardNo,int Axis, */ref int pSpeed)
+        public override int GetCardAxisInitVel(/*int CardNo,int Axis, */ref int pSpeed)
         {
-            if (IsVitualCard)
+            if (IsVirtualCard)
             {
                 pSpeed = 0; return 0;
             }
@@ -338,15 +339,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public override string GetErrorInfo(int errorNumber)
         {
-            var res = EC600SDK.Instance.GetErrorInfo(ErrNum);
+            var res = EC600SDK.Instance.GetErrorInfo(errorNumber);
             return res;
         }
 
-        public string GetEtherCATErrorInfo(int ErrNum)
+        public override string GetEtherCATErrorInfo(int errorNumber)
         {
-            var res = EC600SDK.Instance.GetEtherCATErrorInfo(ErrNum);
+            var res = EC600SDK.Instance.GetEtherCATErrorInfo(errorNumber);
             return res;
         }
 
@@ -385,19 +386,19 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"Circle"圈数：自然数：表示此时执行的为螺旋线插补,螺旋线的圈数</para>
         /// <para>"PosiMode"运动模式，0：相对坐标模式，1：绝对坐标模式</para></param>
         /// <returns>错误代码</returns>
-        public int CardAxisArcMoveCenterUnit(ArcInterpolateparamModel arc)
+        public override int CardAxisArcMoveCenterUnit(ArcInterpolateparamModel arc)
         {
-            ushort[] AxisNums = new ushort[arc.Axis.Length];
-            double[] Target_Pos = new double[arc.TargetPos.Length];
-            double[] Cen_Pos = new double[arc.CenPos.Length];
+            ushort[] axisNumbers = new ushort[arc.Axis.Length];
+            double[] targetPosition = new double[arc.TargetPos.Length];
+            double[] centerPosition = new double[arc.CenPos.Length];
 
             for (int i = 0; i < arc.Axis.Length; i++)
             {
-                AxisNums[i] = (ushort)arc.Axis[i];
-                Target_Pos[i] = arc.TargetPos[i];
-                Cen_Pos[i] = arc.CenPos[i];
+                axisNumbers[i] = (ushort)arc.Axis[i];
+                targetPosition[i] = arc.TargetPos[i];
+                centerPosition[i] = arc.CenPos[i];
             }
-            return EC600SDK.Instance.DmcCardAxisArcMoveCenterUnit((ushort)arc.CardNo, (ushort)arc.Crd, (ushort)arc.Axis.Length, AxisNums, Target_Pos, Cen_Pos, (ushort)arc.ArcDir, arc.CircleCounts, (ushort)arc.PosiMode, arc.MaxSpeed, arc.Tacc, (short)arc.FIFO);
+            return EC600SDK.Instance.DmcCardAxisArcMoveCenterUnit((ushort)arc.CardNo, (ushort)arc.Crd, (ushort)arc.Axis.Length, axisNumbers, targetPosition, centerPosition, (ushort)arc.ArcDir, arc.CircleCounts, (ushort)arc.PosiMode, arc.MaxSpeed, arc.Tacc, (short)arc.FIFO);
         }
 
 
@@ -409,9 +410,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">平滑时间，单位：s，范围：0~1</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardVectorSProfile(int CardNo, int Crd, int s_mode, double s_para)
+        public override int DmcSetCardVectorSProfile(int cardIndex, int crdIndex, int s_mode, double s_para)
         {
-            return EC600SDK.Instance.DmcSetCardVectorSProfile((ushort)CardNo, (ushort)Crd, 0, s_para);
+            return EC600SDK.Instance.DmcSetCardVectorSProfile((ushort)cardIndex, (ushort)crdIndex, 0, s_para);
         }
 
 
@@ -434,15 +435,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"Circle"圈数：自然数：表示此时执行的为螺旋线插补,螺旋线的圈数</para>
         /// <para>"PosiMode"运动模式，0：相对坐标模式，1：绝对坐标模式</para></param>
         /// <returns></returns>
-        public int CardAxisContiArcMoveStart(ArcInterpolateparamModel arc)
+        public override int CardAxisContiArcMoveStart(ArcInterpolateparamModel arc)
         {
-            ushort[] AxisNums = new ushort[arc.Axis.Length];
-            double[] Target_Pos = new double[arc.TargetPos.Length];
+            ushort[] axisNumbers = new ushort[arc.Axis.Length];
+            double[] targetPosition = new double[arc.TargetPos.Length];
 
             for (int i = 0; i < arc.Axis.Length; i++)
             {
-                AxisNums[i] = (ushort)arc.Axis[i];
-                Target_Pos[i] = arc.TargetPos[i];
+                axisNumbers[i] = (ushort)arc.Axis[i];
+                targetPosition[i] = arc.TargetPos[i];
             }
             //EC600SDK.Instance.DmcCardAxisArcMoveRadiusUnit((ushort)arc.CardNo, (ushort)arc.Crd, (ushort)arc.Axis.Length, AxisNums, Target_Pos, arc.ArcRadius, (ushort)arc.ArcDir, arc.CircleCounts, (ushort)arc.PosiMode);
             return EC600SDK.Instance.DmcCardContiStartList(arc.CardNo, arc.Crd, arc.FIFO);//开启轴连续插补
@@ -454,7 +455,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// </summary>
         /// <param name="line"></param>
         /// <returns></returns>
-        public int CardAxisContiLineUnitStart(LineInterpolateparamModel line)
+        public override int CardAxisContiLineUnitStart(LineInterpolateparamModel line)
         {
             return EC600SDK.Instance.DmcCardContiStartList(line.CardNo, line.Crd, line.FIFO);//开启轴连续插补
         }
@@ -465,7 +466,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns></returns>
-        public int CardAxisHomeMove()
+        public override int CardAxisHomeMove()
         {
             return EC600SDK.Instance.DmcCardAxisHomeMove((ushort)AxisWhichCardNo, (ushort)AxisID);
         }
@@ -481,17 +482,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"Target_Pos"目标位置列表，单位：unit </para>
         /// <para>"posi_mode"运动模式，0：相对坐标模式，1：绝对坐标模式</para></param>
         /// <returns>错误代码</returns>
-        public int CardAxisLineUnit(LineInterpolateparamModel line)
+        public override int CardAxisLineUnit(LineInterpolateparamModel line)
         {
-            ushort[] AxisNums = new ushort[line.Axis.Length];
-            double[] Target_Pos = new double[line.TargetPos.Length];
+            ushort[] axisNumbers = new ushort[line.Axis.Length];
+            double[] targetPosition = new double[line.TargetPos.Length];
 
             for (int i = 0; i < line.Axis.Length; i++)
             {
-                AxisNums[i] = (ushort)line.Axis[i];
-                Target_Pos[i] = line.TargetPos[i];
+                axisNumbers[i] = (ushort)line.Axis[i];
+                targetPosition[i] = line.TargetPos[i];
             }
-            return EC600SDK.Instance.DmcCardAxisLineUnit(line.CardNo, line.Crd, line.Axis.Length, AxisNums, Target_Pos, line.PosiMode, line.maxVel, line.tacc, (short)line.FIFO);
+            return EC600SDK.Instance.DmcCardAxisLineUnit(line.CardNo, line.Crd, line.Axis.Length, axisNumbers, targetPosition, line.PosiMode, line.maxVel, line.tacc, (short)line.FIFO);
         }
 
         /// <summary>
@@ -502,7 +503,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="dist">目标位置，单位：unit </param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int CardAxisPointMovement(MotionParamModel mpm)
+        public override int CardAxisPointMovement(MotionParamModel mpm)
         {
             return EC600SDK.Instance.DmcCardAxisPMoveUnit(mpm.CardNo, mpm.Axis, mpm.Dist, (ushort)mpm.PosiMode, mpm.MinVel, mpm.MaxVel, mpm.TaccVel, mpm.TdecVel);
         }
@@ -524,18 +525,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"CircleCounts"圈数：<para>负数：表示此时执行的为空间圆弧插补：该值的绝对值减 1 表示空间圆弧的圈数。如，-1 即表示 0圈空间圆弧，-2 即表示 1 圈空间圆弧… </para><para>自然数：表示此时执行的为圆柱螺旋线插补:该值表示螺旋线的圈数。如，0 即表示 0 圈螺旋线插补， 1 即表示 1 圈螺旋线插补… </para></para>
         /// <para>"PosiMode"运动模式，0：相对坐标模式，1：绝对坐标模式 </para></param>
         /// <returns>错误代码</returns>
-        public int CardAxesArcMoveCenterUnit(ArcInterpolateparamModel arc)
+        public override int CardAxesArcMoveCenterUnit(ArcInterpolateparamModel arc)
         {
-            ushort[] AxisNums = new ushort[arc.Axis.Length];
+            ushort[] axisNumbers = new ushort[arc.Axis.Length];
             double[] TargetPos = new double[arc.TargetPos.Length];
             double[] MidPos = new double[arc.MidPos.Length];
             for (int i = 0; i < arc.Axis.Length; i++)
             {
-                AxisNums[i] = (ushort)arc.Axis[i];
+                axisNumbers[i] = (ushort)arc.Axis[i];
                 TargetPos[i] = arc.TargetPos[i];
                 MidPos[i] = arc.MidPos[i];
             }
-            return EC600SDK.Instance.DmcCardArcMove3PointsUnit((ushort)arc.CardNo, (ushort)arc.Crd, (ushort)arc.Axis.Length, AxisNums, TargetPos, MidPos, arc.CircleCounts, (ushort)arc.PosiMode);
+            return EC600SDK.Instance.DmcCardArcMove3PointsUnit((ushort)arc.CardNo, (ushort)arc.Crd, (ushort)arc.Axis.Length, axisNumbers, TargetPos, MidPos, arc.CircleCounts, (ushort)arc.PosiMode);
         }
 
         /// <summary>
@@ -546,7 +547,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"Axis"指定轴号</para>
         /// <para>"Dir"方向运动方向，0：负方向，1：正方向</para></param>
         /// <returns>错误代码</returns>
-        public int CardAxisSerialMovement(MotionParamModel mpm)
+        public override int CardAxisSerialMovement(MotionParamModel mpm)
         {
             return EC600SDK.Instance.DmcCardAxisVMove(mpm.CardNo, mpm.Axis, mpm.Dir, mpm.MinVel, mpm.MaxVel, mpm.TaccVel, mpm.TdecVel);
         }
@@ -562,18 +563,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"Target_Pos"目标位置列表，单位：unit </para>
         /// <para>"posi_mode"运动模式，0：相对坐标模式，1：绝对坐标模式</para></param>
         /// <returns>错误代码</returns>
-        public int CardAxesLineUnit(LineInterpolateparamModel line)
+        public override int CardAxesLineUnit(LineInterpolateparamModel line)
         {
 
-            ushort[] AxisNums = new ushort[line.Axis.Length];
-            double[] Target_Pos = new double[line.TargetPos.Length];
+            ushort[] axisNumbers = new ushort[line.Axis.Length];
+            double[] targetPosition = new double[line.TargetPos.Length];
 
             for (int i = 0; i < line.Axis.Length; i++)
             {
-                AxisNums[i] = (ushort)line.Axis[i];
-                Target_Pos[i] = line.TargetPos[i];
+                axisNumbers[i] = (ushort)line.Axis[i];
+                targetPosition[i] = line.TargetPos[i];
             }
-            return EC600SDK.Instance.DmcCardAxisLineUnit(line.CardNo, line.Crd, line.Axis.Length, AxisNums, Target_Pos, line.PosiMode, line.maxVel, line.tacc, (short)line.FIFO);
+            return EC600SDK.Instance.DmcCardAxisLineUnit(line.CardNo, line.Crd, line.Axis.Length, axisNumbers, targetPosition, line.PosiMode, line.maxVel, line.tacc, (short)line.FIFO);
 
         }
         /// <summary>
@@ -582,9 +583,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴轴号</param>
         /// <returns>错误代码</returns>
-        public int ClearCardAxisAlarmState(int CardNo, int axis)
+        public override int ClearCardAxisAlarmState(int cardIndex, int axis)
         {
-            return EC600SDK.Instance.NmcClearCardAxisErrCode(CardNo, axis);
+            return EC600SDK.Instance.NmcClearCardAxisErrCode(cardIndex, axis);
         }
 
 
@@ -593,7 +594,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// </summary>
         /// <param name="on_off"></param>
         /// <returns></returns>
-        public int CardAxisWriteSevonPin(int on_off)
+        public override int CardAxisWriteSevonPin(int on_off)
         {
             /*
             short nmc_set_axis_enable(WORD CardNo,WORD axis)
@@ -625,7 +626,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）清除插补坐标系
         /// </summary>
         /// <returns></returns>
-        public int ClearCardAxisInterpolateCoord()
+        public override int ClearCardAxisInterpolateCoord()
         {
             return -1;
         }
@@ -636,9 +637,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴的轴号，255 表示使能所有 EtherCAT 轴</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisDisable(int CardNo, int axis)
+        public override int SetCardAxisDisable(int cardIndex, int axis)
         {
-            return EC600SDK.Instance.NmcSetCardAxisDisable(CardNo, axis);
+            return EC600SDK.Instance.NmcSetCardAxisDisable(cardIndex, axis);
         }
 
         /// <summary>
@@ -652,7 +653,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"PathError"</para>
         /// <para>"LookaheadAcc"</para></param>
         /// <returns></returns>
-        public int SetCardContiLookaheadMode(InterpolateMotetionParamModel impm)
+        public override int SetCardContiLookaheadMode(InterpolateMotetionParamModel impm)
         {
             return EC600SDK.Instance.DmcSetCardContiLookaheadMode(impm.CardNo, impm.Crd, impm.FIFO, impm.LookaheadSegments, impm.TaccTime, (short)impm.Numbers, new ecat_motion.CrdBlockData
             {
@@ -695,7 +696,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// 坐标系无法创建
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CreatCardAxisInterpolateCoord(InterpolateMotetionParamModel impm)
+        public override int CreatCardAxisInterpolateCoord(InterpolateMotetionParamModel impm)
         {
             int[] orignPos = new int[impm.Axis.Length];
             for (int i = 0; i < orignPos.Length; i++)
@@ -730,16 +731,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"TdecVel"返回减速时间设置，单位：s</para>
         /// <para>"StopVel"返回停止速度设置，单位：unit/s</para></param>
         /// <returns>错误代码</returns>
-        public MotionParamModel GetCardAxisAccVel(MotionParamModel mpm)
+        public override MotionParamModel GetCardAxisAccVel(MotionParamModel mpm)
         {
-            double Min_Vel = 0, Max_Vel = 0, Tacc = 0, Tdec = 0, Stop_Vel = 0;
+            double minVelocity = 0, maxVelocity = 0, acceleration = 0, deceleration = 0, stopVelocity = 0;
             EC600SDK.Instance.DmcGetCardAxisProfileUnit(mpm.CardNo, mpm.Axis,
-               ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref Stop_Vel);
-            mpm.MaxVel = (int)Max_Vel;
-            mpm.MinVel = (int)Min_Vel;
-            mpm.TaccVel = (int)Tacc;
-            mpm.TdecVel = (int)Tdec;
-            mpm.StopVel = (int)Stop_Vel;
+               ref minVelocity, ref maxVelocity, ref acceleration, ref deceleration, ref stopVelocity);
+            mpm.MaxVel = (int)maxVelocity;
+            mpm.MinVel = (int)minVelocity;
+            mpm.TaccVel = (int)acceleration;
+            mpm.TdecVel = (int)deceleration;
+            mpm.StopVel = (int)stopVelocity;
             return mpm;
         }
 
@@ -749,10 +750,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo"></param>
         /// <param name="axis"></param>
         /// <returns>轴状态</returns>
-        public int GetCardAxisAlarmState(int CardNo, int axis)
+        public override int GetCardAxisAlarmState(int cardIndex, int axis)
         {
             int errcode = 0;
-            EC600SDK.Instance.NmcGetCardAxisErrCode(CardNo, axis, ref errcode);
+            EC600SDK.Instance.NmcGetCardAxisErrCode(cardIndex, axis, ref errcode);
             return errcode;
         }
 
@@ -761,7 +762,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// </summary>
         /// <param name="cntr_no">输出脉冲计数器/编码器反馈脉冲位置计数器选择:  0: 输出脉冲计数器 |  1: 编码器反馈脉冲位置计数器</param>
         /// <returns>位置计数器的值, 范围在-134217728 ~ 134217727</returns>
-        public double GetCardAxisCurrentPosition(/*int CardNo, */int cntr_no)
+        public override double GetCardAxisCurrentPosition(/*int CardNo, */int cntr_no)
         {
             //double pos = 0;
             //EC600SDK.Instance.DmcGetCardAxisPositionUnit(AxisWhichCardNo, axis, ref pos);
@@ -798,7 +799,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>6：轴处于错误触发状态 </para>
         /// <para>7：轴处于错误状态     </para>
         /// </returns>
-        public int GetCardAxisCurrentState(/*int CardNo, int axis*/)
+        public override int GetCardAxisCurrentState(/*int CardNo, int axis*/)
         {
             //要改成dmc4300A的状态值 ： 轴状态,0 表示控制轴运动完成，处于空闲状态;1 表示控制轴正在运动，其它值为调用出错
             //ushort Axis_StateMachine = 0;
@@ -818,7 +819,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="Tdec">减速时间，单位：s</param>
         /// <param name="Stop_Vel">停止速度，单位：unit/s</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisMotionalVel(MotionParamModel mpm)
+        public override int SetCardAxisMotionalVel(MotionParamModel mpm)
         {
             return EC600SDK.Instance.DmcSetCardAxisProfileUnit(mpm.CardNo, mpm.Axis,
                 mpm.MinVel, mpm.MaxVel, mpm.TaccVel, mpm.TdecVel, mpm.StopVel);
@@ -828,7 +829,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）没有硬限位
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisELLimit()
+        public override int GetCardAxisELLimit()
         {
             return -1;
         }
@@ -847,20 +848,20 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"Tdec"返回EtherCAT 总线轴回零减速时间</para>
         /// <para>"offsetpos"返回EtherCAT 总线轴回零偏移 </para></param>
         /// <returns>回零参数模型</returns>
-        public HomeParameModel GetCardAxisHighHomeProfile(HomeParameModel hpm)
+        public override HomeParameModel GetCardAxisHighHomeProfile(HomeParameModel hpm)
         {
             ushort home_mode = 0;
             double Low_Vel = 0;
             double High_Vel = 0;
-            double Tacc = 0;
-            double Tdec = 0;
+            double acceleration = 0;
+            double deceleration = 0;
             double offsetpos = 0;
-            EC600SDK.Instance.NmcGetCardAxisHomeProfile(hpm.CardNo, hpm.Axis, ref home_mode, ref Low_Vel, ref High_Vel, ref Tacc, ref Tdec, ref offsetpos);
+            EC600SDK.Instance.NmcGetCardAxisHomeProfile(hpm.CardNo, hpm.Axis, ref home_mode, ref Low_Vel, ref High_Vel, ref acceleration, ref deceleration, ref offsetpos);
             hpm.HomeMode = home_mode;
             hpm.LowVel = (int)Low_Vel;
             hpm.HighVel = (int)High_Vel;
-            hpm.TaccTime = (int)Tacc;
-            hpm.TdecTime = (int)Tdec;
+            hpm.TaccTime = (int)acceleration;
+            hpm.TdecTime = (int)deceleration;
             hpm.OffSetPos = (int)offsetpos;
             return hpm;
         }
@@ -869,7 +870,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取轴高速回零减速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHighHomeDecVel()
+        public override int GetCardAxisHighHomeDecVel()
         {
             return -1;
         }
@@ -878,7 +879,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         ///（疑问）读取轴高速回零速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHighHomeVel()
+        public override int GetCardAxisHighHomeVel()
         {
             return -1;
         }
@@ -887,7 +888,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取轴回零最大保护距离
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHomeMaxProtectDis()
+        public override int GetCardAxisHomeMaxProtectDis()
         {
             return -1;
         }
@@ -896,7 +897,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取回零模式
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHomeMode()
+        public override int GetCardAxisHomeMode()
         {
             return -1;
         }
@@ -905,7 +906,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取轴回零位置偏差
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHomePositionErro()
+        public override int GetCardAxisHomePositionErro()
         {
             return -1;
         }
@@ -914,7 +915,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取轴回零参数
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHomeProfile()
+        public override int GetCardAxisHomeProfile()
         {
             return -1;
         }
@@ -923,7 +924,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取轴的初速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisInitVel(int CardNo, int Axis, ref int pSpeed)
+        public int GetCardAxisInitVel(int cardIndex, int Axis, ref int pSpeed)
         {
             return -1;
         }
@@ -932,7 +933,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取轴的加加速
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisJerkVel()
+        public override int GetCardAxisJerkVel()
         {
             return -1;
         }
@@ -940,7 +941,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <summary>
         /// (疑问)获取软限位状态
         /// </summary>
-        public int GetCardAxisLimitState()
+        public override int GetCardAxisLimitState()
         {
             return -1;
         }
@@ -949,7 +950,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取轴的低速回零加速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisLowHomeAccVel()
+        public override int GetCardAxisLowHomeAccVel()
         {
             throw new NotImplementedException();
         }
@@ -958,7 +959,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取轴的低速回零减速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisLowHomeDecVel()
+        public override int GetCardAxisLowHomeDecVel()
         {
             throw new NotImplementedException();
         }
@@ -967,7 +968,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取轴的低速回零速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisLowHomeVel()
+        public override int GetCardAxisLowHomeVel()
         {
             throw new NotImplementedException();
         }
@@ -976,7 +977,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）读取轴的最大速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisMaxVel()
+        public override int GetCardAxisMaxVel()
         {
             throw new NotImplementedException();
         }
@@ -987,10 +988,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns>脉冲当量，单位：pulse/unit</returns>
-        public int GetCardAxisPulseEquival(int CardNo, int axis)
+        public override int GetCardAxisPulseEquival(int cardIndex, int axis)
         {
             double equiv = 0;
-            EC600SDK.Instance.DmcGetCardAxisEquiv(CardNo, axis, ref equiv);
+            EC600SDK.Instance.DmcGetCardAxisEquiv(cardIndex, axis, ref equiv);
             return (int)equiv;
         }
 
@@ -998,7 +999,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// (疑问)读取轴的反向回零距离
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisReverseHomeDis()
+        public override int GetCardAxisReverseHomeDis()
         {
             return -1;
         }
@@ -1011,10 +1012,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <returns>轴运动模式
         ///  1为pp模式，6为回零模式，8为csp模式
         /// </returns>
-        public int GetCardAxisRunMode(int CardNo, int axis)
+        public override int GetCardAxisRunMode(int cardIndex, int axis)
         {
             UInt16 run_mode = 0;
-            EC600SDK.Instance.DmcGetCardAxisRunMode(CardNo, axis, ref run_mode);
+            EC600SDK.Instance.DmcGetCardAxisRunMode(cardIndex, axis, ref run_mode);
             return run_mode;
         }
 
@@ -1022,7 +1023,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）获取轴的减减速
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisSlowVel()
+        public override int GetCardAxisSlowVel()
         {
             return -1;
         }
@@ -1039,19 +1040,19 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"N_limit"返回负限位脉冲数</para>
         /// <para>"P_limit"返回正限位脉冲数</para></param>
         /// <returns>限位参数模型</returns>
-        public LimitParamModel GetCardAxisSoftLimit(LimitParamModel lpm)
+        public override LimitParamModel GetCardAxisSoftLimit(LimitParamModel lpm)
         {
             UInt16 enable = 0;
             UInt16 source_sel = 0;
-            UInt16 SL_action = 0;
-            int N_limit = 0;
-            int P_limit = 0;
-            EC600SDK.Instance.DmcGetCardAxisSoftLimit(lpm.CardNo, lpm.Axis, ref enable, ref source_sel, ref SL_action, ref N_limit, ref P_limit);
+            UInt16 slActionValue = 0;
+            int negativeLimit = 0;
+            int positiveLimit = 0;
+            EC600SDK.Instance.DmcGetCardAxisSoftLimit(lpm.CardNo, lpm.Axis, ref enable, ref source_sel, ref slActionValue, ref negativeLimit, ref positiveLimit);
             lpm.Enable = enable;
             lpm.SourceSel = source_sel;
-            lpm.SLAction = SL_action;
-            lpm.Nlimit = N_limit;
-            lpm.Plimit = P_limit;
+            lpm.SLAction = slActionValue;
+            lpm.Nlimit = negativeLimit;
+            lpm.Plimit = positiveLimit;
             return lpm;
         }
 
@@ -1061,10 +1062,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="channel">EtherCAT 总线端口号，固定为 2</param>
         /// <returns>总线状态，0 表示正常</returns>
-        public int GetCardCurrentState(int CardNo, int channel)
+        public override int GetCardCurrentState(int cardIndex, int channel)
         {
             ushort errcode = 0;
-            EC600SDK.Instance.NmcGetCardErrcode(CardNo, channel, ref errcode);
+            EC600SDK.Instance.NmcGetCardErrcode(cardIndex, channel, ref errcode);
             return errcode;
         }
 
@@ -1075,25 +1076,25 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴的轴号，255 表示使能所有 EtherCAT 轴</param>
         /// <returns>错误代码</returns>
-        public int OpenCardAxisEnable(int CardNo, int axis)
+        public override int OpenCardAxisEnable(int cardIndex, int axis)
         {
-            return EC600SDK.Instance.NmcSetCardAxisEnable(CardNo, axis);
+            return EC600SDK.Instance.NmcSetCardAxisEnable(cardIndex, axis);
         }
 
         /// <summary>
         ///  (疑问)打开位置比较输出
         /// </summary>
         /// <returns></returns>
-        public int OpenCardCompareConfig(int CardNo, int axis, int enable, int cmp_source)
+        public override int OpenCardCompareConfig(int cardIndex, int axis, int enable, int cmp_source)
         {
-            return EC600SDK.Instance.DmcSetCardAxisCompareConfig(CardNo, axis, enable, cmp_source);
+            return EC600SDK.Instance.DmcSetCardAxisCompareConfig(cardIndex, axis, enable, cmp_source);
         }
 
         /// <summary>
         /// (疑问)设置轴的加速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisAccVel()
+        public override int SetCardAxisAccVel()
         {
             return -1;
         }
@@ -1115,9 +1116,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="axis">指定轴号 </param>
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">比较源，0：指令位置计数器，1：编码器计数器</param>
-        public int SetCardAxisCompareConfigDate(int CardNo, int axis, int enable, int cmp_source)
+        public override int SetCardAxisCompareConfigDate(int cardIndex, int axis, int enable, int cmp_source)
         {
-            return EC600SDK.Instance.DmcSetCardAxisCompareConfig(CardNo, axis, enable, cmp_source);
+            return EC600SDK.Instance.DmcSetCardAxisCompareConfig(cardIndex, axis, enable, cmp_source);
         }
 
         /// <summary>
@@ -1127,16 +1128,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="pos">位置值，单位：unit</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisCurrentPosition(int CardNo, int axis, int pos)
+        public override int SetCardAxisCurrentPosition(int cardIndex, int axis, int pos)
         {
-            return EC600SDK.Instance.DmcSetCardAxisPositionUnit(CardNo, axis, pos);
+            return EC600SDK.Instance.DmcSetCardAxisPositionUnit(cardIndex, axis, pos);
         }
 
         /// <summary>
         ///  (疑问)设置轴的减速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisDecVel()
+        public override int GetCardAxisDecVel()
         {
             return -1;
         }
@@ -1145,7 +1146,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         ///  (疑问)没有硬限位设置
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisELLimit(LimitParamModel lpm)
+        public override int SetCardAxisELLimit(LimitParamModel lpm)
         {
             return -1;
         }
@@ -1154,7 +1155,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// (疑问)设置轴的高速回零加速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisHighHomeAccVel()
+        public override int SetCardAxisHighHomeAccVel()
         {
             return -1;
         }
@@ -1163,7 +1164,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// (疑问)设置轴的高速回零减速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisHighHomeDecVel()
+        public override int SetCardAxisHighHomeDecVel()
         {
             return -1;
         }
@@ -1172,7 +1173,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// (疑问)设置轴的回零速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisHighHomeVel()
+        public override int SetCardAxisHighHomeVel()
         {
             return -1;
         }
@@ -1181,7 +1182,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// (疑问)设置轴回零最大保护距离
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisHomeMaxProtectDis()
+        public override int SetCardAxisHomeMaxProtectDis()
         {
             return -1;
         }
@@ -1197,7 +1198,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"mode"回原模型</para>
         /// <para>"EZcount"计数</para></param>
         /// <returns></returns>
-        public int SetCardAxisHomeMode(HomeParameModel hpm)
+        public override int SetCardAxisHomeMode(HomeParameModel hpm)
         {
             return EC600SDK.Instance.DmcSetCardAxisHomeMode(hpm.CardNo, hpm.Axis, hpm.HomeDir, hpm.LowVel, (int)hpm.TaccTime, hpm.HomeMode, hpm.EZcount);
         }
@@ -1206,7 +1207,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// (疑问)设置轴的会令位置偏差
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisHomePositionErro()
+        public override int SetCardAxisHomePositionErro()
         {
             return -1;
         }
@@ -1224,7 +1225,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"Tdec" EtherCAT 总线轴回零减速时间</para>
         /// <para>"offsetpos" EtherCAT 总线轴回零偏移 </para> </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHomeProfile(HomeParameModel hpm)
+        public override int SetCardAxisHomeProfile(HomeParameModel hpm)
         {
             return EC600SDK.Instance.NmcSetCardAxisHomeProfile(hpm.CardNo, hpm.Axis, hpm.HomeMode, hpm.LowVel, hpm.HighVel, hpm.TaccTime, hpm.TdecTime, hpm.EtherCATHomeOffset);
         }
@@ -1233,7 +1234,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// 设置轴的初速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInitVel()
+        public override int SetCardAxisInitVel()
         {
             return -1;
         }
@@ -1252,7 +1253,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"Tdec"减速时间，单位：s </para>
         /// <para>"Stop_Vel"停止速度，单位：unit/s</para> </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisInterpolateVectorProfile(InterpolateMotetionParamModel imp)
+        public override int SetCardAxisInterpolateVectorProfile(InterpolateMotetionParamModel imp)
         {
             return EC600SDK.Instance.DmcSetCardVectorProfileUnit(imp.CardNo, imp.Crd, imp.MinVel, imp.MaxVel, imp.TaccTime, imp.TdecTime, imp.StopVel);
         }
@@ -1261,7 +1262,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）设置插补减速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInterpolateDecVel()
+        public override int SetCardAxisInterpolateDecVel()
         {
             return -1;
         }
@@ -1279,7 +1280,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）设置插补加加速
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInterpolateJerkVel()
+        public override int SetCardAxisInterpolateJerkVel()
         {
             return -1;
         }
@@ -1288,7 +1289,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）设置插补初始速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInterpolateMaxVel()
+        public override int SetCardAxisInterpolateMaxVel()
         {
             return -1;
         }
@@ -1297,7 +1298,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）设置差补低速
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInterpolateSlowVel()
+        public override int SetCardAxisInterpolateSlowVel()
         {
             return -1;
         }
@@ -1306,7 +1307,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）设置轴的加加速
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisJerkVel()
+        public override int SetCardAxisJerkVel()
         {
             return -1;
         }
@@ -1315,7 +1316,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）设置轴的低速回零加速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisLowHomeAccVel()
+        public override int SetCardAxisLowHomeAccVel()
         {
             return -1;
         }
@@ -1324,7 +1325,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）设置轴的低速回零减速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisLowHomeDecVel()
+        public override int SetCardAxisLowHomeDecVel()
         {
             return -1;
         }
@@ -1333,7 +1334,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）设置轴的低速回零速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisLowHomeVel()
+        public override int SetCardAxisLowHomeVel()
         {
             throw new NotImplementedException();
         }
@@ -1342,7 +1343,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// （疑问）设置轴的最大速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisMaxVel()
+        public override int SetCardAxisMaxVel()
         {
             return -1;
         }
@@ -1354,16 +1355,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="axis">轴编号</param>
         /// <param name="equiv">脉冲当量，单位：pulse/unit</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisPulseEquival(int CardNo, int axis, int equiv)
+        public override int SetCardAxisPulseEquival(int cardIndex, int axis, int equiv)
         {
-            return EC600SDK.Instance.DmcSetCardAxisEquiv(CardNo, axis, equiv);
+            return EC600SDK.Instance.DmcSetCardAxisEquiv(cardIndex, axis, equiv);
         }
 
         /// <summary>
         /// (疑问)设置轴的反向回零距离
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisReverseHomeDis()
+        public override int SetCardAxisReverseHomeDis()
         {
             return -1;
         }
@@ -1376,16 +1377,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="axis">轴编号</param>
         /// <param name="runmode">运动模式</param>
         /// <returns>short类型值</returns>
-        public int SetCardAxisRunMode(int CardNo, int axis, ushort runmode)
+        public override int SetCardAxisRunMode(int cardIndex, int axis, ushort runmode)
         {
-            return EC600SDK.Instance.NmcSetCardAxisRunMode(CardNo, axis, runmode);
+            return EC600SDK.Instance.NmcSetCardAxisRunMode(cardIndex, axis, runmode);
         }
 
         /// <summary>
         /// （疑问）设置轴的减减速
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisSlowVel()
+        public override int SetCardAxisSlowVel()
         {
             return -1;
         }
@@ -1404,7 +1405,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"N_limit"负限位位置，单位：pulse </para>
         /// <para>"P_limit"正限位位置，单位：pulse</para></param>
         /// <returns></returns>
-        public int SetCardAxisSoftLimit(LimitParamModel lpm)
+        public override int SetCardAxisSoftLimit(LimitParamModel lpm)
         {
             return EC600SDK.Instance.DmcSetCardAxisSoftLimit(lpm.CardNo, lpm.Axis, lpm.Enable, lpm.SourceSel, lpm.SLAction, lpm.Nlimit, lpm.Plimit);
         }
@@ -1419,14 +1420,14 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>"s_mode"保留参数，固定值为 0</para>
         /// <para>"s_para"S 段时间，单位：s；范围：0~1</para></param>
         /// <returns>错误代码</returns>        /// <returns></returns>
-        public int SetCardAxisSProfile(MotionParamModel mpm)
+        public override int SetCardAxisSProfile(MotionParamModel mpm)
         {
             return EC600SDK.Instance.DmcSetCardAxisSProfile(mpm.CardNo, mpm.Axis, mpm.SMode, mpm.SPara);
         }
 
 
 
-        public int SetCardAxisTProfile(MotionParamModel mpm)
+        public override int SetCardAxisTProfile(MotionParamModel mpm)
         {
             /*
             short dmc_set_profile_unit(WORD CardNo, WORD axis, double Min_Vel, double Max_Vel, 
@@ -1454,9 +1455,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">   比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int SetCardCompareConfigExtern(int CardNo, int enable, int cmp_source)
+        public override int SetCardCompareConfigExtern(int cardIndex, int enable, int cmp_source)
         {
-            return EC600SDK.Instance.DmcSetCardCompareConfigExtern(CardNo, enable, cmp_source);
+            return EC600SDK.Instance.DmcSetCardCompareConfigExtern(cardIndex, enable, cmp_source);
         }
 
 
@@ -1473,15 +1474,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <returns></returns>
         public int SetCardCompareConfigExternDate(PositionComparatorParamModel pcpm)
         {
-            ushort[] AxisNums = new ushort[pcpm.Axis.Length];
+            ushort[] axisNumbers = new ushort[pcpm.Axis.Length];
             ushort[] CmpMode = new ushort[pcpm.CmpMode.Length];
 
             for (int i = 0; i < pcpm.Axis.Length; i++)
             {
-                AxisNums[i] = (ushort)pcpm.Axis[i];
+                axisNumbers[i] = (ushort)pcpm.Axis[i];
                 CmpMode[i] = (ushort)pcpm.CmpMode[i];
             }
-            return EC600SDK.Instance.DmcAddCardComparePointsExtern(pcpm.CardNo, AxisNums, pcpm.XCmpPos, CmpMode, pcpm.Enable, pcpm.PortSel);
+            return EC600SDK.Instance.DmcAddCardComparePointsExtern(pcpm.CardNo, axisNumbers, pcpm.XCmpPos, CmpMode, pcpm.Enable, pcpm.PortSel);
         }
 
         /// <summary>
@@ -1492,17 +1493,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns></returns>
-        public int SetCardHcmpEnable(int CardNo, int axis, int enable, int cmp_source)
+        public override int SetCardHcmpEnable(int cardIndex, int axis, int enable, int cmp_source)
         {
             //return EC600SDK.Instance.DmcSetCardAxisCompareConfig(CardNo, axis, enable, cmp_source);
-            return EC600SDK.Instance.DmcSetCardHcmpMode1(CardNo, enable, cmp_source);
+            return EC600SDK.Instance.DmcSetCardHcmpMode1(cardIndex, enable, cmp_source);
         }
 
         /// <summary>
         /// 设置螺距补偿参数
         /// </summary>
         /// <returns></returns>
-        public int SetCardLeadScrewCompConfig(PitchCompensationparamModel pcm)
+        public override int SetCardLeadScrewCompConfig(PitchCompensationparamModel pcm)
         {
             return EC600SDK.Instance.DmcSetCardLeadScrewCompConfig(pcm.CardNo, pcm.Axis, pcm.n,
                 pcm.StartPos, pcm.LenPos, pcm.PCompPos, pcm.PCompNeg);
@@ -1515,16 +1516,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="axis">轴号 </param>
         /// <param name="enable">螺距补偿：开启\关闭</param>
         /// <returns></returns>
-        public int SetCardLeadScrewCompEnable(int CardNo, int axis, int enable)
+        public override int SetCardLeadScrewCompEnable(int cardIndex, int axis, int enable)
         {
-            return EC600SDK.Instance.DmcSetCardLeadScrewCompEnable(CardNo, axis, enable);
+            return EC600SDK.Instance.DmcSetCardLeadScrewCompEnable(cardIndex, axis, enable);
         }
 
         /// <summary>
         /// 设置连续前瞻模式
         /// </summary>
         /// <returns></returns>
-        public int StartCardContiLookaheadMode(int CardNo, int Crd, int enable, int LookaheadSegments, int PathError, int LookaheadAcc)
+        public int StartCardContiLookaheadMode(int cardIndex, int crdIndex, int enable, int LookaheadSegments, int PathError, int LookaheadAcc)
         {
             return 0;
             //return EC600SDK.Instance.DmcSetCardContiLookaheadMode(impm.CardNo, impm.Crd, impm.LookaheadSegments, impm.TaccTime, (short)impm.Numbers, new ecat_motion.CrdBlockData
@@ -1574,9 +1575,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="axis">轴编号</param>
         /// <param name="stop_mode">制动方式，0：减速停止，1：紧急停止</param>
         /// <returns>错误代码</returns>
-        public int StopCardAxisMovement(int CardNo, int axis, int stop_mode)
+        public override int StopCardAxisMovement(int cardIndex, int axis, int stop_mode)
         {
-            return EC600SDK.Instance.DmcCardAxisStop(CardNo, axis, stop_mode);
+            return EC600SDK.Instance.DmcCardAxisStop(cardIndex, axis, stop_mode);
         }
 
         /// <summary>
@@ -1585,7 +1586,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="axis"></param>
         /// <param name="stop_mode"></param>
         /// <returns></returns>
-        public int SetCardAxisErrorStopMode(int axis, int stop_mode)
+        public override int SetCardAxisErrorStopMode(int axis, int stop_mode)
         {
             return 0;
         }
@@ -1597,7 +1598,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="enable"></param>
         /// <param name="active_level"></param>
         /// <returns></returns>
-        public int SetCardAxisAlarm(int axis, int enable, int active_level)
+        public override int SetCardAxisAlarm(int axis, int enable, int active_level)
         {
             return 0;
         }
@@ -1612,81 +1613,81 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// </summary>
         /// <param name="parameter">需要指定的参数有：坐标系号,最小速度,最大速度,加速时间,减速时间,停止速度</param>
         /// <returns></returns>
-        public int CardAxisLineUnitSpeed(LineInterpolateparamModel parameter)
+        public override int CardAxisLineUnitSpeed(LineInterpolateparamModel parameter)
         {
             return EC600SDK.Instance.DmcSetCardVectorProfileUnit(AxisWhichCardNo,
                 parameter.Crd, parameter.minVel, parameter.maxVel,
                 parameter.tacc, parameter.tdec, parameter.stopVel);
         }
 
-        public int SetCardAxisHcmp2dsetEnable(int CardNo, int hcmp, int cmpEnable)
+        public override int SetCardAxisHcmp2dsetEnable(int cardIndex, int hcmp, int cmpEnable)
         {
             return 0;
         }
 
-        public int ClearCardHcmpPoints(int CardNo, int hcmp)
+        public override int ClearCardHcmpPoints(int cardIndex, int hcmp)
         {
             //return 0;
-            return EC600SDK.Instance.DmcClearCardAxisComparePoints(CardNo, hcmp);
+            return EC600SDK.Instance.DmcClearCardAxisComparePoints(cardIndex, hcmp);
         }
 
-        public int SetCardAxisHcmpConfig(int CardNo, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
+        public override int SetCardAxisHcmpConfig(int cardIndex, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
         {
             return 0;
         }
 
-        public int AddCardHcmpPoint(int CardNo, int hcmp, int cmp_pos)
+        public override int AddCardHcmpPoint(int cardIndex, int hcmp, int cmp_pos)
         {
             //return 0;
-            return EC600SDK.Instance.DmcAddCardHcmpPoint(CardNo, hcmp, cmp_pos);
+            return EC600SDK.Instance.DmcAddCardHcmpPoint(cardIndex, hcmp, cmp_pos);
         }
 
-        public int SetCardAxisLatchMode(int CardNo, int axis, int all_enable, int latch_source, int triger_chunnel)
+        public override int SetCardAxisLatchMode(int cardIndex, int axis, int all_enable, int latch_source, int triger_chunnel)
         {
             return 0;
         }
 
-        public int GetCardAxisReserLatchFlag(int CardNo, int axis)
+        public override int GetCardAxisReserLatchFlag(int cardIndex, int axis)
         {
             return 0;
         }
 
-        public int GetCardAxisLatchValue(int CardNo, int axis)
+        public override int GetCardAxisLatchValue(int cardIndex, int axis)
         {
             return 0;
         }
 
-        public int SetCardHcmpCmpPin(int CardNo, int hcmp, int on_off)
+        public override int SetCardHcmpCmpPin(int cardIndex, int hcmp, int on_off)
         {
             return 0;
         }
 
-        public int SetCardAxisLtcMode(int CardNo, int axis, ushort ltc_logic, ushort ltc_mode, double filter)
+        public override int SetCardAxisLtcMode(int cardIndex, int axis, ushort ltc_logic, ushort ltc_mode, double filter)
         {
             return 0;
         }
 
-        public int GetCardHcmpCmpPin(int CardNo, int hcmp)
+        public override int GetCardHcmpCmpPin(int cardIndex, int hcmp)
         {
             return 0;
         }
 
-        public int SetCardHcmpLiner(int CardNo, int hcmp, int Increment, int Count)
+        public override int SetCardHcmpLiner(int cardIndex, int hcmp, int increment, int Count)
         {
             return 0;
         }
 
-        public int GetCardAxisLatchValueExtern(int CardNo, int axis, int Index)
+        public override int GetCardAxisLatchValueExtern(int cardIndex, int axis, int Index)
         {
             return 0;
         }
 
-        public int GetCardAxisLatchFlag(int CardNo, int axis)
+        public override int GetCardAxisLatchFlag(int cardIndex, int axis)
         {
             return 0;
         }
 
-        public int GetCardAxisLatchFlagExtern(int CardNo, int axis)
+        public override int GetCardAxisLatchFlagExtern(int cardIndex, int axis)
         {
             //return EC600SDK.Instance.DmcSoftltcGetNumber()
             return 0;
@@ -1698,9 +1699,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo"></param>
         /// <param name="FileName"></param>
         /// <returns></returns>
-        public int SetCardDebugMode(int CardNo, string FileName)
+        public override int SetCardDebugMode(int cardIndex, string FileName)
         {
-            return EC600SDK.Instance.DmcSetCardDebugMode(CardNo, FileName);
+            return EC600SDK.Instance.DmcSetCardDebugMode(cardIndex, FileName);
         }
 
         /// <summary>
@@ -1710,9 +1711,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="pos">编码器计数值，单位：unit</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisEncoder(int CardNo, int axis, int encoder_value)
+        public override int SetCardAxisEncoder(int cardIndex, int axis, int encoder_value)
         {
-            return EC600SDK.Instance.DmcSetCardAxisEncoderUnit(CardNo, axis, encoder_value);
+            return EC600SDK.Instance.DmcSetCardAxisEncoderUnit(cardIndex, axis, encoder_value);
         }
 
         /// <summary>
@@ -1721,7 +1722,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号</param>
         /// <returns>伺服使能端口电平，0：低电平(on)，1：高电平(off)</returns>
-        public int GetCardAxisSevonPin()
+        public override int GetCardAxisSevonPin()
         {
             ushort status = 0;
             EC600SDK.Instance.NmcGetCardAxisStateMachine(AxisWhichCardNo, AxisID, ref status);
@@ -1736,17 +1737,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">指定控制卡上的坐标系号（取值范围：0~5）</param>
         /// <returns>轴运动状态</returns>
-        public int GetCardCheckDoneMulticoor(int CardNo, int crd)
+        public override int GetCardCheckDoneMulticoor(int cardIndex, int crd)
         {
-            return EC600SDK.Instance.DmcGetCardCrdCheckDoneMulticoor(CardNo, crd, 0);
+            return EC600SDK.Instance.DmcGetCardCrdCheckDoneMulticoor(cardIndex, crd, 0);
         }
 
-        public int SetSpacing(int axis, int ORGPlusPos, int PELAlarmPlusPos, int NELAlarmPlusPos)
+        public override int SetSpacing(int axis, int ORGPlusPos, int PELAlarmPlusPos, int NELAlarmPlusPos)
         {
             return 0;
         }
 
-        public int SetStatusParameter(int axis, bool f, AxisStatusParameterEnum kind)
+        public override int SetStatusParameter(int axis, bool f, AxisStatusParameterEnum kind)
         {
             return 0;
         }
@@ -1764,9 +1765,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="New_Vel">新的运行速度，单位：unit/s</param>
         /// <param name="Taccdec">变速时间，单位：s </param>
         /// <returns>错误代码</returns>
-        public int CardAxisChangeSpeed(int CardNo, int axis, double Curr_Vel, double Taccdec)
+        public override int CardAxisChangeSpeed(int cardIndex, int axis, double currentVelocity, double accelerationAndDeceleration)
         {
-            return EC600SDK.Instance.DmcCardAxisChangeSpeed(CardNo, axis, Curr_Vel, Taccdec);
+            return EC600SDK.Instance.DmcCardAxisChangeSpeed(cardIndex, axis, currentVelocity, accelerationAndDeceleration);
         }
 
         /// <summary>
@@ -1777,9 +1778,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisCompareConfig(int CardNo, int axis, int enable, int cmp_source)
+        public override int SetCardAxisCompareConfig(int cardIndex, int axis, int enable, int cmp_source)
         {
-            return EC600SDK.Instance.DmcSetCardAxisCompareConfig(CardNo, axis, enable, cmp_source);
+            return EC600SDK.Instance.DmcSetCardAxisCompareConfig(cardIndex, axis, enable, cmp_source);
         }
 
         /// <summary>
@@ -1793,10 +1794,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="cmp_logic">有效电平：0：低电平，1：</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us~20s </param>
         /// <returns>错误代码</returns>
-        public int OpenCardHighCompareConfig(int CardNo, int hcmp, int axis, int cmp_source, int cmp_logic, long time)
+        public override int OpenCardHighCompareConfig(int cardIndex, int hcmp, int axis, int cmp_source, int cmp_logic, long time)
         {
             //return EC600SDK.Instance.DmcSetCardAxisHcmpConfig(CardNo, hcmp, axis, cmp_source, cmp_logic, (int)time);
-            return EC600SDK.Instance.DmcSetCardAxisCompareConfig(CardNo, axis, 1, cmp_source);
+            return EC600SDK.Instance.DmcSetCardAxisCompareConfig(cardIndex, axis, 1, cmp_source);
         }
 
         /// <summary>
@@ -1806,15 +1807,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="Axis">轴号</param>
         /// <param name="state">状态结果</param>
         /// <returns></returns>
-        public int CardAxisGetHomeResult(int CardNo, int axis, ref ushort status)
+        public override int CardAxisGetHomeResult(int cardIndex, int axis, ref ushort status)
         {
             short statu = 0;
-            int error = EC600SDK.Instance.DmcGetCardHomeResult(CardNo, axis, out statu);
+            int error = EC600SDK.Instance.DmcGetCardHomeResult(cardIndex, axis, out statu);
             status = (ushort)statu;
             return error;
         }
 
-        public int SetCardAxisHomeElReturn(int CardNo, int axis, ushort enable)
+        public override int SetCardAxisHomeElReturn(int cardIndex, int axis, ushort enable)
         {
             return 0;
         }
@@ -1832,9 +1833,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="Tdec">返回减速时间设置，单位：s</param>
         /// <param name="Stop_Vel">返回停止速度设置，单位：unit/s</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisProfile(int CardNo, int axis, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double stop_vel)
+        public override int GetCardAxisProfile(int cardIndex, int axis, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stop_vel)
         {
-            return EC600SDK.Instance.DmcGetCardAxisProfileUnit(CardNo, axis, ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref stop_vel);
+            return EC600SDK.Instance.DmcGetCardAxisProfileUnit(cardIndex, axis, ref minVelocity, ref maxVelocity, ref acceleration, ref deceleration, ref stop_vel);
         }
 
         /// <summary>
@@ -1845,12 +1846,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="s_mode">保留参数</param>
         /// <param name="s_para">返回设置的 S 段时间</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisSProfile(int CardNo, int axis, int s_mode, ref double s_para)
+        public override int GetCardAxisSProfile(int cardIndex, int axis, int s_mode, ref double s_para)
         {
-            return EC600SDK.Instance.DmcGetCardAxisSProfile(CardNo, axis, s_mode, ref s_para);
+            return EC600SDK.Instance.DmcGetCardAxisSProfile(cardIndex, axis, s_mode, ref s_para);
         }
 
-        public List<int> GetLineInterpolationSupportAxis()
+        public override List<int> GetLineInterpolationSupportAxis()
         {
             var list = new List<int>();
             for (int i = 0; i < 32; i++)
@@ -1860,545 +1861,545 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
             return list;
         }
 
-        public int GetCardHcmpCurrentState(int CardNo, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
+        public override int GetCardHcmpCurrentState(int cardIndex, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisStartSelectHcmp(ushort CardNo, int camera_count, ushort GroupNo = 1)
+        public override int CardAxisStartSelectHcmp(ushort cardIndex, int camera_count, ushort GroupNo = 1)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisStopSelectHcmp(ushort CardNo, ushort GroupNo = 1)
+        public override int CardAxisStopSelectHcmp(ushort cardIndex, ushort GroupNo = 1)
         {
             throw new NotImplementedException();
         }
 
-        public int AddCCDTriIO(int CardNo, int hcmp, short ioIndex)
+        public override int AddCCDTriIO(int cardIndex, int hcmp, short ioIndex)
         {
             throw new NotImplementedException();
         }
 
-        public int AddCardAxisComparePoint(int CardNo, int axis, int pos, int dir, ushort action, uint actpara)
+        public override int AddCardAxisComparePoint(int cardIndex, int axis, int pos, int dir, ushort action, uint actpara)
         {
-            return EC600SDK.Instance.DmcAddCardAxisComparePointsCycle(CardNo, axis, pos, dir, action, (int)actpara, 0);
+            return EC600SDK.Instance.DmcAddCardAxisComparePointsCycle(cardIndex, axis, pos, dir, action, (int)actpara, 0);
 
             //throw new NotImplementedException();
         }
 
-        public int ClearCardAxisComparePoints(int CardNo, int axis)
+        public override int ClearCardAxisComparePoints(int cardIndex, int axis)
         {
-            return EC600SDK.Instance.DmcClearCardAxisComparePoints((ushort)CardNo, (ushort)axis);
+            return EC600SDK.Instance.DmcClearCardAxisComparePoints((ushort)cardIndex, (ushort)axis);
 
             //throw new NotImplementedException();
         }
 
-        public double GetCardAxisCurrentSpeed(int CardNo, int axis)
+        public override double GetCardAxisCurrentSpeed(int cardIndex, int axis)
         {
             double currentSpeed = 0;
-            var res = EC600SDK.Instance.DmcGetCardAxisCurrentSpeedUnit(CardNo, axis, ref currentSpeed);
+            var res = EC600SDK.Instance.DmcGetCardAxisCurrentSpeedUnit(cardIndex, axis, ref currentSpeed);
             if (res == 0) return currentSpeed;
             return res;
             //throw new NotImplementedException();
         }
 
-        public int SetCardAxisInpMode(int CardNo, int axis, int enable, int inp_logic)
+        public override int SetCardAxisInpMode(int cardIndex, int axis, int enable, int inp_logic)
         {
             return 0;
         }
 
-        public int GetCardAxisComparePointsRunned(int CardNo, int axis, ref int pointNum)
+        public override int GetCardAxisComparePointsRunned(int cardIndex, int axis, ref int pointNum)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisCompareConfig(int CardNo, int axis, ref ushort enable, ref ushort cmp_source)
+        public override int GetCardAxisCompareConfig(int cardIndex, int axis, ref ushort enable, ref ushort cmp_source)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardDAEnable(int CardNo, int enable)
+        public override int SetCardDAEnable(int cardIndex, int enable)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardDAEnable(int CardNo, ref ushort enable)
+        public override int GetCardDAEnable(int cardIndex, ref ushort enable)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardDAOutPut(int CardNo, int channel, double Vout)
+        public override int SetCardDAOutput(int cardIndex, int channel, double voltageOut)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardDAOutPut(int CardNo, int channel, ref double Vout)
+        public override int GetCardDAOutput(int cardIndex, int channel, ref double voltageOut)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardADInPut(int CardNo, int channel, ref double Vout)
+        public override int GetCardADInput(int cardIndex, int channel, ref double voltageOut)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardADInPutEx(int CardNo, int channel, ref double Vout)
+        public override int GetCardADInputEx(int cardIndex, int channel, ref double voltageOut)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisResetTargetPosition(int CardNo, int axis, int dist, int posi_mode)
+        public override int CardAxisResetTargetPosition(int cardIndex, int axis, int dist, int posi_mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisUpdateTargetPosition(int CardNo, int axis, int dist, int posi_mode)
+        public override int CardAxisUpdateTargetPosition(int cardIndex, int axis, int dist, int posi_mode)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisComparePointsRemained(int CardNo, int axis, ref int pointNum)
+        public override int GetCardAxisComparePointsRemained(int cardIndex, int axis, ref int pointNum)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisCompareCurrentPoint(int CardNo, int axis, ref int pos)
+        public override int GetCardAxisCompareCurrentPoint(int cardIndex, int axis, ref int pos)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisHcmp2dsetEnable(int CardNo, int hcmp, ref ushort cmpEnable)
+        public override int GetCardAxisHcmp2dsetEnable(int cardIndex, int hcmp, ref ushort cmpEnable)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisHcmp2dsetConfig(int CardNo, ushort hcmp, ushort cmp_mode, ushort x_axis, ushort cmp_source, ushort y_axis, ushort y_cmp_source, int error, ushort cmp_logic, int time, ushort pwm_enable, double duty, int freq, ushort port_sel, ushort pwm_number)
+        public override int SetCardAxisHcmp2dsetConfig(int cardIndex, ushort hcmp, ushort cmp_mode, ushort x_axis, ushort cmp_source, ushort y_axis, ushort y_cmp_source, int error, ushort cmp_logic, int time, ushort pwm_enable, double duty, int freq, ushort port_sel, ushort pwm_number)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisHcmp2dsetConfig(int CardNo, ushort hcmp, ref ushort cmp_mode, ref ushort x_axis, ref ushort cmp_source, ref ushort y_axis, ref ushort y_cmp_source, ref int error, ref ushort cmp_logic, ref int time, ref ushort pwm_enable, ref double duty, ref int freq, ref ushort port_sel, ref ushort pwm_number)
+        public override int GetCardAxisHcmp2dsetConfig(int cardIndex, ushort hcmp, ref ushort cmp_mode, ref ushort x_axis, ref ushort cmp_source, ref ushort y_axis, ref ushort y_cmp_source, ref int error, ref ushort cmp_logic, ref int time, ref ushort pwm_enable, ref double duty, ref int freq, ref ushort port_sel, ref ushort pwm_number)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisHcmp2dClearPoints(int CardNo, ushort hcmp)
+        public override int SetCardAxisHcmp2dClearPoints(int cardIndex, ushort hcmp)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisHcmp2dAddPoint(int CardNo, ushort hcmp, int x_cmp_pos, int y_cmp_pos)
+        public override int SetCardAxisHcmp2dAddPoint(int cardIndex, ushort hcmp, int x_cmp_pos, int y_cmp_pos)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisHcmp2dCurrentState(int CardNo, ushort hcmp, ref int remained_points, ref int x_current_point, ref int y_current_point, ref int runned_points, ref ushort current_state)
+        public override int GetCardAxisHcmp2dCurrentState(int cardIndex, ushort hcmp, ref int remained_points, ref int x_current_point, ref int y_current_point, ref int runned_points, ref ushort current_state)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisHcmp2dForceOutput(int CardNo, ushort hcmp, ushort enable)
+        public override int SetCardAxisHcmp2dForceOutput(int cardIndex, ushort hcmp, ushort enable)
         {
             throw new NotImplementedException();
         }
 
-        public int ClearCardComparePointsExtern(int CardNo)
+        public override int ClearCardComparePointsExtern(int cardIndex)
         {
             throw new NotImplementedException();
         }
 
-        public int AddCardComparePointExtern(int CardNo, ushort[] axis, int[] pos, ushort[] dir, ushort action, int actpara)
+        public override int AddCardComparePointExtern(int cardIndex, ushort[] axis, int[] pos, ushort[] dir, ushort action, int actpara)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardCompareCurrentPointExtern(int CardNo, ref int[] pos)
+        public override int GetCardCompareCurrentPointExtern(int cardIndex, ref int[] pos)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardComparePointsRunnedExtern(int CardNo, ref int pointNum)
+        public override int GetCardComparePointsRunnedExtern(int cardIndex, ref int pointNum)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardComparePointsRemainedExtern(int CardNo, ref int pointNum)
+        public override int GetCardComparePointsRemainedExtern(int cardIndex, ref int pointNum)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisLatchStopTime(int CardNo, int axis, int time)
+        public override int SetCardAxisLatchStopTime(int cardIndex, int axis, int time)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisOutMode(int CardNo, int axis, int enable, int bitno)
+        public override int SetCardAxisOutMode(int cardIndex, int axis, int enable, int bitno)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisOutMode(int CardNo, int axis, ref ushort enable, ref ushort bitno)
+        public override int GetCardAxisOutMode(int cardIndex, int axis, ref ushort enable, ref ushort bitno)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardIoCountMode(int CardNo, int bitno, int mode, double filter_time)
+        public override int SetCardIoCountMode(int cardIndex, int bitno, int mode, double filter_time)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardIoCountValue(int CardNo, int bitno, int CountValue)
+        public override int SetCardIoCountValue(int cardIndex, int bitno, int countValue)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardIoCountValue(int CardNo, int bitno, ref uint CountValue)
+        public override int GetCardIoCountValue(int cardIndex, int bitno, ref uint countValue)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardReverseOutBit(int CardNo, int bitno, int reverse_time)
+        public override int SetCardReverseOutBit(int cardIndex, int bitno, int reverse_time)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisHomelatchMode(int CardNo, int axis, ushort enable, ushort logic, ushort source)
+        public override int SetCardAxisHomelatchMode(int cardIndex, int axis, ushort enable, ushort logic, ushort source)
         {
             throw new NotImplementedException();
         }
 
-        public int ClearCardAxisHomelatchFlag(int CardNo, int axis)
+        public override int ClearCardAxisHomelatchFlag(int cardIndex, int axis)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisHomelatchFlag(int CardNo, int axis)
+        public override int GetCardAxisHomelatchFlag(int cardIndex, int axis)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisHomelatchValue(int CardNo, int axis)
+        public override int GetCardAxisHomelatchValue(int cardIndex, int axis)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisSetBacklash(int CardNo, int axis, int backlash_value, int backlash_interval, int backlash_dir)
+        public override int SetCardAxisSetBacklash(int cardIndex, int axis, int backlash_value, int backlash_interval, int backlash_dir)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisSetBacklash(int CardNo, int axis, ref int backlash_value, ref int backlash_interval, ref int backlash_dir)
+        public override int GetCardAxisSetBacklash(int cardIndex, int axis, ref int backlash_value, ref int backlash_interval, ref int backlash_dir)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisStopReason(int CardNo, int axis, ref int StopReason)
+        public override int GetCardAxisStopReason(int cardIndex, int axis, ref int StopReason)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisFollowParameter(int CardNo, int slave_axis, int master_axis, double followradio)
+        public override int SetCardAxisFollowParameter(int cardIndex, int slave_axis, int master_axis, double followradio)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisFollowParameter(int CardNo, int slave_axis, ref int master_axis, ref double followradio)
+        public override int GetCardAxisFollowParameter(int cardIndex, int slave_axis, ref int master_axis, ref double followradio)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisFollowEnable(int CardNo, int slave_axis, int enable)
+        public override int SetCardAxisFollowEnable(int cardIndex, int slave_axis, int enable)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisFollowEnable(int CardNo, int slave_axis, ref int enable)
+        public override int GetCardAxisFollowEnable(int cardIndex, int slave_axis, ref int enable)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisPmotionSync(int CardNo, int axis_num, ushort[] axis_list, int[] aim_pos, int posi_mode)
+        public override int CardAxisPmotionSync(int cardIndex, int axis_num, ushort[] axis_list, int[] aim_pos, int posi_mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisPmoveSoftLanding(int CardNo, int axis, double midPos, double targetPos, double startVel, double maxVel, double endVel, double tAcc, double tDec, int posiMode)
+        public override int CardAxisPmoveSoftLanding(int cardIndex, int axis, double midPos, double targetPos, double startVel, double maxVel, double endVel, double tAcc, double tDec, int posiMode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisPMotionSoftLanding(int CardNo, int axis, double aim_pos, double target_pos, double acc_time, double dec_time, double start_vel, double max_vel, double mid_vel, double stop_vel, int pos_mode)
+        public override int CardAxisPMotionSoftLanding(int cardIndex, int axis, double aim_pos, double target_pos, double acc_time, double dec_time, double start_vel, double max_vel, double mid_vel, double stop_vel, int pos_mode)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisCrdPrm(int CardNo, int crd, ushort dimension, ushort[] profile, double synVelMax, double synAccMax, short evenTime, short setOriginFlag, int[] originPos)
+        public override int SetCardAxisCrdPrm(int cardIndex, int crd, ushort dimension, ushort[] profile, double synVelMax, double synAccMax, short evenTime, short setOriginFlag, int[] originPos)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisCrdPrm(int CardNo, int crd, ref ushort dimension, ushort[] profile, ref double synVelMax, ref double synAccMax, ref short evenTime, ref short setOriginFlag, int[] originPos)
+        public override int GetCardAxisCrdPrm(int cardIndex, int crd, ref ushort dimension, ushort[] profile, ref double synVelMax, ref double synAccMax, ref short evenTime, ref short setOriginFlag, int[] originPos)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisBufCrdData(int CardNo, int crd)
+        public override int SetCardAxisBufCrdData(int cardIndex, int crd)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufLineData(int CardNo, int Crd, ushort axisNum, ushort[] AxisList, double[] aim_pos, short posi_mode, double synVel, double synAcc, double velEnd, double velStart)
+        public override int CardAxisBufLineData(int cardIndex, int crdIndex, ushort axisNum, ushort[] axisNumbers, double[] aim_pos, short posi_mode, double synVel, double synAcc, double velEnd, double velStart)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufArcnCenterMove(int CardNo, int Crd, ushort axisNum, ushort[] AxisList, double[] aim_pos, ref double cen_pos, ushort circleDir, ushort circle_num, short posi_mode, double synVel, double synAcc, double velEnd, double velStart)
+        public override int CardAxisBufArcnCenterMove(int cardIndex, int crdIndex, ushort axisNum, ushort[] axisNumbers, double[] aim_pos, ref double cen_pos, ushort circleDir, ushort circle_num, short posi_mode, double synVel, double synAcc, double velEnd, double velStart)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufArcnRadiusMove(int CardNo, int Crd, ushort axisNum, ushort[] AxisList, double[] aim_pos, double radius, ushort circleDir, ushort circle_num, short posi_mode, double synVel, double synAcc, double velEnd, double velStart)
+        public override int CardAxisBufArcnRadiusMove(int cardIndex, int crdIndex, ushort axisNum, ushort[] axisNumbers, double[] aim_pos, double radius, ushort circleDir, ushort circle_num, short posi_mode, double synVel, double synAcc, double velEnd, double velStart)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufArcn3pointMove(int CardNo, int Crd, ushort axisNum, ushort[] AxisList, double[] aim_pos, ref double mid_pos, ushort circle_num, short posi_mode, double synVel, double synAcc, double velEnd, double velStart)
+        public override int CardAxisBufArcn3pointMove(int cardIndex, int crdIndex, ushort axisNum, ushort[] axisNumbers, double[] aim_pos, ref double mid_pos, ushort circle_num, short posi_mode, double synVel, double synAcc, double velEnd, double velStart)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufIO(int CardNo, int crd, ushort doType, ushort doMask, ushort doValue)
+        public override int CardAxisBufIO(int cardIndex, int crd, ushort doType, ushort doMask, ushort doValue)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufDelay(int CardNo, int crd, ushort delayTime)
+        public override int CardAxisBufDelay(int cardIndex, int crd, ushort delayTime)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufLimitON(int CardNo, int crd, short axis, short limitType)
+        public override int CardAxisBufLimitON(int cardIndex, int crd, short axis, short limitType)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufLimitOff(int CardNo, int crd, short axis, short limitType)
+        public override int CardAxisBufLimitOff(int cardIndex, int crd, short axis, short limitType)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufSetStopIO(int CardNo, int crd, short axis, short stopType, short inputType, short inputIndex)
+        public override int CardAxisBufSetStopIO(int cardIndex, int crd, short axis, short stopType, short inputType, short inputIndex)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufMove(int CardNo, int crd, short moveAxis, double pos, double vel, double acc_time)
+        public override int CardAxisBufMove(int cardIndex, int crd, short moveAxis, double pos, double vel, double acc_time)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufCrdRemainSpace(int CardNo, int crd, ref int pSpace)
+        public override int CardAxisBufCrdRemainSpace(int cardIndex, int crd, ref int pSpace)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufCrdClear(int CardNo, int crd)
+        public override int CardAxisBufCrdClear(int cardIndex, int crd)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufCrdStart(int CardNo, int crd)
+        public override int CardAxisBufCrdStart(int cardIndex, int crd)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufCrdPause(int CardNo, int crd)
+        public override int CardAxisBufCrdPause(int cardIndex, int crd)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufCrdStop(int CardNo, int crd, int mode)
+        public override int CardAxisBufCrdStop(int cardIndex, int crd, int mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufCrdStatus(int CardNo, int crd, ref short pRun, ref int pSegment)
+        public override int CardAxisBufCrdStatus(int cardIndex, int crd, ref short pRun, ref int pSegment)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisBufUserSegNum(int CardNo, int crd, long segNum)
+        public override int SetCardAxisBufUserSegNum(int cardIndex, int crd, long segNum)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisBufUserSegNum(int CardNo, int crd, ref long segNum)
+        public override int GetCardAxisBufUserSegNum(int cardIndex, int crd, ref long segNum)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisBufRemainSegNum(int CardNo, int crd, ref long pSegment)
+        public override int GetCardAxisBufRemainSegNum(int cardIndex, int crd, ref long pSegment)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisBufSetOverride(int CardNo, int crd, double synVelRatio)
+        public override int SetCardAxisBufSetOverride(int cardIndex, int crd, double synVelRatio)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisBufSetCrdStopDec(int CardNo, int crd, double decSmoothStop, double decAbruptStop)
+        public override int SetCardAxisBufSetCrdStopDec(int cardIndex, int crd, double decSmoothStop, double decAbruptStop)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisBufSetCrdStopDec(int CardNo, int crd, ref double decSmoothStop, ref double decAbruptStop)
+        public override int GetCardAxisBufSetCrdStopDec(int cardIndex, int crd, ref double decSmoothStop, ref double decAbruptStop)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisBufGetCrdPos(int CardNo, int crd, ref double pPos)
+        public override int GetCardAxisBufGetCrdPos(int cardIndex, int crd, ref double pPos)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisBufGetCrdVel(int CardNo, int crd, ref double pSynVel)
+        public override int GetCardAxisBufGetCrdVel(int cardIndex, int crd, ref double pSynVel)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufInitLookahead(int CardNo, int crd, double T, double accMax, int enable)
+        public override int CardAxisBufInitLookahead(int cardIndex, int crd, double T, double accMax, int enable)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisBufInitLookahead(int CardNo, int crd, ref double T, ref double accMax, ref int enable)
+        public override int GetCardAxisBufInitLookahead(int cardIndex, int crd, ref double T, ref double accMax, ref int enable)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardAxisBufCrdSmooth(int CardNo, int crd, double Smooth)
+        public override int SetCardAxisBufCrdSmooth(int cardIndex, int crd, double Smooth)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardAxisBufCrdSmooth(int CardNo, int crd, ref double Smooth)
+        public override int GetCardAxisBufCrdSmooth(int cardIndex, int crd, ref double Smooth)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufCrdReset(int CardNo, int crd)
+        public override int CardAxisBufCrdReset(int cardIndex, int crd)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufWaitDI(int CardNo, int crd, ushort dI_id, ushort di_logic, long time_out)
+        public override int CardAxisBufWaitDI(int cardIndex, int crd, ushort dI_id, ushort di_logic, long time_out)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufPwmOutput(int CardNo, int crd, ushort pwm_no, double pwm_duty, double pwm_freq)
+        public override int CardAxisBufPwmOutput(int cardIndex, int crd, ushort pwm_no, double pwm_duty, double pwm_freq)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufPwmFollow(int CardNo, int crd, ushort pwm_no, ushort mode, double start_speed, double max_speed, double max_power, double min_power, double none_follow_value)
+        public override int CardAxisBufPwmFollow(int cardIndex, int crd, ushort pwm_no, ushort mode, double start_speed, double max_speed, double max_power, double min_power, double none_follow_value)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufDelayOutbitToStartPos(int CardNo, int crd, int bitno, int on_off, double delay_value, int delay_mode, double ReverseTime)
+        public override int CardAxisBufDelayOutbitToStartPos(int cardIndex, int crd, int bitno, int on_off, double delay_value, int delay_mode, double reverseTime)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufDelayOutbitToStopPos(int CardNo, int crd, int bitno, int on_off, double delay_time, double ReverseTime)
+        public override int CardAxisBufDelayOutbitToStopPos(int cardIndex, int crd, int bitno, int on_off, double delay_time, double reverseTime)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufAheadOutbitToStopPos(int CardNo, int crd, int bitno, int on_off, double ahead_value, int ahead_mode, double ReverseTime)
+        public override int CardAxisBufAheadOutbitToStopPos(int cardIndex, int crd, int bitno, int on_off, double ahead_value, int ahead_mode, double reverseTime)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufSetPwmON(int CardNo, int crd, int PwmNo)
+        public override int CardAxisBufSetPwmON(int cardIndex, int crd, int pwmIndex)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisBufSetPwmOFF(int CardNo, int crd, int PwmNo)
+        public override int CardAxisBufSetPwmOFF(int cardIndex, int crd, int pwmIndex)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatTotalAdcnum(int CardNo, ref int TotalIn, ref int TotalOut)
+        public override int CardAxisGetLocalcatTotalAdcnum(int cardIndex, ref int TotalIn, ref int TotalOut)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatTotalIonum(int CardNo, ref int TotalIn, ref int TotalOut)
+        public override int CardAxisGetLocalcatTotalIonum(int cardIndex, ref int TotalIn, ref int TotalOut)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisYKSetLocalcatDaOutput(int CardNo, int channel, short Value)
+        public override int CardAxisYKSetLocalcatDaOutput(int cardIndex, int channel, short Value)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatDaOutput(int CardNo, int channel, ref short Value)
+        public override int CardAxisGetLocalcatDaOutput(int cardIndex, int channel, ref short Value)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatAdInput(int CardNo, int channel, ref short Value)
+        public override int CardAxisGetLocalcatAdInput(int cardIndex, int channel, ref short Value)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisSetLocalcatAdMode(int CardNo, int channel, int mode)
+        public override int CardAxisSetLocalcatAdMode(int cardIndex, int channel, int mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatAdMode(int CardNo, int channel, ref int mode)
+        public override int CardAxisGetLocalcatAdMode(int cardIndex, int channel, ref int mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisSetLocalcatDaMode(int CardNo, int channel, int mode)
+        public override int CardAxisSetLocalcatDaMode(int cardIndex, int channel, int mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatDaMode(int CardNo, int channel, ref int mode)
+        public override int CardAxisGetLocalcatDaMode(int cardIndex, int channel, ref int mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisLocalcatGetErrCode(int CardNo, int LocalcatNo, ref int ErrCode)
+        public override int CardAxisLocalcatGetErrCode(int cardIndex, int localcatIndex, ref int ErrCode)
         {
             throw new NotImplementedException();
         }
 
-        public int SetAxisStopTime(int CardNo, int axis, double stopTime)
+        public override int SetAxisStopTime(int cardIndex, int axis, double stopTime)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardMulAxisCompareConfig(int CardNo, int cmper_No, int[] axis_List, int enable, int cmp_source)
+        public override int SetCardMulAxisCompareConfig(int cardIndex, int cmper_No, int[] axis_List, int enable, int cmp_source)
         {
             throw new NotImplementedException();
         }
 
-        public int AddCardMulAxisComparePoint(int CardNo, int cmper_No, int dir, ushort action, uint actpara, int bitNo, double[] cmp_pos)
+        public override int AddCardMulAxisComparePoint(int cardIndex, int cmper_No, int dir, ushort action, uint actpara, int bitNo, double[] cmp_pos)
         {
             throw new NotImplementedException();
         }
 
-        public int ClearCardMulAxisComparePoints(int CardNo, int cmper_No)
+        public override int ClearCardMulAxisComparePoints(int cardIndex, int cmper_No)
         {
             throw new NotImplementedException();
         }
@@ -2409,7 +2410,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="latchParam"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        MultiplexedLatchParam IAxis.GetCradMultiplexedLatchStatus(MultiplexedLatchParam latchParam)
+        public override MultiplexedLatchParam GetCardMultiplexedLatchStatus(MultiplexedLatchParam latchParam)
         {
             return new MultiplexedLatchParam();
         }
@@ -2420,7 +2421,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="latchParam"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        int IAxis.SetMultiAxisMode(MultiplexedLatchParam latchParam)
+        public override int SetMultiAxisMode(MultiplexedLatchParam latchParam)
         {
             return -1;
         }
@@ -2430,7 +2431,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="latchParam"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        int IAxis.OpenCardMultiLtc(MultiplexedLatchParam latchParam)
+        public override int OpenCardMultiLtc(MultiplexedLatchParam latchParam)
         {
             return -1;
         }
@@ -2440,7 +2441,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="latchParam"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        int IAxis.CardResetLatch(MultiplexedLatchParam latchParam)
+        public override int CardResetLatch(MultiplexedLatchParam latchParam)
         {
             return -1;
         }

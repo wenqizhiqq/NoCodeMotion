@@ -10,7 +10,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
+namespace NoCodeMotion.Services.Hardware.Cards.Families.DMC_E3032_EtherCAT
 {
     public class DMC_E3032SDK
     {
@@ -37,7 +37,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="bitno"></param>
         /// <param name="on_off">输入电平，0：低电平，1：高电平</param>
         /// <returns></returns>
-        public int SetCardWriteInBit(int CardNo, int bitno, int on_off)
+        public int SetCardWriteInBit(int cardIndex, int bitno, int on_off)
         {
             return 0;
         }
@@ -282,7 +282,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetEtherCATErrorInfo(int ErrNum)
+        public string GetEtherCATErrorInfo(int errorNumber)
         {
             var msg = string.Empty;
             Dictionary<int, string> dic = new Dictionary<int, string>()
@@ -323,11 +323,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
                 {0x022B, "无法连接从站地址其它的为错误码位乱码，是总线没有建立（即主站没有连接从站）；尤其是当控制卡中存有配置文件，而没有连接任何从站时常出现。"}
             };
 
-            if (dic.ContainsKey(ErrNum))
+            if (dic.ContainsKey(errorNumber))
             {
-                return dic[ErrNum];
+                return dic[errorNumber];
             }
-            return $"unkown errNum : 【{ErrNum}】";
+            return $"unkown errNum : 【{errorNumber}】";
         }
 
         /// <summary>
@@ -335,7 +335,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public string GetErrorInfo(int errorNumber)
         {
             var msg = string.Empty;
             Dictionary<int, string> dic = new Dictionary<int, string>()
@@ -446,11 +446,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
                 {10000+ 25 ,"参数错误"}
             };
 
-            if (dic.ContainsKey(ErrNum))
+            if (dic.ContainsKey(errorNumber))
             {
-                return dic[ErrNum];
+                return dic[errorNumber];
             }
-            return $"unkown errNum : 【{ErrNum}】";
+            return $"unkown errNum : 【{errorNumber}】";
         }
 
         /*
@@ -475,9 +475,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="PortNo">输入组号（32 位一组，从 0 开始，如 0 表示 0-31 位，1 表示 32-63位）</param>
         /// <param name="IoValue">输入组各输入端口的值，bit0~bit31 的值分别代表第 0~31 号输入口的电平，1：低电平，0：高电平</param>
         /// <returns></returns>
-        public int NmcReadInportExtern(int CardNo, int Channel, int NoteID, int PortNo, ref uint IoValue)
+        public int NmcReadInportExtern(int cardIndex, int Channel, int noteId, int portIndex, ref uint ioValue)
         {
-            return LTDMC.nmc_read_inport_extern((ushort)CardNo, (ushort)Channel, (ushort)NoteID, (ushort)PortNo, ref IoValue);
+            return LTDMC.nmc_read_inport_extern((ushort)cardIndex, (ushort)Channel, (ushort)noteId, (ushort)portIndex, ref ioValue);
         }
 
 
@@ -503,9 +503,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="PortNo">输出组号（32 位一组，从 0 开始，如 0 表示 0-31 位，1 表示 32-63位）</param>
         /// <param name="IoValue">输出组各输出端口的值，bit0 ~bit31 的值分别代表第 0~31 号输出口的电平，1：低电平，0：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcReadOutportExtern(int CardNo, int Channel, int NoteID, int PortNo, ref uint IoValue)
+        public int NmcReadOutportExtern(int cardIndex, int Channel, int noteId, int portIndex, ref uint ioValue)
         {
-            return LTDMC.nmc_read_outport_extern((ushort)CardNo, (ushort)Channel, (ushort)NoteID, (ushort)PortNo, ref IoValue);
+            return LTDMC.nmc_read_outport_extern((ushort)cardIndex, (ushort)Channel, (ushort)noteId, (ushort)portIndex, ref ioValue);
         }
 
 
@@ -528,9 +528,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="IoBit">输出端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcWriteOutbitExtern(int CardNo, int Channel, int NoteID, int IoBit, ushort IoValue)
+        public int NmcWriteOutbitExtern(int cardIndex, int Channel, int noteId, int ioBit, ushort ioValue)
         {
-            return LTDMC.nmc_write_outbit_extern((ushort)CardNo, (ushort)Channel, (ushort)NoteID, (ushort)IoBit, IoValue);
+            return LTDMC.nmc_write_outbit_extern((ushort)cardIndex, (ushort)Channel, (ushort)noteId, (ushort)ioBit, ioValue);
         }
 
         /*
@@ -552,9 +552,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="portno">输出端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcWriteOutportExtern(int CardNo, int Channel, int NoteID, ushort portno, uint IoValue)
+        public int NmcWriteOutportExtern(int cardIndex, int Channel, int noteId, ushort portno, uint ioValue)
         {
-            return LTDMC.nmc_write_outport_extern((ushort)CardNo, (ushort)Channel, (ushort)NoteID, portno, IoValue);
+            return LTDMC.nmc_write_outport_extern((ushort)cardIndex, (ushort)Channel, (ushort)noteId, portno, ioValue);
         }
 
         /*
@@ -578,9 +578,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="IoBit">输出端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcReadOutbitExtern(int CardNo, int Channel, int NoteID, int IoBit, ref ushort IoValue)
+        public int NmcReadOutbitExtern(int cardIndex, int Channel, int noteId, int ioBit, ref ushort ioValue)
         {
-            return LTDMC.nmc_read_outbit_extern((ushort)CardNo, (ushort)Channel, (ushort)NoteID, (ushort)IoBit, ref IoValue);
+            return LTDMC.nmc_read_outbit_extern((ushort)cardIndex, (ushort)Channel, (ushort)noteId, (ushort)ioBit, ref ioValue);
         }
         /// <summary>
         /// 读取指定 EtherCAT 扩展模块的某个输出端口的电平(0：低电平，1：高电平)
@@ -591,9 +591,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="IoBit">输入端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcReadInbitExtern(int CardNo, int Channel, int NoteID, int IoBit, ref ushort IoValue)
+        public int NmcReadInbitExtern(int cardIndex, int Channel, int noteId, int ioBit, ref ushort ioValue)
         {
-            return LTDMC.nmc_read_inbit_extern((ushort)CardNo, (ushort)Channel, (ushort)NoteID, (ushort)IoBit, ref IoValue);
+            return LTDMC.nmc_read_inbit_extern((ushort)cardIndex, (ushort)Channel, (ushort)noteId, (ushort)ioBit, ref ioValue);
         }
 
         /// <summary>
@@ -605,9 +605,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="NodeCnt"></param>
         /// <param name="MasterId"></param>
         /// <returns>错误代码</returns>
-        public int NmcSetCardMasterPara(int CardNo, int PortNum, int Baudrate, int NodeCnt, int MasterId)
+        public int NmcSetCardMasterPara(int cardIndex, int portCount, int baudRate, int nodeCount, int masterId)
         {
-            return LTDMC.nmc_set_master_para((ushort)CardNo, (ushort)PortNum, (ushort)Baudrate, (uint)NodeCnt, (ushort)MasterId);
+            return LTDMC.nmc_set_master_para((ushort)cardIndex, (ushort)portCount, (ushort)baudRate, (uint)nodeCount, (ushort)masterId);
         }
 
         /// <summary>
@@ -619,18 +619,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="NodeCnt"></param>
         /// <param name="MasterId"></param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardMasterPara(int CardNo, int PortNum, ref ushort Baudrate, ref uint NodeCnt, ref ushort MasterId)
+        public int NmcGetCardMasterPara(int cardIndex, int portCount, ref ushort baudRate, ref uint nodeCount, ref ushort masterId)
         {
-            return LTDMC.nmc_get_master_para((ushort)CardNo, (ushort)PortNum, ref Baudrate, ref NodeCnt, ref MasterId);
+            return LTDMC.nmc_get_master_para((ushort)cardIndex, (ushort)portCount, ref baudRate, ref nodeCount, ref masterId);
         }
 
         /// <summary>
         /// 获取发布版本号（适用于DMC3000/DMC5X10系列脉冲卡、EtherCAT总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcGetCardReleaseVersion(ushort CardNo, byte[] ReleaseVersion)
+        public int DmcGetCardReleaseVersion(ushort cardIndex, byte[] ReleaseVersion)
         {
-            return LTDMC.dmc_get_release_version(CardNo, ReleaseVersion);
+            return LTDMC.dmc_get_release_version(cardIndex, ReleaseVersion);
         }
 
         /// <summary>
@@ -646,27 +646,27 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// 控制卡热复位（适用于EtherCAT、RTEX总线卡）  
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcCardSoftReset(ushort CardNo)
+        public int DmcCardSoftReset(ushort cardIndex)
         {
-            return LTDMC.dmc_soft_reset(CardNo);
+            return LTDMC.dmc_soft_reset(cardIndex);
         }
 
         /// <summary>
         /// 控制卡冷复位（适用于所有脉冲/总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcCardCoolReset(ushort CardNo)
+        public int DmcCardCoolReset(ushort cardIndex)
         {
-            return LTDMC.dmc_cool_reset(CardNo);
+            return LTDMC.dmc_cool_reset(cardIndex);
         }
 
         /// <summary>
         /// 控制卡初始复位（适用于EtherCAT总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcCardOriginalReset(ushort CardNo)
+        public int DmcCardOriginalReset(ushort cardIndex)
         {
-            return LTDMC.dmc_original_reset(CardNo);
+            return LTDMC.dmc_original_reset(cardIndex);
         }
 
         /// <summary>
@@ -676,9 +676,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Fieldbustype">  EtherCAT 端口号，固定为 2</param>
         /// <param name="CycleTime">CAT 总线循环周期，单位：us，支持 250/500/1000/</param>
         /// <returns></returns>
-        public int NmcSetCardCycleTime(int CardNo, int FieldbusType, int CycleTime)
+        public int NmcSetCardCycleTime(int cardIndex, int fieldbusType, int CycleTime)
         {
-            return LTDMC.nmc_set_cycletime((ushort)CardNo, (ushort)FieldbusType, CycleTime);
+            return LTDMC.nmc_set_cycletime((ushort)cardIndex, (ushort)fieldbusType, CycleTime);
         }
 
         /// <summary>
@@ -686,9 +686,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns></returns>
-        public int DmcClearCardErrCode(int CardNo)
+        public int DmcClearCardErrCode(int cardIndex)
         {
-            return LTDMC.nmc_clear_errcode((ushort)CardNo, 2);
+            return LTDMC.nmc_clear_errcode((ushort)cardIndex, 2);
         }
 
         /// <summary>
@@ -699,9 +699,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="org_logic"></param>
         /// <param name="filter"></param>
         /// <returns></returns>
-        public int NmcSetCardAxisHomeMove(int CardNo, int axis, int org_logic, double filter)
+        public int NmcSetCardAxisHomeMove(int cardIndex, int axis, int org_logic, double filter)
         {
-            return LTDMC.dmc_set_home_pin_logic((ushort)CardNo, (ushort)axis, (ushort)org_logic, filter);
+            return LTDMC.dmc_set_home_pin_logic((ushort)cardIndex, (ushort)axis, (ushort)org_logic, filter);
         }
 
         /// <summary>
@@ -712,9 +712,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="org_logic"></param>
         /// <param name="filter"></param>
         /// <returns></returns>
-        public int NmcGetCardAxisHomeMove(int CardNo, int axis, ref UInt16 org_logic, ref double filter)
+        public int NmcGetCardAxisHomeMove(int cardIndex, int axis, ref UInt16 org_logic, ref double filter)
         {
-            return LTDMC.dmc_get_home_pin_logic((ushort)CardNo, (ushort)axis, ref org_logic, ref filter);
+            return LTDMC.dmc_get_home_pin_logic((ushort)cardIndex, (ushort)axis, ref org_logic, ref filter);
         }
 
 
@@ -724,9 +724,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns></returns>
-        public int DmcCardAxisHomeMove(int CardNo, int axis)
+        public int DmcCardAxisHomeMove(int cardIndex, int axis)
         {
-            return LTDMC.dmc_home_move((ushort)CardNo, (ushort)axis);
+            return LTDMC.dmc_home_move((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -739,9 +739,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="mode"></param>
         /// <param name="EZ_count"></param>
         /// <returns></returns>
-        public int DmcSetCardAxisHomeMode(int CardNo, int axis, int home_dir, double vel, int mode, int EZ_count)
+        public int DmcSetCardAxisHomeMode(int cardIndex, int axis, int home_dir, double vel, int mode, int ezCount)
         {
-            return LTDMC.dmc_set_homemode((ushort)CardNo, (ushort)axis, (ushort)home_dir, vel, (ushort)mode, (ushort)EZ_count);
+            return LTDMC.dmc_set_homemode((ushort)cardIndex, (ushort)axis, (ushort)home_dir, vel, (ushort)mode, (ushort)ezCount);
         }
 
         /// <summary>
@@ -750,13 +750,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns></returns>
-        public int DmcGetCardAxisHomeMode(int CardNo, int axis)
+        public int DmcGetCardAxisHomeMode(int cardIndex, int axis)
         {
             UInt16 home_dir = 0;
             double vel = 0;
             UInt16 home_mod = 0;
-            UInt16 EZ_count = 0;
-            return LTDMC.dmc_get_homemode((ushort)CardNo, (ushort)axis, ref home_dir, ref vel, ref home_mod, ref EZ_count);
+            UInt16 ezCount = 0;
+            return LTDMC.dmc_get_homemode((ushort)cardIndex, (ushort)axis, ref home_dir, ref vel, ref home_mod, ref ezCount);
         }
 
         /// <summary>
@@ -766,9 +766,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Axis">轴编号</param>
         /// <param name="Enable">是否反找</param>
         /// <returns></returns>
-        public int DmcSetCardHomeELReturn(int CardNo, int Axis, int Enable)
+        public int DmcSetCardHomeELReturn(int cardIndex, int Axis, int Enable)
         {
-            return LTDMC.dmc_set_home_el_return((ushort)CardNo, (ushort)Axis, (ushort)Enable);
+            return LTDMC.dmc_set_home_el_return((ushort)cardIndex, (ushort)Axis, (ushort)Enable);
         }
 
         /// <summary>
@@ -778,9 +778,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Axis">轴编号</param>
         /// <param name="Enable">是否反找</param>
         /// <returns></returns>
-        public int DmcGetCardHomeELReturn(int CardNo, int Axis, ref UInt16 Enable)
+        public int DmcGetCardHomeELReturn(int cardIndex, int Axis, ref UInt16 Enable)
         {
-            return LTDMC.dmc_get_home_el_return((ushort)CardNo, (ushort)Axis, ref Enable);
+            return LTDMC.dmc_get_home_el_return((ushort)cardIndex, (ushort)Axis, ref Enable);
         }
 
         /// <summary>
@@ -793,9 +793,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Tacc">总加速时间</param>
         /// <param name="Tdec">总减速时间</param>
         /// <returns></returns>
-        public int DmcSetCardHomeProfileUnit(int CardNo, int Axis, double Low_Vel, double High_Vel, double Tacc, double Tdec)
+        public int DmcSetCardHomeProfileUnit(int cardIndex, int Axis, double Low_Vel, double High_Vel, double acceleration, double deceleration)
         {
-            return LTDMC.dmc_set_home_profile_unit((ushort)CardNo, (ushort)Axis, Low_Vel, High_Vel, Tacc, Tdec);
+            return LTDMC.dmc_set_home_profile_unit((ushort)cardIndex, (ushort)Axis, Low_Vel, High_Vel, acceleration, deceleration);
         }
 
         /// <summary>
@@ -808,9 +808,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Tacc">总加速时间</param>
         /// <param name="Tdec">总减速时间</param>
         /// <returns></returns>
-        public int DmcGetCardHomeProfileUnit(int CardNo, int Axis, ref double Low_Vel, ref double High_Vel, ref double Tacc, ref double Tdec)
+        public int DmcGetCardHomeProfileUnit(int cardIndex, int Axis, ref double Low_Vel, ref double High_Vel, ref double acceleration, ref double deceleration)
         {
-            return LTDMC.dmc_get_home_profile_unit((ushort)CardNo, (ushort)Axis, ref Low_Vel, ref High_Vel, ref Tacc, ref Tdec);
+            return LTDMC.dmc_get_home_profile_unit((ushort)cardIndex, (ushort)Axis, ref Low_Vel, ref High_Vel, ref acceleration, ref deceleration);
         }
 
         /// <summary>
@@ -820,9 +820,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Axis">轴号</param>
         /// <param name="state">状态结果</param>
         /// <returns></returns>
-        public int DmcGetCardHomeResult(int CardNo, int Axis, ref UInt16 state)
+        public int DmcGetCardHomeResult(int cardIndex, int Axis, ref UInt16 state)
         {
-            return LTDMC.dmc_get_home_result((ushort)CardNo, (ushort)Axis, ref state);
+            return LTDMC.dmc_get_home_result((ushort)cardIndex, (ushort)Axis, ref state);
         }
 
         /// <summary>
@@ -830,9 +830,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// </summary>
         /// <param name="CardNo"></param>
         /// <returns></returns>
-        public int DmcGetTotalLiners(int CardNo, uint totleLiners)
+        public int DmcGetTotalLiners(int cardIndex, uint totleLiners)
         {
-            return LTDMC.dmc_get_total_liners((ushort)CardNo, ref totleLiners);
+            return LTDMC.dmc_get_total_liners((ushort)cardIndex, ref totleLiners);
         }
 
         /// <summary>
@@ -845,9 +845,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="PathError"></param>
         /// <param name="LookaheadAcc"></param>
         /// <returns></returns>
-        public int DmcSetCardContiLookaheadMode(int CardNo, int Crd, int enable, int LookaheadSegments, double PathError, double LookaheadAcc)
+        public int DmcSetCardContiLookaheadMode(int cardIndex, int crdIndex, int enable, int LookaheadSegments, double PathError, double LookaheadAcc)
         {
-            return LTDMC.dmc_conti_set_lookahead_mode((ushort)CardNo, (ushort)Crd, (ushort)enable, (ushort)LookaheadSegments, PathError, LookaheadAcc);
+            return LTDMC.dmc_conti_set_lookahead_mode((ushort)cardIndex, (ushort)crdIndex, (ushort)enable, (ushort)LookaheadSegments, PathError, LookaheadAcc);
         }
 
         /// <summary>
@@ -856,9 +856,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="Crd">坐标系号，取值范围：0~5</param>
         /// <returns></returns>
-        public int DmcGetCardContiLookaheadMode(int CardNo, int Crd, ref ushort enable, ref int LookaheadSegments, ref double PathError, ref double LookaheadAcc)
+        public int DmcGetCardContiLookaheadMode(int cardIndex, int crdIndex, ref ushort enable, ref int LookaheadSegments, ref double PathError, ref double LookaheadAcc)
         {
-            return LTDMC.dmc_conti_get_lookahead_mode((ushort)CardNo, (ushort)Crd, ref enable, ref LookaheadSegments, ref PathError, ref LookaheadAcc);
+            return LTDMC.dmc_conti_get_lookahead_mode((ushort)cardIndex, (ushort)crdIndex, ref enable, ref LookaheadSegments, ref PathError, ref LookaheadAcc);
         }
 
         /// <summary>
@@ -869,9 +869,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">轴编号</param>
         /// <param name="AxisNums">轴号数组</param>
         /// <returns></returns>
-        public int DmcOpenCardContiList(int CardNo, int Crd, int axis, UInt16[] AxisNums)
+        public int DmcOpenCardContiList(int cardIndex, int crdIndex, int axis, UInt16[] axisNumbers)
         {
-            return LTDMC.dmc_conti_open_list((ushort)CardNo, (ushort)Crd, (ushort)axis, AxisNums);
+            return LTDMC.dmc_conti_open_list((ushort)cardIndex, (ushort)crdIndex, (ushort)axis, axisNumbers);
         }
 
         /// <summary>
@@ -880,9 +880,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="Crd">坐标系号，取值范围：0~5</param>
         /// <returns></returns>
-        public int DmcCardContiStartList(int CardNo, int Crd)
+        public int DmcCardContiStartList(int cardIndex, int crdIndex)
         {
-            return LTDMC.dmc_conti_start_list((ushort)CardNo, (ushort)Crd);
+            return LTDMC.dmc_conti_start_list((ushort)cardIndex, (ushort)crdIndex);
         }
 
         /// <summary>
@@ -892,9 +892,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">轴号 </param>
         /// <param name="enable">螺距补偿：开启\关闭</param>
         /// <returns></returns>
-        public int DmcSetCardLeadScrewCompEnable(int CardNo, int axis, int enable)
+        public int DmcSetCardLeadScrewCompEnable(int cardIndex, int axis, int enable)
         {
-            return LTDMC.dmc_enable_leadscrew_comp((ushort)CardNo, (ushort)axis, (ushort)enable);
+            return LTDMC.dmc_enable_leadscrew_comp((ushort)cardIndex, (ushort)axis, (ushort)enable);
         }
 
         /// <summary>
@@ -908,9 +908,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="pCompPos"></param>
         /// <param name="pCompNeg"></param>
         /// <returns></returns>
-        public int DmcSetCardLeadScrewCompConfig(int CardNo, int axis, int n, int startpos, int lenpos, int[] pCompPos, int[] pCompNeg)
+        public int DmcSetCardLeadScrewCompConfig(int cardIndex, int axis, int n, int startpos, int lenpos, int[] pCompPos, int[] pCompNeg)
         {
-            return LTDMC.dmc_set_leadscrew_comp_config((ushort)CardNo, (ushort)axis, (ushort)n, startpos, lenpos, pCompPos, pCompNeg);
+            return LTDMC.dmc_set_leadscrew_comp_config((ushort)cardIndex, (ushort)axis, (ushort)n, startpos, lenpos, pCompPos, pCompNeg);
         }
 
         /// <summary>
@@ -924,9 +924,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="pCompPos"></param>
         /// <param name="pCompNeg"></param>
         /// <returns></returns>
-        public int DmcGetCardLeadScrewCompConfig(int CardNo, int axis, ref ushort n, ref int startpos, ref int lenpos, int[] pCompPos, int[] pCompNeg)
+        public int DmcGetCardLeadScrewCompConfig(int cardIndex, int axis, ref ushort n, ref int startpos, ref int lenpos, int[] pCompPos, int[] pCompNeg)
         {
-            return LTDMC.dmc_get_leadscrew_comp_config((ushort)CardNo, (ushort)axis, ref n, ref startpos, ref lenpos, pCompPos, pCompNeg);
+            return LTDMC.dmc_get_leadscrew_comp_config((ushort)cardIndex, (ushort)axis, ref n, ref startpos, ref lenpos, pCompPos, pCompNeg);
         }
 
         /// <summary>
@@ -937,9 +937,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">轴编号</param>
         /// <param name="runmode">运动模式</param>
         /// <returns>short类型值</returns>
-        public int NmcSetCardAxisRunMode(int CardNo, int axis, ushort runmode)
+        public int NmcSetCardAxisRunMode(int cardIndex, int axis, ushort runmode)
         {
-            return LTDMC.nmc_set_axis_run_mode((ushort)CardNo, (ushort)axis, runmode);
+            return LTDMC.nmc_set_axis_run_mode((ushort)cardIndex, (ushort)axis, runmode);
         }
 
         /// <summary>
@@ -948,9 +948,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo"></param>
         /// <param name="axis"></param>
         /// <returns>ushort错误编号</returns>
-        public int NmcGetCardAxisErrCode(int CardNo, int axis, ref ushort errcode)
+        public int NmcGetCardAxisErrCode(int cardIndex, int axis, ref ushort errcode)
         {
-            return LTDMC.nmc_get_axis_errcode((ushort)CardNo, (ushort)axis, ref errcode);
+            return LTDMC.nmc_get_axis_errcode((ushort)cardIndex, (ushort)axis, ref errcode);
         }
 
         /// <summary>
@@ -959,9 +959,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴轴号</param>
         /// <returns></returns>
-        public int NmcClearCardAxisErrCode(int CardNo, int axis)
+        public int NmcClearCardAxisErrCode(int cardIndex, int axis)
         {
-            return LTDMC.nmc_clear_axis_errcode((ushort)CardNo, (ushort)axis);
+            return LTDMC.nmc_clear_axis_errcode((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -970,9 +970,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="PortNum">端口号</param>
         /// <returns></returns>
-        public int NmcClearCardAlarmFieldbus(int CardNo, int PortNum)
+        public int NmcClearCardAlarmFieldbus(int cardIndex, int portCount)
         {
-            return LTDMC.nmc_clear_alarm_fieldbus((ushort)CardNo, (ushort)PortNum);
+            return LTDMC.nmc_clear_alarm_fieldbus((ushort)cardIndex, (ushort)portCount);
         }
 
         /// <summary>
@@ -982,9 +982,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="pos">1：队列模式下：添加比较位置，单位：pulse | 2：线性模式下：更新起始比较位置，单位：pulse | 3：其他模式下：更新比较位置，单位：pulse</param>
         /// <returns></returns>
-        public int DmcAddCardHcmpPoints(int CardNo, int hcmp, double cmp_pos)
+        public int DmcAddCardHcmpPoints(int cardIndex, int hcmp, double cmp_pos)
         {
-            return LTDMC.dmc_hcmp_add_point_unit((ushort)CardNo, (ushort)hcmp, cmp_pos);
+            return LTDMC.dmc_hcmp_add_point_unit((ushort)cardIndex, (ushort)hcmp, cmp_pos);
         }
 
         /// <summary>
@@ -994,9 +994,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">   比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns></returns>
-        public int DmcSetCardCompareConfigExtern(int CardNo, int enable, int cmp_source)
+        public int DmcSetCardCompareConfigExtern(int cardIndex, int enable, int cmp_source)
         {
-            return LTDMC.dmc_compare_set_config_extern((ushort)CardNo, (ushort)enable, (ushort)cmp_source);
+            return LTDMC.dmc_compare_set_config_extern((ushort)cardIndex, (ushort)enable, (ushort)cmp_source);
         }
 
         /// <summary>
@@ -1006,9 +1006,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">   比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns></returns>
-        public int DmcGetCardCompareConfigExtern(int CardNo, ref ushort enable, ref ushort cmp_source)
+        public int DmcGetCardCompareConfigExtern(int cardIndex, ref ushort enable, ref ushort cmp_source)
         {
-            return LTDMC.dmc_compare_get_config_extern((ushort)CardNo, ref enable, ref cmp_source);
+            return LTDMC.dmc_compare_get_config_extern((ushort)cardIndex, ref enable, ref cmp_source);
         }
 
         /// <summary>
@@ -1021,9 +1021,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="action">设置触发功能（为 IO 电平取反）</param>
         /// <param name="actpara">设置输出 IO 端口 (0 触发功能)</param>
         /// <returns></returns>
-        public int DmcAddCardComparePointsExtern(int CardNo, UInt16[] axis, int[] pos, UInt16[] dir, int action, int actpara)
+        public int DmcAddCardComparePointsExtern(int cardIndex, UInt16[] axis, int[] pos, UInt16[] dir, int action, int actpara)
         {
-            return LTDMC.dmc_compare_add_point_extern((ushort)CardNo, axis, pos, dir, (ushort)action, (uint)actpara);
+            return LTDMC.dmc_compare_add_point_extern((ushort)cardIndex, axis, pos, dir, (ushort)action, (uint)actpara);
         }
 
         /// <summary>
@@ -1032,9 +1032,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="pos"></param>
         /// <returns></returns>
-        public int DmcGetCardCompareCurrentPointsExtern(int CardNo, int[] pos = null)
+        public int DmcGetCardCompareCurrentPointsExtern(int cardIndex, int[] pos = null)
         {
-            return LTDMC.dmc_compare_get_current_point_extern((ushort)CardNo, pos);
+            return LTDMC.dmc_compare_get_current_point_extern((ushort)cardIndex, pos);
         }
 
         /// <summary>
@@ -1042,9 +1042,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns></returns>
-        public int DmcGetCardCompareRunnedPointsExtern(int CardNo, ref int pointNum)
+        public int DmcGetCardCompareRunnedPointsExtern(int cardIndex, ref int pointNum)
         {
-            return LTDMC.dmc_compare_get_points_runned_extern((ushort)CardNo, ref pointNum);
+            return LTDMC.dmc_compare_get_points_runned_extern((ushort)cardIndex, ref pointNum);
         }
 
         /// <summary>
@@ -1052,9 +1052,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns></returns>
-        public int DmcClearCardComparePoints(int CardNo)
+        public int DmcClearCardComparePoints(int cardIndex)
         {
-            return LTDMC.dmc_compare_clear_points_extern((ushort)CardNo);
+            return LTDMC.dmc_compare_clear_points_extern((ushort)cardIndex);
         }
 
         /// <summary>
@@ -1064,9 +1064,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="enable">比较功能状态，0：禁止，1：使能</param>
         /// <returns></returns>
-        public int DmcSetCardHcmp2DEnable(int CardNo, int hcmp, int enable)
+        public int DmcSetCardHcmp2DEnable(int cardIndex, int hcmp, int enable)
         {
-            return LTDMC.dmc_hcmp_2d_set_enable((ushort)CardNo, (ushort)hcmp, (ushort)enable);
+            return LTDMC.dmc_hcmp_2d_set_enable((ushort)cardIndex, (ushort)hcmp, (ushort)enable);
         }
 
         /// <summary>
@@ -1076,9 +1076,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DEnable(int CardNo, int hcmp, ref ushort enable)
+        public int DmcGetCardHcmp2DEnable(int cardIndex, int hcmp, ref ushort enable)
         {
-            return LTDMC.dmc_hcmp_2d_get_enable((ushort)CardNo, (ushort)hcmp, ref enable);
+            return LTDMC.dmc_hcmp_2d_get_enable((ushort)cardIndex, (ushort)hcmp, ref enable);
         }
 
         /// <summary>
@@ -1100,9 +1100,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="port_sel">端口</param>
         /// <param name="pwm_number"> 输出的 pwm 脉冲数</param>
         /// <returns></returns>
-        public int DmcSetCardHcmp2DConfig(int CardNo, int hcmp, int cmp_mode, int x_axis, int x_cmp_source, int y_axis, int y_cmp_source, int error, int cmp_logic, int time, int pwm_enable, double duty, int freq, int port_sel, int pwm_number)
+        public int DmcSetCardHcmp2DConfig(int cardIndex, int hcmp, int cmp_mode, int x_axis, int x_cmp_source, int y_axis, int y_cmp_source, int error, int cmp_logic, int time, int pwm_enable, double duty, int freq, int port_sel, int pwm_number)
         {
-            return LTDMC.dmc_hcmp_2d_set_config((ushort)CardNo, (ushort)hcmp, (ushort)cmp_mode, (ushort)x_axis, (ushort)x_cmp_source, (ushort)y_axis, (ushort)y_cmp_source, error, (ushort)cmp_logic, time, (ushort)pwm_enable, duty, freq, (ushort)port_sel, (ushort)pwm_number);
+            return LTDMC.dmc_hcmp_2d_set_config((ushort)cardIndex, (ushort)hcmp, (ushort)cmp_mode, (ushort)x_axis, (ushort)x_cmp_source, (ushort)y_axis, (ushort)y_cmp_source, error, (ushort)cmp_logic, time, (ushort)pwm_enable, duty, freq, (ushort)port_sel, (ushort)pwm_number);
         }
 
         /// <summary>
@@ -1124,9 +1124,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="port_sel"></param>
         /// <param name="pwm_number"></param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DConfig(int CardNo, int hcmp, ref ushort cmp_mode, ref ushort x_axis, ref ushort x_cmp_source, ref ushort y_axis, ref ushort y_cmp_source, ref int error, ref ushort cmp_logic, ref int time, ref ushort pwm_enable, ref double duty, ref int freq, ref ushort port_sel, ref ushort pwm_number)
+        public int DmcGetCardHcmp2DConfig(int cardIndex, int hcmp, ref ushort cmp_mode, ref ushort x_axis, ref ushort x_cmp_source, ref ushort y_axis, ref ushort y_cmp_source, ref int error, ref ushort cmp_logic, ref int time, ref ushort pwm_enable, ref double duty, ref int freq, ref ushort port_sel, ref ushort pwm_number)
         {
-            return LTDMC.dmc_hcmp_2d_get_config((ushort)CardNo, (ushort)hcmp, ref cmp_mode, ref x_axis, ref x_cmp_source, ref y_axis, ref y_cmp_source, ref error, ref cmp_logic, ref time, ref pwm_enable, ref duty, ref freq, ref port_sel, ref pwm_number);
+            return LTDMC.dmc_hcmp_2d_get_config((ushort)cardIndex, (ushort)hcmp, ref cmp_mode, ref x_axis, ref x_cmp_source, ref y_axis, ref y_cmp_source, ref error, ref cmp_logic, ref time, ref pwm_enable, ref duty, ref freq, ref port_sel, ref pwm_number);
         }
 
         /// <summary>
@@ -1144,9 +1144,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="cmp_logic">    有效电平：0：低电平，1：高电</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us-20s </param>
         /// <returns></returns>
-        public int DmcSetCardHcmp2DConfig(int CardNo, int hcmp, int cmp_mode, int x_axis, int x_cmp_source, double x_cmp_error, int y_axis, int y_cmp_source, double y_cmp_error, int cmp_logic, int time)
+        public int DmcSetCardHcmp2DConfig(int cardIndex, int hcmp, int cmp_mode, int x_axis, int x_cmp_source, double x_cmp_error, int y_axis, int y_cmp_source, double y_cmp_error, int cmp_logic, int time)
         {
-            return LTDMC.dmc_hcmp_2d_set_config_unit((ushort)CardNo, (ushort)hcmp, (ushort)cmp_mode, (ushort)x_axis, (ushort)x_cmp_source, (ushort)x_cmp_error, (ushort)y_axis, (ushort)y_cmp_source, y_cmp_error, (ushort)cmp_logic, time);
+            return LTDMC.dmc_hcmp_2d_set_config_unit((ushort)cardIndex, (ushort)hcmp, (ushort)cmp_mode, (ushort)x_axis, (ushort)x_cmp_source, (ushort)x_cmp_error, (ushort)y_axis, (ushort)y_cmp_source, y_cmp_error, (ushort)cmp_logic, time);
         }
 
         /// <summary>
@@ -1164,9 +1164,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="cmp_logic">    有效电平：0：低电平，1：高电</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us-20s </param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DConfig(int CardNo, int hcmp, ref ushort cmp_mode, ref ushort x_axis, ref ushort x_cmp_source, ref double x_cmp_error, ref ushort y_axis, ref ushort y_cmp_source, ref double y_cmp_error, ref ushort cmp_logic, ref int time)
+        public int DmcGetCardHcmp2DConfig(int cardIndex, int hcmp, ref ushort cmp_mode, ref ushort x_axis, ref ushort x_cmp_source, ref double x_cmp_error, ref ushort y_axis, ref ushort y_cmp_source, ref double y_cmp_error, ref ushort cmp_logic, ref int time)
         {
-            return LTDMC.dmc_hcmp_2d_get_config_unit((ushort)CardNo, (ushort)hcmp, ref cmp_mode, ref x_axis, ref x_cmp_source, ref x_cmp_error, ref y_axis, ref y_cmp_source, ref y_cmp_error, ref cmp_logic, ref time);
+            return LTDMC.dmc_hcmp_2d_get_config_unit((ushort)cardIndex, (ushort)hcmp, ref cmp_mode, ref x_axis, ref x_cmp_source, ref x_cmp_error, ref y_axis, ref y_cmp_source, ref y_cmp_error, ref cmp_logic, ref time);
         }
 
         /// <summary>
@@ -1177,9 +1177,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="x_cmp_pos"> 队列模式下：添加 x 比较位置，单位：unit </param>
         /// <param name="y_cmp_pos">队列模式下：添加 x 比较位置，单位：unit  </param>
         /// <returns></returns>
-        public int DmcAddCardHcmp2DPoint(int CardNo, int hcmp, int x_cmp_pos, int y_cmp_pos)
+        public int DmcAddCardHcmp2DPoint(int cardIndex, int hcmp, int x_cmp_pos, int y_cmp_pos)
         {
-            return LTDMC.dmc_hcmp_2d_add_point((ushort)CardNo, (ushort)hcmp, (ushort)x_cmp_pos, (ushort)y_cmp_pos);
+            return LTDMC.dmc_hcmp_2d_add_point((ushort)cardIndex, (ushort)hcmp, (ushort)x_cmp_pos, (ushort)y_cmp_pos);
         }
 
         /// <summary>
@@ -1191,9 +1191,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="y_cmp_pos">队列模式下：添加 x 比较位置，单位：unit  </param>
         /// <param name="cmp_outbit">输出口号 </param>
         /// <returns></returns>
-        public int DmcAddCardHcmp2DPointUnit(int CardNo, int hcmp, double x_cmp_pos, double y_cmp_pos, int cmp_outbit)
+        public int DmcAddCardHcmp2DPointUnit(int cardIndex, int hcmp, double x_cmp_pos, double y_cmp_pos, int cmp_outbit)
         {
-            return LTDMC.dmc_hcmp_2d_add_point_unit((ushort)CardNo, (ushort)hcmp, x_cmp_pos, y_cmp_pos, (ushort)cmp_outbit);
+            return LTDMC.dmc_hcmp_2d_add_point_unit((ushort)cardIndex, (ushort)hcmp, x_cmp_pos, y_cmp_pos, (ushort)cmp_outbit);
         }
 
         /// <summary>
@@ -1207,9 +1207,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="runned_points">返回已比较点数</param>
         /// <param name="current_state">比较器状态 1 正在输出 0 输出完成</param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DCurrentState(int CardNo, int hcmp, ref int remained_points, ref int x_current_point, ref int y_current_point, ref int runned_points, ref UInt16 current_state)
+        public int DmcGetCardHcmp2DCurrentState(int cardIndex, int hcmp, ref int remained_points, ref int x_current_point, ref int y_current_point, ref int runned_points, ref UInt16 current_state)
         {
-            return LTDMC.dmc_hcmp_2d_get_current_state((ushort)CardNo, (ushort)hcmp, ref remained_points, ref x_current_point, ref y_current_point, ref runned_points, ref current_state);
+            return LTDMC.dmc_hcmp_2d_get_current_state((ushort)cardIndex, (ushort)hcmp, ref remained_points, ref x_current_point, ref y_current_point, ref runned_points, ref current_state);
         }
 
         /// <summary>
@@ -1224,9 +1224,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="current_state">比较器状态 1 正在输出 0 输出完成</param>
         /// <param name="current_outbit">返回当前输出口 </param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DCurrentStateUnit(int CardNo, int hcmp, ref int remained_points, ref double x_current_point, ref double y_current_point, ref Int32 runned_points, ref UInt16 current_state, ref UInt16 current_outbit)
+        public int DmcGetCardHcmp2DCurrentStateUnit(int cardIndex, int hcmp, ref int remained_points, ref double x_current_point, ref double y_current_point, ref Int32 runned_points, ref UInt16 current_state, ref UInt16 current_outbit)
         {
-            return LTDMC.dmc_hcmp_2d_get_current_state_unit((ushort)CardNo, (ushort)hcmp, ref remained_points, ref x_current_point, ref y_current_point, ref runned_points, ref current_state, ref current_outbit);
+            return LTDMC.dmc_hcmp_2d_get_current_state_unit((ushort)cardIndex, (ushort)hcmp, ref remained_points, ref x_current_point, ref y_current_point, ref runned_points, ref current_state, ref current_outbit);
         }
 
         /// <summary>
@@ -1236,9 +1236,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="hcmp">保留，参数值为 0 </param>
         /// <param name="cmp_outbit">强制二维比较输出，设置为1使能</param>
         /// <returns></returns>
-        public int DmcCardHcmp2DForceOutPut(int CardNo, int hcmp, int cmp_outbit)
+        public int DmcCardHcmp2DForceOutput(int cardIndex, int hcmp, int cmp_outbit)
         {
-            return LTDMC.dmc_hcmp_2d_force_output((ushort)CardNo, (ushort)hcmp, (ushort)cmp_outbit);
+            return LTDMC.dmc_hcmp_2d_force_output((ushort)cardIndex, (ushort)hcmp, (ushort)cmp_outbit);
         }
 
         /// <summary>
@@ -1251,9 +1251,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="freq">读取频率</param>
         /// <param name="pwm_number">读取输出的 pwm 脉冲数 </param>
         /// <returns>二维比较PWM输出模式</returns>
-        public int DmcSetCardHcmp2DPWMOutPut(int CardNo, int hcmp, int pwm_enable, double duty, double freq, int pwm_number)
+        public int DmcSetCardHcmp2DPWMOutput(int cardIndex, int hcmp, int pwm_enable, double duty, double freq, int pwm_number)
         {
-            return LTDMC.dmc_hcmp_2d_set_pwmoutput((ushort)CardNo, (ushort)hcmp, (ushort)pwm_enable, duty, freq, (ushort)pwm_number);
+            return LTDMC.dmc_hcmp_2d_set_pwmoutput((ushort)cardIndex, (ushort)hcmp, (ushort)pwm_enable, duty, freq, (ushort)pwm_number);
         }
 
         /// <summary>
@@ -1266,9 +1266,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="freq">读取频率</param>
         /// <param name="pwm_number">读取输出的 pwm 脉冲数 </param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DPWMOutPut(int CardNo, int hcmp, ref UInt16 pwm_enable, ref double duty, ref double freq, ref UInt16 pwm_number)
+        public int DmcGetCardHcmp2DPWMOutput(int cardIndex, int hcmp, ref UInt16 pwm_enable, ref double duty, ref double freq, ref UInt16 pwm_number)
         {
-            return LTDMC.dmc_hcmp_2d_get_pwmoutput((ushort)CardNo, (ushort)hcmp, ref pwm_enable, ref duty, ref freq, ref pwm_number);
+            return LTDMC.dmc_hcmp_2d_get_pwmoutput((ushort)cardIndex, (ushort)hcmp, ref pwm_enable, ref duty, ref freq, ref pwm_number);
         }
 
 
@@ -1278,9 +1278,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">高速比较器号</param>
         /// <returns></returns>
-        public int DmcClearCardHcmp2DPoints(int CardNo, int hcmp)
+        public int DmcClearCardHcmp2DPoints(int cardIndex, int hcmp)
         {
-            return LTDMC.dmc_hcmp_2d_clear_points((ushort)CardNo, (ushort)hcmp);
+            return LTDMC.dmc_hcmp_2d_clear_points((ushort)cardIndex, (ushort)hcmp);
         }
 
 
@@ -1335,18 +1335,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns></returns>
-        public int DmcGetCardVersion(ushort CardNo, ref UInt32 CardVersion)
+        public int DmcGetCardVersion(ushort cardIndex, ref UInt32 CardVersion)
         {
-            return LTDMC.dmc_get_card_version(CardNo, ref CardVersion);
+            return LTDMC.dmc_get_card_version(cardIndex, ref CardVersion);
 
         }
         /// <summary>
         /// 获取控制卡固件版本号（适用于所有脉冲/总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcGetCardSoftVersion(ushort CardNo, ref uint FirmID, ref uint SubFirmID)
+        public int DmcGetCardSoftVersion(ushort cardIndex, ref uint FirmID, ref uint SubFirmID)
         {
-            return LTDMC.dmc_get_card_soft_version(CardNo, ref FirmID, ref SubFirmID);
+            return LTDMC.dmc_get_card_soft_version(cardIndex, ref FirmID, ref SubFirmID);
         }
 
         /// <summary>
@@ -1363,9 +1363,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// 获取指定卡轴数（适用于所有脉冲卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcGetCardTotalAxes(ushort CardNo, ref UInt32 TotalAxis)
+        public int DmcGetCardTotalAxes(ushort cardIndex, ref UInt32 totalAxisCount)
         {
-            return LTDMC.dmc_get_total_axes(CardNo, ref TotalAxis);
+            return LTDMC.dmc_get_total_axes(cardIndex, ref totalAxisCount);
         }
 
         /// <summary>
@@ -1374,9 +1374,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="ConfigName">参数文件名，默认"AxisPara.ini"</param>
         /// <returns>错误代码</returns>
-        public int GetCardDownloadConfigfile(int CardNo, string ConfigName = "AxisPara.ini")
+        public int GetCardDownloadConfigfile(int cardIndex, string ConfigName = "AxisPara.ini")
         {
-            return LTDMC.dmc_download_configfile((ushort)CardNo, ConfigName);
+            return LTDMC.dmc_download_configfile((ushort)cardIndex, ConfigName);
         }
 
         /// <summary>
@@ -1387,9 +1387,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="fileincontrol">文件名（保留参数）</param>
         /// <param name="filetype">文件类型</param>
         /// <returns>错误代码</returns>
-        public int GetCardDownloadMemfile(int CardNo, byte[] buffer, byte[] fileincontrol, int filetype)
+        public int GetCardDownloadMemfile(int cardIndex, byte[] buffer, byte[] fileincontrol, int filetype)
         {
-            return LTDMC.dmc_download_memfile((ushort)CardNo, buffer, (uint)buffer.Length, fileincontrol, (ushort)filetype);
+            return LTDMC.dmc_download_memfile((ushort)cardIndex, buffer, (uint)buffer.Length, fileincontrol, (ushort)filetype);
         }
 
         /// <summary>
@@ -1398,9 +1398,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="FileName">文件路径：参数文件名+后缀：相对路径；完整描述参数文件的路径+文件名后缀：绝对路径</param>
         /// <returns></returns>
-        public int DmcGetDownloadFirmware(int CardNo, String FileName)
+        public int DmcGetDownloadFirmware(int cardIndex, String FileName)
         {
-            return LTDMC.dmc_download_firmware((ushort)CardNo, FileName);
+            return LTDMC.dmc_download_firmware((ushort)cardIndex, FileName);
         }
         #endregion
 
@@ -1413,9 +1413,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">轴编号</param>
         /// <param name="equiv">脉冲当量，单位：pulse/unit</param>
         /// <returns>short类型值</returns>
-        public int DmcSetCardAxisEquiv(int CardNo, int axis, double equiv)
+        public int DmcSetCardAxisEquiv(int cardIndex, int axis, double equiv)
         {
-            return LTDMC.dmc_set_equiv((ushort)CardNo, (ushort)axis, equiv);
+            return LTDMC.dmc_set_equiv((ushort)cardIndex, (ushort)axis, equiv);
         }
         /// <summary>
         /// 获取轴的脉冲当量
@@ -1424,9 +1424,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">轴编号</param>
         /// <param name="equiv">脉冲当量，单位：pulse/unit</param>
         /// <returns>脉冲当量</returns>
-        public int DmcGetCardAxisEquiv(int CardNo, int axis, ref double equiv)
+        public int DmcGetCardAxisEquiv(int cardIndex, int axis, ref double equiv)
         {
-            return LTDMC.dmc_get_equiv((ushort)CardNo, (ushort)axis, ref equiv);
+            return LTDMC.dmc_get_equiv((ushort)cardIndex, (ushort)axis, ref equiv);
 
         }
         #endregion
@@ -1439,9 +1439,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns></returns>
-        public int CardNmcAxisNmcHomeMove(int CardNo, int axis)
+        public int CardNmcAxisNmcHomeMove(int cardIndex, int axis)
         {
-            return LTDMC.nmc_home_move((ushort)CardNo, (ushort)axis);
+            return LTDMC.nmc_home_move((ushort)cardIndex, (ushort)axis);
         }
         #endregion
 
@@ -1459,9 +1459,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="N_limit">负限位位置，单位：pulse </param>
         /// <param name="P_limit">正限位位置，单位：pulse</param>
         /// <returns></returns>
-        public int DmcSetCardAxisSoftLimit(int CardNo, int axis, int enable, int source_sel, int SL_action, int N_limit, int P_limit)
+        public int DmcSetCardAxisSoftLimit(int cardIndex, int axis, int enable, int source_sel, int slActionValue, int negativeLimit, int positiveLimit)
         {
-            return LTDMC.dmc_set_softlimit((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)source_sel, (ushort)SL_action, N_limit, P_limit);
+            return LTDMC.dmc_set_softlimit((ushort)cardIndex, (ushort)axis, (ushort)enable, (ushort)source_sel, (ushort)slActionValue, negativeLimit, positiveLimit);
         }
 
         /// <summary>
@@ -1475,9 +1475,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="N_limit">返回负限位脉冲数</param>
         /// <param name="P_limit">返回正限位脉冲数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisSoftLimit(int CardNo, int axis, ref UInt16 enable, ref UInt16 source_sel, ref UInt16 SL_action, ref int N_limit, ref int P_limit)
+        public int DmcGetCardAxisSoftLimit(int cardIndex, int axis, ref UInt16 enable, ref UInt16 source_sel, ref UInt16 slActionValue, ref int negativeLimit, ref int positiveLimit)
         {
-            return LTDMC.dmc_get_softlimit((ushort)CardNo, (ushort)axis, ref enable, ref source_sel, ref SL_action, ref N_limit, ref P_limit);
+            return LTDMC.dmc_get_softlimit((ushort)cardIndex, (ushort)axis, ref enable, ref source_sel, ref slActionValue, ref negativeLimit, ref positiveLimit);
         }
 
         /// <summary>
@@ -1487,9 +1487,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="pos">位置值，单位：unit</param>
         /// <returns></returns>
-        public int DmcSetCardAxisPositionUnit(int CardNo, int axis, double pos)
+        public int DmcSetCardAxisPositionUnit(int cardIndex, int axis, double pos)
         {
-            return LTDMC.dmc_set_position_unit((ushort)CardNo, (ushort)axis, 0);
+            return LTDMC.dmc_set_position_unit((ushort)cardIndex, (ushort)axis, 0);
         }
 
         /// <summary>
@@ -1499,9 +1499,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="pos">返回当前位置值，单位：unit</param>
         /// <returns></returns>
-        public int DmcGetCardAxisPositionUnit(int CardNo, int axis, ref double pos)
+        public int DmcGetCardAxisPositionUnit(int cardIndex, int axis, ref double pos)
         {
-            return LTDMC.dmc_get_position_unit((ushort)CardNo, (ushort)axis, ref pos);
+            return LTDMC.dmc_get_position_unit((ushort)cardIndex, (ushort)axis, ref pos);
         }
 
         #endregion
@@ -1517,9 +1517,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="current_speed">返回速度值，单位：unit/s</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisCurrentSpeedUnit(int CardNo, int axis, ref double current_speed)
+        public int DmcGetCardAxisCurrentSpeedUnit(int cardIndex, int axis, ref double current_speed)
         {
-            return LTDMC.dmc_read_current_speed_unit((ushort)CardNo, (ushort)axis, ref current_speed);
+            return LTDMC.dmc_read_current_speed_unit((ushort)cardIndex, (ushort)axis, ref current_speed);
         }
 
         /// <summary>
@@ -1530,9 +1530,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns>0：指定轴正在运行，1：指定轴已停止</returns>
-        public int DmcGetCardAxisCheckDone(int CardNo, int axis)
+        public int DmcGetCardAxisCheckDone(int cardIndex, int axis)
         {
-            return LTDMC.dmc_check_done((ushort)CardNo, (ushort)axis);
+            return LTDMC.dmc_check_done((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -1543,9 +1543,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">指定控制卡上的坐标系号（取值范围：0~5）</param>
         /// <returns>轴运动状态，0运动中 1空闲</returns>
-        public int DmcGetCardCrdCheckDoneMulticoor(int CardNo, int crd)
+        public int DmcGetCardCrdCheckDoneMulticoor(int cardIndex, int crd)
         {
-            return LTDMC.dmc_check_done_multicoor((ushort)CardNo, (ushort)crd);
+            return LTDMC.dmc_check_done_multicoor((ushort)cardIndex, (ushort)crd);
         }
 
         /*
@@ -1558,9 +1558,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
             返回值：错误代码
         */
 
-        public int DmcSoftltcGetNumber(int CardNo, int latch, int axis, ref int number)
+        public int DmcSoftltcGetNumber(int cardIndex, int latch, int axis, ref int number)
         {
-            return (int)LTDMC.dmc_softltc_get_number((ushort)CardNo, (ushort)latch, (ushort)axis, ref number);
+            return (int)LTDMC.dmc_softltc_get_number((ushort)cardIndex, (ushort)latch, (ushort)axis, ref number);
         }
 
         /// <summary>
@@ -1576,9 +1576,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <para>* 5    SL+ 1：表示正软限位信号+SL为ON； 0：OFF</para> 
         /// <para>* 6    SL- 1：表示负软限位信号-SL为ON； 0：OFF</para> 
         /// </returns>
-        public int DmcGetCardAxisIOState(int CardNo, int axis)
+        public int DmcGetCardAxisIOState(int cardIndex, int axis)
         {
-            return (int)LTDMC.dmc_axis_io_status((ushort)CardNo, (ushort)axis);
+            return (int)LTDMC.dmc_axis_io_status((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -1590,9 +1590,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">轴编号</param>
         /// <param name="stop_mode">制动方式，0：减速停止，1：紧急停止</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisStop(int CardNo, int axis, int stop_mode)
+        public int DmcCardAxisStop(int cardIndex, int axis, int stop_mode)
         {
-            return LTDMC.dmc_stop((ushort)CardNo, (ushort)axis, (ushort)stop_mode);
+            return LTDMC.dmc_stop((ushort)cardIndex, (ushort)axis, (ushort)stop_mode);
         }
 
         /// <summary>
@@ -1604,9 +1604,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="crd">指定控制卡上的坐标系号（取值范围：0~5）</param>
         /// <param name="stop_mode">制动方式，0：减速停止，1：立即停止</param>
         /// <returns>错误代码</returns>
-        public int DmcCardCrdStopMulticoor(int CardNo, int crd, int stop_mode)
+        public int DmcCardCrdStopMulticoor(int cardIndex, int crd, int stop_mode)
         {
-            return LTDMC.dmc_stop_multicoor((ushort)CardNo, (ushort)crd, (ushort)stop_mode);
+            return LTDMC.dmc_stop_multicoor((ushort)cardIndex, (ushort)crd, (ushort)stop_mode);
         }
 
         /// <summary>
@@ -1616,9 +1616,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int CardDmcEmgStop(int CardNo)
+        public int CardDmcEmgStop(int cardIndex)
         {
-            return LTDMC.dmc_emg_stop((ushort)CardNo);
+            return LTDMC.dmc_emg_stop((ushort)cardIndex);
         }
 
         #endregion
@@ -1636,9 +1636,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Tdec">减速时间，单位：s</param>
         /// <param name="Stop_Vel">停止速度，单位：unit/s</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisProfileUnit(int CardNo, int axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel)
+        public int DmcSetCardAxisProfileUnit(int cardIndex, int axis, double minVelocity, double maxVelocity, double acceleration, double deceleration, double stopVelocity)
         {
-            return LTDMC.dmc_set_profile_unit((ushort)CardNo, (ushort)axis, Min_Vel, Max_Vel, Tacc, Tdec, Stop_Vel);
+            return LTDMC.dmc_set_profile_unit((ushort)cardIndex, (ushort)axis, minVelocity, maxVelocity, acceleration, deceleration, stopVelocity);
         }
 
         /// <summary>
@@ -1654,9 +1654,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Tdec">返回减速时间设置，单位：s</param>
         /// <param name="Stop_Vel">返回停止速度设置，单位：unit/s</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisProfileUnit(int CardNo, int axis, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double Stop_Vel)
+        public int DmcGetCardAxisProfileUnit(int cardIndex, int axis, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stopVelocity)
         {
-            return LTDMC.dmc_get_profile_unit((ushort)CardNo, (ushort)axis, ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref Stop_Vel);
+            return LTDMC.dmc_get_profile_unit((ushort)cardIndex, (ushort)axis, ref minVelocity, ref maxVelocity, ref acceleration, ref deceleration, ref stopVelocity);
         }
 
         /// <summary>
@@ -1667,9 +1667,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">S 段时间，单位：s；范围：0~1</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisSProfile(int CardNo, int axis, int s_mode, double s_para)
+        public int DmcSetCardAxisSProfile(int cardIndex, int axis, int s_mode, double s_para)
         {
-            return LTDMC.dmc_set_s_profile((ushort)CardNo, (ushort)axis, (ushort)s_mode, s_para);
+            return LTDMC.dmc_set_s_profile((ushort)cardIndex, (ushort)axis, (ushort)s_mode, s_para);
         }
 
         /// <summary>
@@ -1680,9 +1680,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="s_mode">保留参数</param>
         /// <param name="s_para">返回设置的 S 段时间</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisSProfile(int CardNo, int axis, int s_mode, ref double s_para)
+        public int DmcGetCardAxisSProfile(int cardIndex, int axis, int s_mode, ref double s_para)
         {
-            return LTDMC.dmc_get_s_profile((ushort)CardNo, (ushort)axis, (ushort)s_mode, ref s_para);
+            return LTDMC.dmc_get_s_profile((ushort)cardIndex, (ushort)axis, (ushort)s_mode, ref s_para);
         }
 
         #endregion
@@ -1696,9 +1696,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="dist">目标位置，单位：unit </param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisPMoveUnit(int CardNo, int axis, double dist, ushort posi_mode)
+        public int DmcCardAxisPMoveUnit(int cardIndex, int axis, double dist, ushort posi_mode)
         {
-            return LTDMC.dmc_pmove_unit((ushort)CardNo, (ushort)axis, dist, posi_mode);
+            return LTDMC.dmc_pmove_unit((ushort)cardIndex, (ushort)axis, dist, posi_mode);
         }
 
         /// <summary>
@@ -1708,7 +1708,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="dir">方向运动方向，0：负方向，1：正方向</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisVMove(int CardNo, int axis, int dir)
+        public int DmcCardAxisVMove(int cardIndex, int axis, int dir)
         {
             /*
             short dmc_vmove(WORD CardNo, WORD axis, WORD dir)
@@ -1718,7 +1718,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
              dir 运动方向，0：负方向，1：正方向
             返回值：错误代码
             */
-            return LTDMC.dmc_vmove((ushort)CardNo, (ushort)axis, (ushort)dir);
+            return LTDMC.dmc_vmove((ushort)cardIndex, (ushort)axis, (ushort)dir);
         }
 
         /// <summary>
@@ -1734,9 +1734,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="New_Vel">新的运行速度，单位：unit/s</param>
         /// <param name="Taccdec">变速时间，单位：s </param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisChangeSpeed(int CardNo, int axis, double New_Vel, double Taccdec)
+        public int DmcCardAxisChangeSpeed(int cardIndex, int axis, double New_Vel, double accelerationAndDeceleration)
         {
-            return LTDMC.dmc_change_speed_unit((ushort)CardNo, (ushort)axis, New_Vel, Taccdec);
+            return LTDMC.dmc_change_speed_unit((ushort)cardIndex, (ushort)axis, New_Vel, accelerationAndDeceleration);
         }
 
         /// <summary>
@@ -1749,9 +1749,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">轴编号</param>
         /// <param name="New_Pos">新目标位置，单位：unit</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisResetTargetPositionUnit(int CardNo, int axis, double New_Pos)
+        public int DmcCardAxisResetTargetPositionUnit(int cardIndex, int axis, double New_Pos)
         {
-            return LTDMC.dmc_reset_target_position_unit((ushort)CardNo, (ushort)axis, New_Pos);
+            return LTDMC.dmc_reset_target_position_unit((ushort)cardIndex, (ushort)axis, New_Pos);
         }
 
         /// <summary>
@@ -1764,9 +1764,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">轴编号</param>
         /// <param name="New_Pos">新的点位</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisUpdateTargetPosition(int CardNo, int axis, double New_Pos)
+        public int DmcCardAxisUpdateTargetPosition(int cardIndex, int axis, double New_Pos)
         {
-            return LTDMC.dmc_update_target_position_unit((ushort)CardNo, (ushort)axis, New_Pos);
+            return LTDMC.dmc_update_target_position_unit((ushort)cardIndex, (ushort)axis, New_Pos);
         }
         #endregion
 
@@ -1778,9 +1778,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="bitno">输入端口号，取值范围： 0~7，如果扩展 IO 模块，依次往后累加 </param>
         /// <returns>指定的输入端口电平：0：低电平，1：高电平</returns>
-        public int DmcGetCardInPortNoBit(int CardNo, int bitno)
+        public int DmcGetCardInPortNoBit(int cardIndex, int bitno)
         {
-            return LTDMC.dmc_read_inbit((ushort)CardNo, (ushort)bitno);
+            return LTDMC.dmc_read_inbit((ushort)cardIndex, (ushort)bitno);
 
         }
         /// <summary>
@@ -1790,9 +1790,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="bitno">输出端口号，取值范围： 0~7，如果扩展 IO 模块，依次往后累加</param>
         /// <param name="on_off">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardBitNoInBit(int CardNo, int bitno, int on_off)
+        public int DmcSetCardBitNoInBit(int cardIndex, int bitno, int on_off)
         {
-            return LTDMC.dmc_write_outbit((ushort)CardNo, (ushort)bitno, (ushort)on_off);
+            return LTDMC.dmc_write_outbit((ushort)cardIndex, (ushort)bitno, (ushort)on_off);
 
         }
 
@@ -1802,9 +1802,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="bitno">输入端口号，取值范围： 0~7，如果扩展 IO 模块，依次往后累加 </param>
         /// <returns>指定输出端口的电平，0：低电平，1：高电平</returns>
-        public int DmcGetCardBitNoOutBit(int CardNo, int bitno)
+        public int DmcGetCardBitNoOutBit(int cardIndex, int bitno)
         {
-            return LTDMC.dmc_read_outbit((ushort)CardNo, (ushort)bitno);
+            return LTDMC.dmc_read_outbit((ushort)cardIndex, (ushort)bitno);
         }
 
         /// <summary>
@@ -1824,9 +1824,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <para>函数返回值的 bit：7 ；输入口号： 7 ；输入口名称：IN7</para>
         /// <para>函数返回值的 bit：8-31 8-31 ；输入口名称：扩展输入口</para>
         /// </returns>
-        public int DmcGetCardPortNoInPort(int CardNo, int portno)
+        public int DmcGetCardPortNoInPort(int cardIndex, int portno)
         {
-            return (int)LTDMC.dmc_read_inport((ushort)CardNo, (ushort)portno);
+            return (int)LTDMC.dmc_read_inport((ushort)cardIndex, (ushort)portno);
         }
 
         /// <summary>
@@ -1846,9 +1846,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <para>函数返回值的 bit：7 ；输入口号： 7 ；输入口名称：OUT7</para>
         /// <para>函数返回值的 bit：8-31 8-31 ；输入口名称：扩展输入口</para>
         /// </returns>
-        public uint DmcGetCardPortNoOutPort(int CardNo, int portno)
+        public uint DmcGetCardPortNoOutPort(int cardIndex, int portno)
         {
-            return LTDMC.dmc_read_outport((ushort)CardNo, (ushort)portno);
+            return LTDMC.dmc_read_outport((ushort)cardIndex, (ushort)portno);
         }
 
         /// <summary>
@@ -1869,9 +1869,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <para>函数返回值的 bit：8-31 8-31 ；输入口名称：扩展输入口</para>
         /// </param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardPortNoOutPort(int CardNo, int portno, int outport_val)
+        public int DmcSetCardPortNoOutPort(int cardIndex, int portno, int outport_val)
         {
-            return LTDMC.dmc_write_outport((ushort)CardNo, (ushort)portno, (uint)outport_val);
+            return LTDMC.dmc_write_outport((ushort)cardIndex, (ushort)portno, (uint)outport_val);
         }
 
         /// <summary>
@@ -1883,9 +1883,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="bitno">输出端口号，取值范围：0~7，如果扩展 IO 模块，依次往后累加</param>
         /// <param name="reverse_time">延时翻转时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardIOReverseOutbit(int CardNo, int bitno, int reverse_time)
+        public int DmcSetCardIOReverseOutbit(int cardIndex, int bitno, int reverse_time)
         {
-            return LTDMC.dmc_reverse_outbit((ushort)CardNo, (ushort)bitno, (ushort)reverse_time);
+            return LTDMC.dmc_reverse_outbit((ushort)cardIndex, (ushort)bitno, (ushort)reverse_time);
         }
 
         /// <summary>
@@ -1896,9 +1896,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="mode">IO 计数模式，0：禁用，1：上升沿计数，2：下降沿计数</param>
         /// <param name="filter_time">滤波时间，单位：s，保留参数</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardIOCountMode(int CardNo, int bitno, int mode, double filter_time)
+        public int DmcSetCardIOCountMode(int cardIndex, int bitno, int mode, double filter_time)
         {
-            return LTDMC.dmc_set_io_count_mode((ushort)CardNo, (ushort)bitno, (ushort)mode, filter_time);
+            return LTDMC.dmc_set_io_count_mode((ushort)cardIndex, (ushort)bitno, (ushort)mode, filter_time);
         }
 
         /// <summary>
@@ -1909,9 +1909,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="mode">返回 IO 计数模式</param>
         /// <param name="filter_time">返回滤波时间，单位：s，保留参数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardIOCountMode(int CardNo, int bitno, ref UInt16 mode, ref double filter_time)
+        public int DmcGetCardIOCountMode(int cardIndex, int bitno, ref UInt16 mode, ref double filter_time)
         {
-            return LTDMC.dmc_get_io_count_mode((ushort)CardNo, (ushort)bitno, ref mode, ref filter_time);
+            return LTDMC.dmc_get_io_count_mode((ushort)cardIndex, (ushort)bitno, ref mode, ref filter_time);
         }
 
         /// <summary>
@@ -1921,9 +1921,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="bitno">输入端口号，取值范围：0~7，如果扩展 IO 模块，依次往后累加</param>
         /// <param name="CountValue">IO 计数值</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardIOCountValue(int CardNo, int bitno, int CountValue)
+        public int DmcSetCardIOCountValue(int cardIndex, int bitno, int countValue)
         {
-            return LTDMC.dmc_set_io_count_value((ushort)CardNo, (ushort)bitno, (UInt32)CountValue);
+            return LTDMC.dmc_set_io_count_value((ushort)cardIndex, (ushort)bitno, (UInt32)countValue);
         }
 
         /// <summary>
@@ -1933,9 +1933,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="bitno">输入端口号，取值范围：0~7，如果扩展 IO 模块，依次往后累加</param>
         /// <param name="CountValue">返回 IO 计数值</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardIOCountValue(int CardNo, int bitno, ref UInt32 CountValue)
+        public int DmcGetCardIOCountValue(int cardIndex, int bitno, ref UInt32 countValue)
         {
-            return LTDMC.dmc_get_io_count_value((ushort)CardNo, (ushort)bitno, ref CountValue);
+            return LTDMC.dmc_get_io_count_value((ushort)cardIndex, (ushort)bitno, ref countValue);
         }
         #endregion
 
@@ -1949,9 +1949,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="multi">手轮倍率，正数表示默认方向，负数表示与默认方向反向</param>
         /// <param name="vh">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisHandwheelInMode(int CardNo, int axis, int inmode, int multi, double vh)
+        public int DmcSetCardAxisHandwheelInMode(int cardIndex, int axis, int inmode, int multi, double vh)
         {
-            return LTDMC.dmc_set_handwheel_inmode((ushort)CardNo, (ushort)axis, (ushort)inmode, multi, vh);
+            return LTDMC.dmc_set_handwheel_inmode((ushort)cardIndex, (ushort)axis, (ushort)inmode, multi, vh);
         }
 
         /// <summary>
@@ -1963,9 +1963,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="multi">返回手轮倍率</param>
         /// <param name="vh">保留参数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisHandwheelInMode(int CardNo, int axis, ref UInt16 inmode, ref int multi, ref double vh)
+        public int DmcGetCardAxisHandwheelInMode(int cardIndex, int axis, ref UInt16 inmode, ref int multi, ref double vh)
         {
-            return LTDMC.dmc_get_handwheel_inmode((ushort)CardNo, (ushort)axis, ref inmode, ref multi, ref vh);
+            return LTDMC.dmc_get_handwheel_inmode((ushort)cardIndex, (ushort)axis, ref inmode, ref multi, ref vh);
         }
 
         /// <summary>
@@ -1976,9 +1976,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisHandwheelMove(int CardNo, int axis)
+        public int DmcCardAxisHandwheelMove(int cardIndex, int axis)
         {
-            return LTDMC.dmc_handwheel_move((ushort)CardNo, (ushort)axis);
+            return LTDMC.dmc_handwheel_move((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -1992,9 +1992,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="AxisNums">参与手轮运动的轴号数组</param>
         /// <param name="multi">手轮倍率数组:正数表示默认方向，负数表示与默认方向反向</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardHandwheelInModeExtern(int CardNo, int inmode, int AxisNum, UInt16[] AxisNums, int[] multi)
+        public int DmcSetCardHandwheelInModeExtern(int cardIndex, int inmode, int axisNumber, UInt16[] axisNumbers, int[] multi)
         {
-            return LTDMC.dmc_set_handwheel_inmode_extern((ushort)CardNo, (ushort)inmode, (ushort)AxisNum, AxisNums, multi);
+            return LTDMC.dmc_set_handwheel_inmode_extern((ushort)cardIndex, (ushort)inmode, (ushort)axisNumber, axisNumbers, multi);
         }
 
         /// <summary>
@@ -2006,9 +2006,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="AxisNums">返回参与手轮运动的轴号数组</param>
         /// <param name="multi">返回手轮倍率数组</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardHandwheelInModeExtern(int CardNo, ref UInt16 inmode, ref UInt16 AxisNum, ref UInt16[] AxisNums, ref int[] multi)
+        public int DmcGetCardHandwheelInModeExtern(int cardIndex, ref UInt16 inmode, ref UInt16 axisNumber, ref UInt16[] axisNumbers, ref int[] multi)
         {
-            return LTDMC.dmc_get_handwheel_inmode_extern((ushort)CardNo, ref inmode, ref AxisNum, AxisNums, multi);
+            return LTDMC.dmc_get_handwheel_inmode_extern((ushort)cardIndex, ref inmode, ref axisNumber, axisNumbers, multi);
         }
         #endregion
 
@@ -2020,9 +2020,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="pos">编码器计数值，单位：unit</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisEncoderUnit(int CardNo, int axis, double pos)
+        public int DmcSetCardAxisEncoderUnit(int cardIndex, int axis, double pos)
         {
-            return LTDMC.dmc_set_encoder_unit((ushort)CardNo, (ushort)axis, pos);
+            return LTDMC.dmc_set_encoder_unit((ushort)cardIndex, (ushort)axis, pos);
         }
 
         /// <summary>
@@ -2032,9 +2032,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="pos">返回当前编码器计数值，单位：unit</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisEncoderUnit(int CardNo, int axis, ref double pos)
+        public int DmcGetCardAxisEncoderUnit(int cardIndex, int axis, ref double pos)
         {
-            return LTDMC.dmc_get_encoder_unit((ushort)CardNo, (ushort)axis, ref pos);
+            return LTDMC.dmc_get_encoder_unit((ushort)cardIndex, (ushort)axis, ref pos);
         }
 
         /// <summary>
@@ -2045,9 +2045,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="inmode">辅助编码器输入方式，0：脉冲+方向信号；1：A、B 相位正交信号</param>
         /// <param name="multi">辅助编码器计数模式，固定 1：4 倍频计数</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardExtraEncoderMode(int CardNo, int channel, int inmode, int multi)
+        public int DmcSetCardExtraEncoderMode(int cardIndex, int channel, int inmode, int multi)
         {
-            return LTDMC.dmc_set_extra_encoder_mode((ushort)CardNo, (ushort)channel, (ushort)inmode, (ushort)multi);
+            return LTDMC.dmc_set_extra_encoder_mode((ushort)cardIndex, (ushort)channel, (ushort)inmode, (ushort)multi);
         }
 
         /// <summary>
@@ -2058,9 +2058,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="inmode">返回辅助编码器输入方式</param>
         /// <param name="multi">返回辅助编码器计数模式</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardExtraEncoderMode(int CardNo, int channel, ushort inmode, ushort multi)
+        public int DmcGetCardExtraEncoderMode(int cardIndex, int channel, ushort inmode, ushort multi)
         {
-            return LTDMC.dmc_get_extra_encoder_mode((ushort)CardNo, (ushort)channel, ref inmode, ref multi);
+            return LTDMC.dmc_get_extra_encoder_mode((ushort)cardIndex, (ushort)channel, ref inmode, ref multi);
         }
 
         #endregion
@@ -2075,9 +2075,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="ltc_logic">锁存信号的触发方式，0：下降沿锁存，1：上升沿锁存，2：双边沿锁存</param>
         /// <param name="filter">滤波时间，单位：us</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardLtcMode(int CardNo, int latch, int ltc_mode, int ltc_logic, double filter)
+        public int DmcSetCardLtcMode(int cardIndex, int latch, int ltc_mode, int ltc_logic, double filter)
         {
-            return LTDMC.dmc_ltc_set_mode((ushort)CardNo, (ushort)latch, (ushort)ltc_mode, (ushort)ltc_logic, filter);
+            return LTDMC.dmc_ltc_set_mode((ushort)cardIndex, (ushort)latch, (ushort)ltc_mode, (ushort)ltc_logic, filter);
         }
 
         /// <summary>
@@ -2089,9 +2089,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="ltc_logic">读取锁存信号的触发方式，0：下降沿锁存，1：上升沿锁存，2：双边沿锁存</param>
         /// <param name="filter">读取滤波时间，单位：us</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardLtcMode(int CardNo, int latch, ushort ltc_mode, ushort ltc_logic, double filter)
+        public int DmcGetCardLtcMode(int cardIndex, int latch, ushort ltc_mode, ushort ltc_logic, double filter)
         {
-            return LTDMC.dmc_ltc_get_mode((ushort)CardNo, (ushort)latch, ref ltc_mode, ref ltc_logic, ref filter);
+            return LTDMC.dmc_ltc_get_mode((ushort)cardIndex, (ushort)latch, ref ltc_mode, ref ltc_logic, ref filter);
         }
 
         /// <summary>
@@ -2102,9 +2102,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">锁存器辅助编码器通道号，0、1</param>
         /// <param name="ltc_source">锁存源，0：指令位置，1：辅助编码器计数</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardLtcSource(int CardNo, int latch, int axis, int ltc_source)
+        public int DmcSetCardLtcSource(int cardIndex, int latch, int axis, int ltc_source)
         {
-            return LTDMC.dmc_ltc_set_source((ushort)CardNo, (ushort)latch, (ushort)axis, (ushort)ltc_source);
+            return LTDMC.dmc_ltc_set_source((ushort)cardIndex, (ushort)latch, (ushort)axis, (ushort)ltc_source);
         }
 
         /// <summary>
@@ -2115,9 +2115,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">锁存器辅助编码器通道号</param>
         /// <param name="ltc_source">读取锁存源，0：指令位置，1：辅助编码器计数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardLtcSource(int CardNo, int latch, int axis, ushort ltc_source)
+        public int DmcGetCardLtcSource(int cardIndex, int latch, int axis, ushort ltc_source)
         {
-            return LTDMC.dmc_ltc_get_source((ushort)CardNo, (ushort)latch, (ushort)axis, ref ltc_source);
+            return LTDMC.dmc_ltc_get_source((ushort)cardIndex, (ushort)latch, (ushort)axis, ref ltc_source);
         }
 
         /// <summary>
@@ -2133,9 +2133,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <para>2）当选择锁存方式为连续锁存时，该函数第一次执行的时候，读取的是锁存器的第一个锁存值，第二次执行的时候，读取的是锁存器的第二个锁存值，以此类推；</para>
         /// <para>3）单次锁存时，调用 dmc_get_latch_value 不会自动清除已锁存个数，须调用 dmc_reset_latch_flag；</para>
         /// </returns>
-        public int DmcGetCardLtcValueUnit(int CardNo, int latch, int axis, ref double value)
+        public int DmcGetCardLtcValueUnit(int cardIndex, int latch, int axis, ref double value)
         {
-            return LTDMC.dmc_ltc_get_value_unit((ushort)CardNo, (ushort)latch, (ushort)axis, ref value);
+            return LTDMC.dmc_ltc_get_value_unit((ushort)cardIndex, (ushort)latch, (ushort)axis, ref value);
         }
 
         /// <summary>
@@ -2146,9 +2146,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">锁存器辅助编码器通道号</param>
         /// <param name="number">读取锁存器个数</param>
         /// <returns>已锁存个数，0 表示无锁存值</returns>
-        public int DmcGetCardLtcNumber(int CardNo, int latch, int axis, ref int number)
+        public int DmcGetCardLtcNumber(int cardIndex, int latch, int axis, ref int number)
         {
-            return LTDMC.dmc_ltc_get_number((ushort)CardNo, (ushort)latch, (ushort)axis, ref number);
+            return LTDMC.dmc_ltc_get_number((ushort)cardIndex, (ushort)latch, (ushort)axis, ref number);
         }
 
         /// <summary>
@@ -2159,9 +2159,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="latch">锁存器号,0-3</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardLtcReset(int CardNo, int latch)
+        public int DmcGetCardLtcReset(int cardIndex, int latch)
         {
-            return LTDMC.dmc_ltc_reset((ushort)CardNo, (ushort)latch);
+            return LTDMC.dmc_ltc_reset((ushort)cardIndex, (ushort)latch);
         }
 
         #endregion
@@ -2176,9 +2176,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisCompareConfig(int CardNo, int axis, int enable, int cmp_source)
+        public int DmcSetCardAxisCompareConfig(int cardIndex, int axis, int enable, int cmp_source)
         {
-            return LTDMC.dmc_compare_set_config((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)cmp_source);
+            return LTDMC.dmc_compare_set_config((ushort)cardIndex, (ushort)axis, (ushort)enable, (ushort)cmp_source);
         }
 
         /// <summary>
@@ -2189,9 +2189,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="enable">返回比较功能状态</param>
         /// <param name="cmp_source">返回比较源</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisCompareConfig(int CardNo, int axis, ref UInt16 enable, ref UInt16 cmp_source)
+        public int DmcGetCardAxisCompareConfig(int cardIndex, int axis, ref UInt16 enable, ref UInt16 cmp_source)
         {
-            return LTDMC.dmc_compare_get_config((ushort)CardNo, (ushort)axis, ref enable, ref cmp_source);
+            return LTDMC.dmc_compare_get_config((ushort)cardIndex, (ushort)axis, ref enable, ref cmp_source);
         }
 
         /// <summary>
@@ -2200,9 +2200,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号 </param>
         /// <returns>错误代码</returns>
-        public int DmcClearCardAxisComparePoints(int CardNo, int axis)
+        public int DmcClearCardAxisComparePoints(int cardIndex, int axis)
         {
-            return LTDMC.dmc_compare_clear_points((ushort)CardNo, (ushort)axis);
+            return LTDMC.dmc_compare_clear_points((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2215,9 +2215,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="action">设置触发功能（为 IO 电平取反）</param>
         /// <param name="actpara">设置输出 IO 端口 (0 触发功能)</param>
         /// <returns>错误代码</returns>
-        public int DmcAddCardAxisComparePoints(int CardNo, int axis, int pos, int dir, int action, int actpara)
+        public int DmcAddCardAxisComparePoints(int cardIndex, int axis, int pos, int dir, int action, int actpara)
         {
-            return LTDMC.dmc_compare_add_point((ushort)CardNo, (ushort)axis, pos, (ushort)dir, (ushort)action, (uint)actpara);
+            return LTDMC.dmc_compare_add_point((ushort)cardIndex, (ushort)axis, pos, (ushort)dir, (ushort)action, (uint)actpara);
         }
 
         /// <summary>
@@ -2231,10 +2231,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="cycle">周期个数</param>
         /// <param name="level">比较输出点电平（level 只有当 cycle 为 0 的时候起作用，cycle 为 0 的时候触发时输出 level 电平）</param>
         /// <returns>错误代码</returns>
-        public int DmcAddCardAxisComparePointsCycle(int CardNo, int axis, int pos, int dir, int bitno, int cycle, int level)
+        public int DmcAddCardAxisComparePointsCycle(int cardIndex, int axis, int pos, int dir, int bitno, int cycle, int level)
         {
             //return LTDMC.dmc_compare_add_point_cycle((ushort)CardNo, (ushort)axis, pos, (ushort)dir, (ushort)bitno, (ushort)cycle, (ushort)level);
-            return LTDMC.dmc_compare_add_point_cycle_unit((ushort)CardNo, (ushort)axis, (double)pos, (ushort)dir, (ushort)bitno, (ushort)cycle, (ushort)level);
+            return LTDMC.dmc_compare_add_point_cycle_unit((ushort)cardIndex, (ushort)axis, (double)pos, (ushort)dir, (ushort)bitno, (ushort)cycle, (ushort)level);
         }
 
         /// <summary>
@@ -2244,9 +2244,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号 </param>
         /// <param name="pos">返回当前比较点位置 </param>       
         /// <returns></returns>
-        public int DmcGetCardAxisCompareCurrentPoint(int CardNo, int axis, ref int pos)
+        public int DmcGetCardAxisCompareCurrentPoint(int cardIndex, int axis, ref int pos)
         {
-            return LTDMC.dmc_compare_get_current_point((ushort)CardNo, (ushort)axis, ref pos);
+            return LTDMC.dmc_compare_get_current_point((ushort)cardIndex, (ushort)axis, ref pos);
         }
         /// <summary>
         /// 查询已经比较过的一维比较点个数
@@ -2255,9 +2255,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="pointNum">返回已经比较过的点数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisComparPointsRunned(int CardNo, int axis, ref int pointNum)
+        public int DmcGetCardAxisComparPointsRunned(int cardIndex, int axis, ref int pointNum)
         {
-            return LTDMC.dmc_compare_get_points_runned((ushort)CardNo, (ushort)axis, ref pointNum);
+            return LTDMC.dmc_compare_get_points_runned((ushort)cardIndex, (ushort)axis, ref pointNum);
         }
 
         /// <summary>
@@ -2267,9 +2267,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="pointNum">返回可以加入的比较点数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisComparPointsRemained(int CardNo, int axis, ref int pointNum)
+        public int DmcGetCardAxisComparPointsRemained(int cardIndex, int axis, ref int pointNum)
         {
-            return LTDMC.dmc_compare_get_points_remained((ushort)CardNo, (ushort)axis, ref pointNum);
+            return LTDMC.dmc_compare_get_points_remained((ushort)cardIndex, (ushort)axis, ref pointNum);
         }
         #endregion
 
@@ -2286,9 +2286,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="cmp_mode">比较模式：0：禁止（默认值）| 1：等于 | 2：小于 | 3：大于 | 4：队列 | ;提供 127 个点比较空间，采用先添加先比较，比较完可追加比较点，也可一次性添加多个比较点 | 5：线性，提供起始比较点，位置增量，比较次数  </param>
         /// <returns></returns>
-        public int DmcSetCardHcmpMode1(int CardNo, int hcmp, int cmp_mode)
+        public int DmcSetCardHcmpMode1(int cardIndex, int hcmp, int cmp_mode)
         {
-            return LTDMC.dmc_hcmp_set_mode((ushort)CardNo, (ushort)hcmp, (ushort)cmp_mode);
+            return LTDMC.dmc_hcmp_set_mode((ushort)cardIndex, (ushort)hcmp, (ushort)cmp_mode);
         }
 
         /// <summary>
@@ -2298,9 +2298,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="cmp_mode">返回比较模式设置</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardHcmpMode1(int CardNo, int hcmp, ref UInt16 cmp_mode)
+        public int DmcGetCardHcmpMode1(int cardIndex, int hcmp, ref UInt16 cmp_mode)
         {
-            return LTDMC.dmc_hcmp_get_mode((ushort)CardNo, (ushort)hcmp, ref cmp_mode);
+            return LTDMC.dmc_hcmp_get_mode((ushort)cardIndex, (ushort)hcmp, ref cmp_mode);
         }
 
         /// <summary>
@@ -2314,9 +2314,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="cmp_logic">有效电平：0：低电平，1：</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us~20s </param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisHcmpConfig(int CardNo, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
+        public int DmcSetCardAxisHcmpConfig(int cardIndex, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
         {
-            return LTDMC.dmc_hcmp_set_config((ushort)CardNo, (ushort)hcmp, (ushort)axis, (ushort)cmp_source, (ushort)cmp_logic, time);
+            return LTDMC.dmc_hcmp_set_config((ushort)cardIndex, (ushort)hcmp, (ushort)axis, (ushort)cmp_source, (ushort)cmp_logic, time);
         }
         /// <summary>
         /// 读取高速比较器配置 (单轴高速)
@@ -2328,9 +2328,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="cmp_logic">有效电平：0：低电平，1：</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us~20s </param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisHcmpConfig(int CardNo, int hcmp, ref ushort axis, ref ushort cmp_source, ref ushort cmp_logic, ref int time)
+        public int DmcGetCardAxisHcmpConfig(int cardIndex, int hcmp, ref ushort axis, ref ushort cmp_source, ref ushort cmp_logic, ref int time)
         {
-            return LTDMC.dmc_hcmp_get_config((ushort)CardNo, (ushort)hcmp, ref axis, ref cmp_source, ref cmp_logic, ref time);
+            return LTDMC.dmc_hcmp_get_config((ushort)cardIndex, (ushort)hcmp, ref axis, ref cmp_source, ref cmp_logic, ref time);
         }
 
         /// <summary>
@@ -2340,9 +2340,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="pos">1：队列模式下：添加比较位置，单位：pulse | 2：线性模式下：更新起始比较位置，单位：pulse | 3：其他模式下：更新比较位置，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int DmcAddCardHcmpPoint(int CardNo, int hcmp, int pos)
+        public int DmcAddCardHcmpPoint(int cardIndex, int hcmp, int pos)
         {
-            return LTDMC.dmc_hcmp_add_point((ushort)CardNo, (ushort)hcmp, pos);
+            return LTDMC.dmc_hcmp_add_point((ushort)cardIndex, (ushort)hcmp, pos);
         }
 
         /// <summary>
@@ -2353,9 +2353,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Increment">位置增量值，单位：pulse（正值表示位置递增，负值表示位置递减）</param>
         /// <param name="Count">比较次数，取值范围：1~65535</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardHcmpLiner(int CardNo, int hcmp, int Increment, int Count)
+        public int DmcSetCardHcmpLiner(int cardIndex, int hcmp, int increment, int Count)
         {
-            return LTDMC.dmc_hcmp_set_liner((ushort)CardNo, (ushort)hcmp, Increment, Count);
+            return LTDMC.dmc_hcmp_set_liner((ushort)cardIndex, (ushort)hcmp, increment, Count);
         }
 
         /// <summary>
@@ -2366,9 +2366,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Increment">返回位置增量值设置</param>
         /// <param name="Count">返回比较次数设置</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardHcmpLiner(int CardNo, int hcmp, ref int Increment, ref int Count)
+        public int DmcGetCardHcmpLiner(int cardIndex, int hcmp, ref int increment, ref int Count)
         {
-            return LTDMC.dmc_hcmp_get_liner((ushort)CardNo, (ushort)hcmp, ref Increment, ref Count);
+            return LTDMC.dmc_hcmp_get_liner((ushort)cardIndex, (ushort)hcmp, ref increment, ref Count);
         }
 
         /// <summary>
@@ -2377,9 +2377,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口）</param>
         /// <returns>错误代码</returns>
-        public int DmcClearCardHcmpPoints(int CardNo, int hcmp)
+        public int DmcClearCardHcmpPoints(int cardIndex, int hcmp)
         {
-            return LTDMC.dmc_hcmp_clear_points((ushort)CardNo, (ushort)hcmp);
+            return LTDMC.dmc_hcmp_clear_points((ushort)cardIndex, (ushort)hcmp);
         }
 
         /// <summary>
@@ -2391,9 +2391,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="current_point">返回当前比较点位置，单位：pulse</param>
         /// <param name="runned_points">返回已比较点数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardHcmpCurrentState(int CardNo, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
+        public int DmcGetCardHcmpCurrentState(int cardIndex, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
         {
-            return LTDMC.dmc_hcmp_get_current_state((ushort)CardNo, (ushort)hcmp, ref remained_points, ref current_point, ref runned_points);
+            return LTDMC.dmc_hcmp_get_current_state((ushort)cardIndex, (ushort)hcmp, ref remained_points, ref current_point, ref runned_points);
         }
         #endregion
 
@@ -2406,9 +2406,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="enable">使能状态，0：禁止，1：允许</param>
         /// <param name="emg_logic">有效电平：0：低电平，1：高电</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisEmgMode(int CardNo, int axis, int enable, int emg_logic)
+        public int DmcSetCardAxisEmgMode(int cardIndex, int axis, int enable, int emg_logic)
         {
-            return LTDMC.dmc_set_emg_mode((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)emg_logic);
+            return LTDMC.dmc_set_emg_mode((ushort)cardIndex, (ushort)axis, (ushort)enable, (ushort)emg_logic);
         }
 
         /// <summary>
@@ -2419,9 +2419,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="enable">返回使能状态，0：禁止，1：允许</param>
         /// <param name="emg_logic">返回有效电平：0：低电平，1：高电</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisEmgMode(int CardNo, int axis, ref UInt16 enable, ref UInt16 emg_logic)
+        public int DmcGetCardAxisEmgMode(int cardIndex, int axis, ref UInt16 enable, ref UInt16 emg_logic)
         {
-            return LTDMC.dmc_get_emg_mode((ushort)CardNo, (ushort)axis, ref enable, ref emg_logic);
+            return LTDMC.dmc_get_emg_mode((ushort)cardIndex, (ushort)axis, ref enable, ref emg_logic);
         }
 
         /// <summary>
@@ -2432,9 +2432,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="enable">使能状态，0：禁止，1：允许</param>
         /// <param name="logic">有效电平：0：低电平，1：高电</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisIODstpMode(int CardNo, int axis, int enable, int logic)
+        public int DmcSetCardAxisIODstpMode(int cardIndex, int axis, int enable, int logic)
         {
-            return LTDMC.dmc_set_io_dstp_mode((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)logic);
+            return LTDMC.dmc_set_io_dstp_mode((ushort)cardIndex, (ushort)axis, (ushort)enable, (ushort)logic);
         }
 
         /// <summary>
@@ -2445,9 +2445,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="enable">返回使能状态，0：禁止，1：允许</param>
         /// <param name="logic">返回有效电平：0：低电平，1：高电</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisIODstpMode(int CardNo, int axis, ref UInt16 enable, ref UInt16 logic)
+        public int DmcGetCardAxisIODstpMode(int cardIndex, int axis, ref UInt16 enable, ref UInt16 logic)
         {
-            return LTDMC.dmc_get_io_dstp_mode((ushort)CardNo, (ushort)axis, ref enable, ref logic);
+            return LTDMC.dmc_get_io_dstp_mode((ushort)cardIndex, (ushort)axis, ref enable, ref logic);
         }
 
         /// <summary>
@@ -2460,9 +2460,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="stop_time"> 减速时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisDecStopTime(int CardNo, int axis, double stop_time)
+        public int DmcSetCardAxisDecStopTime(int cardIndex, int axis, double stop_time)
         {
-            return LTDMC.dmc_set_dec_stop_time((ushort)CardNo, (ushort)axis, stop_time);
+            return LTDMC.dmc_set_dec_stop_time((ushort)cardIndex, (ushort)axis, stop_time);
         }
 
         /// <summary>
@@ -2472,9 +2472,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">指定轴号</param>
         /// <param name="stop_time">返回设置的减速时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisDecStopTime(int CardNo, int axis, ref double stop_time)
+        public int DmcGetCardAxisDecStopTime(int cardIndex, int axis, ref double stop_time)
         {
-            return LTDMC.dmc_get_dec_stop_time((ushort)CardNo, (ushort)axis, ref stop_time);
+            return LTDMC.dmc_get_dec_stop_time((ushort)cardIndex, (ushort)axis, ref stop_time);
         }
         #endregion
 
@@ -2489,9 +2489,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="factor">编码器系数</param>
         /// <param name="error">位置误差带，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisFactorError(int CardNo, int axis, double factor, int error)
+        public int DmcSetCardAxisFactorError(int cardIndex, int axis, double factor, int error)
         {
-            return LTDMC.dmc_set_factor_error((ushort)CardNo, (ushort)axis, factor, error);
+            return LTDMC.dmc_set_factor_error((ushort)cardIndex, (ushort)axis, factor, error);
         }
 
         /// <summary>
@@ -2502,9 +2502,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="factor">返回编码器系数设置</param>
         /// <param name="error">返回位置误差带设置</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisFactorError(int CardNo, int axis, ref double factor, ref int error)
+        public int DmcGetCardAxisFactorError(int cardIndex, int axis, ref double factor, ref int error)
         {
-            return LTDMC.dmc_get_factor_error((ushort)CardNo, (ushort)axis, ref factor, ref error);
+            return LTDMC.dmc_get_factor_error((ushort)cardIndex, (ushort)axis, ref factor, ref error);
         }
 
         /// <summary>
@@ -2513,9 +2513,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号</param>
         /// <returns></returns>
-        public int DmcGetCardAxisCheckSuccessPulse(int CardNo, int axis)
+        public int DmcGetCardAxisCheckSuccessPulse(int cardIndex, int axis)
         {
-            return LTDMC.dmc_check_success_pulse((ushort)CardNo, (ushort)axis);
+            return LTDMC.dmc_check_success_pulse((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2527,9 +2527,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号</param>
         /// <returns>0：表示编码器位置在设定的目标位置的误差带之外；1：表示编码器位置在设定的目标位置的误差带之内</returns>
-        public int DmcGetCardAxisCheckSuccessEncoder(int CardNo, int axis)
+        public int DmcGetCardAxisCheckSuccessEncoder(int cardIndex, int axis)
         {
-            return LTDMC.dmc_check_success_encoder((ushort)CardNo, (ushort)axis);
+            return LTDMC.dmc_check_success_encoder((ushort)cardIndex, (ushort)axis);
         }
         #endregion
 
@@ -2540,9 +2540,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="new_sn">新密码，密码长度不大于 255 个字符</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardWriteSN(int CardNo, string new_sn)
+        public int DmcSetCardWriteSN(int cardIndex, string new_sn)
         {
-            return LTDMC.dmc_write_sn((ushort)CardNo, new_sn);
+            return LTDMC.dmc_write_sn((ushort)cardIndex, new_sn);
         }
 
         /// <summary>
@@ -2554,9 +2554,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="check_sn">旧密码</param>
         /// <returns>校验状态，0：失败，1：成功</returns>
-        public int DmcGetCardCheckSN(int CardNo, string check_sn)
+        public int DmcGetCardCheckSN(int cardIndex, string check_sn)
         {
-            return LTDMC.dmc_check_sn((ushort)CardNo, check_sn);
+            return LTDMC.dmc_check_sn((ushort)cardIndex, check_sn);
         }
         #endregion
 
@@ -2594,9 +2594,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns>轴运动模式</returns>
-        public int DmcGetCardAxisRunMode(int CardNo, int axis, ref UInt16 run_mode)
+        public int DmcGetCardAxisRunMode(int cardIndex, int axis, ref UInt16 run_mode)
         {
-            return LTDMC.dmc_get_axis_run_mode((ushort)CardNo, (ushort)axis, ref run_mode);
+            return LTDMC.dmc_get_axis_run_mode((ushort)cardIndex, (ushort)axis, ref run_mode);
         }
         /// <summary>
         /// 读取指定轴的停止原因
@@ -2626,9 +2626,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         ///<para>19：保留，DEC_STOP_AT_DEC</para>
         ///</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisStopReason(int CardNo, int axis, ref int StopReason)
+        public int DmcGetCardAxisStopReason(int cardIndex, int axis, ref int StopReason)
         {
-            return LTDMC.dmc_get_stop_reason((ushort)CardNo, (ushort)axis, ref StopReason);
+            return LTDMC.dmc_get_stop_reason((ushort)cardIndex, (ushort)axis, ref StopReason);
         }
         /// <summary>
         /// 清除指定轴的停止原因
@@ -2636,9 +2636,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">指定轴号</param>
         /// <returns>错误代码</returns>
-        public int DmcClearCardAxisStopReason(int CardNo, int axis)
+        public int DmcClearCardAxisStopReason(int cardIndex, int axis)
         {
-            return LTDMC.dmc_clear_stop_reason((ushort)CardNo, (ushort)axis);
+            return LTDMC.dmc_clear_stop_reason((ushort)cardIndex, (ushort)axis);
         }
         #endregion
 
@@ -2657,9 +2657,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Tdec">减速时间，单位：s </param>
         /// <param name="Stop_Vel">停止速度，单位：unit/s</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardVectorProfileUnit(int CardNo, int Crd, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel)
+        public int DmcSetCardVectorProfileUnit(int cardIndex, int crdIndex, double minVelocity, double maxVelocity, double acceleration, double deceleration, double stopVelocity)
         {
-            return LTDMC.dmc_set_vector_profile_unit((ushort)CardNo, (ushort)Crd, Min_Vel, Max_Vel, Tacc, Tdec, Stop_Vel);
+            return LTDMC.dmc_set_vector_profile_unit((ushort)cardIndex, (ushort)crdIndex, minVelocity, maxVelocity, acceleration, deceleration, stopVelocity);
         }
 
         /// <summary>
@@ -2673,9 +2673,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Tdec">返回减速时间设置</param>
         /// <param name="Stop_Vel">返回停止速度</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardVectorProfileUnit(int CardNo, int Crd, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double Stop_Vel)
+        public int DmcGetCardVectorProfileUnit(int cardIndex, int crdIndex, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stopVelocity)
         {
-            return LTDMC.dmc_get_vector_profile_unit((ushort)CardNo, (ushort)Crd, ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref Stop_Vel);
+            return LTDMC.dmc_get_vector_profile_unit((ushort)cardIndex, (ushort)crdIndex, ref minVelocity, ref maxVelocity, ref acceleration, ref deceleration, ref stopVelocity);
         }
 
         /// <summary>
@@ -2686,9 +2686,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">平滑时间，单位：s，范围：0~1</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardVectorSProfile(int CardNo, int Crd, int s_mode, double s_para)
+        public int DmcSetCardVectorSProfile(int cardIndex, int crdIndex, int s_mode, double s_para)
         {
-            return LTDMC.dmc_set_vector_s_profile((ushort)CardNo, (ushort)Crd, (ushort)s_mode, s_para);
+            return LTDMC.dmc_set_vector_s_profile((ushort)cardIndex, (ushort)crdIndex, (ushort)s_mode, s_para);
         }
 
         /// <summary>
@@ -2699,9 +2699,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">返回平滑时间设置</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardVectorSProfile(int CardNo, int Crd, int s_mode, ref double s_para)
+        public int DmcGetCardVectorSProfile(int cardIndex, int crdIndex, int s_mode, ref double s_para)
         {
-            return LTDMC.dmc_get_vector_s_profile((ushort)CardNo, (ushort)Crd, (ushort)s_mode, ref s_para);
+            return LTDMC.dmc_get_vector_s_profile((ushort)cardIndex, (ushort)crdIndex, (ushort)s_mode, ref s_para);
         }
 
         #endregion
@@ -2717,9 +2717,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Target_Pos">目标位置列表，单位：unit </param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisLineUnit(int CardNo, int Crd, int axisNum, ushort[] AxisNums, double[] Target_Pos, int posi_mode)    //
+        public int DmcCardAxisLineUnit(int cardIndex, int crdIndex, int axisNum, ushort[] axisNumbers, double[] targetPosition, int posi_mode)    //
         {
-            return LTDMC.dmc_line_unit((ushort)CardNo, (ushort)Crd, (ushort)axisNum, AxisNums, Target_Pos, (ushort)posi_mode);
+            return LTDMC.dmc_line_unit((ushort)cardIndex, (ushort)crdIndex, (ushort)axisNum, axisNumbers, targetPosition, (ushort)posi_mode);
         }
 
         /// <summary>
@@ -2744,9 +2744,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Circle">圈数：自然数：表示此时执行的为螺旋线插补,螺旋线的圈数</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisArcMoveCenterUnit(int CardNo, int Crd, int axisNum, UInt16[] AxisNums, double[] Target_Pos, double[] Cen_Pos, int Arc_Dir, int Circle, int posi_mode)
+        public int DmcCardAxisArcMoveCenterUnit(int cardIndex, int crdIndex, int axisNum, UInt16[] axisNumbers, double[] targetPosition, double[] centerPosition, int Arc_Dir, int Circle, int posi_mode)
         {
-            return LTDMC.dmc_arc_move_center_unit((ushort)CardNo, (ushort)Crd, (ushort)axisNum, AxisNums, Target_Pos, Cen_Pos, (ushort)Arc_Dir, Circle, (ushort)posi_mode);
+            return LTDMC.dmc_arc_move_center_unit((ushort)cardIndex, (ushort)crdIndex, (ushort)axisNum, axisNumbers, targetPosition, centerPosition, (ushort)Arc_Dir, Circle, (ushort)posi_mode);
         }
         /// <summary>
         /// 圆弧插补
@@ -2765,9 +2765,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Circle">圈数：自然数：表示此时执行的为螺旋线插补,螺旋线的圈数。如:0 即表示 0 圈螺旋线插补，1 即表示 1 圈螺旋线插补 </param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisArcMoveRadiusUnit(int CardNo, int Crd, int axisNum, UInt16[] AxisNums, double[] Target_Pos, double Arc_Radius, int Arc_Dir, int Circle, int posi_mode)
+        public int DmcCardAxisArcMoveRadiusUnit(int cardIndex, int crdIndex, int axisNum, UInt16[] axisNumbers, double[] targetPosition, double Arc_Radius, int Arc_Dir, int Circle, int posi_mode)
         {
-            return LTDMC.dmc_arc_move_radius_unit((ushort)CardNo, (ushort)Crd, (ushort)axisNum, AxisNums, Target_Pos, Arc_Radius, (ushort)Arc_Dir, Circle, (ushort)posi_mode);
+            return LTDMC.dmc_arc_move_radius_unit((ushort)cardIndex, (ushort)crdIndex, (ushort)axisNum, axisNumbers, targetPosition, Arc_Radius, (ushort)Arc_Dir, Circle, (ushort)posi_mode);
         }
 
         /// <summary>
@@ -2786,9 +2786,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Circle">圈数：<para>负数：表示此时执行的为空间圆弧插补：该值的绝对值减 1 表示空间圆弧的圈数。如，-1 即表示 0圈空间圆弧，-2 即表示 1 圈空间圆弧… </para><para>自然数：表示此时执行的为圆柱螺旋线插补:该值表示螺旋线的圈数。如，0 即表示 0 圈螺旋线插补， 1 即表示 1 圈螺旋线插补… </para></param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式 </param>
         /// <returns><错误代码/returns>
-        public int DmcCardArcMove3PointsUnit(int CardNo, int Crd, int axisNum, UInt16[] AxisNums, double[] Target_Pos, double[] Mid_Pos, int Circle, int posi_mode)
+        public int DmcCardArcMove3PointsUnit(int cardIndex, int crdIndex, int axisNum, UInt16[] axisNumbers, double[] targetPosition, double[] Mid_Pos, int Circle, int posi_mode)
         {
-            return LTDMC.dmc_arc_move_3points_unit((ushort)CardNo, (ushort)Crd, (ushort)axisNum, AxisNums, Target_Pos, Mid_Pos, Circle, (ushort)posi_mode);
+            return LTDMC.dmc_arc_move_3points_unit((ushort)cardIndex, (ushort)crdIndex, (ushort)axisNum, axisNumbers, targetPosition, Mid_Pos, Circle, (ushort)posi_mode);
         }
         #endregion
 
@@ -2805,9 +2805,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="valuelength">对象字典索引长度(单位：bit)</param>
         /// <param name="value">对象字典索引参数值</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardNodeOD(int CardNo, int PortNum, int nodenum, int index, int subindex, int valuelength, ref int value)
+        public int NmcGetCardNodeOD(int cardIndex, int portCount, int nodenum, int index, int subindex, int valuelength, ref int value)
         {
-            return LTDMC.nmc_get_node_od((ushort)CardNo, (ushort)PortNum, (ushort)nodenum, (ushort)index, (ushort)subindex, (ushort)valuelength, ref value);
+            return LTDMC.nmc_get_node_od((ushort)cardIndex, (ushort)portCount, (ushort)nodenum, (ushort)index, (ushort)subindex, (ushort)valuelength, ref value);
         }
 
         /// <summary>
@@ -2816,9 +2816,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴的轴号，255 表示使能所有 EtherCAT 轴</param>
         /// <returns>错误代码</returns>
-        public int NmcSetCardAxisEnable(int CardNo, int axis)
+        public int NmcSetCardAxisEnable(int cardIndex, int axis)
         {
-            return LTDMC.nmc_set_axis_enable((ushort)CardNo, (ushort)axis);
+            return LTDMC.nmc_set_axis_enable((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2827,9 +2827,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴的轴号，255 表示使能所有 EtherCAT 轴</param>
         /// <returns>错误代码</returns>
-        public int NmcSetCardAxisDisable(int CardNo, int axis)
+        public int NmcSetCardAxisDisable(int cardIndex, int axis)
         {
-            return LTDMC.nmc_set_axis_disable((ushort)CardNo, (ushort)axis);
+            return LTDMC.nmc_set_axis_disable((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2838,9 +2838,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="TotalAxis">EtherCAT 总线轴和虚拟轴轴数</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardTotalAxes(int CardNo, ref uint TotalAxis)
+        public int NmcGetCardTotalAxes(int cardIndex, ref uint totalAxisCount)
         {
-            return LTDMC.nmc_get_total_axes((ushort)CardNo, ref TotalAxis);
+            return LTDMC.nmc_get_total_axes((ushort)cardIndex, ref totalAxisCount);
 
         }
         /// <summary>
@@ -2850,9 +2850,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="TotalIn">EtherCAT 总线 AD 输入数</param>
         /// <param name="TotalOut">EtherCAT 总线 DA 输出数</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardTotalAdcnum(int CardNo, ref ushort TotalIn, ref ushort TotalOut)
+        public int NmcGetCardTotalAdcnum(int cardIndex, ref ushort TotalIn, ref ushort TotalOut)
         {
-            return LTDMC.nmc_get_total_adcnum((ushort)CardNo, ref TotalIn, ref TotalOut);
+            return LTDMC.nmc_get_total_adcnum((ushort)cardIndex, ref TotalIn, ref TotalOut);
         }
 
         /// <summary>
@@ -2862,9 +2862,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="TotalIn">EtherCAT 总线 IO 输入数，包括板卡自带以及 IO 模块上的输入</param>
         /// <param name="TotalOut">EtherCAT 总线 IO 输出数，包括板卡自带以及 IO 模块上的输出</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardTotalIONum(int CardNo, ref UInt16 TotalIn, ref UInt16 TotalOut)
+        public int NmcGetCardTotalIONum(int cardIndex, ref UInt16 TotalIn, ref UInt16 TotalOut)
         {
-            return LTDMC.nmc_get_total_ionum((ushort)CardNo, ref TotalIn, ref TotalOut);
+            return LTDMC.nmc_get_total_ionum((ushort)cardIndex, ref TotalIn, ref TotalOut);
         }
 
         /// <summary>
@@ -2873,9 +2873,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="controller_mode">控制器工作模式，0 表示仿真模式，1 表示 EtherCAT总线模式</param>
         /// <returns>错误代码</returns>
-        public int NmcSetCardControllerWorkMode(int CardNo, int controller_mode)
+        public int NmcSetCardControllerWorkMode(int cardIndex, int controller_mode)
         {
-            return LTDMC.nmc_set_controller_workmode((ushort)CardNo, (ushort)controller_mode);
+            return LTDMC.nmc_set_controller_workmode((ushort)cardIndex, (ushort)controller_mode);
         }
 
         /// <summary>
@@ -2884,9 +2884,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="controller_mode">控制卡的工作模式，0 表示仿真模式，1 表示 EtherCAT 总线模式</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardControllerWorkMode(int CardNo, ref ushort controller_mode)
+        public int NmcGetCardControllerWorkMode(int cardIndex, ref ushort controller_mode)
         {
-            return LTDMC.nmc_get_controller_workmode((ushort)CardNo, ref controller_mode);
+            return LTDMC.nmc_get_controller_workmode((ushort)cardIndex, ref controller_mode);
         }
 
         /// <summary>
@@ -2896,9 +2896,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="FieldbusType">EtherCAT 端口号，固定为 2</param>
         /// <param name="CyclFieldbusTypeeTime">EtherCAT 总线循环周期，单位：us，支持 250/500/1000/2000</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardCydleTime(int CardNo, int FieldbusType, ref int CyclFieldbusTypeeTime)
+        public int NmcGetCardCydleTime(int cardIndex, int fieldbusType, ref int CyclFieldbusTypeeTime)
         {
-            return LTDMC.nmc_get_cycletime((ushort)CardNo, (ushort)FieldbusType, ref CyclFieldbusTypeeTime);
+            return LTDMC.nmc_get_cycletime((ushort)cardIndex, (ushort)fieldbusType, ref CyclFieldbusTypeeTime);
         }
 
         /// <summary>
@@ -2908,9 +2908,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">轴号</param>
         /// <param name="Axis_Type">轴的类型，0：虚拟轴，1：EtherCAT 轴，2：CANopen轴，3：脉冲轴，4：未知类型轴</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardAxisType(int CardNo, int axis, ref ushort Axis_Type)
+        public int NmcGetCardAxisType(int cardIndex, int axis, ref ushort Axis_Type)
         {
-            return LTDMC.nmc_get_axis_type((ushort)CardNo, (ushort)axis, ref Axis_Type);
+            return LTDMC.nmc_get_axis_type((ushort)cardIndex, (ushort)axis, ref Axis_Type);
         }
         /// <summary>
         /// 停止EtherCAT总线运行
@@ -2918,9 +2918,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="ETCState">0：停止 EtherCAT 总线成功，1：停止 EtherCAT 总线失败</param>
         /// <returns>错误代码</returns>
-        public int NmcStopCardEtc(int CardNo, ref ushort ETCState)
+        public int NmcStopCardEtc(int cardIndex, ref ushort ETCState)
         {
-            return LTDMC.nmc_stop_etc((ushort)CardNo, ref ETCState);
+            return LTDMC.nmc_stop_etc((ushort)cardIndex, ref ETCState);
         }
 
         /// <summary>
@@ -2932,9 +2932,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Max_time">EtherCAT 总线最大周期时间，单位：us</param>
         /// <param name="Cycles">EtherCAT 总线执行周期数</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardConsumeTimeFieldbus(int CardNo, int Fieldbustype, ref uint Average_time, ref uint Max_time, ref UInt64 Cycles)
+        public int NmcGetCardConsumeTimeFieldbus(int cardIndex, int Fieldbustype, ref uint Average_time, ref uint Max_time, ref UInt64 Cycles)
         {
-            return LTDMC.nmc_get_consume_time_fieldbus((ushort)CardNo, (ushort)Fieldbustype, ref Average_time, ref Max_time, ref Cycles);
+            return LTDMC.nmc_get_consume_time_fieldbus((ushort)cardIndex, (ushort)Fieldbustype, ref Average_time, ref Max_time, ref Cycles);
         }
 
         /// <summary>
@@ -2943,9 +2943,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="Fieldbustype">EtherCAT 端口号，固定为 2</param>
         /// <returns>错误代码</returns>
-        public int NmcClearCardConsumeTimeFieldbus(int CardNo, int Fieldbustype)
+        public int NmcClearCardConsumeTimeFieldbus(int cardIndex, int Fieldbustype)
         {
-            return LTDMC.nmc_clear_consume_time_fieldbus((ushort)CardNo, (ushort)Fieldbustype);
+            return LTDMC.nmc_clear_consume_time_fieldbus((ushort)cardIndex, (ushort)Fieldbustype);
         }
 
         /// <summary>
@@ -2964,9 +2964,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <para>7：FAULT  轴处于错误状态     </para>
         /// </param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardAxisStateMachine(int CardNo, int axis, ref ushort Axis_StateMachine)
+        public int NmcGetCardAxisStateMachine(int cardIndex, int axis, ref ushort Axis_StateMachine)
         {
-            return LTDMC.nmc_get_axis_state_machine((ushort)CardNo, (ushort)axis, ref Axis_StateMachine);
+            return LTDMC.nmc_get_axis_state_machine((ushort)cardIndex, (ushort)axis, ref Axis_StateMachine);
         }
 
         /// <summary>
@@ -2976,9 +2976,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="axis">EtherCAT 总线轴轴号</param>
         /// <param name="contrlmode">EtherCAT 总线轴配置控制模式（6 回零模式、8 CSP 模式）</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardAxisSettingControlMode(int CardNo, int axis, ref int contrlmode)
+        public int NmcGetCardAxisSettingControlMode(int cardIndex, int axis, ref int contrlmode)
         {
-            return LTDMC.nmc_get_axis_setting_contrlmode((ushort)CardNo, (ushort)axis, ref contrlmode);
+            return LTDMC.nmc_get_axis_setting_contrlmode((ushort)cardIndex, (ushort)axis, ref contrlmode);
         }
 
         /// <summary>
@@ -2993,9 +2993,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Tdec">EtherCAT 总线轴回零减速时间</param>
         /// <param name="offsetpos">EtherCAT 总线轴回零偏移 </param>
         /// <returns>错误代码</returns>
-        public int NmcSetCardAxisHomeProfile(int CardNo, int axis, int home_mode, double Low_Vel, double High_Vel, double Tacc, double Tdec, double offsetpos)
+        public int NmcSetCardAxisHomeProfile(int cardIndex, int axis, int home_mode, double Low_Vel, double High_Vel, double acceleration, double deceleration, double offsetpos)
         {
-            return LTDMC.nmc_set_home_profile((ushort)CardNo, (ushort)axis, (ushort)home_mode, Low_Vel, High_Vel, Tacc, Tdec, offsetpos);
+            return LTDMC.nmc_set_home_profile((ushort)cardIndex, (ushort)axis, (ushort)home_mode, Low_Vel, High_Vel, acceleration, deceleration, offsetpos);
         }
 
         /// <summary>
@@ -3010,9 +3010,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="Tdec">返回EtherCAT 总线轴回零减速时间</param>
         /// <param name="offsetpos">返回EtherCAT 总线轴回零偏移 </param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardAxisHomeProfile(int CardNo, int axis, ref ushort home_mode, ref double Low_Vel, ref double High_Vel, ref double Tacc, ref double Tdec, ref double offsetpos)
+        public int NmcGetCardAxisHomeProfile(int cardIndex, int axis, ref ushort home_mode, ref double Low_Vel, ref double High_Vel, ref double acceleration, ref double deceleration, ref double offsetpos)
         {
-            return LTDMC.nmc_get_home_profile((ushort)CardNo, (ushort)axis, ref home_mode, ref Low_Vel, ref High_Vel, ref Tacc, ref Tdec, ref offsetpos);
+            return LTDMC.nmc_get_home_profile((ushort)cardIndex, (ushort)axis, ref home_mode, ref Low_Vel, ref High_Vel, ref acceleration, ref deceleration, ref offsetpos);
         }
 
         /// <summary>
@@ -3021,9 +3021,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴轴号</param>
         /// <returns>错误代码</returns>
-        public int NmcCardAxisHomeMove(int CardNo, int axis)
+        public int NmcCardAxisHomeMove(int cardIndex, int axis)
         {
-            return LTDMC.nmc_home_move((ushort)CardNo, (ushort)axis);
+            return LTDMC.nmc_home_move((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -3033,9 +3033,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="channel">EtherCAT 总线端口号，固定为 2</param>
         /// <param name="errcode">EtherCAT 总线状态，0 表示正常</param>
         /// <returns></returns>
-        public int NmcGetCardErrcode(int CardNo, int channel, ref ushort errcode)
+        public int NmcGetCardErrcode(int cardIndex, int channel, ref ushort errcode)
         {
-            return LTDMC.nmc_get_errcode((ushort)CardNo, (ushort)channel, ref errcode);
+            return LTDMC.nmc_get_errcode((ushort)cardIndex, (ushort)channel, ref errcode);
         }
 
         /// <summary>
@@ -3046,9 +3046,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="SlaveAddr">EtherCAT 总线轴地址</param>
         /// <param name="Sub_SlaveAddr">EtherCAT 总线轴子地址</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardAxisNodeAddress(int CardNo, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
+        public int NmcGetCardAxisNodeAddress(int cardIndex, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
         {
-            return LTDMC.nmc_get_node_od((ushort)CardNo, 2, (ushort)axis, SlaveAddr, Sub_SlaveAddr, (ushort)lenght, ref value);
+            return LTDMC.nmc_get_node_od((ushort)cardIndex, 2, (ushort)axis, SlaveAddr, Sub_SlaveAddr, (ushort)lenght, ref value);
 
         }
 
@@ -3059,9 +3059,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.DMC_E3032_EtherCAT
         /// <param name="PortNum">EtherCAT 端口号，固定为 2</param>
         /// <param name="TotalSlaves">EtherCAT 从站总数</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardTotalSlaves(int CardNo, int PortNum, ref ushort TotalSlaves)
+        public int NmcGetCardTotalSlaves(int cardIndex, int portCount, ref ushort TotalSlaves)
         {
-            return LTDMC.nmc_get_total_slaves((ushort)CardNo, (ushort)PortNum, ref TotalSlaves);
+            return LTDMC.nmc_get_total_slaves((ushort)cardIndex, (ushort)portCount, ref TotalSlaves);
         }
 
         #endregion

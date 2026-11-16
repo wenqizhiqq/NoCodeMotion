@@ -3,7 +3,7 @@
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 // ────────────────────────────────────────────────────────────────
 // 移植自 WenQiZhiMotion / SMotorse 运动控制卡层参考实现
-//   源: MotionParameterObj/InPutParamModel.cs
+//   源: MotionParameterObj/InputParamModel.cs
 //   改动: 仅行尾归一化为 LF、加 #nullable disable；命名空间与逻辑保持原样。
 // ────────────────────────────────────────────────────────────────
 #nullable disable
@@ -13,12 +13,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common
+namespace NoCodeMotion.Services.Hardware.Cards
 {
     /// <summary>
     /// 输入参数
     /// </summary>
-    public class InPutParamModel
+    public class InputParamModel
     {
         /// <summary>
         /// 控制卡卡号

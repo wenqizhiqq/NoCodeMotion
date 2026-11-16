@@ -8,37 +8,38 @@
 // ────────────────────────────────────────────────────────────────
 #nullable disable
 using System;
+    using NoCodeMotion.Hardware.Motion;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
+namespace NoCodeMotion.Services.Hardware.Cards.Families.PLTEI400H
 {
     /// <summary>
     /// 外部输出IO
     /// </summary>
-    public class ExpandOutioRealizetion : IEIOOutPut
+    public class ExpandOutioRealizetion : ExpansionOutputBase
     {
         /// <summary>
         /// IO的初始电平为高电平
         /// </summary>
-        public bool EDefaultLevelIsHigh { get ; set ; } = false;
+        public override bool ActiveHighByDefault { get ; set ; } = false;
 
         /// <summary>
         /// 硬件卡拥有的输出IO的数量
         /// </summary>
-        public ushort EOutIONums { get; set ; } = 64;
+        public override ushort PointCount { get; set ; } = 64;
 
         /// <summary>
         /// 输入IO所属卡的名字
         /// </summary>
-        public string EOutIOName { get ; set ; }
+        public override string ChannelName { get ; set ; }
       
         /// <summary>
         /// 卡号（即这个输出IO对象是属于第几张卡的）
         /// </summary>
-        public int ECardNo { get ; set ; }
+        public override int ECardNo { get ; set ; }
       
         
         /// <summary>
@@ -50,7 +51,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandADDAIOOutPortNoMode(int CardNo, int NodeID, int PortNo, int mode, uint buffer_nums)
+        public override int ESetExpandADDAIOOutPortNoMode(int cardIndex, int nodeId, int portIndex, int mode, uint buffer_nums)
         {
             //return PLTEI400HSDK.Instance.SetExpandADDAIOOutPortNoMode(CardNo, NodeID, PortNo, mode, buffer_nums);
             return 0;
@@ -65,7 +66,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandADDAIOOutPortNoMode(int CardNo, int NodeID, int PortNo,ref ushort mode, uint buffer_nums)
+        public override int EGetExpandADDAIOOutPortNoMode(int cardIndex, int nodeId, int portIndex,ref ushort mode, uint buffer_nums)
         {
             //return PLTEI400HSDK.Instance.GetExpandADDAIOOutPortNoMode(CardNo, NodeID, PortNo, ref mode, buffer_nums);
             return 0;
@@ -79,7 +80,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandADDAIOPortNoOutBit(int CardNo, int NodeID, int PortNo, ref double IoValue)
+        public override int EGetExpandADDAIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, ref double ioValue)
         {
             //return PLTEI400HSDK.Instance.GetExpandADDAIOPortNoOutBit(CardNo, NodeID, PortNo, ref IoValue);
             return 0;
@@ -93,7 +94,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="state"></param>
         /// <param name="baud"></param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandIOConnectState(int CardNo, ref ushort NodeNum, ref ushort state)
+        public override int EGetExpandIOConnectState(int cardIndex, ref ushort nodeCount, ref ushort state)
         {
             //return PLTEI400HSDK.Instance.GetExpandIOConnectState(CardNo, ref NodeNum, ref state);
             return 0;
@@ -107,7 +108,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandIOOutBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public override int EGetExpandIOOutBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
             //return PLTEI400HSDK.Instance.GetExpandIOOutBit(CardNo,  NodeID, IoBit, ref IoValue);
             return 0;
@@ -121,7 +122,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit31 的值分别代表第 0~31 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandIOPortNoOutBit(int CardNo, int NodeID, int PortNo, ref uint IoValue)
+        public override int EGetExpandIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, ref uint ioValue)
         {
             //return PLTEI400HSDK.Instance.GetExpandIOPortNoOutBit(CardNo, NodeID, PortNo, ref IoValue);
             return 0;
@@ -135,7 +136,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandADDAIOPortNoOutBit(int CardNo, int NodeID, int PortNo, double IoValue)
+        public override int ESetExpandADDAIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, double ioValue)
         {
             //return PLTEI400HSDK.Instance.SetExpandADDAIOPortNoOutBit(CardNo, NodeID, PortNo,  IoValue);
             return 0;
@@ -153,7 +154,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="state">设置通讯状态，0：断开，1：连接</param>
         /// <param name="baud">设置控制卡波特率：波特率参数：0,1,2,3,4,5；对特率：1000Kbps，800Kbps,500Kbps,250Kbps,125Kbps,100Kbps</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandIOConnectState(int CardNo, int NodeNum, int state, int baud)
+        public override int ESetExpandIOConnectState(int cardIndex, int nodeCount, int state, int baud)
         {
             //return PLTEI400HSDK.Instance.SetExpandIOConnectState(CardNo, NodeNum, state, baud);
             return 0;
@@ -167,7 +168,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandIOOutBit(int CardNo, int NodeID, int IoBit, int IoValue)
+        public override int ESetExpandIOOutBit(int cardIndex, int nodeId, int ioBit, int ioValue)
         {
             //return PLTEI400HSDK.Instance.SetExpandIOOutBit(CardNo, NodeID, IoBit, IoValue);
             return 0;
@@ -181,7 +182,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit32 的值分别代表第 0~32 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandIOPortNoOutBit(int CardNo, int NodeID, int PortNo, int IoValue)
+        public override int ESetExpandIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, int ioValue)
         {
             //return PLTEI400HSDK.Instance.SetExpandIOPortNoOutBit(CardNo, NodeID, PortNo, IoValue);
             return 0;
@@ -197,7 +198,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="PortNum">保留参数，设为 0</param>
         /// <param name="NodeNum">节点号，1-8</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESaveExpandIoToFlash(int CardNo, int PortNum, int NodeNum)
+        public override int ESaveExpandIoToFlash(int cardIndex, int portCount, int nodeCount)
         {
             //return PLTEI400HSDK.Instance.SaveExpandIoToFlash(CardNo, PortNum, NodeNum);
             return 0;

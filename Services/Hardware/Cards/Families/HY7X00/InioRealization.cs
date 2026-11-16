@@ -8,27 +8,28 @@
 // ────────────────────────────────────────────────────────────────
 #nullable disable
 using System;
+    using NoCodeMotion.Hardware.Motion;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
+namespace NoCodeMotion.Services.Hardware.Cards.Families.HY7X00
 {
-    public class InioRealization : IIOInPut
+    public class InioRealization : DigitalInputBase
     {
         /// <summary>
         /// IO的初始电平为高电平
         /// </summary>
-        public bool DefaultLevelIsHigh { get; set; } = false;
+        public override bool ActiveHighByDefault { get; set; } = false;
         /// <summary>
         /// 硬件卡拥有的输入IO的数量
         /// </summary>
-        public ushort InIONums { get; set; } = 64;
+        public override ushort PointCount { get; set; } = 64;
         /// <summary>
         /// 输入IO的名字
         /// </summary>
-        public string InIOName { get; set; }
+        public override string ChannelName { get; set; }
 
         /// <summary>
         /// 运动控制卡类型
@@ -38,18 +39,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <summary>
         /// 卡号（即这个输入IO对象是属于第几张卡的）
         /// </summary>
-        public int CardNo { get; set; }
+        public override int CardNo { get; set; }
 
         /// <summary>
         /// 是否为虚拟IO
         /// </summary>
-        public bool IsVitualIO { get; set; } = false;
+        public override bool IsVirtualIO { get; set; } = false;
 
 
         /// <summary>
         /// IO端口号是从0开始还是从1开始（每种卡都可能有差别，注意看手册）
         /// </summary>
-        public int IOIndexStart { get; set; } = 0;
+        public override int IndexStart { get; set; } = 0;
 
 
         /// <summary>
@@ -59,7 +60,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="bitno"></param>
         /// <param name="on_off"></param>
         /// <returns></returns>
-        public int SetCardWriteInBit(int CardNo, int bitno, int on_off)
+        public override int SetCardWriteInBit(int CardNo, int bitno, int on_off)
         {
             return HY7X00SDK.Instance.SetCardWriteInBit(CardNo, bitno, on_off);
         }
@@ -71,7 +72,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="bit_no">对应的位(bit)号， 范围 0~15,分别对应端子上的 DI0~DI15。</param>
         /// <param name="pData">DI 端口状态，其中的 bit 0 ~15 分别对应端子上的 DI0~DI15  <para> 当*pData 中的位为 0 时，对应端子输入低电平；</para> <para> 当*pData 中的位为 1 时，对应端子输入高电平；</para>    </param>
         /// <returns></returns>
-        public int GetCardDIBitAlarmState(int card_no, int bit_no, ref int pData)
+        public override int GetCardDIBitAlarmState(int card_no, int bit_no, ref int pData)
         {
             return -1;
         }
@@ -82,7 +83,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="card_no">卡号 </param>
         /// <param name="pData">DI 端口状态，其中的 bit 0 ~15 分别对应端子上的 DI0~DI15  <para> 当*pData 中的位为 0 时，对应端子输入低电平；</para> <para> 当*pData 中的位为 1 时，对应端子输入高电平；</para>    </param>
         /// <returns>正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int GetCardDIState(int card_no, ref int pData)
+        public override int GetCardDIState(int card_no, ref int pData)
         {
             return -1;
         }
@@ -107,7 +108,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <para>函数返回值的 bit：7 ；输入口号： 7 ；输入口名称：IN7</para>
         /// <para>函数返回值的 bit：8-31 8-31 ；输入口名称：扩展输入口</para>
         /// </returns>
-        public int GetCardInPortNoValue(int CardNo, int portno)
+        public override int GetCardInPortNoValue(int CardNo, int portno)
         {
             switch (CardName)
             {
@@ -137,11 +138,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平 </param>
         /// <returns>错误代码</returns>
-        public uint GetCardCANIOInPort(int CardNo, int NodeID, int PortNo, ref UInt32 IoValue)
+        public override uint GetCardCANIOInPort(int CardNo, int nodeId, int portIndex, ref UInt32 ioValue)
         {
             uint IoValue1 = 0;
             // PortNo = 0;
-            HY7X00SDK.Instance.GetCard_CANIO_InPort(CardNo, NodeID, PortNo, ref IoValue1);
+            HY7X00SDK.Instance.GetCard_CANIO_InPort(CardNo, nodeId, portIndex, ref IoValue1);
             //var s3 = Convert.ToString(IoValue1, 2).PadLeft(32, '0');
             //s3 = new string(s3.ToCharArray().Reverse().ToArray());
             return IoValue1;
@@ -171,7 +172,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <para>函数返回值的 bit：7 ；输入口号： 7 ；输入口名称：IN7</para>
         /// <para>函数返回值的 bit：8-31 8-31 ；输入口名称：扩展输入口</para>
         /// </returns>
-        public int GetCardInPortValue(int CardNo, int portno)
+        public override int GetCardInPortValue(int CardNo, int portno)
         {
             switch (CardName)
             {
@@ -199,22 +200,22 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="ref_source"></param>
         /// <param name="length"></param>
         /// <returns></returns>
-        public int SetCardCompEnable(int card_no, int enable, int active_level, int ref_source, int length)
+        public override int SetCardCompEnable(int card_no, int enable, int active_level, int ref_source, int length)
         {
             return -1;
         }
 
-        public int SetCardWriteExtendInBit(int CardNo, int bitno, int nodeno, int on_off)
+        public override int SetCardWriteExtendInBit(int CardNo, int bitno, int nodeno, int on_off)
         {
             return 0;
         }
 
-        public int EMGAction(string CardName, int cardNo, int EmgIO)
+        public override int EMGAction(string CardName, int cardNo, int EmgIO)
         {
             throw new NotImplementedException();
         }
 
-        public int NmcReadInportExtern(int CardNo, int Channel, int NoteID, int PortNo, ref uint IoValue)
+        public override int NmcReadInportExtern(int CardNo, int Channel, int noteId, int portIndex, ref uint ioValue)
         {
             throw new NotImplementedException();
         }
@@ -227,7 +228,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.HY7X00
         /// <param name="IoBit">输入端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardReadInBit(int CardNo, int Channel, int NoteID, int IoBit, ref ushort IoValue)
+        public override int NmcGetCardReadInBit(int CardNo, int Channel, int noteId, int ioBit, ref ushort ioValue)
         {
             //int error = DMC_E3032SDK.Instance.NmcReadInbitExtern(CardNo, Channel, NoteID, IoBit, ref IoValue);
             //return IoValue;

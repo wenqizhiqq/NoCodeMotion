@@ -11,7 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace WenQiZhi.Domain.MotionCard.Common.PCI9014
+namespace NoCodeMotion.Services.Hardware.Cards.Families.PCI9014
 {
     public class PCI9014SDK
     {
@@ -36,7 +36,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PCI9014
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public string GetErrorInfo(int errorNumber)
         {
             var msg = string.Empty;
             Dictionary<int, string> dic = new Dictionary<int, string>()
@@ -72,9 +72,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PCI9014
                 {-300,"回原过程中轴被异常停止" }
             };
 
-            if (dic.ContainsKey(ErrNum))
+            if (dic.ContainsKey(errorNumber))
             {
-                return dic[ErrNum];
+                return dic[errorNumber];
             }
             return "unkown errNum";
         }
@@ -87,7 +87,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PCI9014
         /// <param name="bitno"></param>
         /// <param name="on_off">输入电平，0：低电平，1：高电平</param>
         /// <returns></returns>
-        public int SetCardWriteInBit(int CardNo, int bitno, int on_off)
+        public int SetCardWriteInBit(int cardIndex, int bitno, int on_off)
         {
             return 0;
         }
@@ -99,7 +99,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PCI9014
         /// <param name="card_id">有*existCards 个元素的数组，包含查找到的 PCI-9014 的 ID 号，建议使用含 有 16 个元素的 I32 类型数组作为该参数 </param>
         /// <param name="card_count">查到的 PCI-9014 数目</param>
         /// <returns>正常返回 0； 出现错误时返回非 0 值;</returns>
-        public int InitCard(ref int[] card_id, ref int card_count)
+        public int Initialize(ref int[] card_id, ref int card_count)
         {
             card_id = new int[16];
             return CPci9014.p9014_initial(ref card_count, card_id);
@@ -132,7 +132,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PCI9014
         /// <param name="DistList">插补轴目标位置列表，单位：pulse</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns></returns>
-        public int CardAxisLineMulticoor(int CardNo, int Crd, int axisNum, UInt16[] axisList, int[] DistList, int posi_mode)
+        public int CardAxisLineMulticoor(int cardIndex, int crdIndex, int axisNum, UInt16[] axisList, int[] DistList, int posi_mode)
         {
             //return LTDMC.dmc_line_multicoor((ushort)CardNo, (ushort)Crd, (ushort)axisNum, axisList, DistList, (ushort)posi_mode);
             //CPci9014.P9014_PTP_move(axisList,DistList,)
@@ -144,7 +144,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PCI9014
         /// 关闭卡
         /// </summary>
         /// <returns>正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int CloseCard()
+        public int Close()
         {
             return CPci9014.p9014_close();
         }

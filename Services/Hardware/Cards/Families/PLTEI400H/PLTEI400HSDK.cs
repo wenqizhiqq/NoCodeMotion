@@ -14,7 +14,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
+namespace NoCodeMotion.Services.Hardware.Cards.Families.PLTEI400H
 {
     public class PLTEI400HSDK
     {
@@ -46,9 +46,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">平滑时间，单位：s，范围：0~1</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardVectorSProfile(int cardNo, int Crd, int s_mode, double s_para)
+        public int DmcSetCardVectorSProfile(int cardNo, int crdIndex, int s_mode, double s_para)
         {
-            return PLT.DmcSetCardVectorSProfile(cardNo, Crd, s_mode, s_para);
+            return PLT.DmcSetCardVectorSProfile(cardNo, crdIndex, s_mode, s_para);
         }
 
         /// <summary>
@@ -62,9 +62,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="Tdec">返回减速时间，单位：s (最小值为 0.001s)</param>
         /// <param name="stop_vel">返回停止速度，单位：pulse/s (最大值为 2M)</param>
         /// <returns>：错误代码</returns>
-        public int GetCardAxisProfile(int cardNo, int axisNo, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double stop_vel)
+        public int GetCardAxisProfile(int cardNo, int axisNo, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stop_vel)
         {
-            return PLT.GetCardAxisProfile(cardNo, axisNo, ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref stop_vel);
+            return PLT.GetCardAxisProfile(cardNo, axisNo, ref minVelocity, ref maxVelocity, ref acceleration, ref deceleration, ref stop_vel);
         }
 
         /// <summary>
@@ -140,7 +140,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <summary>
         /// 虚拟卡(当用户勾选虚拟卡后，轴对象这里需要知道当前是虚拟卡)
         /// </summary>
-        public bool IsVitualCard { get; set; }
+        public bool IsVirtualCard { get; set; }
 
         /// <summary>
         /// 轴状态, 0轴停止,1轴运行中
@@ -343,9 +343,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 设置轴的最大速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisMaxVel(int cardNo, int axisNo, double Max_Vel)
+        public int SetCardAxisMaxVel(int cardNo, int axisNo, double maxVelocity)
         {
-            return PLT.SetCardAxisMaxVel(cardNo, axisNo, Max_Vel);
+            return PLT.SetCardAxisMaxVel(cardNo, axisNo, maxVelocity);
         }
 
         /// <summary>
@@ -450,9 +450,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 设置轴的低速回零减速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisLowHomeDecVel(int CardNo, int axisNo, double homeMode)
+        public int SetCardAxisLowHomeDecVel(int cardIndex, int axisNo, double homeMode)
         {
-            return PLT.SetCardAxisLowHomeDecVel(CardNo, axisNo, homeMode);
+            return PLT.SetCardAxisLowHomeDecVel(cardIndex, axisNo, homeMode);
         }
         public int Plt_AxConfigHomeParms(int cardNo, int axisNo, PLT.struct_home_config_parms homeparms)
         {
@@ -570,9 +570,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 读取轴的最大速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisMaxVel(int cardNo, int axisNo, ref double Max_Vel)
+        public int GetCardAxisMaxVel(int cardNo, int axisNo, ref double maxVelocity)
         {
-            return PLT.GetCardAxisMaxVel(cardNo, axisNo, ref Max_Vel);
+            return PLT.GetCardAxisMaxVel(cardNo, axisNo, ref maxVelocity);
         }
 
         /// <summary>
@@ -754,9 +754,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 清除轴的报警状态
         /// </summary>
         /// <returns></returns>
-        public int ClearCardAxisAlarmState(int CardNo, int axis)
+        public int ClearCardAxisAlarmState(int cardIndex, int axis)
         {
-            return PLT.ClearCardAxisAlarmState(CardNo, axis);
+            return PLT.ClearCardAxisAlarmState(cardIndex, axis);
         }
         /// <summary>
         /// 清除所有已添加的高速位置比较器
@@ -764,17 +764,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="CardNo"></param>
         /// <param name="hcmp"></param>
         /// <returns></returns>
-        public int ClearCardHcmpPoints(int CardNo, int hcmp)
+        public int ClearCardHcmpPoints(int cardIndex, int hcmp)
         {
-            return PLT.ClearCardHcmpPoints(CardNo, hcmp);
+            return PLT.ClearCardHcmpPoints(cardIndex, hcmp);
         }
         /// <summary>
         /// 打开轴的使能
         /// </summary>
         /// <returns></returns>
-        public int OpenCardAxisEnable(int CardNo, int axis)
+        public int OpenCardAxisEnable(int cardIndex, int axis)
         {
-            return PLT.OpenCardAxisEnable(CardNo, axis);
+            return PLT.OpenCardAxisEnable(cardIndex, axis);
         }
 
 
@@ -784,36 +784,36 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴的轴号，255 表示使能所有 EtherCAT 轴</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisDisable(int CardNo, int axis)
+        public int SetCardAxisDisable(int cardIndex, int axis)
         {
-            return PLT.SetCardAxisDisable(CardNo, axis);
+            return PLT.SetCardAxisDisable(cardIndex, axis);
         }
 
         /// <summary>
         /// 设置轴的运行模式
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisRunMode(int CardNo, int axis, ushort runmode)
+        public int SetCardAxisRunMode(int cardIndex, int axis, ushort runmode)
         {
-            return PLT.SetCardAxisRunMode(CardNo, axis, runmode);
+            return PLT.SetCardAxisRunMode(cardIndex, axis, runmode);
         }
 
         /// <summary>
         /// 获取轴当前的运行模式
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisRunMode(int CardNo, int axis)
+        public int GetCardAxisRunMode(int cardIndex, int axis)
         {
-            return PLT.GetCardAxisRunMode(CardNo, axis);
+            return PLT.GetCardAxisRunMode(cardIndex, axis);
         }
 
         /// <summary>
         /// 设置轴的脉冲当量
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisPulseEquival(int CardNo, int axis, int equiv)
+        public int SetCardAxisPulseEquival(int cardIndex, int axis, int equiv)
         {
-            return PLT.SetCardAxisPulseEquival(CardNo, axis, equiv);
+            return PLT.SetCardAxisPulseEquival(cardIndex, axis, equiv);
         }
 
 
@@ -821,9 +821,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 获取轴的脉冲当量
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisPulseEquival(int CardNo, int axis)
+        public int GetCardAxisPulseEquival(int cardIndex, int axis)
         {
-            return PLT.GetCardAxisPulseEquival(CardNo, axis);
+            return PLT.GetCardAxisPulseEquival(cardIndex, axis);
         }
 
         /// <summary>
@@ -920,9 +920,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="axis">轴号</param>
         /// <param name="stop_mode">0减速停,1急停</param>
         /// <returns></returns>
-        public int StopCardAxisMovement(int CardNo, int axis, int stop_mode)
+        public int StopCardAxisMovement(int cardIndex, int axis, int stop_mode)
         {
-            return PLT.StopCardAxisMovement(CardNo, axis, stop_mode);
+            return PLT.StopCardAxisMovement(cardIndex, axis, stop_mode);
         }
 
         /// <summary>
@@ -1083,9 +1083,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 设置一维位置比较：开启\关闭(单轴高速)
         /// </summary>
         /// <returns></returns>
-        public int SetCardHcmpEnable(int CardNo, int axis, int hcmp, int cmp_mode = 0)
+        public int SetCardHcmpEnable(int cardIndex, int axis, int hcmp, int cmp_mode = 0)
         {
-            return PLT.SetCardHcmpEnable(CardNo, axis, hcmp, cmp_mode);
+            return PLT.SetCardHcmpEnable(cardIndex, axis, hcmp, cmp_mode);
         }
         /// <summary>
         /// 按索引号读取 PC 缓冲区中已保存的锁存值
@@ -1095,9 +1095,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="Index">索引号</param>
         /// <returns>锁存值</returns>
-        public int GetCardAxisLatchValueExtern(int CardNo, int axis, int Index)
+        public int GetCardAxisLatchValueExtern(int cardIndex, int axis, int Index)
         {
-            return PLT.GetCardAxisLatchValueExtern(CardNo, axis, Index);
+            return PLT.GetCardAxisLatchValueExtern(cardIndex, axis, Index);
         }
         /// <summary>
         /// 从 PC 缓存中读取锁存器已锁存个数
@@ -1105,9 +1105,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns></returns>
-        public int GetCardAxisLatchFlagExtern(int CardNo, int axis)
+        public int GetCardAxisLatchFlagExtern(int cardIndex, int axis)
         {
-            return PLT.GetCardAxisLatchFlagExtern(CardNo, axis);
+            return PLT.GetCardAxisLatchFlagExtern(cardIndex, axis);
         }
 
         /// <summary>
@@ -1119,18 +1119,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">   比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisCompareConfig(int CardNo, int axis, int enable, int cmp_source)
+        public int SetCardAxisCompareConfig(int cardIndex, int axis, int enable, int cmp_source)
         {
-            return PLT.SetCardAxisCompareConfig(CardNo, axis, enable, cmp_source);
+            return PLT.SetCardAxisCompareConfig(cardIndex, axis, enable, cmp_source);
         }
 
         /// <summary>
         /// 设置二维位置比较输出
         /// </summary>
         /// <returns></returns>
-        public int SetCardCompareConfigExtern(int CardNo, int enable, int cmp_source)
+        public int SetCardCompareConfigExtern(int cardIndex, int enable, int cmp_source)
         {
-            return PLT.SetCardCompareConfigExtern(CardNo, enable, cmp_source);
+            return PLT.SetCardCompareConfigExtern(cardIndex, enable, cmp_source);
         }
         /// <summary>
         /// 配置高速比较器关联
@@ -1142,9 +1142,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="cmp_logic"></param>
         /// <param name="time"></param>
         /// <returns></returns>
-        public int SetCardAxisHcmpConfig(int CardNo, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
+        public int SetCardAxisHcmpConfig(int cardIndex, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
         {
-            return PLT.SetCardAxisHcmpConfig(CardNo, hcmp, axis, cmp_source, cmp_logic, time);
+            return PLT.SetCardAxisHcmpConfig(cardIndex, hcmp, axis, cmp_source, cmp_logic, time);
         }
         /// <summary>
         /// 添加/更新高速比较位置
@@ -1153,9 +1153,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="hcmp"></param>
         /// <param name="cmp_pos"></param>
         /// <returns></returns>
-        public int AddCardHcmpPoint(int CardNo, int hcmp, int cmp_pos)
+        public int AddCardHcmpPoint(int cardIndex, int hcmp, int cmp_pos)
         {
-            return PLT.AddCardHcmpPoint(CardNo, hcmp, cmp_pos);
+            return PLT.AddCardHcmpPoint(cardIndex, hcmp, cmp_pos);
         }
         /// <summary>
         /// 设置高速比较线性模式参数    
@@ -1165,7 +1165,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="Increment">位置增量值，单位：pulse（正值表示位置递增，负值表示位置递减）</param>
         /// <param name="Count">比较次数，取值范围：1~32767</param>
         /// <returns>错误代码</returns>
-        public int SetCardHcmpLiner(int CardNo, int hcmp, int Increment, int Count)
+        public int SetCardHcmpLiner(int cardIndex, int hcmp, int increment, int Count)
         {
             return 0;
         }
@@ -1178,9 +1178,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="latch_source"></param>
         /// <param name="triger_chunnel"></param>
         /// <returns></returns>
-        public int SetCardAxisLatchMode(int CardNo, int axis, int all_enable, int latch_source, int triger_chunnel)
+        public int SetCardAxisLatchMode(int cardIndex, int axis, int all_enable, int latch_source, int triger_chunnel)
         {
-            return PLT.SetCardAxisLatchMode(CardNo, axis, all_enable, latch_source, triger_chunnel);
+            return PLT.SetCardAxisLatchMode(cardIndex, axis, all_enable, latch_source, triger_chunnel);
         }
         /// <summary>
         /// 复位指定卡的锁存器的标志位
@@ -1188,9 +1188,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="CardNo"></param>
         /// <param name="axis"></param>
         /// <returns></returns>
-        public int GetCardAxisReserLatchFlag(int CardNo, int axis)
+        public int GetCardAxisReserLatchFlag(int cardIndex, int axis)
         {
-            return PLT.GetCardAxisReserLatchFlag(CardNo, axis);
+            return PLT.GetCardAxisReserLatchFlag(cardIndex, axis);
         }
         /// <summary>
         /// 从控制卡内读取锁存器的值
@@ -1198,9 +1198,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="CardNo"></param>
         /// <param name="axis"></param>
         /// <returns></returns>
-        public int GetCardAxisLatchValue(int CardNo, int axis)
+        public int GetCardAxisLatchValue(int cardIndex, int axis)
         {
-            return PLT.GetCardAxisLatchValue(CardNo, axis);
+            return PLT.GetCardAxisLatchValue(cardIndex, axis);
         }
         /// <summary>
         /// 从控制卡内读取指定卡内锁存器的标志位
@@ -1208,9 +1208,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns>0：未触发锁存，1：已触发锁存</returns>
-        public int GetCardAxisLatchFlag(int CardNo, int axis)
+        public int GetCardAxisLatchFlag(int cardIndex, int axis)
         {
-            return PLT.GetCardAxisLatchFlag(CardNo, axis);
+            return PLT.GetCardAxisLatchFlag(cardIndex, axis);
         }
 
         /// <summary>
@@ -1219,14 +1219,14 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <returns>CMP 端口电平</returns>
-        public int GetCardHcmpCmpPin(int CardNo, int hcmp)
+        public int GetCardHcmpCmpPin(int cardIndex, int hcmp)
         {
-            return PLT.GetCardHcmpCmpPin(CardNo, hcmp);
+            return PLT.GetCardHcmpCmpPin(cardIndex, hcmp);
         }
 
-        public int SetCardHcmpCmpPin(int CardNo, int hcmp, int on_off)
+        public int SetCardHcmpCmpPin(int cardIndex, int hcmp, int on_off)
         {
-            return PLT.SetCardHcmpCmpPin(CardNo, hcmp, on_off);
+            return PLT.SetCardHcmpCmpPin(cardIndex, hcmp, on_off);
         }
         /// <summary>
         /// 设置指定轴的 LTC 信号
@@ -1236,17 +1236,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="ltc_logic"></param>
         /// <param name="ltc_mode"></param>
         /// <param name="filter"></param>
-        public int SetCardAxisLtcMode(int CardNo, int axis, UInt16 ltc_logic, UInt16 ltc_mode, double filter)
+        public int SetCardAxisLtcMode(int cardIndex, int axis, UInt16 ltc_logic, UInt16 ltc_mode, double filter)
         {
-            return PLT.SetCardAxisLtcMode(CardNo, axis, ltc_logic, ltc_mode, filter);
+            return PLT.SetCardAxisLtcMode(cardIndex, axis, ltc_logic, ltc_mode, filter);
         }
         /// <summary>
         /// 设置一维位置比较输出数据
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisCompareConfigDate(int CardNo, int axis, int enable, int cmp_source)
+        public int SetCardAxisCompareConfigDate(int cardIndex, int axis, int enable, int cmp_source)
         {
-            return PLT.SetCardAxisCompareConfigDate(CardNo, axis, enable, cmp_source);
+            return PLT.SetCardAxisCompareConfigDate(cardIndex, axis, enable, cmp_source);
         }
 
         /// <summary>
@@ -1271,9 +1271,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 打开轴的螺距补尝
         /// </summary>
         /// <returns></returns>
-        public int SetCardLeadScrewCompEnable(int CardNo, int axis, int enable)
+        public int SetCardLeadScrewCompEnable(int cardIndex, int axis, int enable)
         {
-            return PLT.SetCardLeadScrewCompEnable(CardNo, axis, enable);
+            return PLT.SetCardLeadScrewCompEnable(cardIndex, axis, enable);
         }
 
 
@@ -1346,9 +1346,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetEtherCATErrorInfo(int ErrNum)
+        public string GetEtherCATErrorInfo(int errorNumber)
         {
-            return PLT.GetEtherCATErrorInfo(ErrNum);
+            return PLT.GetEtherCATErrorInfo(errorNumber);
         }
 
         /// <summary>
@@ -1356,7 +1356,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public string GetErrorInfo(int errorNumber)
         {
             return "";
         }
@@ -1377,7 +1377,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 控制卡初始化函数
         /// </summary>
         /// <returns>卡的数量</returns>
-        public int InitCard()
+        public int Initialize()
         {
             return 1;
             //return PLT.InitCard();
@@ -1389,9 +1389,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="CardNo">卡号</param>
         /// <param name="TotalAxis">返回当前卡的轴数</param>
         /// <returns>错误代码</returns>
-        public int GetCardTotalAxisNum(int CardNo, ref UInt32 TotalAxis)
+        public int GetAxisCount(int cardIndex, ref UInt32 totalAxisCount)
         {
-            return PLT.GetCardTotalAxisNum(CardNo, ref TotalAxis);
+            return PLT.GetCardTotalAxisNum(cardIndex, ref totalAxisCount);
         }
 
         /// <summary>
@@ -1406,9 +1406,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="state">设置通讯状态，0：断开，1：连接</param>
         /// <param name="baud">设置控制卡波特率<para>波特率参数：0,1,2,3,4,5</para><para>对应波特率：1000Kbps，800Kbps,500Kbps,250Kbps,125Kbps,100Kbps</para></param>
         /// <returns></returns>
-        public int SetCardCANIOConnectState(int CardNo, int NodeNum, int state, int baud)
+        public int SetCardCANIOConnectState(int cardIndex, int nodeCount, int state, int baud)
         {
-            return PLT.SetCardCANIOConnectState(CardNo, NodeNum, state, baud);
+            return PLT.SetCardCANIOConnectState(cardIndex, nodeCount, state, baud);
         }
 
         /// <summary>
@@ -1418,9 +1418,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="NodeNum">返回 CAN 节点数</param>
         /// <param name="state">返回 CAN-IO 通讯状态，0：断开，1：连接，2：异常</param>
         /// <returns>错误代码</returns>
-        public int GetCardCANIOConnectState(int CardNo, ref UInt16 NodeNum, ref UInt16 state)
+        public int GetCardCANIOConnectState(int cardIndex, ref UInt16 nodeCount, ref UInt16 state)
         {
-            return PLT.GetCardCANIOConnectState(CardNo, ref NodeNum, ref state);
+            return PLT.GetCardCANIOConnectState(cardIndex, ref nodeCount, ref state);
         }
 
         /// <summary>
@@ -1430,7 +1430,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="cardtypes">返回控制卡固件类型数组</param>
         /// <param name="CardID">返回控制卡硬件 ID 号数组，卡号按从小到大顺序排列  </param>
         /// <returns>错误代码，返回零为成功，大于0的数表示第几张卡打开出错</returns>
-        public int OpenCard(ref ushort cardnum, ref uint[] cardtypes, ref ushort[] CardNos)
+        public int Open(ref ushort cardnum, ref uint[] cardtypes, ref ushort[] CardNos)
         {
             cardtypes[0] = (uint)54320;
             PLT.OpenCard(ref cardnum, cardtypes, CardNos);
@@ -1442,9 +1442,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// </summary>
         /// <param name="LibVer">返回库版本号</param>
         /// <returns>错误代码</returns>
-        public int GetCardLibVersion(int CardID, ref int LibVer, ref int pDriver_ver, ref int pLogic_ver)
+        public int GetCardLibVersion(int cardId, ref int LibVer, ref int pDriver_ver, ref int pLogic_ver)
         {
-            return PLT.GetCardLibVersion(CardID, ref LibVer, ref pDriver_ver, ref pLogic_ver);
+            return PLT.GetCardLibVersion(cardId, ref LibVer, ref pDriver_ver, ref pLogic_ver);
         }
 
         /// <summary>
@@ -1456,9 +1456,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="NodeCnt">参数不明等待回应</param>
         /// <param name="MasterId">参数不明等待回应</param>
         /// <returns>错误代码</returns>
-        public int SetCardMasterParam(int CardID, int PortNum, int Baudrate, int NodeCnt, int MasterId)
+        public int SetCardMasterParam(int cardId, int portCount, int baudRate, int nodeCount, int masterId)
         {
-            return PLT.SetCardMasterParam(CardID, PortNum, Baudrate, NodeCnt, MasterId);
+            return PLT.SetCardMasterParam(cardId, portCount, baudRate, nodeCount, masterId);
         }
 
         /// <summary>
@@ -1470,9 +1470,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="NodeCnt">参数不明等待回应</param>
         /// <param name="MasterId">参数不明等待回应</param>
         /// <returns>错误代码</returns>
-        public int GetCardMasterParam(int CardNo, int PortNum, ref ushort Baudrate, ref uint NodeCnt, ref ushort MasterId)
+        public int GetCardMasterParam(int cardIndex, int portCount, ref ushort baudRate, ref uint nodeCount, ref ushort masterId)
         {
-            return PLT.GetCardMasterParam(CardNo, PortNum, ref Baudrate, ref NodeCnt, ref MasterId);
+            return PLT.GetCardMasterParam(cardIndex, portCount, ref baudRate, ref nodeCount, ref masterId);
         }
 
 
@@ -1491,18 +1491,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="SlaveAddr">EtherCAT 总线轴地址</param>
         /// <param name="Sub_SlaveAddr">EtherCAT 总线轴子地址</param>
         /// <returns>错误代码</returns>
-        public int GetCardSlaveStationConfig(int CardNo, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
+        public int GetCardSlaveStationConfig(int cardIndex, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
         {
-            return PLT.GetCardSlaveStationConfig(CardNo, axis, ref SlaveAddr, ref Sub_SlaveAddr);
+            return PLT.GetCardSlaveStationConfig(cardIndex, axis, ref SlaveAddr, ref Sub_SlaveAddr);
         }
 
         /// <summary>
         /// 设置主站的扫描周期
         /// </summary>
         /// <returns></returns>
-        public int SetCardMasterScanCycleTime(int CardNo, int FieldbusType, int CycleTime)
+        public int SetCardMasterScanCycleTime(int cardIndex, int fieldbusType, int CycleTime)
         {
-            return PLT.SetCardMasterScanCycleTime(CardNo, FieldbusType, CycleTime);
+            return PLT.SetCardMasterScanCycleTime(cardIndex, fieldbusType, CycleTime);
         }
 
         /// <summary>
@@ -1512,9 +1512,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="Fieldbustype">  EtherCAT 端口号，固定为 2</param>
         /// <param name="CycleTime">CAT 总线循环周期，单位：us，支持 250/500/1000/</param>
         /// <returns>错误代码</returns>
-        public int GetCardMasterScanCycleTime(int CardNo, int FieldbusType, ref int CyclFieldbusTypeeTime)
+        public int GetCardMasterScanCycleTime(int cardIndex, int fieldbusType, ref int CyclFieldbusTypeeTime)
         {
-            return PLT.GetCardMasterScanCycleTime(CardNo, FieldbusType, ref CyclFieldbusTypeeTime);
+            return PLT.GetCardMasterScanCycleTime(cardIndex, fieldbusType, ref CyclFieldbusTypeeTime);
         }
 
         /// <summary>
@@ -1522,9 +1522,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int CardReset(int CardNo)
+        public int CardReset(int cardIndex)
         {
-            return PLT.CardReset(CardNo);
+            return PLT.CardReset(cardIndex);
         }
 
         /// <summary>
@@ -1543,9 +1543,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// </summary>
         /// <param name="CardNo"></param>
         /// <returns></returns>
-        public int CardSoftReset(ushort CardNo)
+        public int CardSoftReset(ushort cardIndex)
         {
-            return PLT.CardSoftReset(CardNo);
+            return PLT.CardSoftReset(cardIndex);
         }
 
 
@@ -1554,16 +1554,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 控制卡冷复位（适用于所有脉冲/总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardCoolReset(ushort CardNo)
+        public int CardCoolReset(ushort cardIndex)
         {
-            return PLT.CardCoolReset(CardNo);
+            return PLT.CardCoolReset(cardIndex);
         }
 
         /// <summary>
         /// 关闭控制卡（适用于所有脉冲/总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CloseCard()
+        public int Close()
         {
             return PLT.CloseCard();
         }
@@ -1576,9 +1576,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 获取所有输入端口的值dmc_read_inport
         /// </summary>
         /// <returns></returns>
-        public int GetCardInPortValue(int CardNo, int portno)
+        public int GetCardInPortValue(int cardIndex, int portno)
         {
-            return PLT.GetCardInPortValue(CardNo, portno);
+            return PLT.GetCardInPortValue(cardIndex, portno);
         }
 
         /// <summary>
@@ -1602,9 +1602,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="PortNo">输入组号（32 位一组，从 0 开始，如 0 表示 0-31 位，1 表示 32-63位）</param>
         /// <param name="IoValue">输入组各输入端口的值，bit0~bit31 的值分别代表第 0~31 号输入口的电平，1：低电平，0：高电平</param>
         /// <returns></returns>
-        public int NmcReadInportExtern(int CardNo, int Channel, int NoteID, int PortNo, ref uint IoValue)
+        public int NmcReadInportExtern(int cardIndex, int Channel, int noteId, int portIndex, ref uint ioValue)
         {
-            return PLT.NmcReadInportExtern(CardNo, Channel, NoteID, PortNo, ref IoValue);
+            return PLT.NmcReadInportExtern(cardIndex, Channel, noteId, portIndex, ref ioValue);
         }
 
         /// <summary>
@@ -1615,9 +1615,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平 </param>
         /// <returns>错误代码</returns>
-        public uint GetCardCANIOInPort(int CardNo, int NodeID, int PortNo, ref UInt32 IoValue)
+        public uint GetCardCANIOInPort(int cardIndex, int nodeId, int portIndex, ref UInt32 ioValue)
         {
-            return (uint)PLT.GetCardCANIOInPort(CardNo, NodeID, PortNo, ref IoValue);
+            return (uint)PLT.GetCardCANIOInPort(cardIndex, nodeId, portIndex, ref ioValue);
         }
 
 
@@ -1628,9 +1628,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="bitno"></param>
         /// <param name="on_off"></param>
         /// <returns></returns>
-        public int SetCardWriteInBit(int CardNo, int bitno, int on_off)
+        public int SetCardWriteInBit(int cardIndex, int bitno, int on_off)
         {
-            return PLT.SetCardWriteInBit(CardNo, bitno, on_off);
+            return PLT.SetCardWriteInBit(cardIndex, bitno, on_off);
         }
 
         /// <summary>
@@ -1641,18 +1641,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="nodeno"></param>
         /// <param name="on_off"></param>
         /// <returns></returns>
-        public int SetCardWriteExtendInBit(int CardNo, int bitno, int nodeno, int on_off)
+        public int SetCardWriteExtendInBit(int cardIndex, int bitno, int nodeno, int on_off)
         {
-            return PLT.SetCardWriteExtendInBit(CardNo, bitno, nodeno, on_off);
+            return PLT.SetCardWriteExtendInBit(cardIndex, bitno, nodeno, on_off);
         }
 
         /// <summary>
         /// 读取指定输入端口的状态
         /// </summary>
         /// <returns></returns>
-        public int GetCardInPortNoValue(int CardNo, int portno)
+        public int GetCardInPortNoValue(int cardIndex, int portno)
         {
-            return PLT.GetCardInPortNoValue(CardNo, portno);
+            return PLT.GetCardInPortNoValue(cardIndex, portno);
         }
 
         /// <summary>
@@ -1689,17 +1689,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// 读取指定输出端口的状态
         /// </summary>
         /// <returns></returns>
-        public int GetCardPortNoOutState(int CardNo, int bitno)
+        public int GetCardPortNoOutState(int cardIndex, int bitno)
         {
-            return PLT.GetCardPortNoOutState(CardNo, bitno);
+            return PLT.GetCardPortNoOutState(cardIndex, bitno);
         }
         /// <summary>
         /// 读取所有输出端口的状态
         /// </summary>
         /// <returns></returns>
-        public int GetCardOutState(int CardNo, int portno)
+        public int GetCardOutState(int cardIndex, int portno)
         {
-            return PLT.GetCardPortNoOutState(CardNo, portno);
+            return PLT.GetCardPortNoOutState(cardIndex, portno);
         }
 
 
@@ -1710,9 +1710,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="bitno"></param>
         /// <param name="on_off"></param>
         /// <returns></returns>
-        public int SetCardBitNoInBit(int CardNo, int bitno, int on_off)
+        public int SetCardBitNoInBit(int cardIndex, int bitno, int on_off)
         {
-            return PLT.SetCardBitNoInBit(CardNo, bitno, on_off);
+            return PLT.SetCardBitNoInBit(cardIndex, bitno, on_off);
         }
 
         /// <summary>
@@ -1724,9 +1724,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="PortNo">输出组号（32 位一组，从 0 开始，如 0 表示 0-31 位，1 表示 32-63位）</param>
         /// <param name="IoValue">输出组各输出端口的值，bit0 ~bit31 的值分别代表第 0~31 号输出口的电平，1：低电平，0：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcReadOutportExtern(int CardNo, int Channel, int NoteID, int PortNo, ref uint IoValue)
+        public int NmcReadOutportExtern(int cardIndex, int Channel, int noteId, int portIndex, ref uint ioValue)
         {
-            return PLT.NmcReadOutportExtern(CardNo, Channel, NoteID, PortNo, ref IoValue);
+            return PLT.NmcReadOutportExtern(cardIndex, Channel, noteId, portIndex, ref ioValue);
         }
 
 
@@ -1739,9 +1739,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="IoBit">输出端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcWriteOutbitExtern(int CardNo, int Channel, int NoteID, int IoBit, ushort IoValue)
+        public int NmcWriteOutbitExtern(int cardIndex, int Channel, int noteId, int ioBit, ushort ioValue)
         {
-            return PLT.NmcWriteOutbitExtern(CardNo, Channel, NoteID, IoBit, IoValue);
+            return PLT.NmcWriteOutbitExtern(cardIndex, Channel, noteId, ioBit, ioValue);
         }
 
         /// <summary>
@@ -1752,9 +1752,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int SetCardCANIOOutBit(int CardNo, int NodeID, int IoBit, int IoValue)
+        public int SetCardCANIOOutBit(int cardIndex, int nodeId, int ioBit, int ioValue)
         {
-            return PLT.SetCardCANIOOutBit(CardNo, NodeID, IoBit, IoValue);
+            return PLT.SetCardCANIOOutBit(cardIndex, nodeId, ioBit, ioValue);
         }
 
 
@@ -1766,9 +1766,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平 </param>
         /// <returns></returns>
-        public uint GetCardCANIOOutPort(int CardNo, int NodeID, int PortNo, ref UInt32 IoValue)
+        public uint GetCardCANIOOutPort(int cardIndex, int nodeId, int portIndex, ref UInt32 ioValue)
         {
-            return (uint)PLT.GetCardCANIOOutPort(CardNo, NodeID, PortNo, ref IoValue);
+            return (uint)PLT.GetCardCANIOOutPort(cardIndex, nodeId, portIndex, ref ioValue);
         }
 
         /// <summary>
@@ -1778,9 +1778,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="portno"></param>
         /// <param name="outport_val"></param>
         /// <returns></returns>
-        public int SetCardPortNoOutPort(int CardNo, int portno, int outport_va)
+        public int SetCardPortNoOutPort(int cardIndex, int portno, int outport_va)
         {
-            return PLT.SetCardPortNoOutPort(CardNo, portno, outport_va);
+            return PLT.SetCardPortNoOutPort(cardIndex, portno, outport_va);
         }
 
         /// <summary>
@@ -1806,9 +1806,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
         /// <param name="CardNo"></param>
         /// <param name="data"></param>
         /// <returns></returns>
-        public int SetCardDOOut(int CardNo, int data)
+        public int SetCardDOOut(int cardIndex, int data)
         {
-            return PLT.SetCardDOOut(CardNo, data);
+            return PLT.SetCardDOOut(cardIndex, data);
         }
 
         /// <summary>

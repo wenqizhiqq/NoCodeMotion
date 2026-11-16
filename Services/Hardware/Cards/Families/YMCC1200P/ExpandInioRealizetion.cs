@@ -9,29 +9,30 @@
 #nullable disable
 using System;
 
-namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1200P
+    using NoCodeMotion.Hardware.Motion;
+namespace NoCodeMotion.Services.Hardware.Cards.Families.YMCC1200P
 {
-    public class ExpandInioRealizetion : IEIOInPut
+    public class ExpandInioRealizetion : ExpansionInputBase
     {
         /// <summary>
         /// IO的初始电平为高电平
         /// </summary>
-        public bool EDefaultLevelIsHigh { get; set; } = false;
+        public override bool ActiveHighByDefault { get; set; } = false;
 
         /// <summary>
         /// 硬件卡拥有的输出IO的数量
         /// </summary>
-        public ushort EInIONums { get; set; } = 64;
+        public override ushort PointCount { get; set; } = 64;
 
         /// <summary>
         /// 输入IO所属卡的名字
         /// </summary>
-        public string EInIOName { get; set; }
+        public override string ChannelName { get; set; }
 
         /// <summary>
         /// 卡号（即这个输出IO对象是属于第几张卡的）
         /// </summary>
-        public int ECardNo { get; set; }
+        public override int ECardNo { get; set; }
        
         /// <summary>
         ///  DMC_3000_读取指定 CAN-ADDA 扩展模块的某个输入端口的模式
@@ -42,9 +43,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1200P
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandADDAIOInPortNoMode(int CardNo, int NodeID, int PortNo, ref ushort mode, uint buffer_nums)
+        public override int EGetExpandADDAIOInPortNoMode(int cardIndex, int nodeId, int portIndex, ref ushort mode, uint buffer_nums)
         {
-            return YKMCC1200PSDK.Instance.GetExpandADDAIOInPortNoMode(CardNo, NodeID, PortNo,ref mode);
+            return YKMCC1200PSDK.Instance.GetExpandADDAIOInPortNoMode(cardIndex, nodeId, portIndex,ref mode);
         }
         
         /// <summary>
@@ -55,9 +56,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1200P
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandADDAIOPortNoInBit(int CardNo, int NodeID, int PortNo, ref double IoValue)
+        public override int EGetExpandADDAIOPortNoInBit(int cardIndex, int nodeId, int portIndex, ref double ioValue)
         {
-            return YKMCC1200PSDK.Instance.GetExpandADDAIOPortNoInBit(CardNo, NodeID, PortNo, ref IoValue);
+            return YKMCC1200PSDK.Instance.GetExpandADDAIOPortNoInBit(cardIndex, nodeId, portIndex, ref ioValue);
         }
        
         /// <summary>
@@ -68,9 +69,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1200P
         /// <param name="state"></param>
         /// <param name="baud"></param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandIOConnectState(int CardNo, ref ushort NodeNum, ref ushort state)
+        public override int EGetExpandIOConnectState(int cardIndex, ref ushort nodeCount, ref ushort state)
         {
-            return YKMCC1200PSDK.Instance.GetExpandIOConnectState(CardNo, ref NodeNum, ref state );
+            return YKMCC1200PSDK.Instance.GetExpandIOConnectState(cardIndex, ref nodeCount, ref state );
         }
       
         /// <summary>
@@ -81,9 +82,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1200P
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandIOInBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public override int EGetExpandIOInBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
-            return YKMCC1200PSDK.Instance.GetExpandIOInBit(CardNo, NodeID, IoBit, ref IoValue);
+            return YKMCC1200PSDK.Instance.GetExpandIOInBit(cardIndex, nodeId, ioBit, ref ioValue);
         }
       
         /// <summary>
@@ -94,9 +95,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1200P
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit31 的值分别代表第 0~31 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int EGetExpandIOPortNoInBit(int CardNo, int NodeID, int PortNo, ref uint IoValue)
+        public override int EGetExpandIOPortNoInBit(int cardIndex, int nodeId, int portIndex, ref uint ioValue)
         {
-            return YKMCC1200PSDK.Instance.GetExpandIOPortNoInBit(CardNo, NodeID, PortNo, ref IoValue);
+            return YKMCC1200PSDK.Instance.GetExpandIOPortNoInBit(cardIndex, nodeId, portIndex, ref ioValue);
         }
 
         /// <summary>
@@ -109,9 +110,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1200P
         /// <param name="PortNum">保留参数，设为 0</param>
         /// <param name="NodeNum">节点号，1-8</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESaveExpandIoToFlash(int CardNo, int PortNum, int NodeNum)
+        public override int ESaveExpandIoToFlash(int cardIndex, int portCount, int nodeCount)
         {
-            return YKMCC1200PSDK.Instance.SaveExpandIoToFlash(CardNo, PortNum, NodeNum);
+            return YKMCC1200PSDK.Instance.SaveExpandIoToFlash(cardIndex, portCount, nodeCount);
         }
         
         /// <summary>
@@ -123,9 +124,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1200P
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandADDAIOInPortNoMode(int CardNo, int NodeID, int PortNo, int mode, uint buffer_nums)
+        public override int ESetExpandADDAIOInPortNoMode(int cardIndex, int nodeId, int portIndex, int mode, uint buffer_nums)
         {
-            return YKMCC1200PSDK.Instance.SetExpandADDAIOInPortNoMode(CardNo, NodeID, PortNo, mode);
+            return YKMCC1200PSDK.Instance.SetExpandADDAIOInPortNoMode(cardIndex, nodeId, portIndex, mode);
         }
          
         /// <summary>
@@ -140,9 +141,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC1200P
         /// <param name="state">设置通讯状态，0：断开，1：连接</param>
         /// <param name="baud">设置控制卡波特率：波特率参数：0,1,2,3,4,5；对特率：1000Kbps，800Kbps,500Kbps,250Kbps,125Kbps,100Kbps</param>
         /// <returns>返回值：错误代码</returns>
-        public int ESetExpandIOConnectState(int CardNo, int NodeNum, int state, int baud)
+        public override int ESetExpandIOConnectState(int cardIndex, int nodeCount, int state, int baud)
         {
-            return YKMCC1200PSDK.Instance.SetExpandIOConnectState(CardNo, NodeNum, state, baud);
+            return YKMCC1200PSDK.Instance.SetExpandIOConnectState(cardIndex, nodeCount, state, baud);
         }
     }
 }

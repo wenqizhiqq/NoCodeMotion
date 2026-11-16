@@ -19,10 +19,10 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Xml.Serialization;
-using static WenQiZhi.Domain.MotionCard.Common.ecat_motion;
-using static WenQiZhi.Domain.MotionCard.Common.YKMCN42Series.MCN420;
+using static NoCodeMotion.Services.Hardware.Cards.ecat_motion;
+using static NoCodeMotion.Services.Hardware.Cards.Families.MCN42Series.MCN420;
 
-namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
+namespace NoCodeMotion.Services.Hardware.Cards.Families.MCN42Series
 {
     public class YK_MCN42SeriesSDK
     {
@@ -87,7 +87,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="bitno"></param>
         /// <param name="on_off">输入电平，0：低电平，1：高电平</param>
         /// <returns></returns>
-        public int SetCardWriteInBit(int CardNo, int bitno, int on_off)
+        public int SetCardWriteInBit(int cardIndex, int bitno, int on_off)
         {
             return 0;
         }
@@ -97,10 +97,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetEtherCATErrorInfo(int ErrNum)
+        public string GetEtherCATErrorInfo(int errorNumber)
         {
             // 见 GetErrorInfo：统一走 FormatErrorCode，XML 缺失也不抛。
-            return FormatErrorCode(ErrNum, "总线错误信息");
+            return FormatErrorCode(errorNumber, "总线错误信息");
         }
 
         /// <summary>
@@ -108,31 +108,31 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public string GetErrorInfo(int errorNumber)
         {
             // ★ NoCodeMotion 补（2026-09-30）：卡只回一个数字（Jog 8194 / 设零点 20480），不查手册
             //   根本看不出原因，现场只能对着数字猜。这里译成卡自己的中文错误信息。
             //   原实现直接 errorcodeDic.Items.FindIndex —— Mcn420ErrorCode.xml 一旦没随程序部署，
             //   Items 就是 null，本函数会抛 NullReferenceException，调用方连「查不到含义」都拿不到。
-            return FormatErrorCode(ErrNum, "错误信息");
+            return FormatErrorCode(errorNumber, "错误信息");
         }
 
         /// <summary>
         /// 把卡返回码格式化成「错误码：N，…」；XML 缺失 / 查不到时给明确兜底，绝不抛异常。
         /// </summary>
-        private string FormatErrorCode(int ErrNum, string label)
+        private string FormatErrorCode(int errorNumber, string label)
         {
-            if (ErrNum == 0) { return ""; }
+            if (errorNumber == 0) { return ""; }
             var items = EnsureErrorCodeItems();
             if (items == null || items.Count == 0)
-                return $"错误码：{ErrNum}（未随程序找到 Mcn420ErrorCode.xml，无法查表，请对照卡手册）";
+                return $"错误码：{errorNumber}（未随程序找到 Mcn420ErrorCode.xml，无法查表，请对照卡手册）";
             for (int i = 0; i < items.Count; i++)
             {
                 var it = items[i];
-                if (it == null || (it.Code ?? "").Trim() != ErrNum.ToString().Trim()) continue;
-                return $"错误码：{ErrNum}，{label}：{NormalizeCodeText(it.ZhCn)}";
+                if (it == null || (it.Code ?? "").Trim() != errorNumber.ToString().Trim()) continue;
+                return $"错误码：{errorNumber}，{label}：{NormalizeCodeText(it.ZhCn)}";
             }
-            return $"错误码：{ErrNum}，请查看手册！";
+            return $"错误码：{errorNumber}，请查看手册！";
         }
 
         /// <summary>
@@ -240,16 +240,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PortNo">输入组号（32 位一组，从 0 开始，如 0 表示 0-31 位，1 表示 32-63位）</param>
         /// <param name="IoValue">输入组各输入端口的值，bit0~bit31 的值分别代表第 0~31 号输入口的电平，1：低电平，0：高电平</param>
         /// <returns></returns>
-        public int NmcReadInportExtern(int CardNo, int Channel, int NoteID, int PortNo, ref uint IoValue)
+        public int NmcReadInportExtern(int cardIndex, int Channel, int noteId, int portIndex, ref uint ioValue)
         {
             //byte[] value = new byte[4];
             byte[] value = new byte[2];
-            value[0] = (byte)(MCN420.YK_read_inbyte((ushort)CardNo, (ushort)((NoteID - 1) * 2 + 8)) & 0xFF);
-            value[1] = (byte)(MCN420.YK_read_inbyte((ushort)CardNo, (ushort)((NoteID - 1) * 2 + 1 + 8)) & 0xFF);
+            value[0] = (byte)(MCN420.YK_read_inbyte((ushort)cardIndex, (ushort)((noteId - 1) * 2 + 8)) & 0xFF);
+            value[1] = (byte)(MCN420.YK_read_inbyte((ushort)cardIndex, (ushort)((noteId - 1) * 2 + 1 + 8)) & 0xFF);
             //value[2] = (byte)(MCN420.YK_read_inbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 2 + 8)) & 0xFF);
             //value[3] = (byte)(MCN420.YK_read_inbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 6 + 8)) & 0xFF);
             //result = MCN420.YK_read_inbyte((ushort)CardNo, (ushort)NoteID, (ushort)(PortNo * 2 + 1), ref value[1]);
-            IoValue = BytesToUInt16(value);
+            ioValue = BytesToUInt16(value);
             return 0;
         }
 
@@ -300,16 +300,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PortNo">输出组号（32 位一组，从 0 开始，如 0 表示 0-31 位，1 表示 32-63位）</param>
         /// <param name="IoValue">输出组各输出端口的值，bit0 ~bit31 的值分别代表第 0~31 号输出口的电平，1：低电平，0：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcReadOutportExtern(int CardNo, int Channel, int NoteID, int PortNo, ref uint IoValue)
+        public int NmcReadOutportExtern(int cardIndex, int Channel, int noteId, int portIndex, ref uint ioValue)
         {
             //byte[] value = new byte[4];
             byte[] value = new byte[2];
-            value[0] = (byte)(MCN420.YK_read_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 2 + 8)) & 0xFF);
-            value[1] = (byte)(MCN420.YK_read_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 2 + 8 + 1)) & 0xFF);
+            value[0] = (byte)(MCN420.YK_read_outbyte((ushort)cardIndex, (ushort)((noteId - 1) * 2 + 8)) & 0xFF);
+            value[1] = (byte)(MCN420.YK_read_outbyte((ushort)cardIndex, (ushort)((noteId - 1) * 2 + 8 + 1)) & 0xFF);
             //value[2] = (byte)(MCN420.YK_read_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 8 + 2)) & 0xFF);
             //value[3] = (byte)(MCN420.YK_read_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 8 + 3)) & 0xFF);
             //result = MCN420.YK_read_inbyte((ushort)CardNo, (ushort)NoteID, (ushort)(PortNo * 2 + 1), ref value[1]);
-            IoValue = BytesToUInt16(value);
+            ioValue = BytesToUInt16(value);
             return 0;
         }
 
@@ -333,9 +333,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="IoBit">输出端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcWriteOutbitExtern(int CardNo, int Channel, int NoteID, int IoBit, ushort IoValue)
+        public int NmcWriteOutbitExtern(int cardIndex, int Channel, int noteId, int ioBit, ushort ioValue)
         {
-            return MCN420.YK_write_outbit((ushort)CardNo, (ushort)(64 + (NoteID - 1) * 16 + IoBit), IoValue);
+            return MCN420.YK_write_outbit((ushort)cardIndex, (ushort)(64 + (noteId - 1) * 16 + ioBit), ioValue);
         }
 
         /*
@@ -357,10 +357,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="portno">输出端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcWriteOutportExtern(int CardNo, int Channel, int NoteID, ushort portno, uint IoValue)
+        public int NmcWriteOutportExtern(int cardIndex, int Channel, int noteId, ushort portno, uint ioValue)
         {
             //return MCN420.ecc_write_outport_extern((ushort)CardNo, (ushort)Channel, (ushort)NoteID, portno, IoValue);
-            var Value = SplitUInt32Little_byte_two(IoValue);
+            var Value = SplitUInt32Little_byte_two(ioValue);
             //var result = MCN420.ecc_io_write_outslot((ushort)CardNo, (ushort)NoteID, (ushort)(portno * 2), Value[1]);
             //result = MCN420.ecc_io_write_outslot((ushort)CardNo, (ushort)NoteID, (ushort)(portno * 2 + 1), Value[0]);
             //var result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 2), Value[3]);
@@ -370,9 +370,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
             //result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 4), Value[1]);
             //if (result != 0) goto end;
             //result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 5), Value[0]);
-            var result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 2 + 8), Value[1]);
+            var result = MCN420.YK_write_outbyte((ushort)cardIndex, (ushort)((noteId - 1) * 2 + 8), Value[1]);
             if (result != 0) goto end;
-            result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 2 + 8 + 1), Value[0]);
+            result = MCN420.YK_write_outbyte((ushort)cardIndex, (ushort)((noteId - 1) * 2 + 8 + 1), Value[0]);
             if (result != 0) goto end;
             end:
             return result;
@@ -425,9 +425,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="IoBit">输出端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcReadOutbitExtern(int CardNo, int Channel, int NoteID, int IoBit, ref ushort IoValue)
+        public int NmcReadOutbitExtern(int cardIndex, int Channel, int noteId, int ioBit, ref ushort ioValue)
         {
-            IoValue = (ushort)MCN420.YK_read_outbit((ushort)CardNo, (ushort)((64 + (NoteID - 1) * 16 + IoBit)));
+            ioValue = (ushort)MCN420.YK_read_outbit((ushort)cardIndex, (ushort)((64 + (noteId - 1) * 16 + ioBit)));
             return 0;
         }
         /// <summary>
@@ -439,9 +439,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="IoBit">输入端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcReadInbitExtern(int CardNo, int Channel, int NoteID, int IoBit, ref ushort IoValue)
+        public int NmcReadInbitExtern(int cardIndex, int Channel, int noteId, int ioBit, ref ushort ioValue)
         {
-            IoValue = (ushort)MCN420.YK_read_inbit((ushort)CardNo, (ushort)((64 + (NoteID - 1) * 16 + IoBit)));
+            ioValue = (ushort)MCN420.YK_read_inbit((ushort)cardIndex, (ushort)((64 + (noteId - 1) * 16 + ioBit)));
             return 0;
             //return MCN420.ecc_io_read_inbit((ushort)CardNo, (ushort)NoteID, (ushort)IoBit, ref IoValue);
         }
@@ -455,7 +455,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="NodeCnt"></param>
         /// <param name="MasterId"></param>
         /// <returns>错误代码</returns>
-        public int NmcSetCardMasterPara(int CardNo, int PortNum, int Baudrate, int NodeCnt, int MasterId)
+        public int NmcSetCardMasterPara(int cardIndex, int portCount, int baudRate, int nodeCount, int masterId)
         {
             //return MCN420.ecc_set_master_para((ushort)CardNo, (ushort)PortNum, (ushort)Baudrate, (ushort)NodeCnt, (ushort)MasterId);
             return 0;
@@ -470,7 +470,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="NodeCnt"></param>
         /// <param name="MasterId"></param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardMasterPara(int CardNo, int PortNum, ref ushort Baudrate, ref uint NodeCnt, ref ushort MasterId)
+        public int NmcGetCardMasterPara(int cardIndex, int portCount, ref ushort baudRate, ref uint nodeCount, ref ushort masterId)
         {
             return 0;
             //return MCN420.ecc_get_master_para((ushort)CardNo, (ushort)PortNum, ref Baudrate, ref NodeCnt, ref MasterId);
@@ -480,11 +480,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// 获取发布版本号（适用于DMC3000/DMC5X10系列脉冲卡、EtherCAT总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcGetCardReleaseVersion(ushort CardNo, ref string ReleaseVersion)
+        public int DmcGetCardReleaseVersion(ushort cardIndex, ref string ReleaseVersion)
         {
             //,MCC_E1_016PCIe_250902_16:16:49
             uint Version = 0;
-            var res = MCN420.YK_get_hardware_version(CardNo, ref Version);
+            var res = MCN420.YK_get_hardware_version(cardIndex, ref Version);
             if (Version == 0)
             {
                 ReleaseVersion = string.Empty;
@@ -511,7 +511,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// 控制卡热复位（适用于EtherCAT、RTEX总线卡）  
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcCardSoftReset(ushort CardNo)
+        public int DmcCardSoftReset(ushort cardIndex)
         {
             //return MCN420.ecc_reset_ecat(CardNo, 0);
             return 0;
@@ -521,7 +521,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// 控制卡冷复位（适用于所有脉冲/总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcCardCoolReset(ushort CardNo)
+        public int DmcCardCoolReset(ushort cardIndex)
         {
             return 0;
             //return MCN420.mcc_board_cold_reset();
@@ -531,7 +531,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// 控制卡初始复位（适用于EtherCAT总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcCardOriginalReset(ushort CardNo)
+        public int DmcCardOriginalReset(ushort cardIndex)
         {
             return 0;
             //return MCN420.mcc_board_reset();
@@ -544,7 +544,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Fieldbustype">  EtherCAT 端口号，固定为 2</param>
         /// <param name="CycleTime">CAT 总线循环周期，单位：us，支持 250/500/1000/</param>
         /// <returns></returns>
-        public int NmcSetCardCycleTime(int CardNo, int FieldbusType, int CycleTime)
+        public int NmcSetCardCycleTime(int cardIndex, int fieldbusType, int CycleTime)
         {
             //return MCN420.ecc_set_cycletime((ushort)CardNo, (ushort)FieldbusType, (uint)CycleTime);
             return 0;
@@ -555,7 +555,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns></returns>
-        public int DmcClearCardErrCode(int CardNo)
+        public int DmcClearCardErrCode(int cardIndex)
         {
             return 0;
             //return MCN420.ecc_clear_errcode((ushort)CardNo, 2);
@@ -569,10 +569,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="org_logic"></param>
         /// <param name="filter">0~127</param>
         /// <returns></returns>
-        public int NmcSetCardAxisHomeMove(int CardNo, int axis, int org_logic, double filter)
+        public int NmcSetCardAxisHomeMove(int cardIndex, int axis, int org_logic, double filter)
         {
             //return MCN420.mcc_set_home_pin_logic((ushort)CardNo, (ushort)axis, (ushort)org_logic, filter);
-            return MCN420.YK_set_origin_config((ushort)CardNo, (ushort)axis, (ushort)org_logic, (uint)filter);
+            return MCN420.YK_set_origin_config((ushort)cardIndex, (ushort)axis, (ushort)org_logic, (uint)filter);
             return 0;
         }
 
@@ -584,11 +584,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="org_logic"></param>
         /// <param name="filter"></param>
         /// <returns></returns>
-        public int NmcGetCardAxisHomeMove(int CardNo, int axis, ref UInt16 org_logic, ref double filter)
+        public int NmcGetCardAxisHomeMove(int cardIndex, int axis, ref UInt16 org_logic, ref double filter)
         {
             uint value0 = 0;
             uint value1 = 0;
-            var res = MCN420.YK_get_origin_config((ushort)CardNo, (ushort)axis, ref value0, ref value1);
+            var res = MCN420.YK_get_origin_config((ushort)cardIndex, (ushort)axis, ref value0, ref value1);
             org_logic = (ushort)value0; filter = value1;
             return res;
             //return MCN420.mcc_get_home_pin_logic((ushort)CardNo, (ushort)axis, ref org_logic, ref filter);
@@ -606,14 +606,14 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns></returns>
-        public int DmcCardAxisHomeMove(int CardNo, int axis)
+        public int DmcCardAxisHomeMove(int cardIndex, int axis)
         {
-            var param = AxisHomeParaDic[Tuple.Create(CardNo, axis)];
-            string info = $"获取回原参数：卡：{CardNo}，轴{axis}，回原加速度：{param.Acc},回零模式：{param.HomeMode}，回零高速：{param.HighSpeed}，回零低速：{param.LowSpeed}，实际轴号：{param.axis}";
+            var param = AxisHomeParaDic[Tuple.Create(cardIndex, axis)];
+            string info = $"获取回原参数：卡：{cardIndex}，轴{axis}，回原加速度：{param.Acc},回零模式：{param.HomeMode}，回零高速：{param.HighSpeed}，回零低速：{param.LowSpeed}，实际轴号：{param.axis}";
             CMessageAddTipsMessage?.Invoke("DT1000",info);
-            MCN420.YK_remove_axis_alm((ushort)CardNo, (ushort)axis);
-            var res = MCN420.YK_home_move((ushort)CardNo, ref param);
-            info = $"执行YK_home_move后，实际回原参数：卡：{CardNo}，轴{axis}，回原加速度：{param.Acc},回零模式：{param.HomeMode}，回零高速：{param.HighSpeed}，回零低速：{param.LowSpeed}，实际轴号：{param.axis}";
+            MCN420.YK_remove_axis_alm((ushort)cardIndex, (ushort)axis);
+            var res = MCN420.YK_home_move((ushort)cardIndex, ref param);
+            info = $"执行YK_home_move后，实际回原参数：卡：{cardIndex}，轴{axis}，回原加速度：{param.Acc},回零模式：{param.HomeMode}，回零高速：{param.HighSpeed}，回零低速：{param.LowSpeed}，实际轴号：{param.axis}";
             CMessageAddTipsMessage?.Invoke("DT1000", info);
             SleepWaitMove();
             return res;
@@ -629,16 +629,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="mode"></param>
         /// <param name="EZ_count"></param>
         /// <returns></returns>
-        public int DmcSetCardAxisHomeMode(int CardNo, int axis, int home_dir, double startvel, double vel, int mode, double tacc, double tdec)
+        public int DmcSetCardAxisHomeMode(int cardIndex, int axis, int home_dir, double startvel, double vel, int mode, double tacc, double tdec)
         {
-            if (AxisHomeParaDic.ContainsKey(Tuple.Create(CardNo, axis)))
+            if (AxisHomeParaDic.ContainsKey(Tuple.Create(cardIndex, axis)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
                 if (tacc <= 0)
                 {
                     tacc = 0.2;
                 }
-                AxisHomeParaDic[Tuple.Create(CardNo, axis)] = new Home_Req
+                AxisHomeParaDic[Tuple.Create(cardIndex, axis)] = new Home_Req
                 {
                     CmdNum = 0,
                     ParamRemain = 0,
@@ -652,7 +652,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                 };
                 return 0;
             }
-            throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{axis}");
+            throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{axis}");
         }
 
         /// <summary>
@@ -661,16 +661,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns></returns>
-        public int DmcGetCardAxisHomeMode(int CardNo, int axis)
+        public int DmcGetCardAxisHomeMode(int cardIndex, int axis)
         {
             UInt16 home_dir = 0;
             double vel = 0;
             double maxvel = 0;
             UInt16 home_mod = 0;
-            UInt16 EZ_count = 0;
+            UInt16 ezCount = 0;
             double tacc = 0;
             double tdec = 0;
-            if (AxisHomeParaDic.ContainsKey(Tuple.Create(CardNo, axis)))
+            if (AxisHomeParaDic.ContainsKey(Tuple.Create(cardIndex, axis)))
             {
 
             }
@@ -685,7 +685,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Axis">轴编号</param>
         /// <param name="Enable">是否反找</param>
         /// <returns></returns>
-        public int DmcSetCardHomeELReturn(int CardNo, int Axis, int Enable)
+        public int DmcSetCardHomeELReturn(int cardIndex, int Axis, int Enable)
         {
             //return MCN420.mcc_set_home_el_return((ushort)CardNo, (ushort)Axis, (ushort)Enable);
             return 0;
@@ -698,7 +698,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Axis">轴编号</param>
         /// <param name="Enable">是否反找</param>
         /// <returns></returns>
-        public int DmcGetCardHomeELReturn(int CardNo, int Axis, ref UInt16 Enable)
+        public int DmcGetCardHomeELReturn(int cardIndex, int Axis, ref UInt16 Enable)
         {
             return 0;
             //return MCN420.mcc_get_home_el_return((ushort)CardNo, (ushort)Axis, ref Enable);
@@ -714,7 +714,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Tacc">总加速时间</param>
         /// <param name="Tdec">总减速时间</param>
         /// <returns></returns>
-        public int DmcSetCardHomeProfileUnit(int CardNo, int Axis, double Low_Vel, double High_Vel, double Tacc, double Tdec)
+        public int DmcSetCardHomeProfileUnit(int cardIndex, int Axis, double Low_Vel, double High_Vel, double acceleration, double deceleration)
         {
             return 0;
             //return MCN420.mcc_set_home_profile_unit((ushort)CardNo, (ushort)Axis, Low_Vel, High_Vel, Tacc, Tdec);
@@ -730,7 +730,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Tacc">总加速时间</param>
         /// <param name="Tdec">总减速时间</param>
         /// <returns></returns>
-        public int DmcGetCardHomeProfileUnit(int CardNo, int Axis, ref double Low_Vel, ref double High_Vel, ref double Tacc, ref double Tdec)
+        public int DmcGetCardHomeProfileUnit(int cardIndex, int Axis, ref double Low_Vel, ref double High_Vel, ref double acceleration, ref double deceleration)
         {
             return 0;
             //return MCN420.mcc_get_home_profile_unit((ushort)CardNo, (ushort)Axis, ref Low_Vel, ref High_Vel, ref Tacc, ref Tdec);
@@ -743,9 +743,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Axis">轴号</param>
         /// <param name="state">状态结果</param>
         /// <returns></returns>
-        public int DmcGetCardHomeResult(int CardNo, int Axis, ref UInt16 state)
+        public int DmcGetCardHomeResult(int cardIndex, int Axis, ref UInt16 state)
         {
-            var res = MCN420.YK_get_axis_home_status((ushort)CardNo, (ushort)Axis);
+            var res = MCN420.YK_get_axis_home_status((ushort)cardIndex, (ushort)Axis);
             state = (ushort)res;
             return 0;
         }
@@ -755,7 +755,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// </summary>
         /// <param name="CardNo"></param>
         /// <returns></returns>
-        public int DmcGetTotalLiners(int CardNo, uint totleLiners)
+        public int DmcGetTotalLiners(int cardIndex, uint totleLiners)
         {
             //return MCN420.mcc_get_total_liners((ushort)CardNo, ref totleLiners);
             return 0;
@@ -771,7 +771,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PathError"></param>
         /// <param name="LookaheadAcc"></param>
         /// <returns></returns>
-        public int DmcSetCardContiLookaheadMode(int CardNo, int Crd, int enable, int LookaheadSegments, double PathError, double LookaheadAcc)
+        public int DmcSetCardContiLookaheadMode(int cardIndex, int crdIndex, int enable, int LookaheadSegments, double PathError, double LookaheadAcc)
         {
             //return MCN420.mcc_conti_set_lookahead_mode((ushort)CardNo, (ushort)Crd, (ushort)enable, (ushort)LookaheadSegments, PathError, LookaheadAcc);
             return 0;
@@ -783,7 +783,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="Crd">坐标系号，取值范围：0~5</param>
         /// <returns></returns>
-        public int DmcGetCardContiLookaheadMode(int CardNo, int Crd, ref ushort enable, ref int LookaheadSegments, ref double PathError, ref double LookaheadAcc)
+        public int DmcGetCardContiLookaheadMode(int cardIndex, int crdIndex, ref ushort enable, ref int LookaheadSegments, ref double PathError, ref double LookaheadAcc)
         {
             return 0;
             //return MCN420.mcc_conti_get_lookahead_mode((ushort)CardNo, (ushort)Crd, ref enable, ref LookaheadSegments, ref PathError, ref LookaheadAcc);
@@ -797,7 +797,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">轴编号</param>
         /// <param name="AxisNums">轴号数组</param>
         /// <returns></returns>
-        public int DmcOpenCardContiList(int CardNo, int Crd, int axis, UInt16[] AxisNums)
+        public int DmcOpenCardContiList(int cardIndex, int crdIndex, int axis, UInt16[] axisNumbers)
         {
             return 0;
             //return MCN420.mcc_conti_open_list((ushort)CardNo, (ushort)Crd, (ushort)axis, AxisNums);
@@ -809,7 +809,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="Crd">坐标系号，取值范围：0~5</param>
         /// <returns></returns>
-        public int DmcCardContiStartList(int CardNo, int Crd)
+        public int DmcCardContiStartList(int cardIndex, int crdIndex)
         {
             return 0;
             //return MCN420.mcc_conti_start_list((ushort)CardNo, (ushort)Crd);
@@ -823,7 +823,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">轴号 </param>
         /// <param name="enable">螺距补偿：开启\关闭</param>
         /// <returns></returns>
-        public int DmcSetCardLeadScrewCompEnable(int CardNo, int axis, int enable)
+        public int DmcSetCardLeadScrewCompEnable(int cardIndex, int axis, int enable)
         {
             return 0;
             //return MCN420.mcc_enable_leadscrew_comp((ushort)CardNo, (ushort)axis, (ushort)enable);
@@ -840,7 +840,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="pCompPos"></param>
         /// <param name="pCompNeg"></param>
         /// <returns></returns>
-        public int DmcSetCardLeadScrewCompConfig(int CardNo, int axis, int n, int startpos, int lenpos, int[] pCompPos, int[] pCompNeg)
+        public int DmcSetCardLeadScrewCompConfig(int cardIndex, int axis, int n, int startpos, int lenpos, int[] pCompPos, int[] pCompNeg)
         {
             return 0;
             //return MCN420.mcc_set_leadscrew_comp_config((ushort)CardNo, (ushort)axis, (ushort)n, startpos, lenpos, pCompPos, pCompNeg);
@@ -857,7 +857,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="pCompPos"></param>
         /// <param name="pCompNeg"></param>
         /// <returns></returns>
-        public int DmcGetCardLeadScrewCompConfig(int CardNo, int axis, ref ushort n, ref int startpos, ref int lenpos, int[] pCompPos, int[] pCompNeg)
+        public int DmcGetCardLeadScrewCompConfig(int cardIndex, int axis, ref ushort n, ref int startpos, ref int lenpos, int[] pCompPos, int[] pCompNeg)
         {
             return 0;
             //return MCN420.mcc_get_leadscrew_comp_config((ushort)CardNo, (ushort)axis, ref n, ref startpos, ref lenpos, pCompPos, pCompNeg);
@@ -871,7 +871,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">轴编号</param>
         /// <param name="runmode">运动模式</param>
         /// <returns>short类型值</returns>
-        public int NmcSetCardAxisRunMode(int CardNo, int axis, ushort runmode)
+        public int NmcSetCardAxisRunMode(int cardIndex, int axis, ushort runmode)
         {
             //return MCN420.mcc_set_axis_run_mode((ushort)CardNo, (ushort)axis, runmode);
             return 0;
@@ -883,9 +883,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo"></param>
         /// <param name="axis"></param>
         /// <returns>ushort错误编号</returns>
-        public int NmcGetCardAxisErrCode(int CardNo, int axis, ref ushort errcode)
+        public int NmcGetCardAxisErrCode(int cardIndex, int axis, ref ushort errcode)
         {
-            errcode = (ushort)MCN420.YK_get_axis_alm_status((ushort)CardNo, (ushort)axis);
+            errcode = (ushort)MCN420.YK_get_axis_alm_status((ushort)cardIndex, (ushort)axis);
             return 0;
         }
 
@@ -895,9 +895,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴轴号</param>
         /// <returns></returns>
-        public int NmcClearCardAxisErrCode(int CardNo, int axis)
+        public int NmcClearCardAxisErrCode(int cardIndex, int axis)
         {
-            return MCN420.YK_remove_axis_alm((ushort)CardNo, (ushort)axis);
+            return MCN420.YK_remove_axis_alm((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -906,7 +906,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="PortNum">端口号</param>
         /// <returns></returns>
-        public int NmcClearCardAlarmFieldbus(int CardNo, int PortNum)
+        public int NmcClearCardAlarmFieldbus(int cardIndex, int portCount)
         {
             //return MCN420.ecc_clear_alarm_fieldbus((ushort)CardNo, (ushort)PortNum);
             return 0;
@@ -919,7 +919,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="pos">1：队列模式下：添加比较位置，单位：pulse | 2：线性模式下：更新起始比较位置，单位：pulse | 3：其他模式下：更新比较位置，单位：pulse</param>
         /// <returns></returns>
-        public int DmcAddCardHcmpPoints(int CardNo, int hcmp, double cmp_pos)
+        public int DmcAddCardHcmpPoints(int cardIndex, int hcmp, double cmp_pos)
         {
             //return MCN420.mcc_hcmp_add_point_unit((ushort)CardNo, (ushort)hcmp, cmp_pos);
             return 0;
@@ -932,14 +932,14 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">   比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns></returns>
-        public int DmcSetCardCompareConfigExtern(int CardNo, int enable, int cmp_source)
+        public int DmcSetCardCompareConfigExtern(int cardIndex, int enable, int cmp_source)
         {
             //ushort[] CmpList = new ushort[2] { 0, 1 };
             //ushort[] CmpAxisList = new ushort[2] { 0, 1 };
             //ushort CmpPulseNum = 10;
             //int CmpPulseTime = 1000; //单位：1us-20s
             //ushort CmpPulseDis = 20;
-            return MCN420.YK_cmp_2d_set_config((ushort)CardNo, (ushort)enable, (ushort)cmp_source);
+            return MCN420.YK_cmp_2d_set_config((ushort)cardIndex, (ushort)enable, (ushort)cmp_source);
         }
 
         /// <summary>
@@ -949,11 +949,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">   比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns></returns>
-        public int DmcGetCardCompareConfigExtern(int CardNo, ref ushort enable, ref ushort cmp_source)
+        public int DmcGetCardCompareConfigExtern(int cardIndex, ref ushort enable, ref ushort cmp_source)
         {
             uint value0 = 0;
             uint value1 = 0;
-            var res = MCN420.YK_cmp_2d_get_config((ushort)CardNo, ref value0, ref value1);
+            var res = MCN420.YK_cmp_2d_get_config((ushort)cardIndex, ref value0, ref value1);
             enable = (ushort)value0;
             cmp_source = (ushort)value1;
             return res;
@@ -971,9 +971,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="action">设置触发功能（为 IO 电平取反）</param>
         /// <param name="actpara">设置输出 IO 端口 (0 触发功能)</param>
         /// <returns></returns>
-        public int DmcAddCardComparePointsExtern(int CardNo, UInt16[] axis, int[] pos, UInt16[] dir, int action, int actpara)
+        public int DmcAddCardComparePointsExtern(int cardIndex, UInt16[] axis, int[] pos, UInt16[] dir, int action, int actpara)
         {
-            return MCN420.YK_cmp_2d_add_point((ushort)CardNo, Array.ConvertAll(axis, s => (uint)s), pos, Array.ConvertAll(dir, s => (uint)s), (ushort)action, (uint)actpara);
+            return MCN420.YK_cmp_2d_add_point((ushort)cardIndex, Array.ConvertAll(axis, s => (uint)s), pos, Array.ConvertAll(dir, s => (uint)s), (ushort)action, (uint)actpara);
             return 0;
         }
 
@@ -983,9 +983,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="pos"></param>
         /// <returns></returns>
-        public int DmcGetCardCompareCurrentPointsExtern(int CardNo, int[] pos = null)
+        public int DmcGetCardCompareCurrentPointsExtern(int cardIndex, int[] pos = null)
         {
-            return MCN420.YK_cmp_2d_get_current_point((ushort)CardNo, pos);
+            return MCN420.YK_cmp_2d_get_current_point((ushort)cardIndex, pos);
             return 0;
         }
 
@@ -994,10 +994,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns></returns>
-        public int DmcGetCardCompareRunnedPointsExtern(int CardNo, ref int pointNum)
+        public int DmcGetCardCompareRunnedPointsExtern(int cardIndex, ref int pointNum)
         {
             uint num = 0;
-            var res = MCN420.YK_cmp_2d_get_points_runned((ushort)CardNo, ref num);
+            var res = MCN420.YK_cmp_2d_get_points_runned((ushort)cardIndex, ref num);
             pointNum = (int)num;
             return res;
             return 0;
@@ -1008,9 +1008,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns></returns>
-        public int DmcClearCardComparePoints(int CardNo, ushort cmpNo)
+        public int DmcClearCardComparePoints(int cardIndex, ushort cmpNo)
         {
-            return MCN420.YK_cmp_2d_clear_point((ushort)CardNo);
+            return MCN420.YK_cmp_2d_clear_point((ushort)cardIndex);
         }
         #endregion
         #region 二维比较 （高速）待实现
@@ -1022,7 +1022,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="enable">比较功能状态，0：禁止，1：使能</param>
         /// <returns></returns>
-        public int DmcSetCardHcmp2DEnable(int CardNo, int hcmp, int enable)
+        public int DmcSetCardHcmp2DEnable(int cardIndex, int hcmp, int enable)
         {
             //return MCN420.YK_hcmp_2d_set_config((ushort)CardNo, (ushort)hcmp, (ushort)enable);
             return 0;
@@ -1035,7 +1035,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DEnable(int CardNo, int hcmp, ref ushort enable)
+        public int DmcGetCardHcmp2DEnable(int cardIndex, int hcmp, ref ushort enable)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_get_enable((ushort)CardNo, (ushort)hcmp, ref enable);
@@ -1060,7 +1060,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="port_sel">端口</param>
         /// <param name="pwm_number"> 输出的 pwm 脉冲数</param>
         /// <returns></returns>
-        public int DmcSetCardHcmp2DConfig(int CardNo, int hcmp, int cmp_mode, int x_axis, int x_cmp_source, int y_axis, int y_cmp_source, int error, int cmp_logic, int time, int pwm_enable, double duty, int freq, int port_sel, int pwm_number)
+        public int DmcSetCardHcmp2DConfig(int cardIndex, int hcmp, int cmp_mode, int x_axis, int x_cmp_source, int y_axis, int y_cmp_source, int error, int cmp_logic, int time, int pwm_enable, double duty, int freq, int port_sel, int pwm_number)
         {
             //return MCN420.YK_hcmp_2d_set_param((ushort)CardNo, (ushort)hcmp, (ushort)cmp_mode, (ushort)x_axis, (ushort)x_cmp_source, (ushort)y_axis, (ushort)y_cmp_source, error, (ushort)cmp_logic, time, (ushort)pwm_enable, duty, freq, (ushort)port_sel, (ushort)pwm_number);
             return 0;
@@ -1085,7 +1085,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="port_sel"></param>
         /// <param name="pwm_number"></param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DConfig(int CardNo, int hcmp, ref ushort cmp_mode, ref ushort x_axis, ref ushort x_cmp_source, ref ushort y_axis, ref ushort y_cmp_source, ref int error, ref ushort cmp_logic, ref int time, ref ushort pwm_enable, ref double duty, ref int freq, ref ushort port_sel, ref ushort pwm_number)
+        public int DmcGetCardHcmp2DConfig(int cardIndex, int hcmp, ref ushort cmp_mode, ref ushort x_axis, ref ushort x_cmp_source, ref ushort y_axis, ref ushort y_cmp_source, ref int error, ref ushort cmp_logic, ref int time, ref ushort pwm_enable, ref double duty, ref int freq, ref ushort port_sel, ref ushort pwm_number)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_get_config((ushort)CardNo, (ushort)hcmp, ref cmp_mode, ref x_axis, ref x_cmp_source, ref y_axis, ref y_cmp_source, ref error, ref cmp_logic, ref time, ref pwm_enable, ref duty, ref freq, ref port_sel, ref pwm_number);
@@ -1106,7 +1106,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="cmp_logic">    有效电平：0：低电平，1：高电</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us-20s </param>
         /// <returns></returns>
-        public int DmcSetCardHcmp2DConfig(int CardNo, int hcmp, int cmp_mode, int x_axis, int x_cmp_source, double x_cmp_error, int y_axis, int y_cmp_source, double y_cmp_error, int cmp_logic, int time)
+        public int DmcSetCardHcmp2DConfig(int cardIndex, int hcmp, int cmp_mode, int x_axis, int x_cmp_source, double x_cmp_error, int y_axis, int y_cmp_source, double y_cmp_error, int cmp_logic, int time)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_set_config_unit((ushort)CardNo, (ushort)hcmp, (ushort)cmp_mode, (ushort)x_axis, (ushort)x_cmp_source, (ushort)x_cmp_error, (ushort)y_axis, (ushort)y_cmp_source, y_cmp_error, (ushort)cmp_logic, time);
@@ -1127,7 +1127,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="cmp_logic">    有效电平：0：低电平，1：高电</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us-20s </param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DConfig(int CardNo, int hcmp, ref ushort cmp_mode, ref ushort x_axis, ref ushort x_cmp_source, ref double x_cmp_error, ref ushort y_axis, ref ushort y_cmp_source, ref double y_cmp_error, ref ushort cmp_logic, ref int time)
+        public int DmcGetCardHcmp2DConfig(int cardIndex, int hcmp, ref ushort cmp_mode, ref ushort x_axis, ref ushort x_cmp_source, ref double x_cmp_error, ref ushort y_axis, ref ushort y_cmp_source, ref double y_cmp_error, ref ushort cmp_logic, ref int time)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_get_config_unit((ushort)CardNo, (ushort)hcmp, ref cmp_mode, ref x_axis, ref x_cmp_source, ref x_cmp_error, ref y_axis, ref y_cmp_source, ref y_cmp_error, ref cmp_logic, ref time);
@@ -1141,7 +1141,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="x_cmp_pos"> 队列模式下：添加 x 比较位置，单位：unit </param>
         /// <param name="y_cmp_pos">队列模式下：添加 x 比较位置，单位：unit  </param>
         /// <returns></returns>
-        public int DmcAddCardHcmp2DPoint(int CardNo, int hcmp, int x_cmp_pos, int y_cmp_pos)
+        public int DmcAddCardHcmp2DPoint(int cardIndex, int hcmp, int x_cmp_pos, int y_cmp_pos)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_add_point((ushort)CardNo, (ushort)hcmp, (ushort)x_cmp_pos, (ushort)y_cmp_pos);
@@ -1156,7 +1156,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="y_cmp_pos">队列模式下：添加 x 比较位置，单位：unit  </param>
         /// <param name="cmp_outbit">输出口号 </param>
         /// <returns></returns>
-        public int DmcAddCardHcmp2DPointUnit(int CardNo, int hcmp, double x_cmp_pos, double y_cmp_pos, int cmp_outbit)
+        public int DmcAddCardHcmp2DPointUnit(int cardIndex, int hcmp, double x_cmp_pos, double y_cmp_pos, int cmp_outbit)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_add_point_unit((ushort)CardNo, (ushort)hcmp, x_cmp_pos, y_cmp_pos, (ushort)cmp_outbit);
@@ -1173,7 +1173,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="runned_points">返回已比较点数</param>
         /// <param name="current_state">比较器状态 1 正在输出 0 输出完成</param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DCurrentState(int CardNo, int hcmp, ref int remained_points, ref int x_current_point, ref int y_current_point, ref int runned_points, ref UInt16 current_state)
+        public int DmcGetCardHcmp2DCurrentState(int cardIndex, int hcmp, ref int remained_points, ref int x_current_point, ref int y_current_point, ref int runned_points, ref UInt16 current_state)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_get_current_state((ushort)CardNo, (ushort)hcmp, ref remained_points, ref x_current_point, ref y_current_point, ref runned_points, ref current_state);
@@ -1191,7 +1191,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="current_state">比较器状态 1 正在输出 0 输出完成</param>
         /// <param name="current_outbit">返回当前输出口 </param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DCurrentStateUnit(int CardNo, int hcmp, ref int remained_points, ref double x_current_point, ref double y_current_point, ref Int32 runned_points, ref UInt16 current_state, ref UInt16 current_outbit)
+        public int DmcGetCardHcmp2DCurrentStateUnit(int cardIndex, int hcmp, ref int remained_points, ref double x_current_point, ref double y_current_point, ref Int32 runned_points, ref UInt16 current_state, ref UInt16 current_outbit)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_get_current_state_unit((ushort)CardNo, (ushort)hcmp, ref remained_points, ref x_current_point, ref y_current_point, ref runned_points, ref current_state, ref current_outbit);
@@ -1204,7 +1204,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="hcmp">保留，参数值为 0 </param>
         /// <param name="cmp_outbit">强制二维比较输出，设置为1使能</param>
         /// <returns></returns>
-        public int DmcCardHcmp2DForceOutPut(int CardNo, int hcmp, int cmp_outbit)
+        public int DmcCardHcmp2DForceOutput(int cardIndex, int hcmp, int cmp_outbit)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_force_output((ushort)CardNo, (ushort)hcmp, (ushort)cmp_outbit);
@@ -1220,7 +1220,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="freq">读取频率</param>
         /// <param name="pwm_number">读取输出的 pwm 脉冲数 </param>
         /// <returns>二维比较PWM输出模式</returns>
-        public int DmcSetCardHcmp2DPWMOutPut(int CardNo, int hcmp, int pwm_enable, double duty, double freq, int pwm_number)
+        public int DmcSetCardHcmp2DPWMOutput(int cardIndex, int hcmp, int pwm_enable, double duty, double freq, int pwm_number)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_set_pwmoutput((ushort)CardNo, (ushort)hcmp, (ushort)pwm_enable, duty, freq, (ushort)pwm_number);
@@ -1236,7 +1236,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="freq">读取频率</param>
         /// <param name="pwm_number">读取输出的 pwm 脉冲数 </param>
         /// <returns></returns>
-        public int DmcGetCardHcmp2DPWMOutPut(int CardNo, int hcmp, ref UInt16 pwm_enable, ref double duty, ref double freq, ref UInt16 pwm_number)
+        public int DmcGetCardHcmp2DPWMOutput(int cardIndex, int hcmp, ref UInt16 pwm_enable, ref double duty, ref double freq, ref UInt16 pwm_number)
         {
             return 0;
             //return MCN420.mcc_hcmp_2d_get_pwmoutput((ushort)CardNo, (ushort)hcmp, ref pwm_enable, ref duty, ref freq, ref pwm_number);
@@ -1249,9 +1249,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">高速比较器号</param>
         /// <returns></returns>
-        public int DmcClearCardHcmp2DPoints(int CardNo, int hcmp)
+        public int DmcClearCardHcmp2DPoints(int cardIndex, int hcmp)
         {
-            return MCN420.YK_hcmp_2d_clear_point((ushort)CardNo, (ushort)hcmp);
+            return MCN420.YK_hcmp_2d_clear_point((ushort)cardIndex, (ushort)hcmp);
             return 0;
         }
 
@@ -1369,18 +1369,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns></returns>
-        public int DmcGetCardVersion(ushort CardNo, ref UInt32 CardVersion)
+        public int DmcGetCardVersion(ushort cardIndex, ref UInt32 CardVersion)
         {
-            return MCN420.YK_get_hardware_version(CardNo, ref CardVersion);
+            return MCN420.YK_get_hardware_version(cardIndex, ref CardVersion);
 
         }
         /// <summary>
         /// 获取控制卡固件版本号（适用于所有脉冲/总线卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcGetCardSoftVersion(ushort CardNo, ref uint FirmID, ref uint SubFirmID)
+        public int DmcGetCardSoftVersion(ushort cardIndex, ref uint FirmID, ref uint SubFirmID)
         {
-            return MCN420.YK_get_firmware_version(CardNo, ref FirmID);
+            return MCN420.YK_get_firmware_version(cardIndex, ref FirmID);
         }
 
         /// <summary>
@@ -1388,23 +1388,23 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// </summary>
         /// <param name="LibVer">返回库版本号</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardLibVersion(int CardID, ref UInt32 LibVer)
+        public int DmcGetCardLibVersion(int cardId, ref UInt32 LibVer)
         {
-            return MCN420.YK_get_dll_lib_version((ushort)CardID, ref LibVer);
+            return MCN420.YK_get_dll_lib_version((ushort)cardId, ref LibVer);
         }
 
         /// <summary>
         /// 获取指定卡轴数（适用于所有脉冲卡）
         /// </summary>
         /// <returns>错误代码</returns>
-        public int DmcGetCardTotalAxes(ushort CardNo, ref UInt32 TotalAxis)
+        public int DmcGetCardTotalAxes(ushort cardIndex, ref UInt32 totalAxisCount)
         {
-            var res = MCN420.YK_get_device_type(CardNo, ref TotalAxis);
-            if (TotalAxis == 420)
+            var res = MCN420.YK_get_device_type(cardIndex, ref totalAxisCount);
+            if (totalAxisCount == 420)
             {
-                TotalAxis = 8;
+                totalAxisCount = 8;
             }
-            else TotalAxis = 4;
+            else totalAxisCount = 4;
             return res;
         }
 
@@ -1414,9 +1414,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="ConfigName">参数文件名，默认"AxisPara.ini"</param>
         /// <returns>错误代码</returns>
-        public int GetCardDownloadConfigfile(int CardNo, string ConfigName = "AxisPara.ini")
+        public int GetCardDownloadConfigfile(int cardIndex, string ConfigName = "AxisPara.ini")
         {
-            return MCN420.YK_download_configfile((ushort)CardNo, ConfigName);
+            return MCN420.YK_download_configfile((ushort)cardIndex, ConfigName);
         }
 
         /// <summary>
@@ -1427,7 +1427,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="fileincontrol">文件名（保留参数）</param>
         /// <param name="filetype">文件类型</param>
         /// <returns>错误代码</returns>
-        public int GetCardDownloadMemfile(int CardNo, string name)
+        public int GetCardDownloadMemfile(int cardIndex, string name)
         {
             //return MCN420.mcc_board_download_eni_file((ushort)CardNo, buffer, (uint)buffer.Length, fileincontrol, (ushort)filetype);
             //return MCN420.mcc_board_download_eni_file((ushort)CardNo, name.Trim());
@@ -1440,7 +1440,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="FileName">文件路径：参数文件名+后缀：相对路径；完整描述参数文件的路径+文件名后缀：绝对路径</param>
         /// <returns></returns>
-        public int DmcGetDownloadFirmware(int CardNo, String FileName)
+        public int DmcGetDownloadFirmware(int cardIndex, String FileName)
         {
             //return MCN420.mcc_download_firmware((ushort)CardNo, FileName);
             return 0;
@@ -1456,7 +1456,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">轴编号</param>
         /// <param name="equiv">脉冲当量，单位：pulse/unit</param>
         /// <returns>short类型值</returns>
-        public int DmcSetCardAxisEquiv(int CardNo, int axis, double equiv)
+        public int DmcSetCardAxisEquiv(int cardIndex, int axis, double equiv)
         {
             // ★ NoCodeMotion 修正（2026-09-30）：脉冲当量对应研控的「指令位置比率」YK_set_command_ratio，
             //   单位正是 pulses/unit —— 见 Native/MCN420.cs 的原生声明注释：
@@ -1466,7 +1466,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
             //   （脉冲+方向 / CW-CCW / 倍频…），把当量写进去会把脉冲输出模式改成非法值，越修越坏。
             //   卡族里所有指令都是 unit 版（YK_vmove / YK_set_command_position …），卡内要靠这个比率做
             //   unit→脉冲 换算；比率没设（为 0）时这些指令会被卡直接拒绝，只回一个错误码。
-            return MCN420.YK_set_command_ratio((ushort)CardNo, (ushort)axis, equiv);
+            return MCN420.YK_set_command_ratio((ushort)cardIndex, (ushort)axis, equiv);
         }
         /// <summary>
         /// 获取轴的脉冲当量
@@ -1475,10 +1475,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">轴编号</param>
         /// <param name="equiv">脉冲当量，单位：pulse/unit</param>
         /// <returns>脉冲当量</returns>
-        public int DmcGetCardAxisEquiv(int CardNo, int axis, ref double equiv)
+        public int DmcGetCardAxisEquiv(int cardIndex, int axis, ref double equiv)
         {
             // 与 DmcSetCardAxisEquiv 对应：读的是「指令位置比率」（pulses/unit）。
-            return MCN420.YK_get_command_ratio((ushort)CardNo, (ushort)axis, ref equiv);
+            return MCN420.YK_get_command_ratio((ushort)cardIndex, (ushort)axis, ref equiv);
         }
         #endregion
 
@@ -1490,7 +1490,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns></returns>
-        public int CardNmcAxisNmcHomeMove(int CardNo, int axis)
+        public int CardNmcAxisNmcHomeMove(int cardIndex, int axis)
         {
             //return MCN420.mcc_home_start((ushort)CardNo, (ushort)axis);
             return 0;
@@ -1511,10 +1511,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="N_limit">负限位位置，单位：pulse </param>
         /// <param name="P_limit">正限位位置，单位：pulse</param>
         /// <returns></returns>
-        public int DmcSetCardAxisSoftLimit(int CardNo, int axis, int enable, int source_sel, int SL_action, int N_limit, int P_limit)
+        public int DmcSetCardAxisSoftLimit(int cardIndex, int axis, int enable, int source_sel, int slActionValue, int negativeLimit, int positiveLimit)
         {
-            MCN420.YK_set_soft_positive_limit_config((ushort)CardNo, (ushort)axis, (ushort)enable, P_limit);
-            MCN420.YK_set_soft_negative_limit_config((ushort)CardNo, (ushort)axis, (ushort)enable, N_limit);
+            MCN420.YK_set_soft_positive_limit_config((ushort)cardIndex, (ushort)axis, (ushort)enable, positiveLimit);
+            MCN420.YK_set_soft_negative_limit_config((ushort)cardIndex, (ushort)axis, (ushort)enable, negativeLimit);
             return 0;
         }
 
@@ -1529,16 +1529,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="N_limit">返回负限位脉冲数</param>
         /// <param name="P_limit">返回正限位脉冲数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisSoftLimit(int CardNo, int axis, ref UInt16 enable, ref UInt16 source_sel, ref UInt16 SL_action, ref int N_limit, ref int P_limit)
+        public int DmcGetCardAxisSoftLimit(int cardIndex, int axis, ref UInt16 enable, ref UInt16 source_sel, ref UInt16 slActionValue, ref int negativeLimit, ref int positiveLimit)
         {
             double n_limit = 0;
             double p_limit = 0;
             uint enable0 = 0;
             uint enable1 = 0;
-            var res = MCN420.YK_get_soft_positive_limit_config((ushort)CardNo, (ushort)axis, ref enable0, ref p_limit);
-            res = MCN420.YK_get_soft_negative_limit_config((ushort)CardNo, (ushort)axis, ref enable1, ref n_limit);
-            N_limit = (int)n_limit;
-            P_limit = (int)p_limit;
+            var res = MCN420.YK_get_soft_positive_limit_config((ushort)cardIndex, (ushort)axis, ref enable0, ref p_limit);
+            res = MCN420.YK_get_soft_negative_limit_config((ushort)cardIndex, (ushort)axis, ref enable1, ref n_limit);
+            negativeLimit = (int)n_limit;
+            positiveLimit = (int)p_limit;
             enable = (ushort)(((enable0 == 0) || (enable1 == 0)) ? 0 : 1);
             return res;
         }
@@ -1550,9 +1550,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号</param>
         /// <param name="pos">位置值，单位：unit</param>
         /// <returns></returns>
-        public int DmcSetCardAxisPositionUnit(int CardNo, int axis, double pos)
+        public int DmcSetCardAxisPositionUnit(int cardIndex, int axis, double pos)
         {
-            return MCN420.YK_set_command_position((ushort)CardNo, (ushort)axis, pos);
+            return MCN420.YK_set_command_position((ushort)cardIndex, (ushort)axis, pos);
             //return 0;
         }
 
@@ -1563,9 +1563,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号</param>
         /// <param name="pos">返回当前位置值，单位：unit</param>
         /// <returns></returns>
-        public int DmcGetCardAxisPositionUnit(int CardNo, int axis, ref double pos)
+        public int DmcGetCardAxisPositionUnit(int cardIndex, int axis, ref double pos)
         {
-            pos = MCN420.YK_get_current_position((ushort)CardNo, (ushort)axis/*, ref pos*/);
+            pos = MCN420.YK_get_current_position((ushort)cardIndex, (ushort)axis/*, ref pos*/);
             return 0;
         }
 
@@ -1582,9 +1582,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号</param>
         /// <param name="current_speed">返回速度值，单位：unit/s</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisCurrentSpeedUnit(int CardNo, int axis, ref double current_speed)
+        public int DmcGetCardAxisCurrentSpeedUnit(int cardIndex, int axis, ref double current_speed)
         {
-            current_speed = MCN420.YK_get_current_speed((ushort)CardNo, (ushort)axis) * 1000;
+            current_speed = MCN420.YK_get_current_speed((ushort)cardIndex, (ushort)axis) * 1000;
             return 0;
         }
 
@@ -1596,9 +1596,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns>0：指定轴正在运行，1：指定轴已停止</returns>
-        public int DmcGetCardAxisCheckDone(int CardNo, int axis)
+        public int DmcGetCardAxisCheckDone(int cardIndex, int axis)
         {
-            return MCN420.YK_check_done((ushort)CardNo, (ushort)axis);
+            return MCN420.YK_check_done((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -1609,9 +1609,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">指定控制卡上的坐标系号（取值范围：0~5）</param>
         /// <returns>轴运动状态，0运动中 1空闲</returns>
-        public int DmcGetCardCrdCheckDoneMulticoor(int CardNo, int crd)
+        public int DmcGetCardCrdCheckDoneMulticoor(int cardIndex, int crd)
         {
-            return MCN420.YK_check_done((ushort)CardNo, (ushort)crd);//crd改为AxisID，如果当前轴停止代表插补完成
+            return MCN420.YK_check_done((ushort)cardIndex, (ushort)crd);//crd改为AxisID，如果当前轴停止代表插补完成
             //return MCN420.mcc_status_check_crd_sts((ushort)CardNo, (ushort)crd);
         }
 
@@ -1625,7 +1625,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
             返回值：错误代码
         */
 
-        public int DmcSoftltcGetNumber(int CardNo, int latch, int axis, ref ushort number)
+        public int DmcSoftltcGetNumber(int cardIndex, int latch, int axis, ref ushort number)
         {
             return 0;
             ushort ltc_remain = 0;
@@ -1646,7 +1646,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <para>* 5    SL+ 1：表示正软限位信号+SL为ON； 0：OFF</para> 
         /// <para>* 6    SL- 1：表示负软限位信号-SL为ON； 0：OFF</para> 
         /// </returns>
-        public int DmcGetCardAxisIOState(int CardNo, int axis)
+        public int DmcGetCardAxisIOState(int cardIndex, int axis)
         {
             //return (int)MCN420.mcc_status_get_axis_io((ushort)CardNo, (ushort)axis);
             throw new ArgumentNullException($"DmcGetCardAxisIOState函数未添加！");
@@ -1661,10 +1661,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">轴编号</param>
         /// <param name="stop_mode">制动方式，0：减速停止，1：紧急停止</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisStop(int CardNo, int axis, int stop_mode)
+        public int DmcCardAxisStop(int cardIndex, int axis, int stop_mode)
         {
-            var res = MCN420.YK_stop_one_axis((ushort)CardNo, (ushort)axis, (ushort)stop_mode);
-            MCN420.YK_remove_axis_alm((ushort)CardNo, (ushort)axis);
+            var res = MCN420.YK_stop_one_axis((ushort)cardIndex, (ushort)axis, (ushort)stop_mode);
+            MCN420.YK_remove_axis_alm((ushort)cardIndex, (ushort)axis);
             return res;
         }
 
@@ -1677,9 +1677,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="crd">指定控制卡上的坐标系号（取值范围：0~5）</param>
         /// <param name="stop_mode">制动方式，0：减速停止，1：立即停止</param>
         /// <returns>错误代码</returns>
-        public int DmcCardCrdStopMulticoor(int CardNo, int crd, int stop_mode)
+        public int DmcCardCrdStopMulticoor(int cardIndex, int crd, int stop_mode)
         {
-            return MCN420.YK_stop_all_axis((ushort)CardNo, (ushort)stop_mode);
+            return MCN420.YK_stop_all_axis((ushort)cardIndex, (ushort)stop_mode);
         }
 
         /// <summary>
@@ -1689,9 +1689,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int CardDmcEmgStop(int CardNo)
+        public int CardDmcEmgStop(int cardIndex)
         {
-            return MCN420.YK_stop_all_axis((ushort)CardNo, 1);
+            return MCN420.YK_stop_all_axis((ushort)cardIndex, 1);
         }
 
         #endregion
@@ -1709,42 +1709,42 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Tdec">减速时间，单位：s</param>
         /// <param name="Stop_Vel">停止速度，单位：unit/s</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisProfileUnit(int CardNo, int axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel)
+        public int DmcSetCardAxisProfileUnit(int cardIndex, int axis, double minVelocity, double maxVelocity, double acceleration, double deceleration, double stopVelocity)
         {
             //AxisVMoveParaDic[Tuple.Create(CardNo, axis)] = new Jog_Req_Param();
             //AxisHomeParaDic[Tuple.Create(CardNo, axis)] = new Home_Req();
             //AxisPMoveParaDic[Tuple.Create(CardNo, axis)] = new Single_Req_Param();
-            if (AxisVMoveParaDic.ContainsKey(Tuple.Create(CardNo, axis)))
+            if (AxisVMoveParaDic.ContainsKey(Tuple.Create(cardIndex, axis)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                var obj = AxisVMoveParaDic[Tuple.Create(CardNo, axis)];
-                AxisVMoveParaDic[Tuple.Create(CardNo, axis)] = new Jog_Req_Param
+                var obj = AxisVMoveParaDic[Tuple.Create(cardIndex, axis)];
+                AxisVMoveParaDic[Tuple.Create(cardIndex, axis)] = new Jog_Req_Param
                 {
                     CmdNum = 0,
                     ParamRemain = 0,
-                    // ★ 必须 0 / 1（见 OpenCard 预置处说明）。这里原来也是 2 —— Jog 走的就是这条
+                    // ★ 必须 0 / 1（见 Open 预置处说明）。这里原来也是 2 —— Jog 走的就是这条
                     //   重建路径，所以这一处才是现场 8194 的直接来源。
                     Channel = 0,
                     axis = (uint)axis,
                     STFlag = 1,
                     ParaType = 1,
                     Dir = obj.Dir,
-                    InterpoStartVel = Min_Vel / 1000,
-                    InterpoEndVel = Min_Vel / 1000,
-                    InterpoVel = Max_Vel / 1000,
-                    InterpoAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000),
-                    InterpoDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000),
-                    InterpJerkAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000) / 10,
-                    InterpJerkDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000) / 10,
+                    InterpoStartVel = minVelocity / 1000,
+                    InterpoEndVel = minVelocity / 1000,
+                    InterpoVel = maxVelocity / 1000,
+                    InterpoAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000),
+                    InterpoDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000),
+                    InterpJerkAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000) / 10,
+                    InterpJerkDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000) / 10,
                 };
             }
             else
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{axis}");
-            if (AxisPMoveParaDic.ContainsKey(Tuple.Create(CardNo, axis)))
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{axis}");
+            if (AxisPMoveParaDic.ContainsKey(Tuple.Create(cardIndex, axis)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                var obj = AxisPMoveParaDic[Tuple.Create(CardNo, axis)];
-                AxisPMoveParaDic[Tuple.Create(CardNo, axis)] = new Single_Req_Param
+                var obj = AxisPMoveParaDic[Tuple.Create(cardIndex, axis)];
+                AxisPMoveParaDic[Tuple.Create(cardIndex, axis)] = new Single_Req_Param
                 {
                     CmdNum = obj.CmdNum,
                     ParamRemain = obj.ParamRemain,
@@ -1753,17 +1753,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     STFlag = obj.STFlag,
                     ParaType = obj.ParaType,
                     //PosType = obj.PosType,
-                    InterpoStartVel = Min_Vel / 1000,
-                    InterpoEndVel = Min_Vel / 1000,
-                    InterpoVel = Max_Vel / 1000,
-                    InterpoAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000),
-                    InterpoDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000),
-                    InterpJerkAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000) / 10,
-                    InterpJerkDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000) / 10,
+                    InterpoStartVel = minVelocity / 1000,
+                    InterpoEndVel = minVelocity / 1000,
+                    InterpoVel = maxVelocity / 1000,
+                    InterpoAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000),
+                    InterpoDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000),
+                    InterpJerkAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000) / 10,
+                    InterpJerkDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000) / 10,
                 };
                 return 0;
             }
-            throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{axis}");
+            throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{axis}");
             //return MCN420.mcc_axis_set_prf_vel((ushort)CardNo, (ushort)axis, Min_Vel, Max_Vel, Tacc, Tdec, Stop_Vel);
         }
 
@@ -1780,20 +1780,20 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Tdec">返回减速时间设置，单位：s</param>
         /// <param name="Stop_Vel">返回停止速度设置，单位：unit/s</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisProfileUnit(int CardNo, int axis, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double Stop_Vel)
+        public int DmcGetCardAxisProfileUnit(int cardIndex, int axis, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stopVelocity)
         {
-            if (AxisPMoveParaDic.ContainsKey(Tuple.Create(CardNo, axis)))
+            if (AxisPMoveParaDic.ContainsKey(Tuple.Create(cardIndex, axis)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                var obj = AxisPMoveParaDic[Tuple.Create(CardNo, axis)];
-                Min_Vel = obj.InterpoStartVel * 1000;
-                Max_Vel = obj.InterpoVel * 1000;
-                Stop_Vel = obj.InterpoEndVel * 1000;
-                Tacc = ((Max_Vel) - (Min_Vel)) / obj.InterpoAcc / 1000;
-                Tdec = ((Max_Vel) - (Min_Vel)) / obj.InterpoDec / 1000;
+                var obj = AxisPMoveParaDic[Tuple.Create(cardIndex, axis)];
+                minVelocity = obj.InterpoStartVel * 1000;
+                maxVelocity = obj.InterpoVel * 1000;
+                stopVelocity = obj.InterpoEndVel * 1000;
+                acceleration = ((maxVelocity) - (minVelocity)) / obj.InterpoAcc / 1000;
+                deceleration = ((maxVelocity) - (minVelocity)) / obj.InterpoDec / 1000;
                 return 0;
             }
-            throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{axis}");
+            throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{axis}");
             //return MCN420.mcc_axis_get_prf_vel((ushort)CardNo, (ushort)axis, ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref Stop_Vel);
         }
 
@@ -1805,13 +1805,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">S 段时间，单位：s；范围：0~1</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisSProfile(int CardNo, int axis, int s_mode, double s_para)
+        public int DmcSetCardAxisSProfile(int cardIndex, int axis, int s_mode, double s_para)
         {
-            if (AxisPMoveParaDic.ContainsKey(Tuple.Create(CardNo, axis)))
+            if (AxisPMoveParaDic.ContainsKey(Tuple.Create(cardIndex, axis)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                var obj = AxisPMoveParaDic[Tuple.Create(CardNo, axis)];
-                AxisPMoveParaDic[Tuple.Create(CardNo, axis)] = new Single_Req_Param
+                var obj = AxisPMoveParaDic[Tuple.Create(cardIndex, axis)];
+                AxisPMoveParaDic[Tuple.Create(cardIndex, axis)] = new Single_Req_Param
                 {
                     CmdNum = obj.CmdNum,
                     ParamRemain = obj.ParamRemain,
@@ -1832,7 +1832,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                 };
                 return 0;
             }
-            throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{axis}");
+            throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{axis}");
         }
 
         /// <summary>
@@ -1843,15 +1843,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="s_mode">保留参数</param>
         /// <param name="s_para">返回设置的 S 段时间</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisSProfile(int CardNo, int axis, int s_mode, ref double s_para)
+        public int DmcGetCardAxisSProfile(int cardIndex, int axis, int s_mode, ref double s_para)
         {
-            if (AxisPMoveParaDic.ContainsKey(Tuple.Create(CardNo, axis)))
+            if (AxisPMoveParaDic.ContainsKey(Tuple.Create(cardIndex, axis)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                s_para = (Math.Pow(AxisPMoveParaDic[Tuple.Create(CardNo, axis)].InterpJerkAcc, 1 / 3)) / 1000;
+                s_para = (Math.Pow(AxisPMoveParaDic[Tuple.Create(cardIndex, axis)].InterpJerkAcc, 1 / 3)) / 1000;
                 return 0;
             }
-            throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{axis}");
+            throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{axis}");
             //return MCN420.mcc_axis_get_s_prf_vel((ushort)CardNo, (ushort)axis, (ushort)s_mode, ref s_para);
         }
 
@@ -1866,13 +1866,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="dist">目标位置，单位：unit </param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisPMoveUnit(int CardNo, int axis, double dist, ushort posi_mode)
+        public int DmcCardAxisPMoveUnit(int cardIndex, int axis, double dist, ushort posi_mode)
         {
-            if (AxisPMoveParaDic.ContainsKey(Tuple.Create(CardNo, axis)))
+            if (AxisPMoveParaDic.ContainsKey(Tuple.Create(cardIndex, axis)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                var obj = AxisPMoveParaDic[Tuple.Create(CardNo, axis)];
-                var moveObj = AxisPMoveParaDic[Tuple.Create(CardNo, axis)] = new Single_Req_Param
+                var obj = AxisPMoveParaDic[Tuple.Create(cardIndex, axis)];
+                var moveObj = AxisPMoveParaDic[Tuple.Create(cardIndex, axis)] = new Single_Req_Param
                 {
                     CmdNum = obj.CmdNum,
                     ParamRemain = obj.ParamRemain,
@@ -1890,11 +1890,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     InterpJerkAcc = obj.InterpJerkAcc,
                     InterpJerkDec = obj.InterpJerkDec,
                 };
-                MCN420.YK_remove_axis_alm((ushort)CardNo, (ushort)axis);
+                MCN420.YK_remove_axis_alm((ushort)cardIndex, (ushort)axis);
                 SleepWaitMove();
-                return MCN420.YK_pmove((ushort)CardNo, ref moveObj);
+                return MCN420.YK_pmove((ushort)cardIndex, ref moveObj);
             }
-            throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{axis}");
+            throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{axis}");
             //return MCN420.mcc_axis_pmove((ushort)CardNo, (ushort)axis, dist, posi_mode);
         }
 
@@ -1905,7 +1905,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号</param>
         /// <param name="dir">方向运动方向，0：负方向，1：正方向</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisVMove(int CardNo, int axis, int dir)
+        public int DmcCardAxisVMove(int cardIndex, int axis, int dir)
         {
             /*
             short mcc_vmove(WORD CardNo, WORD axis, WORD dir)
@@ -1915,16 +1915,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
              dir 运动方向，0：负方向，1：正方向
             返回值：错误代码
             */
-            if (AxisVMoveParaDic.ContainsKey(Tuple.Create(CardNo, axis)))
+            if (AxisVMoveParaDic.ContainsKey(Tuple.Create(cardIndex, axis)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                var obj = AxisVMoveParaDic[Tuple.Create(CardNo, axis)];
+                var obj = AxisVMoveParaDic[Tuple.Create(cardIndex, axis)];
                 obj.Dir = dir == 0 ? -1 : 1;
-                MCN420.YK_remove_axis_alm((ushort)CardNo, (ushort)axis);
-                return MCN420.YK_vmove((ushort)CardNo, ref obj);
+                MCN420.YK_remove_axis_alm((ushort)cardIndex, (ushort)axis);
+                return MCN420.YK_vmove((ushort)cardIndex, ref obj);
             }
             else
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{axis}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{axis}");
             //return MCN420.mcc_axis_vmove((ushort)CardNo, (ushort)axis, (ushort)dir);
         }
 
@@ -1941,9 +1941,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="New_Vel">新的运行速度，单位：unit/s</param>
         /// <param name="Taccdec">变速时间，单位：s </param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisChangeSpeed(int CardNo, int axis, double New_Vel, double Taccdec)
+        public int DmcCardAxisChangeSpeed(int cardIndex, int axis, double New_Vel, double accelerationAndDeceleration)
         {
-            return MCN420.YK_change_speed((ushort)CardNo, (uint)axis, New_Vel);
+            return MCN420.YK_change_speed((ushort)cardIndex, (uint)axis, New_Vel);
         }
 
         /// <summary>
@@ -1956,9 +1956,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">轴编号</param>
         /// <param name="New_Pos">新目标位置，单位：unit</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisResetTargetPositionUnit(int CardNo, int axis, double New_Pos, int pos_mode)
+        public int DmcCardAxisResetTargetPositionUnit(int cardIndex, int axis, double New_Pos, int pos_mode)
         {
-            return MCN420.YK_change_position((ushort)CardNo, (uint)axis, (uint)pos_mode, New_Pos);
+            return MCN420.YK_change_position((ushort)cardIndex, (uint)axis, (uint)pos_mode, New_Pos);
         }
 
         /// <summary>
@@ -1971,7 +1971,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">轴编号</param>
         /// <param name="New_Pos">新的点位</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisUpdateTargetPosition(int CardNo, int axis, double New_Pos)
+        public int DmcCardAxisUpdateTargetPosition(int cardIndex, int axis, double New_Pos)
         {
             //return MCN420.mcc_axis_update_target_position((ushort)CardNo, (ushort)axis, New_Pos, 1);
             return 0;
@@ -1986,9 +1986,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="bitno">输入端口号，取值范围： 0~7，如果扩展 IO 模块，依次往后累加 </param>
         /// <returns>指定的输入端口电平：0：低电平，1：高电平</returns>
-        public int DmcGetCardInPortNoBit(int CardNo, int bitno)
+        public int DmcGetCardInPortNoBit(int cardIndex, int bitno)
         {
-            return MCN420.YK_read_inbit((ushort)CardNo, (ushort)(bitno));
+            return MCN420.YK_read_inbit((ushort)cardIndex, (ushort)(bitno));
             //var res = MCN420.mcc_io_read_inbit((ushort)CardNo, (ushort)bitno, ref on_off);
         }
         /// <summary>
@@ -1998,9 +1998,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="bitno">输出端口号，取值范围： 0~7，如果扩展 IO 模块，依次往后累加</param>
         /// <param name="on_off">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardBitNoInBit(int CardNo, int bitno, int on_off)
+        public int DmcSetCardBitNoInBit(int cardIndex, int bitno, int on_off)
         {
-            return MCN420.YK_write_outbit((ushort)CardNo, (ushort)(bitno), (uint)on_off);
+            return MCN420.YK_write_outbit((ushort)cardIndex, (ushort)(bitno), (uint)on_off);
             //return MCN420.mcc_io_write_outbit((ushort)CardNo, (ushort)bitno, (ushort)on_off);
 
         }
@@ -2011,9 +2011,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="bitno">输入端口号，取值范围： 0~7，如果扩展 IO 模块，依次往后累加 </param>
         /// <returns>指定输出端口的电平，0：低电平，1：高电平</returns>
-        public int DmcGetCardBitNoOutBit(int CardNo, int bitno)
+        public int DmcGetCardBitNoOutBit(int cardIndex, int bitno)
         {
-            return MCN420.YK_read_outbit((ushort)CardNo, (ushort)(bitno));
+            return MCN420.YK_read_outbit((ushort)cardIndex, (ushort)(bitno));
         }
 
         /// <summary>
@@ -2033,12 +2033,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <para>函数返回值的 bit：7 ；输入口号： 7 ；输入口名称：IN7</para>
         /// <para>函数返回值的 bit：8-31 8-31 ；输入口名称：扩展输入口</para>
         /// </returns>
-        public int DmcGetCardPortNoInPort(int CardNo, int portno)
+        public int DmcGetCardPortNoInPort(int cardIndex, int portno)
         {
             //byte[] value = new byte[4];
             byte[] value = new byte[2];
-            value[0] = (byte)(MCN420.YK_read_inbyte((ushort)CardNo, (ushort)((portno) * 2)) & 0xFF);
-            value[1] = (byte)(MCN420.YK_read_inbyte((ushort)CardNo, (ushort)((portno) * 2 + 1)) & 0xFF);
+            value[0] = (byte)(MCN420.YK_read_inbyte((ushort)cardIndex, (ushort)((portno) * 2)) & 0xFF);
+            value[1] = (byte)(MCN420.YK_read_inbyte((ushort)cardIndex, (ushort)((portno) * 2 + 1)) & 0xFF);
             //value[2] = (byte)(MCN420.YK_read_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 8 + 2)) & 0xFF);
             //value[3] = (byte)(MCN420.YK_read_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 8 + 3)) & 0xFF);
             //result = MCN420.YK_read_inbyte((ushort)CardNo, (ushort)NoteID, (ushort)(PortNo * 2 + 1), ref value[1]);
@@ -2062,12 +2062,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <para>函数返回值的 bit：7 ；输入口号： 7 ；输入口名称：OUT7</para>
         /// <para>函数返回值的 bit：8-31 8-31 ；输入口名称：扩展输入口</para>
         /// </returns>
-        public uint DmcGetCardPortNoOutPort(int CardNo, int portno)
+        public uint DmcGetCardPortNoOutPort(int cardIndex, int portno)
         {
             //byte[] value = new byte[4];
             byte[] value = new byte[2];
-            value[0] = (byte)(MCN420.YK_read_outbyte((ushort)CardNo, (ushort)((portno) * 2)) & 0xFF);
-            value[1] = (byte)(MCN420.YK_read_outbyte((ushort)CardNo, (ushort)((portno) * 2 + 1)) & 0xFF);
+            value[0] = (byte)(MCN420.YK_read_outbyte((ushort)cardIndex, (ushort)((portno) * 2)) & 0xFF);
+            value[1] = (byte)(MCN420.YK_read_outbyte((ushort)cardIndex, (ushort)((portno) * 2 + 1)) & 0xFF);
             //value[2] = (byte)(MCN420.YK_read_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 8 + 2)) & 0xFF);
             //value[3] = (byte)(MCN420.YK_read_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 8 + 3)) & 0xFF);
             //result = MCN420.YK_read_inbyte((ushort)CardNo, (ushort)NoteID, (ushort)(PortNo * 2 + 1), ref value[1]);
@@ -2092,13 +2092,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <para>函数返回值的 bit：8-31 8-31 ；输入口名称：扩展输入口</para>
         /// </param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardPortNoOutPort(int CardNo, int portno, uint outport_val)
+        public int DmcSetCardPortNoOutPort(int cardIndex, int portno, uint outport_val)
         {
 
             var Value = SplitUInt32Little_byte_two(outport_val);
-            var result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((portno) * 2), Value[1]);
+            var result = MCN420.YK_write_outbyte((ushort)cardIndex, (ushort)((portno) * 2), Value[1]);
             if (result != 0) goto end;
-            result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((portno) * 2 + 1), Value[0]);
+            result = MCN420.YK_write_outbyte((ushort)cardIndex, (ushort)((portno) * 2 + 1), Value[0]);
             if (result != 0) goto end;
             end:
             return result;
@@ -2113,7 +2113,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="bitno">输出端口号，取值范围：0~7，如果扩展 IO 模块，依次往后累加</param>
         /// <param name="reverse_time">延时翻转时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardIOReverseOutbit(int CardNo, int bitno, int reverse_time)
+        public int DmcSetCardIOReverseOutbit(int cardIndex, int bitno, int reverse_time)
         {
             //var res = new SetOutputDelayFlip_Req
             //{
@@ -2128,7 +2128,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
             //    msDelay = reverse_time,
             //};
             //return MCN420.YK_set_output_delay_flip((ushort)CardNo, ref res);
-            return MCN420.YK_write_outbit_delay((ushort)CardNo, 0, (uint)bitno, 0, (uint)reverse_time);
+            return MCN420.YK_write_outbit_delay((ushort)cardIndex, 0, (uint)bitno, 0, (uint)reverse_time);
         }
 
         /// <summary>
@@ -2139,7 +2139,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="mode">IO 计数模式，0：禁用，1：上升沿计数，2：下降沿计数</param>
         /// <param name="filter_time">滤波时间，单位：s，保留参数</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardIOCountMode(int CardNo, int bitno, int mode, double filter_time)
+        public int DmcSetCardIOCountMode(int cardIndex, int bitno, int mode, double filter_time)
         {
             var res = new SetInputCounter_Req
             {
@@ -2155,7 +2155,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                 dInputSelect = (uint)bitno,
                 data = 0,
             };
-            return MCN420.YK_set_counter_input_mode((ushort)CardNo, ref res);
+            return MCN420.YK_set_counter_input_mode((ushort)cardIndex, ref res);
         }
 
         /// <summary>
@@ -2166,7 +2166,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="mode">返回 IO 计数模式</param>
         /// <param name="filter_time">返回滤波时间，单位：s，保留参数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardIOCountMode(int CardNo, int bitno, ref UInt16 mode, ref uint filter_time)
+        public int DmcGetCardIOCountMode(int cardIndex, int bitno, ref UInt16 mode, ref uint filter_time)
         {
             //return MCN420.mcc_io_get_count_value((ushort)CardNo, (ushort)bitno, /*ref mode,*/ ref filter_time);
             throw new AggregateException("未添加！");
@@ -2179,7 +2179,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="bitno">输入端口号，取值范围：0~7，如果扩展 IO 模块，依次往后累加</param>
         /// <param name="CountValue">IO 计数值</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardIOCountValue(int CardNo, int bitno, int CountValue)
+        public int DmcSetCardIOCountValue(int cardIndex, int bitno, int countValue)
         {
             //return MCN420.mcc_io_set_count_value((ushort)CardNo, (ushort)bitno, (UInt32)CountValue);
             throw new AggregateException("未添加！");
@@ -2192,7 +2192,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="bitno">输入端口号，取值范围：0~7，如果扩展 IO 模块，依次往后累加</param>
         /// <param name="CountValue">返回 IO 计数值</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardIOCountValue(int CardNo, int bitno, ref UInt32 CountValue)
+        public int DmcGetCardIOCountValue(int cardIndex, int bitno, ref UInt32 countValue)
         {
             throw new AggregateException("未添加！");
         }
@@ -2209,9 +2209,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="multi">手轮倍率，正数表示默认方向，负数表示与默认方向反向</param>
         /// <param name="vh">保留参数，固定值为 1</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisHandwheelInMode(int CardNo, int axis, ushort ChnNo, int inmode, ushort multi, ushort vh)
+        public int DmcSetCardAxisHandwheelInMode(int cardIndex, int axis, ushort ChnNo, int inmode, ushort multi, ushort vh)
         {
-            return MCN420.YK_set_handwheel_config((ushort)CardNo, (ushort)axis, (ushort)inmode, multi);
+            return MCN420.YK_set_handwheel_config((ushort)cardIndex, (ushort)axis, (ushort)inmode, multi);
             //YK_set_handwheel_ratio
             //YK_set_handwheel_control
         }
@@ -2225,7 +2225,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="multi">返回手轮倍率</param>
         /// <param name="vh">保留参数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisHandwheelInMode(int CardNo, ushort axis, ref ushort ChnNo, ref UInt16 inmode, ref double multi, ref ushort vh)
+        public int DmcGetCardAxisHandwheelInMode(int cardIndex, ushort axis, ref ushort ChnNo, ref UInt16 inmode, ref double multi, ref ushort vh)
         {
 
             //return MCN420.YK_get_handwheel_config((ushort)CardNo, ChnNo, ref vh, ref axis, ref inmode, ref multi);
@@ -2240,9 +2240,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisHandwheelMove(int CardNo, int mode, int enable)
+        public int DmcCardAxisHandwheelMove(int cardIndex, int mode, int enable)
         {
-            return MCN420.YK_set_handwheel_control((ushort)CardNo, (uint)enable, (ushort)mode);
+            return MCN420.YK_set_handwheel_control((ushort)cardIndex, (uint)enable, (ushort)mode);
         }
 
         /// <summary>
@@ -2256,7 +2256,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="AxisNums">参与手轮运动的轴号数组</param>
         /// <param name="multi">手轮倍率数组:正数表示默认方向，负数表示与默认方向反向</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardHandwheelInModeExtern(int CardNo, int inmode, ushort ChnNo, int AxisNum, UInt16[] AxisNums, double multi, ushort enable)
+        public int DmcSetCardHandwheelInModeExtern(int cardIndex, int inmode, ushort ChnNo, int axisNumber, UInt16[] axisNumbers, double multi, ushort enable)
         {
             //return MCN420.mcc_handwheel_multi_set_para((ushort)CardNo, ChnNo, enable, (ushort)AxisNum, AxisNums, (ushort)inmode, multi);
             return 0;
@@ -2271,7 +2271,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="AxisNums">返回参与手轮运动的轴号数组</param>
         /// <param name="multi">返回手轮倍率数组</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardHandwheelInModeExtern(int CardNo, ushort ChnNo, ref UInt16 inmode, ref UInt16 AxisNum, ref UInt16[] AxisNums, ref double multi, ref ushort enable)
+        public int DmcGetCardHandwheelInModeExtern(int cardIndex, ushort ChnNo, ref UInt16 inmode, ref UInt16 axisNumber, ref UInt16[] axisNumbers, ref double multi, ref ushort enable)
         {
             return 0;
             //return MCN420.mcc_handwheel_multi_get_para((ushort)CardNo, ChnNo, ref enable, ref AxisNum, AxisNums, ref inmode, ref multi);
@@ -2286,9 +2286,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号</param>
         /// <param name="pos">编码器计数值，单位：unit</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisEncoderUnit(int CardNo, int axis, double pos)
+        public int DmcSetCardAxisEncoderUnit(int cardIndex, int axis, double pos)
         {
-            return MCN420.YK_set_encoder_position((ushort)CardNo, (ushort)axis, (int)pos);
+            return MCN420.YK_set_encoder_position((ushort)cardIndex, (ushort)axis, (int)pos);
         }
 
         /// <summary>
@@ -2298,9 +2298,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号</param>
         /// <param name="pos">返回当前编码器计数值，单位：unit</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisEncoderUnit(int CardNo, int axis, ref double pos)
+        public int DmcGetCardAxisEncoderUnit(int cardIndex, int axis, ref double pos)
         {
-            var res = MCN420.YK_get_encoder_position((ushort)CardNo, (ushort)axis);
+            var res = MCN420.YK_get_encoder_position((ushort)cardIndex, (ushort)axis);
             pos = res;
             return 0;
         }
@@ -2313,7 +2313,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="inmode">辅助编码器输入方式，0：脉冲+方向信号；1：A、B 相位正交信号0:非 A/B 相(脉冲/方向)； 1: A/B 相 1 倍频；2: A/B 相 2 倍频；3: A/B 相 4 倍频；</param>
         /// <param name="multi">辅助编码器计数模式，固定 1：4 倍频计数</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardExtraEncoderMode(int CardNo, int channel, int inmode, int multi)
+        public int DmcSetCardExtraEncoderMode(int cardIndex, int channel, int inmode, int multi)
         {
             //return MCN420.YK_set_encoder_counter_inmode((ushort)CardNo, (ushort)channel, (ushort)inmode);
             return 0;
@@ -2327,7 +2327,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="inmode">返回辅助编码器输入方式</param>
         /// <param name="multi">返回辅助编码器计数模式</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardExtraEncoderMode(int CardNo, int channel, ref ushort inmode)
+        public int DmcGetCardExtraEncoderMode(int cardIndex, int channel, ref ushort inmode)
         {
             //return MCN420.YK_get_encoder_counter_inmode((ushort)CardNo, (ushort)channel, ref inmode);
             return 0;
@@ -2346,9 +2346,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="mLockInputBit"> 锁存源，0：轴指令位置，1：轴编码器位置，2：辅助编码器；</param>
         /// 当锁存源选择：轴指令位置时，取值 0-31；当锁存源选择：轴编码器位置时，取值 0-31；当锁存源选择：辅助编码器位置时，取值 0-3；</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardLtcMode(int CardNo, int axis, int enable, ushort mLockInputBit, int ltc_mode)
+        public int DmcSetCardLtcMode(int cardIndex, int axis, int enable, ushort mLockInputBit, int ltc_mode)
         {
-            return MCN420.YK_set_latch_position((ushort)CardNo, (ushort)axis, (ushort)enable, mLockInputBit, (ushort)ltc_mode);
+            return MCN420.YK_set_latch_position((ushort)cardIndex, (ushort)axis, (ushort)enable, mLockInputBit, (ushort)ltc_mode);
         }
         /// <summary>
         /// 配置锁存器(同步输出功能)
@@ -2363,9 +2363,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="cmp_pos">相对偏移脉冲Array，多个通道，单位：us
         /// 当锁存源选择：轴指令位置时，取值 0-31；当锁存源选择：轴编码器位置时，取值 0-31；当锁存源选择：辅助编码器位置时，取值 0-3；</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardLtcMode(int CardNo, int axis, int Channel, int enable, int latch, int ltc_mode, ushort out_num, int[] cmp_channel, double[] cmp_pos)
+        public int DmcSetCardLtcMode(int cardIndex, int axis, int Channel, int enable, int latch, int ltc_mode, ushort out_num, int[] cmp_channel, double[] cmp_pos)
         {
-            return MCN420.YK_set_axis_syslock_output((ushort)CardNo, (uint)Channel, (ushort)axis, (ushort)enable, (ushort)latch, (ushort)ltc_mode, out_num, Array.ConvertAll(cmp_channel, s => (uint)s), cmp_pos);
+            return MCN420.YK_set_axis_syslock_output((ushort)cardIndex, (uint)Channel, (ushort)axis, (ushort)enable, (ushort)latch, (ushort)ltc_mode, out_num, Array.ConvertAll(cmp_channel, s => (uint)s), cmp_pos);
         }
 
         /// <summary>
@@ -2377,7 +2377,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="ltc_logic">读取锁存信号的触发方式，0：下降沿锁存，1：上升沿锁存，2：双边沿锁存</param>
         /// <param name="filter">读取滤波时间，单位：us</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardLtcMode(int CardNo, int latch, ref ushort ltc_mode, ref ushort ltc_source, ref ushort ltc_logic, ref ushort filter)
+        public int DmcGetCardLtcMode(int cardIndex, int latch, ref ushort ltc_mode, ref ushort ltc_source, ref ushort ltc_logic, ref ushort filter)
         {
             //return MCN420.mcc_ltc_local_latch_get_mode((ushort)CardNo, (ushort)latch, ref ltc_mode, ref ltc_source, ref ltc_logic, ref filter);
             return 0;
@@ -2391,7 +2391,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">锁存器辅助编码器通道号，0、1</param>
         /// <param name="ltc_source">锁存源，0：指令位置，1：辅助编码器计数</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardLtcSource(int CardNo, int latch, int axis, int ltc_source)
+        public int DmcSetCardLtcSource(int cardIndex, int latch, int axis, int ltc_source)
         {
             //return MCN420.mcc_ltc_set_source((ushort)CardNo, (ushort)latch, (ushort)axis, (ushort)ltc_source);
             return 0;
@@ -2405,7 +2405,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">锁存器辅助编码器通道号</param>
         /// <param name="ltc_source">读取锁存源，0：指令位置，1：辅助编码器计数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardLtcSource(int CardNo, int latch, int axis, ushort ltc_source)
+        public int DmcGetCardLtcSource(int cardIndex, int latch, int axis, ushort ltc_source)
         {
             return 0;
             //return MCN420.mcc_ltc_get_source((ushort)CardNo, (ushort)latch, (ushort)axis, ref ltc_source);
@@ -2424,9 +2424,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <para>2）当选择锁存方式为连续锁存时，该函数第一次执行的时候，读取的是锁存器的第一个锁存值，第二次执行的时候，读取的是锁存器的第二个锁存值，以此类推；</para>
         /// <para>3）单次锁存时，调用 mcc_get_latch_value 不会自动清除已锁存个数，须调用 mcc_reset_latch_flag；</para>
         /// </returns>
-        public double DmcGetCardLtcValueUnit(int CardNo, int axis, int latch = 0, double[] value = null)
+        public double DmcGetCardLtcValueUnit(int cardIndex, int axis, int latch = 0, double[] value = null)
         {
-            return MCN420.YK_get_latch_position((ushort)CardNo, (ushort)axis);
+            return MCN420.YK_get_latch_position((ushort)cardIndex, (ushort)axis);
         }
         /// <summary>
         /// 读取锁存状态
@@ -2437,9 +2437,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <para>注 意：</para>
         /// <para>1）该函数只可以锁存是否触发；</para>
         /// </returns>
-        public double DmcGetCardLtcStatus(int CardNo, int axis)
+        public double DmcGetCardLtcStatus(int cardIndex, int axis)
         {
-            return MCN420.YK_get_latch_status((ushort)CardNo, (ushort)axis);
+            return MCN420.YK_get_latch_status((ushort)cardIndex, (ushort)axis);
         }
         /// <summary>
         /// 读取锁存器锁存个数
@@ -2449,7 +2449,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">锁存器辅助编码器通道号</param>
         /// <param name="number">读取锁存器个数</param>
         /// <returns>已锁存个数，0 表示无锁存值</returns>
-        public int DmcGetCardLtcNumber(int CardNo, int latch, int axis, ref int number)
+        public int DmcGetCardLtcNumber(int cardIndex, int latch, int axis, ref int number)
         {
             //double[] value = new double[1024];
             //var res = MCN420.mcc_ltc_local_latch_get_pos((ushort)CardNo, (ushort)latch, (ushort)axis, value);
@@ -2466,7 +2466,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="latch">锁存器号,0-3</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardLtcReset(int CardNo, int latch)
+        public int DmcGetCardLtcReset(int cardIndex, int latch)
         {
             throw new AggregateException("未添加！");
             //return MCN420.mcc_ltc_local_latch_clear((ushort)CardNo, (ushort)latch);
@@ -2484,10 +2484,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisCompareConfig(int CardNo, int channel, int enable, int cmp_source)
+        public int DmcSetCardAxisCompareConfig(int cardIndex, int channel, int enable, int cmp_source)
         {
-            DmcClearCardAxisComparePoints(CardNo, channel);
-            return MCN420.YK_cmp_1d_set_config((ushort)CardNo, (ushort)channel, (ushort)enable, (ushort)cmp_source);
+            DmcClearCardAxisComparePoints(cardIndex, channel);
+            return MCN420.YK_cmp_1d_set_config((ushort)cardIndex, (ushort)channel, (ushort)enable, (ushort)cmp_source);
             return 0;
             throw new ArgumentNullException("待添加");
         }
@@ -2500,11 +2500,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="enable">返回比较功能状态</param>
         /// <param name="cmp_source">返回比较源</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisCompareConfig(int CardNo, int axis, ref UInt16 enable, ref UInt16 cmp_source)
+        public int DmcGetCardAxisCompareConfig(int cardIndex, int axis, ref UInt16 enable, ref UInt16 cmp_source)
         {
             uint value0 = 0;
             uint value1 = 0;
-            var res = MCN420.YK_cmp_1d_get_config((ushort)CardNo, (ushort)axis, ref value0, ref value1);
+            var res = MCN420.YK_cmp_1d_get_config((ushort)cardIndex, (ushort)axis, ref value0, ref value1);
             enable = (ushort)value0;
             cmp_source = (ushort)value1;
             return res;
@@ -2517,9 +2517,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号 </param>
         /// <returns>错误代码</returns>
-        public int DmcClearCardAxisComparePoints(int CardNo, int axis)
+        public int DmcClearCardAxisComparePoints(int cardIndex, int axis)
         {
-            return MCN420.YK_cmp_1d_clear_point((ushort)CardNo, (ushort)axis);
+            return MCN420.YK_cmp_1d_clear_point((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2532,13 +2532,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="action">设置触发功能（为 IO 电平取反）模式</param>
         /// <param name="actpara">设置输出 IO 端口 (0 触发功能)</param>
         /// <returns>错误代码</returns>
-        public int DmcAddCardAxisComparePoints(int CardNo, int channel, int pos, int dir, int action, int actpara)
+        public int DmcAddCardAxisComparePoints(int cardIndex, int channel, int pos, int dir, int action, int actpara)
         {
             if (actpara>13|| actpara<1)
             {
                 actpara = 9;
             }
-            return MCN420.YK_cmp_1d_add_point((ushort)CardNo, (ushort)channel, pos, (ushort)dir, (uint)actpara, (ushort)action);
+            return MCN420.YK_cmp_1d_add_point((ushort)cardIndex, (ushort)channel, pos, (ushort)dir, (uint)actpara, (ushort)action);
             throw new ArgumentNullException("待添加");
         }
 
@@ -2553,7 +2553,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="cycle">周期个数</param>
         /// <param name="level">比较输出点电平（level 只有当 cycle 为 0 的时候起作用，cycle 为 0 的时候触发时输出 level 电平）</param>
         /// <returns>错误代码</returns>
-        public int DmcAddCardAxisComparePointsCycle(int CardNo, int axis, int pos, int dir, int bitno, int cycle, int level)
+        public int DmcAddCardAxisComparePointsCycle(int cardIndex, int axis, int pos, int dir, int bitno, int cycle, int level)
         {
             //return MCN420.YK_cmp_1d_add_point((ushort)CardNo, (ushort)axis, pos, (ushort)dir, (ushort)bitno, (ushort)cycle, (ushort)level);
             //return MCN420.mcc_cmp_1d_add_point((ushort)CardNo, (ushort)axis, (double)pos, (ushort)dir, (ushort)bitno, (ushort)cycle, (ushort)level);
@@ -2568,7 +2568,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号 </param>
         /// <param name="pos">返回当前比较点位置 </param>       
         /// <returns></returns>
-        public int DmcGetCardAxisCompareCurrentPoint(int CardNo, int axis, ref int pos)
+        public int DmcGetCardAxisCompareCurrentPoint(int cardIndex, int axis, ref int pos)
         {
             //return MCN420.mcc_compare_get_current_point((ushort)CardNo, (ushort)axis, ref pos);
             throw new ArgumentNullException("待添加");
@@ -2580,7 +2580,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号</param>
         /// <param name="pointNum">返回已经比较过的点数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisComparPointsRunned(int CardNo, int axis, ref int pointNum)
+        public int DmcGetCardAxisComparPointsRunned(int cardIndex, int axis, ref int pointNum)
         {
             throw new ArgumentNullException("待添加");
             //return MCN420.mcc_compare_get_points_runned((ushort)CardNo, (ushort)axis, ref pointNum);
@@ -2593,7 +2593,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号</param>
         /// <param name="pointNum">返回可以加入的比较点数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisComparPointsRemained(int CardNo, int axis, ref int pointNum)
+        public int DmcGetCardAxisComparPointsRemained(int cardIndex, int axis, ref int pointNum)
         {
             throw new ArgumentNullException("待添加");
             //return MCN420.mcc_compare_get_points_remained((ushort)CardNo, (ushort)axis, ref pointNum);
@@ -2616,13 +2616,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="cmp_mode">比较模式：0：禁止（默认值）| 1：等于 | 2：小于 | 3：大于 | 4：队列 | ;提供 127 个点比较空间，采用先添加先比较，比较完可追加比较点，也可一次性添加多个比较点 | 5：线性，提供起始比较点，位置增量，比较次数  </param>
         /// <returns></returns>
-        public int DmcSetCardHcmpMode1(int CardNo, int hcmp, int cmp_mode)
+        public int DmcSetCardHcmpMode1(int cardIndex, int hcmp, int cmp_mode)
         {
             //return MCN420.mcc_hcmp_set_mode((ushort)CardNo, (ushort)hcmp, (ushort)cmp_mode);
             //Hcmp = hcmp;
             //Cmp_Mode = cmp_mode;
             //HcmpDic[(ushort)hcmp] = cmp_mode;
-            return MCN420.YK_hcmp_1d_set_mode((ushort)CardNo, (ushort)hcmp, (uint)cmp_mode);
+            return MCN420.YK_hcmp_1d_set_mode((ushort)cardIndex, (ushort)hcmp, (uint)cmp_mode);
         }
 
         /// <summary>
@@ -2632,7 +2632,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="cmp_mode">返回比较模式设置</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardHcmpMode1(int CardNo, int hcmp, ref UInt16 cmp_mode)
+        public int DmcGetCardHcmpMode1(int cardIndex, int hcmp, ref UInt16 cmp_mode)
         {
             //return MCN420.YK_hcmp_1d_get_mode((ushort)CardNo, (ushort)hcmp, ref cmp_mode);
             return 0;
@@ -2649,11 +2649,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="cmp_logic">有效电平：0：低电平，1：</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us~20s </param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisHcmpConfig(int CardNo, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
+        public int DmcSetCardAxisHcmpConfig(int cardIndex, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
         {
             //ushort[] CmpList = new ushort[1] { (ushort)hcmp };
-            DmcClearCardHcmpPoints(CardNo, hcmp);
-            return MCN420.YK_hcmp_1d_set_config((ushort)CardNo, (ushort)hcmp, (ushort)axis, (ushort)cmp_source, (ushort)cmp_logic, (uint)time);
+            DmcClearCardHcmpPoints(cardIndex, hcmp);
+            return MCN420.YK_hcmp_1d_set_config((ushort)cardIndex, (ushort)hcmp, (ushort)axis, (ushort)cmp_source, (ushort)cmp_logic, (uint)time);
         }
         /// <summary>
         /// 读取高速比较器配置 (单轴高速)
@@ -2665,7 +2665,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="cmp_logic">有效电平：0：低电平，1：</param>
         /// <param name="time">脉冲宽度，单位：us，取值范围：1us~20s </param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisHcmpConfig(int CardNo, int hcmp, ref ushort axis, ref ushort cmp_source, ref ushort cmp_logic, ref int time)
+        public int DmcGetCardAxisHcmpConfig(int cardIndex, int hcmp, ref ushort axis, ref ushort cmp_source, ref ushort cmp_logic, ref int time)
         {
             //return MCN420.YK_hcmp_1d_get_config((ushort)CardNo, (ushort)hcmp, ref axis, ref cmp_source, ref cmp_logic, ref time);
             return 0;
@@ -2678,9 +2678,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="pos">1：队列模式下：添加比较位置，单位：pulse | 2：线性模式下：更新起始比较位置，单位：pulse | 3：其他模式下：更新比较位置，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int DmcAddCardHcmpPoint(int CardNo, int hcmp, int pos)
+        public int DmcAddCardHcmpPoint(int cardIndex, int hcmp, int pos)
         {
-            return MCN420.YK_hcmp_1d_add_point((ushort)CardNo, (ushort)hcmp, pos);
+            return MCN420.YK_hcmp_1d_add_point((ushort)cardIndex, (ushort)hcmp, pos);
         }
         /// <summary>
         /// 添加/更新高速比较位置
@@ -2689,9 +2689,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口） </param>
         /// <param name="pos">1：队列模式下：添加比较位置，单位：pulse | 2：线性模式下：更新起始比较位置，单位：pulse | 3：其他模式下：更新比较位置，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int DmcAddCardHcmpPointEx(int CardNo, int hcmp, int pos, int output_logic)
+        public int DmcAddCardHcmpPointEx(int cardIndex, int hcmp, int pos, int output_logic)
         {
-            return MCN420.YK_hcmp_1d_add_point_ex((ushort)CardNo, (ushort)hcmp, pos, (uint)output_logic);
+            return MCN420.YK_hcmp_1d_add_point_ex((ushort)cardIndex, (ushort)hcmp, pos, (uint)output_logic);
         }
 
         /// <summary>
@@ -2702,9 +2702,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Increment">位置增量值，单位：pulse（正值表示位置递增，负值表示位置递减）</param>
         /// <param name="Count">比较次数，取值范围：1~65535</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardHcmpLiner(int CardNo, int hcmp, int Increment, int Count)
+        public int DmcSetCardHcmpLiner(int cardIndex, int hcmp, int increment, int Count)
         {
-            return MCN420.YK_hcmp_1d_set_liner((ushort)CardNo, (ushort)hcmp, Increment, (uint)Count);
+            return MCN420.YK_hcmp_1d_set_liner((ushort)cardIndex, (ushort)hcmp, increment, (uint)Count);
         }
 
         /// <summary>
@@ -2715,12 +2715,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Increment">返回位置增量值设置</param>
         /// <param name="Count">返回比较次数设置</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardHcmpLiner(int CardNo, int hcmp, ref double Increment, ref int Count)
+        public int DmcGetCardHcmpLiner(int cardIndex, int hcmp, ref double increment, ref int Count)
         {
             int inc = 0;
             uint count = 0;
-            var res = MCN420.YK_hcmp_1d_get_liner((ushort)CardNo, (ushort)hcmp, ref inc, ref count);
-            Increment = inc; Count = (int)count;
+            var res = MCN420.YK_hcmp_1d_get_liner((ushort)cardIndex, (ushort)hcmp, ref inc, ref count);
+            increment = inc; Count = (int)count;
             return res;
         }
 
@@ -2730,9 +2730,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">比较器号，取值范围：0~5（对应硬件 OUT2~OUT7 端口）</param>
         /// <returns>错误代码</returns>
-        public int DmcClearCardHcmpPoints(int CardNo, int hcmp)
+        public int DmcClearCardHcmpPoints(int cardIndex, int hcmp)
         {
-            return MCN420.YK_hcmp_1d_clear_point((ushort)CardNo, (ushort)hcmp);
+            return MCN420.YK_hcmp_1d_clear_point((ushort)cardIndex, (ushort)hcmp);
         }
 
         /// <summary>
@@ -2744,7 +2744,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="current_point">返回当前比较点位置，单位：pulse</param>
         /// <param name="runned_points">返回已比较点数</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardHcmpCurrentState(int CardNo, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
+        public int DmcGetCardHcmpCurrentState(int cardIndex, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
         {
             //return MCN420.mcc_cmp_1d_get_current_status((ushort)CardNo, (ushort)hcmp, ref remained_points, ref current_point, ref runned_points);
             return 0;
@@ -2754,7 +2754,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int DmcClearCardHcmpPoints(int CardNo)
+        public int DmcClearCardHcmpPoints(int cardIndex)
         {
             return 0;
             //return MCN420.YK_hcmp_1d_clear_point((ushort)CardNo, 6, new ushort[6] { 0, 1, 2, 3, 4, 5 });
@@ -2771,9 +2771,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="io_port">io索引</param>
         /// <param name="emg_logic">有效电平：0：低电平，1：高电</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisEmgMode(int CardNo, int enable, int io_port, int emg_logic)
+        public int DmcSetCardAxisEmgMode(int cardIndex, int enable, int io_port, int emg_logic)
         {
-            return MCN420.YK_set_emg_stop_config((ushort)CardNo, (ushort)enable, (ushort)io_port);
+            return MCN420.YK_set_emg_stop_config((ushort)cardIndex, (ushort)enable, (ushort)io_port);
         }
 
         /// <summary>
@@ -2784,11 +2784,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="enable">返回使能状态，0：禁止，1：允许</param>
         /// <param name="emg_logic">返回有效电平：0：低电平，1：高电</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisEmgMode(int CardNo, int axis, ref UInt16 enable, ref UInt16 emg_logic)
+        public int DmcGetCardAxisEmgMode(int cardIndex, int axis, ref UInt16 enable, ref UInt16 emg_logic)
         {
             uint Enable = 0;
             uint IO_Index = 10;
-            var res = MCN420.YK_get_emg_stop_config((ushort)CardNo, ref Enable, ref IO_Index);
+            var res = MCN420.YK_get_emg_stop_config((ushort)cardIndex, ref Enable, ref IO_Index);
             enable = (ushort)Enable;
             emg_logic = (ushort)IO_Index;
             return res;
@@ -2803,9 +2803,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="enable">使能状态，0：禁止，1：允许</param>
         /// <param name="logic">有效电平：0：低电平，1：高电</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisIODstpMode(int CardNo, int axis, int enable, int logic)
+        public int DmcSetCardAxisIODstpMode(int cardIndex, int axis, int enable, int logic)
         {
-            return MCN420.YK_set_stop_motion_mode((ushort)CardNo, (ushort)axis, (ushort)enable);
+            return MCN420.YK_set_stop_motion_mode((ushort)cardIndex, (ushort)axis, (ushort)enable);
             return 0;
         }
 
@@ -2817,7 +2817,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="enable">返回使能状态，0：禁止，1：允许</param>
         /// <param name="logic">返回有效电平：0：低电平，1：高电</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisIODstpMode(int CardNo, int axis, ref UInt16 enable, ref UInt16 logic)
+        public int DmcGetCardAxisIODstpMode(int cardIndex, int axis, ref UInt16 enable, ref UInt16 logic)
         {
             //return MCN420.mcc_get_io_dstp_mode((ushort)CardNo, (ushort)axis, ref enable, ref logic);
             return 0;
@@ -2833,7 +2833,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号</param>
         /// <param name="stop_time"> 减速时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisDecStopTime(int CardNo, int axis, double stop_time)
+        public int DmcSetCardAxisDecStopTime(int cardIndex, int axis, double stop_time)
         {
             //return MCN420.YK_set_stop_motion_mode((ushort)CardNo, (ushort)axis, stop_time);
             return 0;
@@ -2846,7 +2846,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">指定轴号</param>
         /// <param name="stop_time">返回设置的减速时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisDecStopTime(int CardNo, int axis, ref double stop_time)
+        public int DmcGetCardAxisDecStopTime(int cardIndex, int axis, ref double stop_time)
         {
             //return MCN420.mcc_get_dec_stop_time((ushort)CardNo, (ushort)axis, ref stop_time);
             return 0;
@@ -2864,7 +2864,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="factor">编码器系数</param>
         /// <param name="error">位置误差带，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardAxisFactorError(int CardNo, int axis, double factor, int error)
+        public int DmcSetCardAxisFactorError(int cardIndex, int axis, double factor, int error)
         {
             //return MCN420.mcc_set_factor_error((ushort)CardNo, (ushort)axis, factor, error);
             return 0;
@@ -2878,7 +2878,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="factor">返回编码器系数设置</param>
         /// <param name="error">返回位置误差带设置</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisFactorError(int CardNo, int axis, ref double factor, ref int error)
+        public int DmcGetCardAxisFactorError(int cardIndex, int axis, ref double factor, ref int error)
         {
             return 0;
             //return MCN420.mcc_get_factor_error((ushort)CardNo, (ushort)axis, ref factor, ref error);
@@ -2890,7 +2890,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号</param>
         /// <returns></returns>
-        public int DmcGetCardAxisCheckSuccessPulse(int CardNo, int axis)
+        public int DmcGetCardAxisCheckSuccessPulse(int cardIndex, int axis)
         {
             return 0;
             //return MCN420.mcc_check_success_pulse((ushort)CardNo, (ushort)axis);
@@ -2905,7 +2905,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号</param>
         /// <returns>0：表示编码器位置在设定的目标位置的误差带之外；1：表示编码器位置在设定的目标位置的误差带之内</returns>
-        public int DmcGetCardAxisCheckSuccessEncoder(int CardNo, int axis)
+        public int DmcGetCardAxisCheckSuccessEncoder(int cardIndex, int axis)
         {
             return 0;
             //return MCN420.mcc_check_success_encoder((ushort)CardNo, (ushort)axis);
@@ -2919,7 +2919,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="new_sn">新密码，密码长度不大于 255 个字符</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardWriteSN(int CardNo, string new_sn)
+        public int DmcSetCardWriteSN(int cardIndex, string new_sn)
         {
             //return MCN420.mcc_write_sn((ushort)CardNo, new_sn);
             return 0;
@@ -2934,7 +2934,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="check_sn">旧密码</param>
         /// <returns>校验状态，0：失败，1：成功</returns>
-        public int DmcGetCardCheckSN(int CardNo, string check_sn)
+        public int DmcGetCardCheckSN(int cardIndex, string check_sn)
         {
             return 0;
             //return MCN420.mcc_check_sn((ushort)CardNo, check_sn);
@@ -2981,9 +2981,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="state">设置通讯状态，0：断开，1：连接</param>
         /// <param name="baud">设置控制卡波特率：波特率参数：0,1,2,3,4,5；对特率：1000Kbps，800Kbps,500Kbps,250Kbps,125Kbps,100Kbps</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandIOConnectState(int CardNo, int NodeNum, int state, int baud)
+        public int SetExpandIOConnectState(int cardIndex, int nodeCount, int state, int baud)
         {
-            return MCN420.YK_can_io_relinking((ushort)CardNo);
+            return MCN420.YK_can_io_relinking((ushort)cardIndex);
         }
 
         /// <summary>
@@ -2994,12 +2994,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="state"></param>
         /// <param name="baud"></param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOConnectState(int CardNo, ref ushort NodeNum, ref ushort state)
+        public int GetExpandIOConnectState(int cardIndex, ref ushort nodeCount, ref ushort state)
         {
             uint num = 0;
             uint Statu = 0;
-            var res = MCN420.YK_can_io_link_state((ushort)CardNo, ref Statu, ref num);
-            NodeNum = (ushort)num;
+            var res = MCN420.YK_can_io_link_state((ushort)cardIndex, ref Statu, ref num);
+            nodeCount = (ushort)num;
             state = (ushort)Statu;
             return res;
         }
@@ -3018,9 +3018,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandIOOutBit(int CardNo, int NodeID, int IoBit, int IoValue)
+        public int SetExpandIOOutBit(int cardIndex, int nodeId, int ioBit, int ioValue)
         {
-            return MCN420.YK_write_outbit((ushort)CardNo, (ushort)(64 + (NodeID - 1) * 16 + IoBit), (uint)IoValue);
+            return MCN420.YK_write_outbit((ushort)cardIndex, (ushort)(64 + (nodeId - 1) * 16 + ioBit), (uint)ioValue);
             //return LTDMC.nmc_write_outbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, (ushort)IoValue);
         }
 
@@ -3032,9 +3032,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOOutBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public int GetExpandIOOutBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
-            IoValue = (ushort)MCN420.YK_read_outbit((ushort)CardNo, (ushort)((64 + (NodeID - 1) * 16 + IoBit)));
+            ioValue = (ushort)MCN420.YK_read_outbit((ushort)cardIndex, (ushort)((64 + (nodeId - 1) * 16 + ioBit)));
             //return LTDMC.nmc_read_outbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, ref IoValue);
             return 0;
         }
@@ -3047,10 +3047,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit32 的值分别代表第 0~32 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandIOPortNoOutBit(int CardNo, int NodeID, int PortNo, int IoValue)
+        public int SetExpandIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, int ioValue)
         {
             //return MCN420.ecc_write_outport_extern((ushort)CardNo, (ushort)Channel, (ushort)NoteID, portno, IoValue);
-            var Value = SplitUInt32Little_byte_two((uint)IoValue);
+            var Value = SplitUInt32Little_byte_two((uint)ioValue);
             //var result = MCN420.ecc_io_write_outslot((ushort)CardNo, (ushort)NoteID, (ushort)(portno * 2), Value[1]);
             //result = MCN420.ecc_io_write_outslot((ushort)CardNo, (ushort)NoteID, (ushort)(portno * 2 + 1), Value[0]);
             //var result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 2), Value[3]);
@@ -3060,9 +3060,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
             //result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 4), Value[1]);
             //if (result != 0) goto end;
             //result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((NoteID - 1) * 4 + 5), Value[0]);
-            var result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((NodeID - 1) * 2 + 8), Value[1]);
+            var result = MCN420.YK_write_outbyte((ushort)cardIndex, (ushort)((nodeId - 1) * 2 + 8), Value[1]);
             if (result != 0) goto end;
-            result = MCN420.YK_write_outbyte((ushort)CardNo, (ushort)((NodeID - 1) * 2 + 8 + 1), Value[0]);
+            result = MCN420.YK_write_outbyte((ushort)cardIndex, (ushort)((nodeId - 1) * 2 + 8 + 1), Value[0]);
             if (result != 0) goto end;
             end:
             return result;
@@ -3077,9 +3077,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit31 的值分别代表第 0~31 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOPortNoOutBit(int CardNo, int NodeID, int PortNo, ref uint IoValue)
+        public int GetExpandIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, ref uint ioValue)
         {
-            return LTDMC.nmc_read_outport((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref IoValue);
+            return LTDMC.nmc_read_outport((ushort)cardIndex, (ushort)nodeId, (ushort)portIndex, ref ioValue);
         }
 
 
@@ -3091,9 +3091,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandADDAIOPortNoOutBit(int CardNo, int NodeID, int PortNo, double IoValue)
+        public int SetExpandADDAIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, double ioValue)
         {
-            return LTDMC.nmc_set_da_output((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, IoValue);
+            return LTDMC.nmc_set_da_output((ushort)cardIndex, (ushort)nodeId, (ushort)portIndex, ioValue);
         }
 
         /// <summary>
@@ -3104,9 +3104,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOPortNoOutBit(int CardNo, int NodeID, int PortNo, ref double IoValue)
+        public int GetExpandADDAIOPortNoOutBit(int cardIndex, int nodeId, int portIndex, ref double ioValue)
         {
-            return LTDMC.nmc_get_da_output((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref IoValue);
+            return LTDMC.nmc_get_da_output((ushort)cardIndex, (ushort)nodeId, (ushort)portIndex, ref ioValue);
         }
 
         /// <summary>
@@ -3118,9 +3118,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandADDAIOOutPortNoMode(int CardNo, int NodeID, int PortNo, int mode, uint buffer_nums)
+        public int SetExpandADDAIOOutPortNoMode(int cardIndex, int nodeId, int portIndex, int mode, uint buffer_nums)
         {
-            return LTDMC.nmc_set_da_mode((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, (ushort)mode, buffer_nums);
+            return LTDMC.nmc_set_da_mode((ushort)cardIndex, (ushort)nodeId, (ushort)portIndex, (ushort)mode, buffer_nums);
         }
 
 
@@ -3134,9 +3134,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOOutPortNoMode(int CardNo, int NodeID, int PortNo, ref ushort mode, uint buffer_nums)
+        public int GetExpandADDAIOOutPortNoMode(int cardIndex, int nodeId, int portIndex, ref ushort mode, uint buffer_nums)
         {
-            return LTDMC.nmc_get_da_mode((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref mode, buffer_nums);
+            return LTDMC.nmc_get_da_mode((ushort)cardIndex, (ushort)nodeId, (ushort)portIndex, ref mode, buffer_nums);
         }
 
 
@@ -3151,9 +3151,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOInBit(int CardNo, int NodeID, int IoBit, ref ushort IoValue)
+        public int GetExpandIOInBit(int cardIndex, int nodeId, int ioBit, ref ushort ioValue)
         {
-            return LTDMC.nmc_read_inbit((ushort)CardNo, (ushort)NodeID, (ushort)IoBit, ref IoValue);
+            return LTDMC.nmc_read_inbit((ushort)cardIndex, (ushort)nodeId, (ushort)ioBit, ref ioValue);
         }
 
 
@@ -3166,9 +3166,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出值，bit0~bit31 的值分别代表第 0~31 号输出口的电平</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandIOPortNoInBit(int CardNo, int NodeID, int PortNo, ref uint IoValue)
+        public int GetExpandIOPortNoInBit(int cardIndex, int nodeId, int portIndex, ref uint ioValue)
         {
-            return LTDMC.nmc_read_inport((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref IoValue);
+            return LTDMC.nmc_read_inport((ushort)cardIndex, (ushort)nodeId, (ushort)portIndex, ref ioValue);
         }
 
         /// <summary>
@@ -3179,9 +3179,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PortNo">输出端口号</param>
         /// <param name="IoValue">输出电平，单位：mV/mA</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOPortNoInBit(int CardNo, int NodeID, int PortNo, ref double IoValue)
+        public int GetExpandADDAIOPortNoInBit(int cardIndex, int nodeId, int portIndex, ref double ioValue)
         {
-            return LTDMC.nmc_get_ad_input((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref IoValue);
+            return LTDMC.nmc_get_ad_input((ushort)cardIndex, (ushort)nodeId, (ushort)portIndex, ref ioValue);
         }
 
         /// <summary>
@@ -3193,9 +3193,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int SetExpandADDAIOInPortNoMode(int CardNo, int NodeID, int PortNo, int mode, uint buffer_nums = 999)
+        public int SetExpandADDAIOInPortNoMode(int cardIndex, int nodeId, int portIndex, int mode, uint buffer_nums = 999)
         {
-            return LTDMC.nmc_set_ad_mode((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, (ushort)mode, buffer_nums);
+            return LTDMC.nmc_set_ad_mode((ushort)cardIndex, (ushort)nodeId, (ushort)portIndex, (ushort)mode, buffer_nums);
 
         }
 
@@ -3208,9 +3208,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="mode">输入模式，0：电压模式，1：电流模式</param>
         /// <param name="buffer_nums">保留参数</param>
         /// <returns>返回值：错误代码</returns>
-        public int GetExpandADDAIOInPortNoMode(int CardNo, int NodeID, int PortNo, ref ushort mode, uint buffer_nums = 999)
+        public int GetExpandADDAIOInPortNoMode(int cardIndex, int nodeId, int portIndex, ref ushort mode, uint buffer_nums = 999)
         {
-            return LTDMC.nmc_get_ad_mode((ushort)CardNo, (ushort)NodeID, (ushort)PortNo, ref mode, buffer_nums);
+            return LTDMC.nmc_get_ad_mode((ushort)cardIndex, (ushort)nodeId, (ushort)portIndex, ref mode, buffer_nums);
 
         }
 
@@ -3226,9 +3226,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PortNum">保留参数，设为 0</param>
         /// <param name="NodeNum">节点号，1-8</param>
         /// <returns>返回值：错误代码</returns>
-        public int SaveExpandIoToFlash(int CardNo, int PortNum, int NodeNum)
+        public int SaveExpandIoToFlash(int cardIndex, int portCount, int nodeCount)
         {
-            return LTDMC.nmc_write_to_flash((ushort)CardNo, (ushort)PortNum, (ushort)NodeNum);
+            return LTDMC.nmc_write_to_flash((ushort)cardIndex, (ushort)portCount, (ushort)nodeCount);
         }
 
         #endregion
@@ -3241,7 +3241,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">轴编号</param>
         /// <returns>轴运动模式</returns>
-        public int DmcGetCardAxisRunMode(int CardNo, int axis, ref UInt16 run_mode)
+        public int DmcGetCardAxisRunMode(int cardIndex, int axis, ref UInt16 run_mode)
         {
             //int mode = 0;
             //var result = MCN420.ecc_set_axis_contrlmode((ushort)CardNo, (ushort)axis, /*ref*/ mode);
@@ -3278,9 +3278,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         ///<para>19：保留，DEC_STOP_AT_DEC</para>
         ///</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardAxisStopReason(int CardNo, int axis, ref int StopReason)
+        public int DmcGetCardAxisStopReason(int cardIndex, int axis, ref int StopReason)
         {
-            var alarmValue = MCN420.YK_get_axis_motion_status_alm((ushort)CardNo, (ushort)axis);
+            var alarmValue = MCN420.YK_get_axis_motion_status_alm((ushort)cardIndex, (ushort)axis);
             StopReason = Enumerable.Range(0, 32).Where(s => (alarmValue & (1 << s)) != 0).Select(s => s + 1).FirstOrDefault();
             return 0;
         }
@@ -3290,9 +3290,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">卡号</param>
         /// <param name="axis">指定轴号</param>
         /// <returns>错误代码</returns>
-        public int DmcClearCardAxisStopReason(int CardNo, int axis)
+        public int DmcClearCardAxisStopReason(int cardIndex, int axis)
         {
-            return MCN420.YK_remove_axis_alm((ushort)CardNo, (ushort)axis);
+            return MCN420.YK_remove_axis_alm((ushort)cardIndex, (ushort)axis);
         }
         #endregion
 
@@ -3320,15 +3320,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         ///                             7：三点圆弧插补
         /// </param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardVectorProfileUnit(int CardNo, int Crd, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel, int type)
+        public int DmcSetCardVectorProfileUnit(int cardIndex, int crdIndex, double minVelocity, double maxVelocity, double acceleration, double deceleration, double stopVelocity, int type)
         {//后续补充完成插补模式
             if (type == 1)
             {
-                if (AxisLineParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisLineParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisLineParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisLineParaDic[Tuple.Create(CardNo, Crd)] = new Line_Req_Param
+                    var obj = AxisLineParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisLineParaDic[Tuple.Create(cardIndex, crdIndex)] = new Line_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3341,25 +3341,25 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                         AxisPos = obj.AxisPos,
                         nAxisNum = obj.nAxisNum,
 
-                        InterpoStartVel = Min_Vel / 1000,
-                        InterpoEndVel = Stop_Vel / 1000,
-                        InterpoVel = Max_Vel / 1000,
-                        InterpoAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000),
-                        InterpoDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000),
-                        InterpJerkAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000) / 10,
-                        InterpJerkDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000) / 10,
+                        InterpoStartVel = minVelocity / 1000,
+                        InterpoEndVel = stopVelocity / 1000,
+                        InterpoVel = maxVelocity / 1000,
+                        InterpoAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000),
+                        InterpoDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000),
+                        InterpJerkAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000) / 10,
+                        InterpJerkDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000) / 10,
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 2)
             {
-                if (AxisARC2DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisARC2DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisARC2DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisARC2DParaDic[Tuple.Create(CardNo, Crd)] = new ARC_2D_Req_Param
+                    var obj = AxisARC2DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisARC2DParaDic[Tuple.Create(cardIndex, crdIndex)] = new ARC_2D_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3372,25 +3372,25 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                         AxisPos = obj.AxisPos,
                         Radius = obj.Radius,
 
-                        InterpoStartVel = Min_Vel / 1000,
-                        InterpoEndVel = Stop_Vel / 1000,
-                        InterpoVel = Max_Vel / 1000,
-                        InterpoAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000),
-                        InterpoDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000),
-                        InterpJerkAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000) / 10,
-                        InterpJerkDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000) / 10,
+                        InterpoStartVel = minVelocity / 1000,
+                        InterpoEndVel = stopVelocity / 1000,
+                        InterpoVel = maxVelocity / 1000,
+                        InterpoAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000),
+                        InterpoDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000),
+                        InterpJerkAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000) / 10,
+                        InterpJerkDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000) / 10,
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 3)
             {
-                if (AxisARC3DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisARC3DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisARC3DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisARC3DParaDic[Tuple.Create(CardNo, Crd)] = new CMD_3DArc_Req_Param
+                    var obj = AxisARC3DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisARC3DParaDic[Tuple.Create(cardIndex, crdIndex)] = new CMD_3DArc_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3402,25 +3402,25 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                         axis = obj.axis,
                         AxisPos = obj.AxisPos,
 
-                        InterpoStartVel = Min_Vel / 1000,
-                        InterpoEndVel = Stop_Vel / 1000,
-                        InterpoVel = Max_Vel / 1000,
-                        InterpoAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000),
-                        InterpoDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000),
-                        InterpJerkAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000) / 10,
-                        InterpJerkDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000) / 10,
+                        InterpoStartVel = minVelocity / 1000,
+                        InterpoEndVel = stopVelocity / 1000,
+                        InterpoVel = maxVelocity / 1000,
+                        InterpoAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000),
+                        InterpoDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000),
+                        InterpJerkAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000) / 10,
+                        InterpJerkDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000) / 10,
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 4)
             {
-                if (AxisHelix2DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisHelix2DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisHelix2DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisHelix2DParaDic[Tuple.Create(CardNo, Crd)] = new Helix_2D_Req_Param
+                    var obj = AxisHelix2DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisHelix2DParaDic[Tuple.Create(cardIndex, crdIndex)] = new Helix_2D_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3434,25 +3434,25 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                         Radius = obj.Radius,
                         EndRadius = obj.EndRadius,
 
-                        InterpoStartVel = Min_Vel / 1000,
-                        InterpoEndVel = Stop_Vel / 1000,
-                        InterpoVel = Max_Vel / 1000,
-                        InterpoAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000),
-                        InterpoDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000),
-                        InterpJerkAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000) / 10,
-                        InterpJerkDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000) / 10,
+                        InterpoStartVel = minVelocity / 1000,
+                        InterpoEndVel = stopVelocity / 1000,
+                        InterpoVel = maxVelocity / 1000,
+                        InterpoAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000),
+                        InterpoDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000),
+                        InterpJerkAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000) / 10,
+                        InterpJerkDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000) / 10,
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 5)
             {
-                if (AxisHelix3DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisHelix3DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisHelix3DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisHelix3DParaDic[Tuple.Create(CardNo, Crd)] = new Helix_3D_Req_Param
+                    var obj = AxisHelix3DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisHelix3DParaDic[Tuple.Create(cardIndex, crdIndex)] = new Helix_3D_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3465,25 +3465,25 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                         AxisPos = obj.AxisPos,
                         Radius = obj.Radius,
 
-                        InterpoStartVel = Min_Vel / 1000,
-                        InterpoEndVel = Stop_Vel / 1000,
-                        InterpoVel = Max_Vel / 1000,
-                        InterpoAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000),
-                        InterpoDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000),
-                        InterpJerkAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000) / 10,
-                        InterpJerkDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000) / 10,
+                        InterpoStartVel = minVelocity / 1000,
+                        InterpoEndVel = stopVelocity / 1000,
+                        InterpoVel = maxVelocity / 1000,
+                        InterpoAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000),
+                        InterpoDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000),
+                        InterpJerkAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000) / 10,
+                        InterpJerkDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000) / 10,
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 6)
             {
-                if (AxisCone3DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisCone3DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisCone3DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisCone3DParaDic[Tuple.Create(CardNo, Crd)] = new Cone_3D_Req_Param
+                    var obj = AxisCone3DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisCone3DParaDic[Tuple.Create(cardIndex, crdIndex)] = new Cone_3D_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3497,25 +3497,25 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                         Radius = obj.Radius,
                         EndRadius = obj.EndRadius,
 
-                        InterpoStartVel = Min_Vel / 1000,
-                        InterpoEndVel = Stop_Vel / 1000,
-                        InterpoVel = Max_Vel / 1000,
-                        InterpoAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000),
-                        InterpoDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000),
-                        InterpJerkAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000) / 10,
-                        InterpJerkDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000) / 10,
+                        InterpoStartVel = minVelocity / 1000,
+                        InterpoEndVel = stopVelocity / 1000,
+                        InterpoVel = maxVelocity / 1000,
+                        InterpoAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000),
+                        InterpoDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000),
+                        InterpJerkAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000) / 10,
+                        InterpJerkDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000) / 10,
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 7)
             {
-                if (AxisARC2D3PointParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisARC2D3PointParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisARC2D3PointParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisARC2D3PointParaDic[Tuple.Create(CardNo, Crd)] = new Arc_2D_3Point_Req_Param
+                    var obj = AxisARC2D3PointParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisARC2D3PointParaDic[Tuple.Create(cardIndex, crdIndex)] = new Arc_2D_3Point_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3528,17 +3528,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                         mid_pos = obj.mid_pos,
                         aim_pos = obj.aim_pos,
 
-                        velStart = Min_Vel / 1000,
-                        velEnd = Stop_Vel / 1000,
-                        synVel = Max_Vel / 1000,
-                        synAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000),
-                        synDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000),
-                        synJerkAcc = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tacc * 1000) / 10,
-                        synJerkDec = ((Max_Vel / 1000) - (Min_Vel / 1000)) / (Tdec * 1000) / 10,
+                        velStart = minVelocity / 1000,
+                        velEnd = stopVelocity / 1000,
+                        synVel = maxVelocity / 1000,
+                        synAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000),
+                        synDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000),
+                        synJerkAcc = ((maxVelocity / 1000) - (minVelocity / 1000)) / (acceleration * 1000) / 10,
+                        synJerkDec = ((maxVelocity / 1000) - (minVelocity / 1000)) / (deceleration * 1000) / 10,
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             throw new ArgumentNullException($"插补模式传入错误，模式；【{type}】");
             //return MCN420.mcc_crd_set_prf_vel((ushort)CardNo, (ushort)Crd, Min_Vel, Max_Vel, Tacc, Tdec, Stop_Vel);
@@ -3555,20 +3555,20 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Tdec">返回减速时间设置</param>
         /// <param name="Stop_Vel">返回停止速度</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardVectorProfileUnit(int CardNo, int Crd, int type, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double Stop_Vel)
+        public int DmcGetCardVectorProfileUnit(int cardIndex, int crdIndex, int type, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stopVelocity)
         {
-            if (AxisLineParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+            if (AxisLineParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                var obj = AxisLineParaDic[Tuple.Create(CardNo, Crd)];
-                Min_Vel = obj.InterpoStartVel * 1000;
-                Max_Vel = obj.InterpoVel * 1000;
-                Stop_Vel = obj.InterpoEndVel * 1000;
-                Tacc = ((Max_Vel) - (Min_Vel)) / obj.InterpoAcc / 1000;
-                Tdec = ((Max_Vel) - (Min_Vel)) / obj.InterpoDec / 1000;
+                var obj = AxisLineParaDic[Tuple.Create(cardIndex, crdIndex)];
+                minVelocity = obj.InterpoStartVel * 1000;
+                maxVelocity = obj.InterpoVel * 1000;
+                stopVelocity = obj.InterpoEndVel * 1000;
+                acceleration = ((maxVelocity) - (minVelocity)) / obj.InterpoAcc / 1000;
+                deceleration = ((maxVelocity) - (minVelocity)) / obj.InterpoDec / 1000;
                 return 0;
             }
-            throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+            throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
         }
 
         /// <summary>
@@ -3579,15 +3579,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">平滑时间，单位：s，范围：0~1</param>
         /// <returns>错误代码</returns>
-        public int DmcSetCardVectorSProfile(int CardNo, int Crd, int s_mode, double s_para, int type)
+        public int DmcSetCardVectorSProfile(int cardIndex, int crdIndex, int s_mode, double s_para, int type)
         {
             if (type == 1)
             {
-                if (AxisLineParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisLineParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisLineParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisLineParaDic[Tuple.Create(CardNo, Crd)] = new Line_Req_Param
+                    var obj = AxisLineParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisLineParaDic[Tuple.Create(cardIndex, crdIndex)] = new Line_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3612,15 +3612,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 2)
             {
-                if (AxisARC2DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisARC2DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisARC2DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisARC2DParaDic[Tuple.Create(CardNo, Crd)] = new ARC_2D_Req_Param
+                    var obj = AxisARC2DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisARC2DParaDic[Tuple.Create(cardIndex, crdIndex)] = new ARC_2D_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3643,15 +3643,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 3)
             {
-                if (AxisARC3DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisARC3DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisARC3DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisARC3DParaDic[Tuple.Create(CardNo, Crd)] = new CMD_3DArc_Req_Param
+                    var obj = AxisARC3DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisARC3DParaDic[Tuple.Create(cardIndex, crdIndex)] = new CMD_3DArc_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3673,15 +3673,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 4)
             {
-                if (AxisHelix2DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisHelix2DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisHelix2DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisHelix2DParaDic[Tuple.Create(CardNo, Crd)] = new Helix_2D_Req_Param
+                    var obj = AxisHelix2DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisHelix2DParaDic[Tuple.Create(cardIndex, crdIndex)] = new Helix_2D_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3705,15 +3705,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 5)
             {
-                if (AxisHelix3DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisHelix3DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisHelix3DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisHelix3DParaDic[Tuple.Create(CardNo, Crd)] = new Helix_3D_Req_Param
+                    var obj = AxisHelix3DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisHelix3DParaDic[Tuple.Create(cardIndex, crdIndex)] = new Helix_3D_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3736,15 +3736,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 6)
             {
-                if (AxisCone3DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisCone3DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisCone3DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisCone3DParaDic[Tuple.Create(CardNo, Crd)] = new Cone_3D_Req_Param
+                    var obj = AxisCone3DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisCone3DParaDic[Tuple.Create(cardIndex, crdIndex)] = new Cone_3D_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3768,15 +3768,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else if (type == 7)
             {
-                if (AxisARC2D3PointParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisARC2D3PointParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisARC2D3PointParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisARC2D3PointParaDic[Tuple.Create(CardNo, Crd)] = new Arc_2D_3Point_Req_Param
+                    var obj = AxisARC2D3PointParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisARC2D3PointParaDic[Tuple.Create(cardIndex, crdIndex)] = new Arc_2D_3Point_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3799,7 +3799,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     };
                     return 0;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             throw new ArgumentNullException($"插补模式传入错误，模式；【{type}】");
         }
@@ -3812,15 +3812,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">返回平滑时间设置</param>
         /// <returns>错误代码</returns>
-        public int DmcGetCardVectorSProfile(int CardNo, int Crd, int s_mode, ref double s_para)
+        public int DmcGetCardVectorSProfile(int cardIndex, int crdIndex, int s_mode, ref double s_para)
         {
-            if (AxisLineParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+            if (AxisLineParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                s_para = (Math.Pow(AxisLineParaDic[Tuple.Create(CardNo, Crd)].InterpJerkAcc, 1 / 3)) / 1000;
+                s_para = (Math.Pow(AxisLineParaDic[Tuple.Create(cardIndex, crdIndex)].InterpJerkAcc, 1 / 3)) / 1000;
                 return 0;
             }
-            throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+            throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
         }
 
         #endregion
@@ -3836,13 +3836,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Target_Pos">目标位置列表，单位：unit </param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisLineUnit(int CardNo, int Crd, int axisNum, ushort[] AxisNums, double[] Target_Pos, int posi_mode)    //
+        public int DmcCardAxisLineUnit(int cardIndex, int crdIndex, int axisNum, ushort[] axisNumbers, double[] targetPosition, int posi_mode)    //
         {
-            if (AxisLineParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+            if (AxisLineParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
             {
                 //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                var obj = AxisLineParaDic[Tuple.Create(CardNo, Crd)];
-                var moveObj = AxisLineParaDic[Tuple.Create(CardNo, Crd)] = new Line_Req_Param
+                var obj = AxisLineParaDic[Tuple.Create(cardIndex, crdIndex)];
+                var moveObj = AxisLineParaDic[Tuple.Create(cardIndex, crdIndex)] = new Line_Req_Param
                 {
                     CmdNum = obj.CmdNum,
                     ParamRemain = obj.ParamRemain,
@@ -3851,8 +3851,8 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     STFlag = obj.STFlag,
                     ParaType = obj.ParaType,
                     PosType = (uint)posi_mode,
-                    axis = Array.ConvertAll(AxisNums, s => (uint)s),
-                    AxisPos = Target_Pos,
+                    axis = Array.ConvertAll(axisNumbers, s => (uint)s),
+                    AxisPos = targetPosition,
                     nAxisNum = (uint)axisNum,
 
                     InterpoStartVel = obj.InterpoStartVel,
@@ -3865,13 +3865,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                 };
                 for (int i = 0; i < axisNum; i++)
                 {
-                    MCN420.YK_remove_axis_alm((ushort)CardNo, AxisNums[i]);
+                    MCN420.YK_remove_axis_alm((ushort)cardIndex, axisNumbers[i]);
                 }
                 SleepWaitMove();
-                var res = MCN420.YK_line_move((ushort)CardNo, ref moveObj);
+                var res = MCN420.YK_line_move((ushort)cardIndex, ref moveObj);
                 return res;
             }
-            throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+            throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
         }
 
         /// <summary>
@@ -3896,15 +3896,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Circle">圈数：自然数：表示此时执行的为螺旋线插补,螺旋线的圈数</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisArcMoveCenterUnit(int CardNo, int Crd, int axisNum, UInt16[] AxisNums, double[] Target_Pos, double[] Cen_Pos, int Arc_Dir, int Circle, int posi_mode)
+        public int DmcCardAxisArcMoveCenterUnit(int cardIndex, int crdIndex, int axisNum, UInt16[] axisNumbers, double[] targetPosition, double[] centerPosition, int Arc_Dir, int Circle, int posi_mode)
         {
             if (axisNum == 3)
             {
-                if (AxisHelix3DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisHelix3DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisHelix3DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisHelix3DParaDic[Tuple.Create(CardNo, Crd)] = new Helix_3D_Req_Param
+                    var obj = AxisHelix3DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisHelix3DParaDic[Tuple.Create(cardIndex, crdIndex)] = new Helix_3D_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3914,7 +3914,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                         ParaType = obj.ParaType,
                         PosType = (uint)posi_mode,
                         axis = obj.axis,
-                        AxisPos = new double[] { Cen_Pos[0], Cen_Pos[1], Target_Pos[2] },
+                        AxisPos = new double[] { centerPosition[0], centerPosition[1], targetPosition[2] },
                         Radius = ((1 * Circle) / 180) * PI,
 
                         InterpoStartVel = obj.InterpoStartVel,
@@ -3927,21 +3927,21 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     };
                     for (int i = 0; i < axisNum; i++)
                     {
-                        MCN420.YK_remove_axis_alm((ushort)CardNo, AxisNums[i]);
+                        MCN420.YK_remove_axis_alm((ushort)cardIndex, axisNumbers[i]);
                     }
-                    var res = MCN420.YK_helix_3d_move((ushort)CardNo, ref moveObj);
+                    var res = MCN420.YK_helix_3d_move((ushort)cardIndex, ref moveObj);
                     SleepWaitMove();
                     return res;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
             else
             {
-                if (AxisHelix2DParaDic.ContainsKey(Tuple.Create(CardNo, Crd)))
+                if (AxisHelix2DParaDic.ContainsKey(Tuple.Create(cardIndex, crdIndex)))
                 {
                     //(int)MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)mode, (ushort)home_dir, vel, tacc, tdec);
-                    var obj = AxisHelix2DParaDic[Tuple.Create(CardNo, Crd)];
-                    var moveObj = AxisHelix2DParaDic[Tuple.Create(CardNo, Crd)] = new Helix_2D_Req_Param
+                    var obj = AxisHelix2DParaDic[Tuple.Create(cardIndex, crdIndex)];
+                    var moveObj = AxisHelix2DParaDic[Tuple.Create(cardIndex, crdIndex)] = new Helix_2D_Req_Param
                     {
                         CmdNum = obj.CmdNum,
                         ParamRemain = obj.ParamRemain,
@@ -3951,7 +3951,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                         ParaType = obj.ParaType,
                         PosType = (uint)posi_mode,
                         axis = obj.axis,
-                        AxisPos = Cen_Pos,
+                        AxisPos = centerPosition,
                         //Radius = Circle,
                         Radius = ((1 * Circle) / 180) * PI,
                         EndRadius = obj.EndRadius,  //后续通过 Target_Pos 和 Cen_Pos进行算出
@@ -3966,13 +3966,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                     };
                     for (int i = 0; i < axisNum; i++)
                     {
-                        MCN420.YK_remove_axis_alm((ushort)CardNo, AxisNums[i]);
+                        MCN420.YK_remove_axis_alm((ushort)cardIndex, axisNumbers[i]);
                     }
-                    var res = MCN420.YK_helix_2d_move((ushort)CardNo, ref moveObj);
+                    var res = MCN420.YK_helix_2d_move((ushort)cardIndex, ref moveObj);
                     SleepWaitMove();
                     return res;
                 }
-                throw new ArgumentNullException($"为查找到对应的卡和轴  CardNo:{CardNo}  AxisId:{Crd}");
+                throw new ArgumentNullException($"为查找到对应的卡和轴  cardIndex:{cardIndex}  AxisId:{crdIndex}");
             }
         }
         /// <summary>
@@ -3992,7 +3992,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Circle">圈数：自然数：表示此时执行的为螺旋线插补,螺旋线的圈数。如:0 即表示 0 圈螺旋线插补，1 即表示 1 圈螺旋线插补 </param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int DmcCardAxisArcMoveRadiusUnit(int CardNo, int Crd, int axisNum, UInt16[] AxisNums, double[] Target_Pos, double Arc_Radius, int Arc_Dir, int Circle, int posi_mode)
+        public int DmcCardAxisArcMoveRadiusUnit(int cardIndex, int crdIndex, int axisNum, UInt16[] axisNumbers, double[] targetPosition, double Arc_Radius, int Arc_Dir, int Circle, int posi_mode)
         {
             //return MCN420.mcc_crd_circle_radius((ushort)CardNo, (ushort)Crd, (ushort)axisNum, AxisNums, Target_Pos, Arc_Radius, (ushort)Arc_Dir, (ushort)Circle, (ushort)posi_mode);
             throw new AggregateException("未添加！");
@@ -4014,7 +4014,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Circle">圈数：<para>负数：表示此时执行的为空间圆弧插补：该值的绝对值减 1 表示空间圆弧的圈数。如，-1 即表示 0圈空间圆弧，-2 即表示 1 圈空间圆弧… </para><para>自然数：表示此时执行的为圆柱螺旋线插补:该值表示螺旋线的圈数。如，0 即表示 0 圈螺旋线插补， 1 即表示 1 圈螺旋线插补… </para></param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式 </param>
         /// <returns><错误代码/returns>
-        public int DmcCardArcMove3PointsUnit(int CardNo, int Crd, int axisNum, UInt16[] AxisNums, double[] Target_Pos, double[] Mid_Pos, int Circle, int posi_mode)
+        public int DmcCardArcMove3PointsUnit(int cardIndex, int crdIndex, int axisNum, UInt16[] axisNumbers, double[] targetPosition, double[] Mid_Pos, int Circle, int posi_mode)
         {
             throw new AggregateException("未添加！");
             //return MCN420.mcc_crd_circle_3points((ushort)CardNo, (ushort)Crd, (ushort)axisNum, AxisNums, Target_Pos, Mid_Pos, (ushort)Circle, (ushort)posi_mode);
@@ -4034,7 +4034,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="valuelength">对象字典索引长度(单位：bit)</param>
         /// <param name="value">对象字典索引参数值</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardNodeOD(int CardNo, int PortNum, int nodenum, int index, int subindex, int valuelength, ref int value)
+        public int NmcGetCardNodeOD(int cardIndex, int portCount, int nodenum, int index, int subindex, int valuelength, ref int value)
         {
             throw new AggregateException("未添加！");
             //return MCN420.ecc_get_node_od((ushort)CardNo, (ushort)PortNum, (ushort)nodenum, (ushort)index, (ushort)subindex, (ushort)valuelength, ref value);
@@ -4046,7 +4046,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴的轴号，255 表示使能所有 EtherCAT 轴</param>
         /// <returns>错误代码</returns>
-        public int NmcSetCardAxisEnable(int CardNo, int axis)
+        public int NmcSetCardAxisEnable(int cardIndex, int axis)
         {
             // ★ NoCodeMotion 更正（2026-09-30 三次修正，写 0）：第 3 个参数 sevon_en 是**端口电平**，
             //   而研控脉冲卡的伺服使能脚是**低电平有效** —— 写 0 = 使能、写 1 = 不使能。
@@ -4063,7 +4063,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
             //
             //   ★ 方向与雷赛 / 模拟卡的 dmc_write_sevon_pin **一致**（都是端口电平、低有效）。
             //     若以后换卡族，请以「原生 API 声明 + 真机实测」为准，不要只信参考实现或错误码表。
-            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 0);
+            return MCN420.YK_set_sevon_config((ushort)cardIndex, (ushort)axis, 0);
         }
 
         /// <summary>
@@ -4072,10 +4072,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴的轴号，255 表示使能所有 EtherCAT 轴</param>
         /// <returns>错误代码</returns>
-        public int NmcSetCardAxisDisable(int CardNo, int axis)
+        public int NmcSetCardAxisDisable(int cardIndex, int axis)
         {
             // 见 NmcSetCardAxisEnable 的说明：研控 MCN420 的使能脚低电平有效，写 1 = 不使能。
-            return MCN420.YK_set_sevon_config((ushort)CardNo, (ushort)axis, 1);
+            return MCN420.YK_set_sevon_config((ushort)cardIndex, (ushort)axis, 1);
         }
 
         /// <summary>
@@ -4088,9 +4088,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="channel">通道号（普通缓冲常用 0）</param>
         /// <returns>缓冲中剩余的指令条数（&lt; 0 表示读失败）</returns>
-        public int GetCmdListBufNum(int CardNo, int channel = 0)
+        public int GetCmdListBufNum(int cardIndex, int channel = 0)
         {
-            return MCN420.YK_get_cmd_list_buf_num((ushort)CardNo, (ushort)channel);
+            return MCN420.YK_get_cmd_list_buf_num((ushort)cardIndex, (ushort)channel);
         }
 
         /// <summary>
@@ -4099,7 +4099,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="TotalAxis">EtherCAT 总线轴和虚拟轴轴数</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardTotalAxes(int CardNo, ref uint TotalAxis)
+        public int NmcGetCardTotalAxes(int cardIndex, ref uint totalAxisCount)
         {
             //return MCN420.mcc_board_get_axis_num((ushort)CardNo, ref TotalAxis);
             throw new AggregateException("未添加！");
@@ -4111,7 +4111,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="TotalIn">EtherCAT 总线 AD 输入数</param>
         /// <param name="TotalOut">EtherCAT 总线 DA 输出数</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardTotalAdcnum(int CardNo, ref ushort TotalIn, ref ushort TotalOut)
+        public int NmcGetCardTotalAdcnum(int cardIndex, ref ushort TotalIn, ref ushort TotalOut)
         {
             throw new AggregateException("未添加！");
             //return MCN420.ecc_get_total_adcnum((ushort)CardNo, ref TotalIn, ref TotalOut);
@@ -4124,7 +4124,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="TotalIn">EtherCAT 总线 IO 输入数，包括板卡自带以及 IO 模块上的输入</param>
         /// <param name="TotalOut">EtherCAT 总线 IO 输出数，包括板卡自带以及 IO 模块上的输出</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardTotalIONum(int CardNo, ref UInt16 TotalIn, ref UInt16 TotalOut)
+        public int NmcGetCardTotalIONum(int cardIndex, ref UInt16 TotalIn, ref UInt16 TotalOut)
         {
             throw new AggregateException("未添加！");
             //return MCN420.ecc_get_total_ionum((ushort)CardNo, ref TotalIn, ref TotalOut);
@@ -4136,7 +4136,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="controller_mode">控制器工作模式，0 表示仿真模式，1 表示 EtherCAT总线模式</param>
         /// <returns>错误代码</returns>
-        public int NmcSetCardControllerWorkMode(int CardNo, int controller_mode)
+        public int NmcSetCardControllerWorkMode(int cardIndex, int controller_mode)
         {
             //return MCN420.ecc_set_controller_workmode((ushort)CardNo, (ushort)controller_mode);
             return 0;
@@ -4148,7 +4148,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="controller_mode">控制卡的工作模式，0 表示仿真模式，1 表示 EtherCAT 总线模式</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardControllerWorkMode(int CardNo, ref ushort controller_mode)
+        public int NmcGetCardControllerWorkMode(int cardIndex, ref ushort controller_mode)
         {
             return 0;
             //return MCN420.ecc_get_controller_workmode((ushort)CardNo, ref controller_mode);
@@ -4161,7 +4161,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="FieldbusType">EtherCAT 端口号，固定为 2</param>
         /// <param name="CyclFieldbusTypeeTime">EtherCAT 总线循环周期，单位：us，支持 250/500/1000/2000</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardCydleTime(int CardNo, int FieldbusType, ref int CyclFieldbusTypeeTime)
+        public int NmcGetCardCydleTime(int cardIndex, int fieldbusType, ref int CyclFieldbusTypeeTime)
         {
             //uint time = 0;
             //var res = MCN420.ecc_get_cycletime((ushort)CardNo, (ushort)FieldbusType, ref time);
@@ -4177,7 +4177,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">轴号</param>
         /// <param name="Axis_Type">轴的类型，0：虚拟轴，1：EtherCAT 轴，2：CANopen轴，3：脉冲轴，4：未知类型轴</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardAxisType(int CardNo, int axis, ref ushort Axis_Type)
+        public int NmcGetCardAxisType(int cardIndex, int axis, ref ushort Axis_Type)
         {
             //return MCN420.ecc_get_axis_type((ushort)CardNo, (ushort)axis, ref Axis_Type);
             return 0;
@@ -4188,7 +4188,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="ETCState">0：停止 EtherCAT 总线成功，1：停止 EtherCAT 总线失败</param>
         /// <returns>错误代码</returns>
-        public int NmcStopCardEtc(int CardNo, ref ushort ETCState)
+        public int NmcStopCardEtc(int cardIndex, ref ushort ETCState)
         {
             //return MCN420.ecc_break_ecat((ushort)CardNo, ETCState);
             return 0;
@@ -4203,7 +4203,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Max_time">EtherCAT 总线最大周期时间，单位：us</param>
         /// <param name="Cycles">EtherCAT 总线执行周期数</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardConsumeTimeFieldbus(int CardNo, int Fieldbustype, ref uint Average_time, ref uint Max_time, ref UInt64 Cycles)
+        public int NmcGetCardConsumeTimeFieldbus(int cardIndex, int Fieldbustype, ref uint Average_time, ref uint Max_time, ref UInt64 Cycles)
         {
             //return MCN420.ecc_get_cycletime((ushort)CardNo, (ushort)Fieldbustype, ref Average_time/*, ref Max_time, ref Cycles*/);
             return 0;
@@ -4215,7 +4215,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="Fieldbustype">EtherCAT 端口号，固定为 2</param>
         /// <returns>错误代码</returns>
-        public int NmcClearCardConsumeTimeFieldbus(int CardNo, int Fieldbustype)
+        public int NmcClearCardConsumeTimeFieldbus(int cardIndex, int Fieldbustype)
         {
             //return MCN420.ecc_clear_consume_time_fieldbus((ushort)CardNo, (ushort)Fieldbustype);
             return 0;
@@ -4237,12 +4237,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <para>7：FAULT  轴处于错误状态     </para>
         /// </param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardAxisStateMachine(int CardNo, int axis, ref ushort Axis_StateMachine)
+        public int NmcGetCardAxisStateMachine(int cardIndex, int axis, ref ushort Axis_StateMachine)
         {
             //var res = MCN420.mcc_status_get_axis_io((ushort)CardNo, (ushort)axis);
             //if ((res & 1024) == 1024) Axis_StateMachine = 4;
             //return 0;
-            Axis_StateMachine = (ushort)MCN420.YK_get_sevon_config((ushort)CardNo, (ushort)axis);
+            Axis_StateMachine = (ushort)MCN420.YK_get_sevon_config((ushort)cardIndex, (ushort)axis);
             return 0;
         }
 
@@ -4253,7 +4253,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="axis">EtherCAT 总线轴轴号</param>
         /// <param name="contrlmode">EtherCAT 总线轴配置控制模式（6 回零模式、8 CSP 模式）</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardAxisSettingControlMode(int CardNo, int axis, ref int contrlmode)
+        public int NmcGetCardAxisSettingControlMode(int cardIndex, int axis, ref int contrlmode)
         {
             //return MCN420.ecc_get_axis_setting_contrlmode((ushort)CardNo, (ushort)axis, ref contrlmode);
             return 0;
@@ -4271,7 +4271,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Tdec">EtherCAT 总线轴回零减速时间</param>
         /// <param name="offsetpos">EtherCAT 总线轴回零偏移 </param>
         /// <returns>错误代码</returns>
-        public int NmcSetCardAxisHomeProfile(int CardNo, int axis, int home_mode, double Low_Vel, double High_Vel, double Tacc, double Tdec, double offsetpos)
+        public int NmcSetCardAxisHomeProfile(int cardIndex, int axis, int home_mode, double Low_Vel, double High_Vel, double acceleration, double deceleration, double offsetpos)
         {
             throw new ArgumentException("未添加！");
             //return MCN420.ecc_home_set_para((ushort)CardNo, (ushort)axis, (ushort)home_mode, Low_Vel, High_Vel, Tacc, Tdec);
@@ -4289,7 +4289,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="Tdec">返回EtherCAT 总线轴回零减速时间</param>
         /// <param name="offsetpos">返回EtherCAT 总线轴回零偏移 </param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardAxisHomeProfile(int CardNo, int axis, ref ushort home_mode, ref double Low_Vel, ref double High_Vel, ref double Tacc, ref double Tdec, ref double offsetpos)
+        public int NmcGetCardAxisHomeProfile(int cardIndex, int axis, ref ushort home_mode, ref double Low_Vel, ref double High_Vel, ref double acceleration, ref double deceleration, ref double offsetpos)
         {
             throw new ArgumentException("未添加！");
             //return MCN420.ecc_home_get_para((ushort)CardNo, (ushort)axis, ref home_mode, ref Low_Vel, ref High_Vel, ref Tacc, ref Tdec);
@@ -4301,7 +4301,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴轴号</param>
         /// <returns>错误代码</returns>
-        public int NmcCardAxisHomeMove(int CardNo, int axis)
+        public int NmcCardAxisHomeMove(int cardIndex, int axis)
         {
             return 0;
         }
@@ -4313,13 +4313,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="channel">EtherCAT 总线端口号，固定为 2</param>
         /// <param name="errcode">EtherCAT 总线状态，0 表示正常</param>
         /// <returns></returns>
-        public int NmcGetCardErrcode(int CardNo, int channel, ref ushort errcode)
+        public int NmcGetCardErrcode(int cardIndex, int channel, ref ushort errcode)
         {
             //var res = MCN420.ecc_get_master_state_machine((ushort)CardNo, /*(ushort)channel,*/ ref errcode);
             //if (errcode == 8) errcode = 0;
             //else errcode = 125;
             //return res;
-            errcode = (ushort)(MCN420.YK_check_device_network_link((ushort)CardNo) ? 0 : 128);
+            errcode = (ushort)(MCN420.YK_check_device_network_link((ushort)cardIndex) ? 0 : 128);
             return 0;
         }
 
@@ -4331,7 +4331,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="SlaveAddr">EtherCAT 总线轴地址</param>
         /// <param name="Sub_SlaveAddr">EtherCAT 总线轴子地址</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardAxisNodeAddress(int CardNo, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
+        public int NmcGetCardAxisNodeAddress(int cardIndex, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
         {
             return 0;
             //return MCN420.ecc_get_node_od((ushort)CardNo, 0, (ushort)axis, SlaveAddr, Sub_SlaveAddr, (ushort)lenght, ref value);
@@ -4344,7 +4344,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="PortNum">EtherCAT 端口号，固定为 2</param>
         /// <param name="TotalSlaves">EtherCAT 从站总数</param>
         /// <returns>错误代码</returns>
-        public int NmcGetCardTotalSlaves(int CardNo, int PortNum, ref ushort TotalSlaves)
+        public int NmcGetCardTotalSlaves(int cardIndex, int portCount, ref ushort TotalSlaves)
         {
             //return MCN420.ecc_get_total_slaves((ushort)CardNo, (ushort)PortNum, ref TotalSlaves);
             return 0;
@@ -4353,17 +4353,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         #endregion
 
         #region 指令缓存
-        public int DmcMOpenListBuff(int CardNo, ushort Group, int num, ushort[] axis_List)
+        public int DmcMOpenListBuff(int cardIndex, ushort Group, int num, ushort[] axis_List)
         {
-            return MCN420.YK_open_lookahead((ushort)CardNo, (ushort)Group);
+            return MCN420.YK_open_lookahead((ushort)cardIndex, (ushort)Group);
         }
-        public int DmcMStartListBuff(int CardNo, ushort Group)
+        public int DmcMStartListBuff(int cardIndex, ushort Group)
         {
             return 0;
             //return MCN420.mcc_m_start_list((ushort)CardNo, (ushort)Group);
         }
 
-        public int DmcMAddSigaxisMovesegDataExBuff(int CardNo, ushort Group, ushort axis, double target_Pos, ushort mark)
+        public int DmcMAddSigaxisMovesegDataExBuff(int cardIndex, ushort Group, ushort axis, double target_Pos, ushort mark)
         {
             return 0;
             //默认位置模式，0:相对位置，1：绝对位置;
@@ -4371,7 +4371,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
             //return MCN420.mcc_m_add_sigaxis_pmove((ushort)CardNo, Group, axis, target_Pos, mode, mark);
         }
 
-        public int DmcMAddMutiaxisMovesegDataExBuff(int CardNo, ushort Group, ushort[] axis, double[] target_Pos, ushort mark)
+        public int DmcMAddMutiaxisMovesegDataExBuff(int cardIndex, ushort Group, ushort[] axis, double[] target_Pos, ushort mark)
         {
             return 0;
             //默认位置模式，0:相对位置，1：绝对位置;
@@ -4379,58 +4379,58 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
             //return MCN420.mcc_m_add_mutiaxis_pmove((ushort)CardNo, Group, (ushort)axis.Length, axis, target_Pos, mode, mark);
         }
 
-        public int DmcMAddWaitEventDataBuff(int CardNo, ushort Group, ushort event1, ushort num, ushort CompareOperate, double target_Pos, ushort mark)
+        public int DmcMAddWaitEventDataBuff(int cardIndex, ushort Group, ushort event1, ushort num, ushort CompareOperate, double target_Pos, ushort mark)
         {
             return 0;
             //return MCN420.mcc_m_add_wait_event_data((ushort)CardNo, (ushort)Group, event1, num, CompareOperate, target_Pos, mark);
 
         }
 
-        public int DmcMSetProfileUnitBuff(int CardNo, ushort Group, ushort axis, double start_vel, double max_vel, double tacc, double tdec, double smooth_time, double stop_vel, ushort mark)
+        public int DmcMSetProfileUnitBuff(int cardIndex, ushort Group, ushort axis, double start_vel, double max_vel, double tacc, double tdec, double smooth_time, double stop_vel, ushort mark)
         {
             return 0;
             //return MCN420.mcc_m_set_axis_profile((ushort)CardNo, (ushort)Group, axis, start_vel, max_vel, tacc, tdec, smooth_time, stop_vel, mark);
         }
-        public int DmcMSetMutiProfileUnitBuff(int CardNo, ushort Group, ushort[] axis, double[] start_vel, double[] max_vel, double[] tacc, double[] tdec, double[] smooth_time, double[] stop_vel, ushort mark)
+        public int DmcMSetMutiProfileUnitBuff(int cardIndex, ushort Group, ushort[] axis, double[] start_vel, double[] max_vel, double[] tacc, double[] tdec, double[] smooth_time, double[] stop_vel, ushort mark)
         {
             return 0;
             //return MCN420.mcc_m_set_muti_profile((ushort)CardNo, (ushort)Group, (ushort)axis.Length, axis, start_vel, max_vel, tacc, tdec, smooth_time, stop_vel, mark);
         }
 
-        public int DmcMCloseListBuff(int CardNo, ushort Group)
+        public int DmcMCloseListBuff(int cardIndex, ushort Group)
         {
             return 0;
             //return MCN420.YK_close_lookahead((ushort)CardNo, (ushort)Group);
         }
-        public int DmcMClearListBuff(int CardNo, ushort Group)
+        public int DmcMClearListBuff(int cardIndex, ushort Group)
         {
             return 0;
             //return MCN420.mcc_m_clear_list((ushort)CardNo, (ushort)Group);
         }
-        public int DmcMStopListBuff(int CardNo, ushort Group)
+        public int DmcMStopListBuff(int cardIndex, ushort Group)
         {
             return 0;
             //return MCN420.mcc_m_stop_list((ushort)CardNo, (ushort)Group, 1);
         }
-        public int DmcMSetProfileUnitBuff_Line(int CardNo, ushort Group, ushort crd, double start_vel, double max_vel, double tacc, double tdec, double smooth_time, double stop_vel, ushort mark)
+        public int DmcMSetProfileUnitBuff_Line(int cardIndex, ushort Group, ushort crd, double start_vel, double max_vel, double tacc, double tdec, double smooth_time, double stop_vel, ushort mark)
         {
             return 0;
             //return MCN420.mcc_m_set_line_prf_vel((ushort)CardNo, crd, (ushort)Group, start_vel, max_vel, stop_vel, tacc, tdec, smooth_time, mark);
         }
-        public int DmcMAddMutiaxisMovesegDataExBuff_Line(int CardNo, ushort Group, ushort crd, ushort[] axis, double[] target_Value, ushort mark)
+        public int DmcMAddMutiaxisMovesegDataExBuff_Line(int cardIndex, ushort Group, ushort crd, ushort[] axis, double[] target_Value, ushort mark)
         {
             return 0;
             //默认位置模式，0:相对位置，1：绝对位置;
             ushort mode = 1;
             //return MCN420.mcc_m_line_motion((ushort)CardNo, crd, Group, (ushort)axis.Length, axis, target_Value, mode, mark);
         }
-        public int DmcMSetRegisterFlagStsBuff(int CardNo, ushort Group, ushort Flag_No, ushort Wait_Flag_sts, ushort mark)
+        public int DmcMSetRegisterFlagStsBuff(int cardIndex, ushort Group, ushort Flag_No, ushort Wait_Flag_sts, ushort mark)
         {
             return 0;
             //return MCN420.mcc_m_set_control_flag((ushort)CardNo, (ushort)Group, Flag_No, Wait_Flag_sts, mark);
         }
 
-        public int DmcAddDelayTimeBuff(int CardNo, ushort Group, double Time_delay, ushort mark)
+        public int DmcAddDelayTimeBuff(int cardIndex, ushort Group, double Time_delay, ushort mark)
         {
             var delay = new Delay_Time_Req
             {
@@ -4439,21 +4439,21 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
                 Times = (uint)Time_delay,
                 ParamRemain = 0
             };
-            return MCN420.YK_delay_time((ushort)CardNo, ref delay);
+            return MCN420.YK_delay_time((ushort)cardIndex, ref delay);
         }
-        public int DmcAddTriggerDataBuff(int CardNo, ushort Group, ushort Mode, ushort Num, double target_Value, ushort mark)
+        public int DmcAddTriggerDataBuff(int cardIndex, ushort Group, ushort Mode, ushort Num, double target_Value, ushort mark)
         {
             return 0;
             //return MCN420.mcc_m_add_trigger_data((ushort)CardNo, (ushort)Group, Mode, Num, target_Value, mark);
         }
 
-        public int DmcMSetRegisterFlagSts(int CardNo, ushort Group, ushort Flag_No, ushort Wait_Flag_sts)
+        public int DmcMSetRegisterFlagSts(int cardIndex, ushort Group, ushort Flag_No, ushort Wait_Flag_sts)
         {
             return 0;
             //return MCN420.mcc_m_set_wait_flag((ushort)CardNo, (ushort)Group, Flag_No, Wait_Flag_sts);
         }
 
-        public int DmcMReadRegisterFlagSts(int CardNo, ushort Group, ushort Flag_No, ref ushort Wait_Flag_sts)
+        public int DmcMReadRegisterFlagSts(int cardIndex, ushort Group, ushort Flag_No, ref ushort Wait_Flag_sts)
         {
             return 0;
             //return MCN420.mcc_m_get_wait_flag((ushort)CardNo, (ushort)Group, Flag_No, ref Wait_Flag_sts);
@@ -4471,7 +4471,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCN42Series
         /// <param name="stop_mode"></param>
         /// <param name="filter_time"></param>
         /// <returns></returns>
-        public int ConfigureEMGMapping(int CardNo, ushort[] io_Port, ushort enable, ushort emg_logic = 1, ushort stop_mode = 1, double filter_time = 5)
+        public int ConfigureEMGMapping(int cardIndex, ushort[] io_Port, ushort enable, ushort emg_logic = 1, ushort stop_mode = 1, double filter_time = 5)
         {
             return 0;
             //return MCN420.mcc_emg_set_stop_para_ex((ushort)CardNo, (ushort)io_Port.Length, enable, emg_logic, stop_mode, filter_time, io_Port);

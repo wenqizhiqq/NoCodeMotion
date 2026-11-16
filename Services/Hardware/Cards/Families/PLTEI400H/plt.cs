@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Runtime.InteropServices;
 
-namespace WenQiZhi.Domain.MotionCard.Common.PLTEI400H
+namespace NoCodeMotion.Services.Hardware.Cards.Families.PLTEI400H
 {
     public class PLT
     {   	

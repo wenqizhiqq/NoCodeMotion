@@ -7,7 +7,7 @@
 //   改动: 仅行尾归一化为 LF、加 #nullable disable；命名空间与逻辑保持原样。
 // ────────────────────────────────────────────────────────────────
 #nullable disable
-namespace WenQiZhi.Domain.MotionCard.Tools.HighPrecisionTimer
+namespace NoCodeMotion.Services.Hardware.Cards.Tools.HighPrecisionTimer
 {
     public enum TimerError
     {

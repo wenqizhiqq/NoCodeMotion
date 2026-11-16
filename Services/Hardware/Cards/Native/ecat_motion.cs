@@ -10,7 +10,7 @@
 using System.Runtime.InteropServices;
 using System;
 
-namespace WenQiZhi.Domain.MotionCard.Common
+namespace NoCodeMotion.Services.Hardware.Cards
 {
     public partial class ecat_motion
     {

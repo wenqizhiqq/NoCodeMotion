@@ -8,84 +8,85 @@
 // ────────────────────────────────────────────────────────────────
 #nullable disable
 using System;
+    using NoCodeMotion.Hardware.Motion;
 using System.Collections.Generic;
-using WenQiZhi.Domain.MotionCard.Common;
-namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
+using NoCodeMotion.Services.Hardware.Cards;
+namespace NoCodeMotion.Services.Hardware.Cards.Families.YKMCC800S
 {
-    public class AxisRealization : IAxis
+    public class AxisRealization : MotionAxisBase
     {
         /// <summary>
         /// 轴名字
         /// </summary>
-        public string AxisName { get; set; }
+        public override string AxisName { get; set; }
 
         /// <summary>
         /// 轴功能的注释
         /// </summary>
-        public string AxisNotes { get; set; }
+        public override string AxisNotes { get; set; }
 
         /// <summary>
         /// 轴功能的注释
         /// </summary>
-        public string AxisNotes2 { get; set; }
+        public override string AxisNotes2 { get; set; }
 
         /// <summary>
         /// 轴所属的卡号（在多卡的时候轴所属的卡号就不再是0了）
         /// </summary>
-        public int AxisWhichCardNo { get; set; }
+        public override int AxisWhichCardNo { get; set; }
 
         /// <summary>
         /// 轴所属卡的名字。
         /// </summary>
-        public string AxisWhichCardName { get; set; }
+        public override string AxisWhichCardName { get; set; }
 
         /// <summary>
         /// 轴的运动方式状态
         /// </summary>
-        public MotionParamModel AxisMotionStatus { get; set; }
+        public override MotionParamModel AxisMotionStatus { get; set; }
 
 
         /// <summary>
         /// 轴所属卡的类型（有些系列卡，可以用此属性区分具体是哪一种卡）
         /// </summary>
-        public string AxisWhichcardType { get; set; }
+        public override string AxisWhichcardType { get; set; }
 
         /// <summary>
         /// 轴ID，用于控制卡SDK函数识别运动轴号
         /// </summary>
-        public int AxisID { get; set; }
+        public override int AxisID { get; set; }
 
 
         /// <summary>
         /// 回原标志--上电默认标志为false，伺服必须进行一次复位
         /// </summary>
-        public bool HomeFlag { get; set; } = false;
+        public override bool HomeFlag { get; set; } = false;
         /// <summary>
         /// 轴是否在线
         /// </summary>
-        public bool Online { get; set; }
+        public override bool Online { get; set; }
 
         /// <summary>
         /// 虚拟卡(当用户勾选虚拟卡后，轴对象这里需要知道当前是虚拟卡)
         /// </summary>
-        public bool IsVitualCard { get; set; } = false;
+        public override bool IsVirtualCard { get; set; } = false;
 
 
         /// <summary>
         /// 是否允许编码器
         /// </summary>
-        public bool EncodeEnable { get; set; } = false;
+        public override bool EncodeEnable { get; set; } = false;
 
         /// <summary>
         /// 用户定义的运动目标位置
         /// </summary>
-        public double TargetPos { get; set; } = 0.0;
+        public override double TargetPos { get; set; } = 0.0;
 
 
         /// <summary>
         /// 用户定义的运动速度
         /// </summary>
-        public double TargetVel { get; set; } = 0.0;
+        public override double TargetVel { get; set; } = 0.0;
 
         /// <summary>
         /// 当前轴所属的DMC3000系列卡的具体类型
@@ -96,7 +97,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <summary>
         /// 取轴状态,0 表示控制轴运动完成，处于空闲状态;1 表示控制轴正在运动，其它值为调用出错
         /// </summary>
-        public int AxisStatus
+        public override int AxisStatus
         {
             get
             {
@@ -111,7 +112,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <summary>
         /// 获取轴的报警信息（如果有硬件接入的情况下）
         /// </summary>
-        public int AxisAlarm
+        public override int AxisAlarm
         {
             get
             {
@@ -127,7 +128,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <summary>
         /// 正极限信号，1表示正限位有效， 0表示无效
         /// </summary>
-        public int AxisPEL
+        public override int AxisPEL
         {
             get
             {
@@ -142,7 +143,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <summary>
         /// 负极限信号，1表示负限位有效， 0表示无效
         /// </summary>
-        public int AxisMEL
+        public override int AxisMEL
         {
             get
             {
@@ -157,7 +158,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <summary>
         /// EMG信号，1表示EMG输入为高， 0表示输入为低；该信号为低电平有效。
         /// </summary>
-        public int AxisEMG
+        public override int AxisEMG
         {
             get
             {
@@ -172,7 +173,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <summary>
         /// 原点信号，1表示原点有效， 0表示无效
         /// </summary>
-        public int AxisORG
+        public override int AxisORG
         {
             get
             {
@@ -236,7 +237,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <summary>
         /// EZ 1：表示 EZ 信号为 ON； 0：OFF
         /// </summary>
-        public int AxisEZ
+        public override int AxisEZ
         {
             get
             {
@@ -303,13 +304,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>指定轴的速度，单位：pulse/s</returns>
-        public double GetCardAxisCurrentSpeed(int CardNo, int axis)
+        public override double GetCardAxisCurrentSpeed(int cardIndex, int axis)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.GetCardAxisCurrentSpeed((ushort)CardNo, (ushort)axis);
+            return YKMCC800SSDK.Instance.GetCardAxisCurrentSpeed((ushort)cardIndex, (ushort)axis);
         }
 
-        public CAxisParameter AxisParameter { get; set; } = new CAxisParameter();
+        public override CAxisParameter AxisParameter { get; set; } = new CAxisParameter();
 
         /// <summary>
         /// 停止坐标系内所有轴的运动
@@ -318,9 +319,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="crd"></param>
         /// <param name="stop_mode"></param>
         /// <returns></returns>
-        public int CardAxisStopMulticoor(int CardNo, int crd, int stop_mode)
+        public override int CardAxisStopMulticoor(int cardIndex, int crd, int stop_mode)
         {
-            return YKMCC800SSDK.Instance.CardAxisStopMulticoor(CardNo, crd, stop_mode);
+            return YKMCC800SSDK.Instance.CardAxisStopMulticoor(cardIndex, crd, stop_mode);
         }
 
 
@@ -332,10 +333,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="Curr_Vel">改变后的运动速度，单位：pulse/s</param>
         /// <param name="Taccdec">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisChangeSpeed(int CardNo, int axis, double Curr_Vel, double Taccdec)
+        public override int CardAxisChangeSpeed(int cardIndex, int axis, double currentVelocity, double accelerationAndDeceleration)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.CardAxisChangeSpeed((ushort)CardNo, (ushort)axis, Curr_Vel, Taccdec);
+            return YKMCC800SSDK.Instance.CardAxisChangeSpeed((ushort)cardIndex, (ushort)axis, currentVelocity, accelerationAndDeceleration);
         }
 
         /// <summary>
@@ -346,9 +347,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="dist">目标位置，单位：pulse</param>
         /// <param name="posi_mode">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisResetTargetPosition(int CardNo, int axis, int dist, int posi_mode)
+        public override int CardAxisResetTargetPosition(int cardIndex, int axis, int dist, int posi_mode)
         {
-            return YKMCC800SSDK.Instance.CardAxisResetTargetPosition((ushort)CardNo, (ushort)axis,
+            return YKMCC800SSDK.Instance.CardAxisResetTargetPosition((ushort)cardIndex, (ushort)axis,
                 dist, (ushort)posi_mode);
         }
 
@@ -360,9 +361,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="dist">目标位置，单位：pulse</param>
         /// <param name="posi_mode">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisUpdateTargetPosition(int CardNo, int axis, int dist, int posi_mode)
+        public override int CardAxisUpdateTargetPosition(int cardIndex, int axis, int dist, int posi_mode)
         {
-            return YKMCC800SSDK.Instance.CardAxisUpdateTargetPosition((ushort)CardNo, (ushort)axis,
+            return YKMCC800SSDK.Instance.CardAxisUpdateTargetPosition((ushort)cardIndex, (ushort)axis,
                 dist, (ushort)posi_mode);
         }
 
@@ -371,7 +372,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 启动多轴空间圆弧插补
         /// </summary>
         /// <returns></returns>
-        public int CardAxesArcMoveCenterUnit(ArcInterpolateparamModel arc)
+        public override int CardAxesArcMoveCenterUnit(ArcInterpolateparamModel arc)
         {
             return 0;
         }
@@ -380,7 +381,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 启动多轴空间直线插补 
         /// </summary>
         /// <returns></returns>
-        public int CardAxesLineUnit(LineInterpolateparamModel line)
+        public override int CardAxesLineUnit(LineInterpolateparamModel line)
         {
             return 0;
 
@@ -394,16 +395,16 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">指定控制卡上的坐标系号（取值范围：0~1）</param>
         /// <returns>：坐标系状态，0：正在使用中，1：正常停止</returns>
-        public int GetCardCheckDoneMulticoor(int CardNo, int crd)
+        public override int GetCardCheckDoneMulticoor(int cardIndex, int crd)
         {
-            return YKMCC800SSDK.Instance.GetCardCheckDoneMulticoor(CardNo, crd);
+            return YKMCC800SSDK.Instance.GetCardCheckDoneMulticoor(cardIndex, crd);
         }
 
         /// <summary>
         /// 启动两轴平面连续圆弧插补
         /// </summary>
         /// <returns></returns
-        public int CardAxisContiArcMoveStart(ArcInterpolateparamModel arc)
+        public override int CardAxisContiArcMoveStart(ArcInterpolateparamModel arc)
         {
             return -1;
         }
@@ -412,7 +413,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 启动两轴平面连续直线插补
         /// </summary>
         /// <returns></returns>
-        public int CardAxisContiLineUnitStart(LineInterpolateparamModel line)
+        public override int CardAxisContiLineUnitStart(LineInterpolateparamModel line)
         {
             return -1;
         }
@@ -424,7 +425,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <para> pulsDir = 0  控制轴反向运动启动原点查找</para>
         /// <para>plusDir = 1  控制轴正向运动启动原点查找</para> </param>
         /// <returns>正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int CardAxisHomeMove()
+        public override int CardAxisHomeMove()
         {
             int currentID = AxisID;
             changeAxisID(ref currentID);
@@ -439,10 +440,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="axis"></param>
         /// <param name="status">0：停止中；1：回零中；2：回零成功；3：回零失败；</param>
         /// <returns></returns>
-        public int CardAxisGetHomeResult(int CardNo, int axis, ref ushort status)
+        public override int CardAxisGetHomeResult(int cardIndex, int axis, ref ushort status)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.CardAxisGetHomeResult(CardNo, axis, ref status);
+            return YKMCC800SSDK.Instance.CardAxisGetHomeResult(cardIndex, axis, ref status);
         }
 
        
@@ -472,7 +473,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <para>1: 表示以 max_vel 为速度进行驱动，中间没有加速过程；</para>
         /// <para>2: 表示从 start_vel 加速到 max_vel,  中间有加速、减速过程；</para></para></param>
         /// <returns>正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int CardAxisPointMovement(MotionParamModel mpm)
+        public override int CardAxisPointMovement(MotionParamModel mpm)
         {
             int currentID = mpm.Axis;
             changeAxisID(ref currentID);
@@ -489,7 +490,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <para>"Dir">驱动方向， 1 为正向驱动， 0 为反向驱动；</para>
         /// <para>"RunMode">速度模式<para>0 :表示以 start_vel 为速度进行驱动，中间没有加速过程；</para><para>1: 表示以 max_vel 为速度进行驱动，中间没有加速过程；</para><para>2: 表示从 start_vel 加速到 max_vel,  中间有加速、减速过程；</para></para></param>
         /// <returns>正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int CardAxisSerialMovement(MotionParamModel mpm)
+        public override int CardAxisSerialMovement(MotionParamModel mpm)
         {
             int currentID = mpm.Axis;
             changeAxisID(ref currentID);
@@ -502,7 +503,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 清除轴的报警状态
         /// </summary>
         /// <returns></returns>
-        public int ClearCardAxisAlarmState(int CardNo, int axis)
+        public override int ClearCardAxisAlarmState(int cardIndex, int axis)
         {
             return 0;
         }
@@ -511,7 +512,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 清除插补坐标系
         /// </summary>
         /// <returns></returns>
-        public int ClearCardAxisInterpolateCoord()
+        public override int ClearCardAxisInterpolateCoord()
         {
             return 0;
         }
@@ -520,7 +521,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 建立插补坐标系
         /// </summary>
         /// <returns></returns>
-        public int CreatCardAxisInterpolateCoord(InterpolateMotetionParamModel imp)
+        public override int CreatCardAxisInterpolateCoord(InterpolateMotetionParamModel imp)
         {
             return 0;
         }
@@ -530,12 +531,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <summary>
         /// 读取轴的状态
         /// </summary>
-        public int GetCardAxisAlarmState(int CardNo, int axis)
+        public override int GetCardAxisAlarmState(int cardIndex, int axis)
         {
             changeAxisID(ref axis);
 
 
-            int errcode = YKMCC800SSDK.Instance.GetCardAxisIOStatus(CardNo, axis);
+            int errcode = YKMCC800SSDK.Instance.GetCardAxisIOStatus(cardIndex, axis);
             return errcode;
         }
 
@@ -544,7 +545,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// </summary>
         /// <param name="cntr_no">输出脉冲计数器/编码器反馈脉冲位置计数器选择:  0: 输出脉冲计数器 |  1: 编码器反馈脉冲位置计数器</param>
         /// <returns>位置计数器的值, 范围在-134217728 ~ 134217727</returns>
-        public double GetCardAxisCurrentPosition(int cntr_no)
+        public override double GetCardAxisCurrentPosition(int cntr_no)
         {
             int currentID = AxisID;
             changeAxisID(ref currentID);
@@ -568,7 +569,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="axis">轴号</param>
         /// <param name="pStatus">状态</param>
         /// <returns>轴状态,0 表示控制轴运动完成，处于空闲状态;1 表示控制轴正在运动，其它值为调用出错</returns>
-        public int GetCardAxisCurrentState()
+        public override int GetCardAxisCurrentState()
         {
             int currentID = AxisID;
             changeAxisID(ref currentID);
@@ -583,7 +584,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 获取轴的减速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisDecVel()
+        public override int GetCardAxisDecVel()
         {
             return -1;
         }
@@ -592,7 +593,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 获取轴的硬限位
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisELLimit()
+        public override int GetCardAxisELLimit()
         {
             UInt16 el_enable = 0, el_logic = 0, el_mode = 0;
 
@@ -602,7 +603,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 获取轴的高速回零减速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHighHomeDecVel()
+        public override int GetCardAxisHighHomeDecVel()
         {
             return 0;
         }
@@ -610,7 +611,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的高速回零加速度（无）
         /// </summary>
         /// <returns></returns>
-        public HomeParameModel GetCardAxisHighHomeProfile(HomeParameModel hpm)
+        public override HomeParameModel GetCardAxisHighHomeProfile(HomeParameModel hpm)
         {
             return null;
         }
@@ -618,7 +619,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的高速回零速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHighHomeVel()
+        public override int GetCardAxisHighHomeVel()
         {
             return 0;
         }
@@ -626,7 +627,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的回零最大保护距离
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHomeMaxProtectDis()
+        public override int GetCardAxisHomeMaxProtectDis()
         {
             return 0;
         }
@@ -634,17 +635,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴回零的模式
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHomeMode()
+        public override int GetCardAxisHomeMode()
         {
             int currentID = AxisID;
             changeAxisID(ref currentID);
 
 
-            UInt16 home_dir = 0, mode = 0, EZ_count = 0;
+            UInt16 home_dir = 0, mode = 0, ezCount = 0;
             double vel = 0;
 
             //if (DMC3400ASDK.Instance.GetCardAxisHomeMode(AxisWhichCardNo, AxisID, ref home_dir, ref vel, ref mode, ref EZ_count) == 1)
-            if (YKMCC800SSDK.Instance.GetCardAxisHomeMode(AxisWhichCardNo, currentID, ref home_dir, ref vel, ref mode, ref EZ_count) == 1)
+            if (YKMCC800SSDK.Instance.GetCardAxisHomeMode(AxisWhichCardNo, currentID, ref home_dir, ref vel, ref mode, ref ezCount) == 1)
             {
                 return mode;
             }
@@ -654,7 +655,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的回零位置偏差
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisHomePositionErro()
+        public override int GetCardAxisHomePositionErro()
         {
             return -1;
         }
@@ -662,7 +663,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <summary>
         /// 读取轴回零的参数
         /// </summary>
-        public int GetCardAxisHomeProfile()
+        public override int GetCardAxisHomeProfile()
         {
             return -1;
         }
@@ -670,13 +671,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的初速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisInitVel(ref int pSpeed)
+        public override int GetCardAxisInitVel(ref int pSpeed)
         {
 
             int currentID = AxisID;
             changeAxisID(ref currentID);
 
-            if (IsVitualCard)
+            if (IsVirtualCard)
             {
                 pSpeed = 0; return 0;
             }
@@ -691,7 +692,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的加加速
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisJerkVel()
+        public override int GetCardAxisJerkVel()
         {
             return -1;
         }
@@ -699,7 +700,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的限位状态
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisLimitState()
+        public override int GetCardAxisLimitState()
         {
             return -1;
         }
@@ -707,7 +708,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的低速回零加速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisLowHomeAccVel()
+        public override int GetCardAxisLowHomeAccVel()
         {
             return -1;
         }
@@ -715,7 +716,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的低速回零减速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisLowHomeDecVel()
+        public override int GetCardAxisLowHomeDecVel()
         {
             return -1;
         }
@@ -723,7 +724,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的低速回零速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisLowHomeVel()
+        public override int GetCardAxisLowHomeVel()
         {
             return -1;
         }
@@ -732,7 +733,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的最大速度
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisMaxVel()
+        public override int GetCardAxisMaxVel()
         {
             return -1;
         }
@@ -740,7 +741,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 获取轴的脉冲当量
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisPulseEquival(int card, int axis)
+        public override int GetCardAxisPulseEquival(int card, int axis)
         {
             changeAxisID(ref axis);
             return YKMCC800SSDK.Instance.GetCardAxisPosition(card, axis);
@@ -749,7 +750,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的反向回零距离
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisReverseHomeDis()
+        public override int GetCardAxisReverseHomeDis()
         {
             return -1;
         }
@@ -757,7 +758,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 获取轴当前的运行模式
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisRunMode(int CardNo, int axis)
+        public override int GetCardAxisRunMode(int cardIndex, int axis)
         {
 
             return -1;
@@ -767,7 +768,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的减减速
         /// </summary>
         /// <returns></returns>
-        public int GetCardAxisSlowVel()
+        public override int GetCardAxisSlowVel()
         {
             return 0;
         }
@@ -776,19 +777,19 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取轴的软限位设置
         /// </summary>
         /// <returns>限位参数模型</returns>
-        public LimitParamModel GetCardAxisSoftLimit(LimitParamModel lpm)
+        public override LimitParamModel GetCardAxisSoftLimit(LimitParamModel lpm)
         {
             UInt16 enable = 0;
             UInt16 source_sel = 0;
-            UInt16 SL_action = 0;
-            int N_limit = 0;
-            int P_limit = 0;
-            YKMCC800SSDK.Instance.GetCardAxisSoftLimit(lpm.CardNo, lpm.Axis, ref enable, ref source_sel, ref SL_action, ref N_limit, ref P_limit);
+            UInt16 slActionValue = 0;
+            int negativeLimit = 0;
+            int positiveLimit = 0;
+            YKMCC800SSDK.Instance.GetCardAxisSoftLimit(lpm.CardNo, lpm.Axis, ref enable, ref source_sel, ref slActionValue, ref negativeLimit, ref positiveLimit);
             lpm.Enable = enable;
             lpm.SourceSel = source_sel;
-            lpm.SLAction = SL_action;
-            lpm.Nlimit = N_limit;
-            lpm.Plimit = P_limit;
+            lpm.SLAction = slActionValue;
+            lpm.Nlimit = negativeLimit;
+            lpm.Plimit = positiveLimit;
             return lpm;
         }
 
@@ -796,7 +797,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 读取卡的当前状态
         /// </summary>
         /// <returns></returns>
-        public int GetCardCurrentState(int CardNo, int channel)
+        public override int GetCardCurrentState(int cardIndex, int channel)
         {
             return -1;
         }
@@ -806,9 +807,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// </summary>
         /// <param name="ErrNum"></param>
         /// <returns></returns>
-        public string GetErrorInfo(int ErrNum)
+        public override string GetErrorInfo(int errorNumber)
         {
-            var res = YKMCC800SSDK.Instance.GetErrorInfo(ErrNum);
+            var res = YKMCC800SSDK.Instance.GetErrorInfo(errorNumber);
             return res;
         }
 
@@ -816,7 +817,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 打开轴的使能
         /// </summary>
         /// <returns></returns>
-        public int OpenCardAxisEnable(int CardNo, int axis)
+        public override int OpenCardAxisEnable(int cardIndex, int axis)
         {
             return -1;
         }
@@ -841,7 +842,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的加速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisAccVel()
+        public override int SetCardAxisAccVel()
         {
             return -1;
         }
@@ -854,7 +855,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="enable">告警信号使能</param>
         /// <param name="active_level">限位信号电平选择  <para>0 低电平有效</para>  <para>1 高电平有效</para></param>
         /// <returns>正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int SetCardAxisAlarm(int axis, int enable, int active_level)
+        public override int SetCardAxisAlarm(int axis, int enable, int active_level)
         {
             return 0;
         }
@@ -872,10 +873,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的当前位置
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisCurrentPosition(int CardNo, int axis, int pos)
+        public override int SetCardAxisCurrentPosition(int cardIndex, int axis, int pos)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.SetCardAxisPosition(CardNo, axis, pos);
+            return YKMCC800SSDK.Instance.SetCardAxisPosition(cardIndex, axis, pos);
         }
 
 
@@ -886,10 +887,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="axis"></param>
         /// <param name="encoder_value"></param>
         /// <returns></returns>
-        public int SetCardAxisEncoder(int CardNo, int axis, int encoder_value)
+        public override int SetCardAxisEncoder(int cardIndex, int axis, int encoder_value)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.SetCardAxisEncoder(CardNo, axis, encoder_value);
+            return YKMCC800SSDK.Instance.SetCardAxisEncoder(cardIndex, axis, encoder_value);
         }
 
         /// <summary>
@@ -898,7 +899,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">EtherCAT 总线轴的轴号，255 表示使能所有 EtherCAT 轴</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisDisable(int CardNo, int axis)
+        public override int SetCardAxisDisable(int cardIndex, int axis)
         {
             return 0;
         }
@@ -912,7 +913,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <para> name=" lpm.SLAction "：EL 制动方式：0：正负限位立即停止  1：正负限位减速停止  2：正限位立即停止，负限位减速停止</para>
         /// </summary>
         /// <returns>错误代码 </returns>
-        public int SetCardAxisELLimit(LimitParamModel lpm)
+        public override int SetCardAxisELLimit(LimitParamModel lpm)
         {
             return YKMCC800SSDK.Instance.SetCardAxisELMode(lpm.CardNo, lpm.Axis, (ushort)lpm.Enable, (ushort)lpm.Plimit, (ushort)lpm.SLAction);
         }
@@ -923,7 +924,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="axis">轴号</param>
         /// <param name="stop_mode">停止模式(0:减速停止、1:突然停止)</param>
         /// <returns>正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int SetCardAxisErrorStopMode(int axis, int stop_mode)
+        public override int SetCardAxisErrorStopMode(int axis, int stop_mode)
         {
             return YKMCC800SSDK.Instance.CardAxisStop(AxisWhichCardNo, axis, stop_mode);
         }
@@ -932,7 +933,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的高速回零加速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisHighHomeAccVel()
+        public override int SetCardAxisHighHomeAccVel()
         {
             return -1;
         }
@@ -941,7 +942,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的高速回零减速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisHighHomeDecVel()
+        public override int SetCardAxisHighHomeDecVel()
         {
             return -1;
         }
@@ -950,7 +951,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的高速回零速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisHighHomeVel()
+        public override int SetCardAxisHighHomeVel()
         {
             return -1;
         }
@@ -959,7 +960,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的回零最大保护距离
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisHomeMaxProtectDis()
+        public override int SetCardAxisHomeMaxProtectDis()
         {
             return -1;
         }
@@ -978,7 +979,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="mode">回零模式：0：一次回零  | 1：一次回零加回找  | 2：二次回零  | 3：一次回零后再记一个同向 EZ 脉冲进行回零  | 4：记一个 EZ 脉冲进行回零  | 5：原点加反向 EZ  | 6：原点锁存  | 7：原点锁存加同向 EZ 锁存  | 8：单独记一个 EZ 锁存  | 9：原点锁存加反向 EZ 锁存 | 10.一次限位回零 | 11.	一次限位回零加反找 | 12.	二次限位回零</param>
         /// <param name="EZ_count">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHomeMode(HomeParameModel hpm)
+        public override int SetCardAxisHomeMode(HomeParameModel hpm)
         {
             int currentID = hpm.Axis;
             changeAxisID(ref currentID);
@@ -994,7 +995,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="axis"></param>
         /// <param name="enable"></param>
         /// <returns></returns>
-        public int SetCardAxisHomeElReturn(int CardNo, int axis, ushort enable)
+        public override int SetCardAxisHomeElReturn(int cardIndex, int axis, ushort enable)
         {
             /*
              short dmc_set_home_el_return(WORD CardNo,WORD axis,WORD enable)
@@ -1009,14 +1010,14 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
             位回零方式起作用。
              */
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.SetCardAxisHomeElReturn((ushort)CardNo, (ushort)axis, enable);
+            return YKMCC800SSDK.Instance.SetCardAxisHomeElReturn((ushort)cardIndex, (ushort)axis, enable);
         }
 
         /// <summary>
         /// 设置轴的回零位置偏差
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisHomePositionErro()
+        public override int SetCardAxisHomePositionErro()
         {
             return -1;
         }
@@ -1025,7 +1026,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         ///设置回零参数
         /// </summary>
         /// <returns> 正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int SetCardAxisHomeProfile(HomeParameModel hpm)
+        public override int SetCardAxisHomeProfile(HomeParameModel hpm)
         {
             return -1;
         }
@@ -1034,7 +1035,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴初始速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInitVel()
+        public override int SetCardAxisInitVel()
         {
             return -1;
         }
@@ -1043,7 +1044,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置插补减速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInterpolateDecVel()
+        public override int SetCardAxisInterpolateDecVel()
         {
             return -1;
         }
@@ -1052,7 +1053,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置插补加加速
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInterpolateJerkVel()
+        public override int SetCardAxisInterpolateJerkVel()
         {
             return -1;
         }
@@ -1061,7 +1062,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置插补初始速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInterpolateMaxVel()
+        public override int SetCardAxisInterpolateMaxVel()
         {
             return -1;
         }
@@ -1070,7 +1071,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置插补低速
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInterpolateSlowVel()
+        public override int SetCardAxisInterpolateSlowVel()
         {
             return -1;
         }
@@ -1079,7 +1080,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置插补参数 
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisInterpolateVectorProfile(InterpolateMotetionParamModel imp)
+        public override int SetCardAxisInterpolateVectorProfile(InterpolateMotetionParamModel imp)
         {
             return -1;
         }
@@ -1088,7 +1089,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的加加速
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisJerkVel()
+        public override int SetCardAxisJerkVel()
         {
             return -1;
         }
@@ -1097,7 +1098,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的低速回零加速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisLowHomeAccVel()
+        public override int SetCardAxisLowHomeAccVel()
         {
             return -1;
         }
@@ -1106,7 +1107,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的低速回零减速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisLowHomeDecVel()
+        public override int SetCardAxisLowHomeDecVel()
         {
             return -1;
         }
@@ -1115,7 +1116,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的低速回零速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisLowHomeVel()
+        public override int SetCardAxisLowHomeVel()
         {
             return -1;
         }
@@ -1124,7 +1125,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的最大速度
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisMaxVel()
+        public override int SetCardAxisMaxVel()
         {
             return -1;
         }
@@ -1132,7 +1133,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <summary>
         /// 设置单轴运动速度
         /// </summary>
-        public int SetCardAxisMotionalVel(MotionParamModel mpm)
+        public override int SetCardAxisMotionalVel(MotionParamModel mpm)
         {
             int currentID = mpm.Axis;
             changeAxisID(ref currentID);
@@ -1153,17 +1154,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的脉冲当量
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisPulseEquival(int CardNo, int axis, int equiv)
+        public override int SetCardAxisPulseEquival(int cardIndex, int axis, int equiv)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.SetCardAxisPosition(CardNo, axis, equiv); ;
+            return YKMCC800SSDK.Instance.SetCardAxisPosition(cardIndex, axis, equiv); ;
         }
 
         /// <summary>
         /// 设置轴的反向回零距离
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisReverseHomeDis()
+        public override int SetCardAxisReverseHomeDis()
         {
             return -1;
         }
@@ -1171,7 +1172,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的运行模式
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisRunMode(int CardNo, int axis, ushort runmode)
+        public override int SetCardAxisRunMode(int cardIndex, int axis, ushort runmode)
         {
             return -1;
         }
@@ -1180,7 +1181,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// 设置轴的减减速
         /// </summary>
         /// <returns></returns>
-        public int SetCardAxisSlowVel()
+        public override int SetCardAxisSlowVel()
         {
 
             return 0;
@@ -1199,7 +1200,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="N_limit">负限位位置，单位：pulse </param>
         /// <param name="P_limit">正限位位置，单位：pulse </param>
         /// <returns>错误代码 </returns>
-        public int SetCardAxisSoftLimit(LimitParamModel lpm)
+        public override int SetCardAxisSoftLimit(LimitParamModel lpm)
         {
             int currentID = lpm.Axis;
             changeAxisID(ref currentID);
@@ -1218,7 +1219,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <para>"dec">减速度，单位: pps/s, 最大值为 1000000000pps/s </para>
         /// <para>"jerk_percent"过程使用 S 曲线的比例，范围为 0~1; 0 表示没有 S 曲线部分(也就是 T 型曲线加减速) | 1 表示全部 S 曲线加减速；</para> </param>
         /// <returns>正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int SetCardAxisSProfile(MotionParamModel mpm)
+        public override int SetCardAxisSProfile(MotionParamModel mpm)
         {
             int currentID = mpm.Axis;
             changeAxisID(ref currentID);
@@ -1237,10 +1238,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="Tdec">返回减速时间，单位：s (最小值为 0.001s)</param>
         /// <param name="stop_vel">返回停止速度，单位：pulse/s (最大值为 2M)</param>
         /// <returns>：错误代码</returns>
-        public int GetCardAxisProfile(int CardNo, int axis, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double stop_vel)
+        public override int GetCardAxisProfile(int cardIndex, int axis, ref double minVelocity, ref double maxVelocity, ref double acceleration, ref double deceleration, ref double stop_vel)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.GetCardAxisProfile(CardNo, axis, ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref stop_vel);
+            return YKMCC800SSDK.Instance.GetCardAxisProfile(cardIndex, axis, ref minVelocity, ref maxVelocity, ref acceleration, ref deceleration, ref stop_vel);
         }
 
 
@@ -1252,10 +1253,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="s_mode">保留参数，固定值为 0</param>
         /// <param name="s_para">返回设置的 S 段时间，单位：s；范围：0~0.5 s</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisSProfile(int CardNo, int axis, int s_mode, ref double s_para)
+        public override int GetCardAxisSProfile(int cardIndex, int axis, int s_mode, ref double s_para)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.GetCardAxisSProfile(CardNo, axis, s_mode, ref s_para);
+            return YKMCC800SSDK.Instance.GetCardAxisSProfile(cardIndex, axis, s_mode, ref s_para);
         }
 
         /// <summary>
@@ -1264,7 +1265,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <returns>伺服使能端口电平，0：低电平(on)，1：高电平(off)</returns>
-        public int GetCardAxisSevonPin()
+        public override int GetCardAxisSevonPin()
         {
             int currentId = AxisID ;
             changeAxisID(ref currentId);
@@ -1282,10 +1283,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="enable">INP 信号使能，0：禁止，1：允许</param>
         /// <param name="inp_logic">INP 信号的有效电平，0：低有效，1：高有效</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisInpMode(int CardNo, int axis, int enable, int inp_logic)
+        public override int SetCardAxisInpMode(int cardIndex, int axis, int enable, int inp_logic)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.SetCardAxisInpMode(CardNo, axis, enable, inp_logic);
+            return YKMCC800SSDK.Instance.SetCardAxisInpMode(cardIndex, axis, enable, inp_logic);
         }
 
 
@@ -1296,7 +1297,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400A：0~3</param>
         /// <param name="on_off">设置伺服使能端口电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int CardAxisWriteSevonPin(int on_off)
+        public override int CardAxisWriteSevonPin(int on_off)
         {
             int currentId = AxisID;
             changeAxisID(ref currentId);
@@ -1318,7 +1319,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <para>"TaccVel">加速度，单位： pps/s, 最大值为 1000000000pps/s </para>
         /// <para>"TdecVel">减速度，单位: pps/s, 最大值为 1000000000pps/s </para></param>
         /// <returns>正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int SetCardAxisTProfile(MotionParamModel mpm)
+        public override int SetCardAxisTProfile(MotionParamModel mpm)
         {
             lock (dmc3000apilock)
             {
@@ -1338,9 +1339,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">打印输出模式，0：只打印报错函数，1：全部打印，2：全部不打印</param>
         /// <param name="FileName">文件保存路径：参数文件名+后缀：相对路径 ；完整描述参数文件的路径+文件名后缀：绝对路径</param>
         /// <returns>错误代码</returns>
-        public int SetCardDebugMode(int CardNo, string FileName)
+        public override int SetCardDebugMode(int cardIndex, string FileName)
         {
-            return YKMCC800SSDK.Instance.SetCardDebugMode(CardNo, FileName);
+            return YKMCC800SSDK.Instance.SetCardDebugMode(cardIndex, FileName);
         }
 
         
@@ -1365,7 +1366,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <para>"PathError"</para>
         /// <para>"LookaheadAcc"</para></param>
         /// <returns></returns>
-        public int SetCardContiLookaheadMode(InterpolateMotetionParamModel impm)
+        public override int SetCardContiLookaheadMode(InterpolateMotetionParamModel impm)
         {
             return -1;
         }
@@ -1384,10 +1385,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="cmp_logic"></param>
         /// <param name="time"></param>
         /// <returns></returns>
-        public int SetCardAxisHcmpConfig(int CardNo, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
+        public override int SetCardAxisHcmpConfig(int cardIndex, int hcmp, int axis, int cmp_source, int cmp_logic, int time)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.SetCardAxisHcmpConfig((ushort)CardNo, (ushort)hcmp, (ushort)axis, (ushort)cmp_source, (ushort)cmp_logic, time);
+            return YKMCC800SSDK.Instance.SetCardAxisHcmpConfig((ushort)cardIndex, (ushort)hcmp, (ushort)axis, (ushort)cmp_source, (ushort)cmp_logic, time);
         }
        
       
@@ -1411,18 +1412,18 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="axis">指定轴号，取值范围：DMC3C00：0~11，DMC3800：0~7，DMC3600：0~5 DMC3400ASDK：0~3</param>
         /// <param name="stop_mode">制动方式，0：减速停止，1：紧急停止</param>
         /// <returns>错误代码</returns>
-        public int StopCardAxisMovement(int CardNo, int axis, int stop_mode)
+        public override int StopCardAxisMovement(int cardIndex, int axis, int stop_mode)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.CardAxisStop(CardNo, axis, stop_mode);
+            return YKMCC800SSDK.Instance.CardAxisStop(cardIndex, axis, stop_mode);
         }
 
-        public int SetSpacing(int axis, int ORGPlusPos, int PELAlarmPlusPos, int NELAlarmPlusPos)
+        public override int SetSpacing(int axis, int ORGPlusPos, int PELAlarmPlusPos, int NELAlarmPlusPos)
         {
             throw new NotImplementedException();
         }
 
-        public int SetStatusParameter(int axis, bool f, AxisStatusParameterEnum kind)
+        public override int SetStatusParameter(int axis, bool f, AxisStatusParameterEnum kind)
         {
             //todo :  lqc 202305161157 写9014的api 目的为了在轴控制面板可以用
             int res = 0;
@@ -1482,20 +1483,20 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="enable">比较功能状态,0:禁止,1:使能；</param>
         /// <param name="cmp_source">比较源,0:指令位置计数器,1:编码器计数器；</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisCompareConfig(int CardNo, int axis, int enable, int cmp_source)
+        public override int SetCardAxisCompareConfig(int cardIndex, int axis, int enable, int cmp_source)
         {
             changeAxisID(ref axis);
             //return LTDMC.dmc_compare_set_config((ushort)CardNo, (ushort)axis, (ushort)enable, (ushort)cmp_source);
 
-            return YKMCC800SSDK.Instance.SetCardAxisCompareConfig(CardNo, axis, enable, cmp_source);
+            return YKMCC800SSDK.Instance.SetCardAxisCompareConfig(cardIndex, axis, enable, cmp_source);
         }
 
-        public string GetEtherCATErrorInfo(int ErrNum)
+        public override string GetEtherCATErrorInfo(int errorNumber)
         {
             throw new NotImplementedException();
         }
 
-        public List<int> GetLineInterpolationSupportAxis()
+        public override List<int> GetLineInterpolationSupportAxis()
         {
             var list = new List<int>();
             switch (AxisWhichcardType)
@@ -1526,22 +1527,22 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
             return list;
         }
 
-        public int DmcSetCardVectorSProfile(int CardNo, int Crd, int s_mode, double s_para)
+        public override int DmcSetCardVectorSProfile(int cardIndex, int crdIndex, int s_mode, double s_para)
         {
             return 0;
         }
 
-        public int CardAxisStartSelectHcmp(ushort CardNo, int camera_count, ushort GroupNo = 1)
+        public override int CardAxisStartSelectHcmp(ushort cardIndex, int camera_count, ushort GroupNo = 1)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisStopSelectHcmp(ushort CardNo, ushort GroupNo = 1)
+        public override int CardAxisStopSelectHcmp(ushort cardIndex, ushort GroupNo = 1)
         {
             throw new NotImplementedException();
         }
 
-        public int AddCCDTriIO(int CardNo, int hcmp, short ioIndex)
+        public override int AddCCDTriIO(int cardIndex, int hcmp, short ioIndex)
         {
             throw new NotImplementedException();
         }
@@ -1555,9 +1556,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="enable">DA 使能状态，0：禁止，1：使能</param>
         /// <returns>错误代码</returns>
-        public int SetCardDAEnable(int CardNo, int enable)
+        public override int SetCardDAEnable(int cardIndex, int enable)
         {
-            return YKMCC800SSDK.Instance.SetCardDAEnable((ushort)CardNo, (ushort)enable);
+            return YKMCC800SSDK.Instance.SetCardDAEnable((ushort)cardIndex, (ushort)enable);
         }
 
         /// <summary>
@@ -1566,9 +1567,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="enable">DA 使能状态，0：禁止，1：使能</param>
         /// <returns>错误代码</returns>
-        public int GetCardDAEnable(int CardNo, ref UInt16 enable)
+        public override int GetCardDAEnable(int cardIndex, ref UInt16 enable)
         {
-            return YKMCC800SSDK.Instance.GetCardDAEnable((ushort)CardNo, ref enable);
+            return YKMCC800SSDK.Instance.GetCardDAEnable((ushort)cardIndex, ref enable);
         }
 
 
@@ -1579,9 +1580,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="channel">DA 输出口号，取值范围 0、1</param>
         /// <param name="Vout">DA 输出电压，输出电压范围 -10V ~ 10V</param>
         /// <returns>错误代码</returns>
-        public int SetCardDAOutPut(int CardNo, int channel, double Vout)
+        public override int SetCardDAOutput(int cardIndex, int channel, double voltageOut)
         {
-            return YKMCC800SSDK.Instance.SetCardDAOutPut((ushort)CardNo, (ushort)channel, Vout);
+            return YKMCC800SSDK.Instance.SetCardDAOutput((ushort)cardIndex, (ushort)channel, voltageOut);
         }
 
         /// <summary>
@@ -1591,9 +1592,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="channel">DA 输出口号，取值范围 0、1</param>
         /// <param name="Vout">DA 输出电压，输出电压范围 -10V ~ 10V</param>
         /// <returns>错误代码</returns>
-        public int GetCardDAOutPut(int CardNo, int channel, ref double Vout)
+        public override int GetCardDAOutput(int cardIndex, int channel, ref double voltageOut)
         {
-            return YKMCC800SSDK.Instance.GetCardDAOutPut((ushort)CardNo, (ushort)channel, ref Vout);
+            return YKMCC800SSDK.Instance.GetCardDAOutput((ushort)cardIndex, (ushort)channel, ref voltageOut);
         }
 
         /// <summary>
@@ -1603,9 +1604,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="channel">AD 输入口号，取值范围 0 ~ 7</param>
         /// <param name="Vout">AD 输入电压，输入电压范围 -10V ~ 10V</param>
         /// <returns>错误代码</returns>
-        public int GetCardADInPut(int CardNo, int channel, ref double Vout)
+        public override int GetCardADInput(int cardIndex, int channel, ref double voltageOut)
         {
-            return YKMCC800SSDK.Instance.GetCardADInPut((ushort)CardNo, (ushort)channel, ref Vout);
+            return YKMCC800SSDK.Instance.GetCardADInput((ushort)cardIndex, (ushort)channel, ref voltageOut);
         }
 
         /// <summary>
@@ -1615,9 +1616,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="channel">AD 输入口号，取值范围 0 ~ 7</param>
         /// <param name="Vout">AD 输入电压，输入电压范围 -10V ~ 10V</param>
         /// <returns>错误代码</returns>
-        public int GetCardADInPutEx(int CardNo, int channel, ref double Vout)
+        public override int GetCardADInputEx(int cardIndex, int channel, ref double voltageOut)
         {
-            return YKMCC800SSDK.Instance.GetCardADInPutEx((ushort)CardNo, (ushort)channel, ref Vout);
+            return YKMCC800SSDK.Instance.GetCardADInputEx((ushort)cardIndex, (ushort)channel, ref voltageOut);
         }
 
         #endregion
@@ -1630,7 +1631,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// </summary>
         /// <param name="parameter"></param>
         /// <returns></returns>
-        public int CardAxisLineUnitSpeed(LineInterpolateparamModel parameter)
+        public override int CardAxisLineUnitSpeed(LineInterpolateparamModel parameter)
         {
             return YKMCC800SSDK.Instance.SetMultiVectorSpeed((ushort)parameter.CardNo, (ushort)parameter.Crd, parameter.minVel,
                 parameter.maxVel, parameter.tacc);
@@ -1648,20 +1649,20 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <para>"TdecVel"返回减速时间设置，单位：s</para>
         /// <para>"StopVel"返回停止速度设置，单位：unit/s</para></param>
         /// <returns>运动参数模型</returns>
-        public MotionParamModel GetCardAxisAccVel(MotionParamModel mpm)
+        public override MotionParamModel GetCardAxisAccVel(MotionParamModel mpm)
         {
             int currentID = mpm.Axis;
             changeAxisID(ref currentID);
-            double Min_Vel = 0, Max_Vel = 0, Tacc = 0, Tdec = 0, Stop_Vel = 0;
+            double minVelocity = 0, maxVelocity = 0, acceleration = 0, deceleration = 0, stopVelocity = 0;
             YKMCC800SSDK.Instance.GetCardVectorProfileMulticoor(mpm.CardNo, currentID,
-               ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref Stop_Vel);
+               ref minVelocity, ref maxVelocity, ref acceleration, ref deceleration, ref stopVelocity);
             //         DMC3400ASDK.Instance.GetCardVectorProfileMulticoor(mpm.CardNo, mpm.Axis,
             //ref Min_Vel, ref Max_Vel, ref Tacc, ref Tdec, ref Stop_Vel);
-            mpm.MaxVel = (int)Max_Vel;
-            mpm.MinVel = (int)Min_Vel;
-            mpm.TaccVel = (int)Tacc;
-            mpm.TdecVel = (int)Tdec;
-            mpm.StopVel = (int)Stop_Vel;
+            mpm.MaxVel = (int)maxVelocity;
+            mpm.MinVel = (int)minVelocity;
+            mpm.TaccVel = (int)acceleration;
+            mpm.TdecVel = (int)deceleration;
+            mpm.StopVel = (int)stopVelocity;
             return mpm;
         }
 
@@ -1675,17 +1676,17 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="DistList">插补轴目标位置列表，单位：pulse</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns></returns>
-        public int CardAxisLineUnit(LineInterpolateparamModel line)
+        public override int CardAxisLineUnit(LineInterpolateparamModel line)
         {
-            ushort[] AxisNums = new ushort[line.Axis.Length];
-            int[] Target_Pos = new int[line.TargetPos.Length];
+            ushort[] axisNumbers = new ushort[line.Axis.Length];
+            int[] targetPosition = new int[line.TargetPos.Length];
 
             for (int i = 0; i < line.Axis.Length; i++)
             {
-                AxisNums[i] = (ushort)line.Axis[i];
-                Target_Pos[i] = (int)line.TargetPos[i];
+                axisNumbers[i] = (ushort)line.Axis[i];
+                targetPosition[i] = (int)line.TargetPos[i];
             }
-            return YKMCC800SSDK.Instance.CardAxisLineMulticoor(line.CardNo, line.Crd, line.Axis.Length, AxisNums, Target_Pos, line.PosiMode);
+            return YKMCC800SSDK.Instance.CardAxisLineMulticoor(line.CardNo, line.Crd, line.Axis.Length, axisNumbers, targetPosition, line.PosiMode);
 
         }
 
@@ -1712,19 +1713,19 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="Arc_Dir">圆弧方向，0：顺时针，1：逆时针</param>
         /// <param name="posi_mode">运动模式，0：相对坐标模式，1：绝对坐标模式</param>
         /// <returns>错误代码</returns>
-        public int CardAxisArcMoveCenterUnit(ArcInterpolateparamModel arc)
+        public override int CardAxisArcMoveCenterUnit(ArcInterpolateparamModel arc)
         {
-            ushort[] AxisNums = new ushort[arc.Axis.Length];
-            int[] Target_Pos = new int[arc.TargetPos.Length];
-            int[] Cen_Pos = new int[arc.CenPos.Length];
+            ushort[] axisNumbers = new ushort[arc.Axis.Length];
+            int[] targetPosition = new int[arc.TargetPos.Length];
+            int[] centerPosition = new int[arc.CenPos.Length];
 
             for (int i = 0; i < arc.Axis.Length; i++)
             {
-                AxisNums[i] = (ushort)arc.Axis[i];
-                Target_Pos[i] = arc.TargetPos[i];
-                Cen_Pos[i] = arc.CenPos[i];
+                axisNumbers[i] = (ushort)arc.Axis[i];
+                targetPosition[i] = arc.TargetPos[i];
+                centerPosition[i] = arc.CenPos[i];
             }
-            return YKMCC800SSDK.Instance.CardAxisArcMoveMulticoor((ushort)arc.CardNo, (ushort)arc.Crd, AxisNums, Target_Pos, Cen_Pos, (ushort)arc.ArcDir, (ushort)arc.PosiMode);
+            return YKMCC800SSDK.Instance.CardAxisArcMoveMulticoor((ushort)arc.CardNo, (ushort)arc.Crd, axisNumbers, targetPosition, centerPosition, (ushort)arc.ArcDir, (ushort)arc.PosiMode);
 
         }
 
@@ -1741,11 +1742,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="enable">比较功能状态，0：禁止，1：使能</param>
         /// <param name="cmp_source">比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisCompareConfigDate(int CardNo, int axis, int enable, int cmp_source)
+        public override int SetCardAxisCompareConfigDate(int cardIndex, int axis, int enable, int cmp_source)
         {
             changeAxisID(ref axis);
             //return 0;
-            return YKMCC800SSDK.Instance.SetCardAxisCompareConfig(CardNo, axis, enable, cmp_source);
+            return YKMCC800SSDK.Instance.SetCardAxisCompareConfig(cardIndex, axis, enable, cmp_source);
         }
 
         /// <summary>
@@ -1756,10 +1757,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="enable">返回比较功能状态</param>
         /// <param name="cmp_source">返回比较源</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisCompareConfig(int CardNo, int axis, ref UInt16 enable, ref UInt16 cmp_source)
+        public override int GetCardAxisCompareConfig(int cardIndex, int axis, ref UInt16 enable, ref UInt16 cmp_source)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.GetCardAxisCompareConfig(CardNo, axis, ref enable, ref cmp_source);
+            return YKMCC800SSDK.Instance.GetCardAxisCompareConfig(cardIndex, axis, ref enable, ref cmp_source);
         }
 
         /// <summary>
@@ -1769,9 +1770,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="pointNum">返回可以加入的比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisComparePointsRemained(int CardNo, int axis, ref int pointNum)
+        public override int GetCardAxisComparePointsRemained(int cardIndex, int axis, ref int pointNum)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisComparePointsRemained(CardNo, axis, ref pointNum);
+            return YKMCC800SSDK.Instance.GetCardAxisComparePointsRemained(cardIndex, axis, ref pointNum);
         }
 
         /// <summary>
@@ -1781,9 +1782,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="pos">返回当前比较点位置，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisCompareCurrentPoint(int CardNo, int axis, ref int pos)
+        public override int GetCardAxisCompareCurrentPoint(int cardIndex, int axis, ref int pos)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisCompareCurrentPoint(CardNo, axis, ref pos);
+            return YKMCC800SSDK.Instance.GetCardAxisCompareCurrentPoint(cardIndex, axis, ref pos);
         }
 
         /// <summary>
@@ -1793,11 +1794,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="pointNum">返回已经比较过的点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisComparePointsRunned(int CardNo, int axis, ref int pointNum)
+        public override int GetCardAxisComparePointsRunned(int cardIndex, int axis, ref int pointNum)
         {
             //int ptNum = 0;
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.GetCardAxisComparePointsRunned(CardNo, axis, ref pointNum);
+            return YKMCC800SSDK.Instance.GetCardAxisComparePointsRunned(cardIndex, axis, ref pointNum);
         }
 
         /// <summary>
@@ -1809,10 +1810,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">   比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int OpenCardCompareConfig(int CardNo, int axis, int enable, int cmp_source)//接口参数更改
+        public override int OpenCardCompareConfig(int cardIndex, int axis, int enable, int cmp_source)//接口参数更改
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.SetCardAxisCompareConfig(CardNo, axis, enable, cmp_source);
+            return YKMCC800SSDK.Instance.SetCardAxisCompareConfig(cardIndex, axis, enable, cmp_source);
         }
 
         /// <summary>
@@ -1825,10 +1826,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="action">比较点触发功能编号</param>
         /// <param name="actpara">比较点触发功能参数</param>
         /// <returns>错误代码</returns>
-        public int AddCardAxisComparePoint(int CardNo, int axis, int pos, int dir, UInt16 action, UInt32 actpara)
+        public override int AddCardAxisComparePoint(int cardIndex, int axis, int pos, int dir, UInt16 action, UInt32 actpara)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.AddCardAxisComparePoint((ushort)CardNo, (ushort)axis, pos, (ushort)dir, action, actpara);
+            return YKMCC800SSDK.Instance.AddCardAxisComparePoint((ushort)cardIndex, (ushort)axis, pos, (ushort)dir, action, actpara);
         }
 
         /// <summary>
@@ -1837,10 +1838,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns>错误代码</returns>
-        public int ClearCardAxisComparePoints(int CardNo, int axis)
+        public override int ClearCardAxisComparePoints(int cardIndex, int axis)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.ClearCardAxisComparePoints((ushort)CardNo, (ushort)axis);
+            return YKMCC800SSDK.Instance.ClearCardAxisComparePoints((ushort)cardIndex, (ushort)axis);
         }
 
 
@@ -1856,10 +1857,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="cmp_mode">比较模式：0：禁止（默认值）1：等于 2：小于 3：大于 4：队列 5：线性</param>
         /// <returns>错误代码</returns>
-        public int SetCardHcmpEnable(int CardNo, int axis, int hcmp, int cmp_mode = 0)
+        public override int SetCardHcmpEnable(int cardIndex, int axis, int hcmp, int cmp_mode = 0)
         {
             //(int CardNo, int hcmp, int cmp_enable
-            return YKMCC800SSDK.Instance.SetCardAxisHcmpMode(CardNo, hcmp, cmp_mode);
+            return YKMCC800SSDK.Instance.SetCardAxisHcmpMode(cardIndex, hcmp, cmp_mode);
 
         }
 
@@ -1872,10 +1873,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="enable">比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">   比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int OpenCardHighCompareConfig(int CardNo, int hcmp, int axis, int cmp_source, int cmp_logic, long time)//接口参数更改
+        public override int OpenCardHighCompareConfig(int cardIndex, int hcmp, int axis, int cmp_source, int cmp_logic, long time)//接口参数更改
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.SetCardAxisHcmpConfig(CardNo, hcmp, axis, cmp_source, cmp_logic, (int)time);
+            return YKMCC800SSDK.Instance.SetCardAxisHcmpConfig(cardIndex, hcmp, axis, cmp_source, cmp_logic, (int)time);
         }
 
         /// <summary>
@@ -1886,9 +1887,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="Increment">位置增量值，单位：pulse（正值表示位置递增，负值表示位置递减）</param>
         /// <param name="Count">比较次数，取值范围：1~32767</param>
         /// <returns>错误代码</returns>
-        public int SetCardHcmpLiner(int CardNo, int hcmp, int Increment, int Count)
+        public override int SetCardHcmpLiner(int cardIndex, int hcmp, int increment, int Count)
         {
-            return YKMCC800SSDK.Instance.SetCardHcmpLiner((ushort)CardNo, (ushort)hcmp, Increment, Count);
+            return YKMCC800SSDK.Instance.SetCardHcmpLiner((ushort)cardIndex, (ushort)hcmp, increment, Count);
         }
 
         /// <summary>
@@ -1897,9 +1898,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <returns>错误代码</returns>
-        public int ClearCardHcmpPoints(int CardNo, int hcmp)
+        public override int ClearCardHcmpPoints(int cardIndex, int hcmp)
         {
-            return YKMCC800SSDK.Instance.ClearCardHcmpPoints((ushort)CardNo, (ushort)hcmp);
+            return YKMCC800SSDK.Instance.ClearCardHcmpPoints((ushort)cardIndex, (ushort)hcmp);
         }
 
         /// <summary>
@@ -1909,9 +1910,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="cmp_pos">队列模式下：添加比较位置，单位：pulse ; 线性模式下：更新起始比较位置，单位：pulse; 其他模式下：更新比较位置，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int AddCardHcmpPoint(int CardNo, int hcmp, int cmp_pos)
+        public override int AddCardHcmpPoint(int cardIndex, int hcmp, int cmp_pos)
         {
-            return YKMCC800SSDK.Instance.AddCardHcmpPoint((ushort)CardNo, (ushort)hcmp, cmp_pos);
+            return YKMCC800SSDK.Instance.AddCardHcmpPoint((ushort)cardIndex, (ushort)hcmp, cmp_pos);
         }
 
         /// <summary>
@@ -1923,9 +1924,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="current_point">返回当前比较点位置，单位：pulse</param>
         /// <param name="runned_points">返回已比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardHcmpCurrentState(int CardNo, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
+        public override int GetCardHcmpCurrentState(int cardIndex, int hcmp, ref int remained_points, ref int current_point, ref int runned_points)
         {
-            return YKMCC800SSDK.Instance.GetCardHcmpCurrentState((ushort)CardNo, (ushort)hcmp, ref remained_points, ref current_point, ref runned_points);
+            return YKMCC800SSDK.Instance.GetCardHcmpCurrentState((ushort)cardIndex, (ushort)hcmp, ref remained_points, ref current_point, ref runned_points);
             //return LTDMC.dmc_hcmp_get_current_state((ushort)CardNo, (ushort)hcmp, ref remained_points, ref current_point, ref runned_points);
         }
 
@@ -1937,9 +1938,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <param name="on_off">设置 CMP 端口电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int SetCardHcmpCmpPin(int CardNo, int hcmp, int on_off)
+        public override int SetCardHcmpCmpPin(int cardIndex, int hcmp, int on_off)
         {
-            return YKMCC800SSDK.Instance.SetCardHcmpCmpPin((ushort)CardNo, (ushort)hcmp, (ushort)on_off);
+            return YKMCC800SSDK.Instance.SetCardHcmpCmpPin((ushort)cardIndex, (ushort)hcmp, (ushort)on_off);
         }
 
 
@@ -1949,9 +1950,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">高速比较器，取值范围：0~3（对应硬件 CMP0~CMP3 端口）</param>
         /// <returns>CMP 端口电平</returns>
-        public int GetCardHcmpCmpPin(int CardNo, int hcmp)
+        public override int GetCardHcmpCmpPin(int cardIndex, int hcmp)
         {
-            return YKMCC800SSDK.Instance.GetCardHcmpCmpPin((ushort)CardNo, (ushort)hcmp);
+            return YKMCC800SSDK.Instance.GetCardHcmpCmpPin((ushort)cardIndex, (ushort)hcmp);
         }
 
 
@@ -1968,9 +1969,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="hcmp"></param>
         /// <param name="cmpEnable"></param>
         /// <returns></returns>
-        public int SetCardAxisHcmp2dsetEnable(int CardNo, int hcmp, int cmpEnable)
+        public override int SetCardAxisHcmp2dsetEnable(int cardIndex, int hcmp, int cmpEnable)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisHcmp2dsetEnable(CardNo, hcmp, cmpEnable);
+            return YKMCC800SSDK.Instance.SetCardAxisHcmp2dsetEnable(cardIndex, hcmp, cmpEnable);
         }
 
 
@@ -1981,9 +1982,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="hcmp"></param>
         /// <param name="cmpEnable"></param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHcmp2dsetEnable(int CardNo, int hcmp, ref ushort cmpEnable)
+        public override int GetCardAxisHcmp2dsetEnable(int cardIndex, int hcmp, ref ushort cmpEnable)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisHcmp2dsetEnable((ushort)CardNo, 
+            return YKMCC800SSDK.Instance.GetCardAxisHcmp2dsetEnable((ushort)cardIndex, 
                 (ushort)hcmp, ref cmpEnable);
         }
 
@@ -2006,13 +2007,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="port_sel">输出口选择</param>
         /// <param name="pwm_number">输出的 pwm 脉冲数</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHcmp2dsetConfig(int CardNo, ushort hcmp, ushort cmp_mode,
+        public override int SetCardAxisHcmp2dsetConfig(int cardIndex, ushort hcmp, ushort cmp_mode,
             ushort x_axis, ushort cmp_source, ushort y_axis, ushort y_cmp_source,
             int error, ushort cmp_logic, int time, ushort pwm_enable, double duty,
             int freq, ushort port_sel, ushort pwm_number)
         {
 
-            return YKMCC800SSDK.Instance.SetCardAxisHcmp2dsetConfig((ushort)CardNo, hcmp, cmp_mode,
+            return YKMCC800SSDK.Instance.SetCardAxisHcmp2dsetConfig((ushort)cardIndex, hcmp, cmp_mode,
                 x_axis, cmp_source, y_axis, y_cmp_source, error, cmp_logic, time, pwm_enable, duty,
                 freq, port_sel, pwm_number);
         }
@@ -2036,13 +2037,13 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="port_sel">输出口选择</param>
         /// <param name="pwm_number">输出的 pwm 脉冲数</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHcmp2dsetConfig(int CardNo, ushort hcmp, ref ushort cmp_mode,
+        public override int GetCardAxisHcmp2dsetConfig(int cardIndex, ushort hcmp, ref ushort cmp_mode,
                ref ushort x_axis, ref ushort cmp_source, ref ushort y_axis, ref ushort y_cmp_source,
                ref int error, ref ushort cmp_logic, ref int time, ref ushort pwm_enable, ref double duty,
                ref int freq, ref ushort port_sel, ref ushort pwm_number)
         {
 
-            return YKMCC800SSDK.Instance.GetCardAxisHcmp2dsetConfig((ushort)CardNo, hcmp,
+            return YKMCC800SSDK.Instance.GetCardAxisHcmp2dsetConfig((ushort)cardIndex, hcmp,
                 ref cmp_mode,
                 ref x_axis, ref cmp_source, ref y_axis, ref y_cmp_source, ref error,
                 ref cmp_logic, ref time, ref pwm_enable, ref duty,
@@ -2055,9 +2056,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="hcmp">保留，参数值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHcmp2dClearPoints(int CardNo, ushort hcmp)
+        public override int SetCardAxisHcmp2dClearPoints(int cardIndex, ushort hcmp)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisHcmp2dClearPoints((ushort)CardNo, hcmp);
+            return YKMCC800SSDK.Instance.SetCardAxisHcmp2dClearPoints((ushort)cardIndex, hcmp);
         }
 
         /// <summary>
@@ -2068,9 +2069,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="x_cmp_pos">队列模式下：添加 x 比较位置，单位：pulse</param>
         /// <param name="y_cmp_pos">队列模式下：添加 x 比较位置，单位：pulse</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHcmp2dAddPoint(int CardNo, ushort hcmp, int x_cmp_pos, int y_cmp_pos)
+        public override int SetCardAxisHcmp2dAddPoint(int cardIndex, ushort hcmp, int x_cmp_pos, int y_cmp_pos)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisHcmp2dAddPoint((ushort)CardNo, hcmp, x_cmp_pos, y_cmp_pos);
+            return YKMCC800SSDK.Instance.SetCardAxisHcmp2dAddPoint((ushort)cardIndex, hcmp, x_cmp_pos, y_cmp_pos);
         }
 
         /// <summary>
@@ -2084,10 +2085,10 @@ namespace WenQiZhi.Domain.MotionCard.Common.YKMCC800S
         /// <param name="runned_points">返回已比较点数</param>
         /// <param name="current_state">比较器状态 1 正在输出 0 输出完成</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisHcmp2dCurrentState(int CardNo, ushort hcmp, ref int remained_points,
+        public override int GetCardAxisHcmp2dCurrentState(int cardIndex, ushort hcmp, ref int remained_points,
 ref int x_current_point, ref int y_current_point, ref int runned_points, ref ushort current_state)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisHcmp2dCurrentState((ushort)CardNo, hcmp, ref remained_points,
+            return YKMCC800SSDK.Instance.GetCardAxisHcmp2dCurrentState((ushort)cardIndex, hcmp, ref remained_points,
                 ref x_current_point, ref y_current_point, ref runned_points,
                 ref current_state);
         }
@@ -2099,9 +2100,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="hcmp">保留，参数值为 0</param>
         /// <param name="enable">强制二维比较输出，设置为 1 使能</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHcmp2dForceOutput(int CardNo, ushort hcmp, ushort enable)
+        public override int SetCardAxisHcmp2dForceOutput(int cardIndex, ushort hcmp, ushort enable)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisHcmp2dForceOutput((ushort)CardNo, hcmp, enable);
+            return YKMCC800SSDK.Instance.SetCardAxisHcmp2dForceOutput((ushort)cardIndex, hcmp, enable);
         }
 
 
@@ -2118,9 +2119,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="enable">二维位置比较功能状态，0：禁止，1：使能 </param>
         /// <param name="cmp_source">二维位置比较源，0：指令位置计数器，1：编码器计数器</param>
         /// <returns>错误代码</returns>
-        public int SetCardCompareConfigExtern(int CardNo, int enable, int cmp_source)
+        public override int SetCardCompareConfigExtern(int cardIndex, int enable, int cmp_source)
         {
-            return YKMCC800SSDK.Instance.SetCardCompareConfigExtern(CardNo, enable, cmp_source);
+            return YKMCC800SSDK.Instance.SetCardCompareConfigExtern(cardIndex, enable, cmp_source);
         }
 
         /// <summary>
@@ -2128,9 +2129,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int ClearCardComparePointsExtern(int CardNo)
+        public override int ClearCardComparePointsExtern(int cardIndex)
         {
-            return YKMCC800SSDK.Instance.ClearCardComparePointsExtern(CardNo);
+            return YKMCC800SSDK.Instance.ClearCardComparePointsExtern(cardIndex);
         }
 
         /// <summary>
@@ -2143,10 +2144,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="action">二维位置比较点触发功能编号</param>
         /// <param name="actpara">二维位置比较点触发功能参数</param>
         /// <returns>错误代码</returns>
-        public int AddCardComparePointExtern(int CardNo, ushort[] axis, int[] pos, ushort[] dir,
+        public override int AddCardComparePointExtern(int cardIndex, ushort[] axis, int[] pos, ushort[] dir,
             ushort action, int actpara)
         {
-            return YKMCC800SSDK.Instance.AddCardComparePointExtern(CardNo, axis, 
+            return YKMCC800SSDK.Instance.AddCardComparePointExtern(cardIndex, axis, 
                 pos, dir, action, (uint)actpara);
         }
 
@@ -2156,9 +2157,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo"></param>
         /// <param name="pos">返回当前二维位置比较点位置</param>
         /// <returns>错误代码</returns>
-        public int GetCardCompareCurrentPointExtern(int CardNo, ref int[] pos)
+        public override int GetCardCompareCurrentPointExtern(int cardIndex, ref int[] pos)
         {
-            return YKMCC800SSDK.Instance.GetCardCompareCurrentPointExtern((ushort)CardNo, ref pos);
+            return YKMCC800SSDK.Instance.GetCardCompareCurrentPointExtern((ushort)cardIndex, ref pos);
         }
 
         /// <summary>
@@ -2167,9 +2168,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="pointNum">返回已经比较过的二维位置比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardComparePointsRunnedExtern(int CardNo, ref int pointNum)
+        public override int GetCardComparePointsRunnedExtern(int cardIndex, ref int pointNum)
         {
-            return YKMCC800SSDK.Instance.GetCardComparePointsRunnedExtern(CardNo, ref pointNum);
+            return YKMCC800SSDK.Instance.GetCardComparePointsRunnedExtern(cardIndex, ref pointNum);
         }
 
         /// <summary>
@@ -2178,9 +2179,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="pointNum">返回可以加入的二维位置比较点数</param>
         /// <returns>错误代码</returns>
-        public int GetCardComparePointsRemainedExtern(int CardNo, ref int pointNum)
+        public override int GetCardComparePointsRemainedExtern(int cardIndex, ref int pointNum)
         {
-            return YKMCC800SSDK.Instance.GetCardComparePointsRemainedExtern(CardNo, ref pointNum);
+            return YKMCC800SSDK.Instance.GetCardComparePointsRemainedExtern(cardIndex, ref pointNum);
         }
 
 
@@ -2198,10 +2199,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="ltc_mode">保留参数，固定值为 0</param>
         /// <param name="filter">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisLtcMode(int CardNo, int axis, ushort ltc_logic, ushort ltc_mode, double filter)
+        public override int SetCardAxisLtcMode(int cardIndex, int axis, ushort ltc_logic, ushort ltc_mode, double filter)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.SetCardAxisLtcMode((ushort)CardNo, (ushort)axis,
+            return YKMCC800SSDK.Instance.SetCardAxisLtcMode((ushort)cardIndex, (ushort)axis,
                 ltc_logic, ltc_mode, filter);
         }
 
@@ -2214,11 +2215,11 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="latch_source">锁存源，0：指令位置计数器，1：编码器计数器</param>
         /// <param name="triger_chunnel">保留参数，固定值为 0</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisLatchMode(int CardNo, int axis, int all_enable, 
+        public override int SetCardAxisLatchMode(int cardIndex, int axis, int all_enable, 
             int latch_source, int triger_chunnel)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.SetCardAxisLatchMode((ushort)CardNo, 
+            return YKMCC800SSDK.Instance.SetCardAxisLatchMode((ushort)cardIndex, 
                 (ushort)axis, (ushort)all_enable, (ushort)latch_source, (ushort)triger_chunnel);
         }
 
@@ -2228,10 +2229,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns>0：未触发锁存，1：已触发锁存</returns>
-        public int GetCardAxisLatchFlag(int CardNo, int axis)
+        public override int GetCardAxisLatchFlag(int cardIndex, int axis)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.GetCardAxisLatchFlag((ushort)CardNo, (ushort)axis);
+            return YKMCC800SSDK.Instance.GetCardAxisLatchFlag((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2240,10 +2241,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns></returns>
-        public int GetCardAxisReserLatchFlag(int CardNo, int axis)
+        public override int GetCardAxisReserLatchFlag(int cardIndex, int axis)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.GetCardAxisReserLatchFlag((ushort)CardNo, (ushort)axis);
+            return YKMCC800SSDK.Instance.GetCardAxisReserLatchFlag((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2252,10 +2253,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns></returns>
-        public int GetCardAxisLatchFlagExtern(int CardNo, int axis)
+        public override int GetCardAxisLatchFlagExtern(int cardIndex, int axis)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.GetCardAxisLatchFlagExtern((ushort)CardNo, (ushort)axis);
+            return YKMCC800SSDK.Instance.GetCardAxisLatchFlagExtern((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2266,10 +2267,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <param name="Index">索引号</param>
         /// <returns>锁存值</returns>
-        public int GetCardAxisLatchValueExtern(int CardNo, int axis, int Index)
+        public override int GetCardAxisLatchValueExtern(int cardIndex, int axis, int Index)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.GetCardAxisLatchValueExtern(CardNo, axis, Index);
+            return YKMCC800SSDK.Instance.GetCardAxisLatchValueExtern(cardIndex, axis, Index);
         }
 
         /// <summary>
@@ -2279,10 +2280,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5,DMC3400A：0~3</param>
         /// <returns>锁存值</returns>
-        public int GetCardAxisLatchValue(int CardNo, int axis)
+        public override int GetCardAxisLatchValue(int cardIndex, int axis)
         {
             changeAxisID(ref axis);
-            return YKMCC800SSDK.Instance.GetCardAxisLatchValue((ushort)CardNo, (ushort)axis);
+            return YKMCC800SSDK.Instance.GetCardAxisLatchValue((ushort)cardIndex, (ushort)axis);
         }
 
 
@@ -2300,9 +2301,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="axis">指定轴号，取值范围：DMC3400A：0，DMC3C00/3800/3600：0、4</param>
         /// <param name="time">触发延时停止时间，单位：us，取值范围：1us~50ms</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisLatchStopTime(int CardNo, int axis, int time)
+        public override int SetCardAxisLatchStopTime(int cardIndex, int axis, int time)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisLatchStopTime((ushort)CardNo, (ushort)axis, time);
+            return YKMCC800SSDK.Instance.SetCardAxisLatchStopTime((ushort)cardIndex, (ushort)axis, time);
         }
 
         #endregion
@@ -2319,9 +2320,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="enable">使能状态：0：禁止，1：使能</param>
         /// <param name="bitno">通用输出 IO 口号，取值范围：0~15</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisOutMode(int CardNo, int axis, int enable, int bitno)
+        public override int SetCardAxisOutMode(int cardIndex, int axis, int enable, int bitno)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisOutMode((ushort)CardNo, (ushort)axis,
+            return YKMCC800SSDK.Instance.SetCardAxisOutMode((ushort)cardIndex, (ushort)axis,
                 (ushort)enable, (ushort)bitno);
         }
 
@@ -2333,9 +2334,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="enable">返回使能状态：0：禁止，1：使能</param>
         /// <param name="bitno">返回设置的通用输出 IO 口号</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisOutMode(int CardNo, int axis, ref ushort enable, ref ushort bitno)
+        public override int GetCardAxisOutMode(int cardIndex, int axis, ref ushort enable, ref ushort bitno)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisOutMode((ushort)CardNo, 
+            return YKMCC800SSDK.Instance.GetCardAxisOutMode((ushort)cardIndex, 
                 (ushort)axis, ref enable, ref bitno);
         }
 
@@ -2352,9 +2353,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="mode">IO 计数模式，0：禁用，1：上升沿计数，2：下降沿计数</param>
         /// <param name="filter_time">滤波时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardIoCountMode(int CardNo, int bitno, int mode, double filter_time)
+        public override int SetCardIoCountMode(int cardIndex, int bitno, int mode, double filter_time)
         {
-            return YKMCC800SSDK.Instance.SetCardIoCountMode((ushort)CardNo, (ushort)bitno,
+            return YKMCC800SSDK.Instance.SetCardIoCountMode((ushort)cardIndex, (ushort)bitno,
                 (ushort)mode, filter_time);
         }
 
@@ -2366,9 +2367,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="bitno">输出端口号,取值范围：0~15</param>
         /// <param name="CountValue">IO 计数值</param>
         /// <returns>错误代码</returns>
-        public int SetCardIoCountValue(int CardNo, int bitno, int CountValue)
+        public override int SetCardIoCountValue(int cardIndex, int bitno, int countValue)
         {
-            return YKMCC800SSDK.Instance.SetCardIoCountValue((ushort)CardNo, (ushort)bitno, CountValue);
+            return YKMCC800SSDK.Instance.SetCardIoCountValue((ushort)cardIndex, (ushort)bitno, countValue);
         }
 
         /// <summary>
@@ -2378,9 +2379,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="bitno">输出端口号,取值范围：0~15</param>
         /// <param name="CountValue">返回 IO 计数值</param>
         /// <returns>错误代码</returns>
-        public int GetCardIoCountValue(int CardNo, int bitno, ref uint CountValue)
+        public override int GetCardIoCountValue(int cardIndex, int bitno, ref uint countValue)
         {
-            return YKMCC800SSDK.Instance.GetCardIoCountValue(CardNo, bitno, ref CountValue);
+            return YKMCC800SSDK.Instance.GetCardIoCountValue(cardIndex, bitno, ref countValue);
         }
 
         #endregion
@@ -2395,9 +2396,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="bitno">输出端口号,取值范围：0~15</param>
         /// <param name="reverse_time">延时翻转时间，单位：s</param>
         /// <returns>错误代码</returns>
-        public int SetCardReverseOutBit(int CardNo, int bitno, int reverse_time)
+        public override int SetCardReverseOutBit(int cardIndex, int bitno, int reverse_time)
         {
-            return YKMCC800SSDK.Instance.SetCardReverseOutBit((ushort)CardNo, (ushort)bitno, reverse_time);
+            return YKMCC800SSDK.Instance.SetCardReverseOutBit((ushort)cardIndex, (ushort)bitno, reverse_time);
         }
 
 
@@ -2416,9 +2417,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="logic">触发方式，0：下降沿，1：上升沿 </param>
         /// <param name="source">位置源选择，0：指令位置计数器，1：编码器计数器 </param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisHomelatchMode(int CardNo, int axis, ushort enable, ushort logic, ushort source)
+        public override int SetCardAxisHomelatchMode(int cardIndex, int axis, ushort enable, ushort logic, ushort source)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisHomelatchMode((ushort)CardNo,
+            return YKMCC800SSDK.Instance.SetCardAxisHomelatchMode((ushort)cardIndex,
                 (ushort)axis, enable, logic, source);
         }
 
@@ -2428,9 +2429,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>错误代码</returns>
-        public int ClearCardAxisHomelatchFlag(int CardNo, int axis)
+        public override int ClearCardAxisHomelatchFlag(int cardIndex, int axis)
         {
-            return YKMCC800SSDK.Instance.ClearCardAxisHomelatchFlag((ushort)CardNo, (ushort)axis);
+            return YKMCC800SSDK.Instance.ClearCardAxisHomelatchFlag((ushort)cardIndex, (ushort)axis);
         }
 
         /// <summary>
@@ -2439,9 +2440,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>原点锁存标志，0：未锁存，1：锁存 </returns>
-        public int GetCardAxisHomelatchFlag(int CardNo, int axis)
+        public override int GetCardAxisHomelatchFlag(int cardIndex, int axis)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisHomelatchFlag((ushort)CardNo, (ushort)axis);
+            return YKMCC800SSDK.Instance.GetCardAxisHomelatchFlag((ushort)cardIndex, (ushort)axis);
         }
 
 
@@ -2451,9 +2452,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号 </param>
         /// <param name="axis">指定轴号，取值范围：DMC3C00/3800：0~7，DMC3600：0~5 DMC3400A：0~3 </param>
         /// <returns>锁存值，单位：pulse </returns>
-        public int GetCardAxisHomelatchValue(int CardNo, int axis)
+        public override int GetCardAxisHomelatchValue(int cardIndex, int axis)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisHomelatchValue((ushort)CardNo, (ushort)axis);
+            return YKMCC800SSDK.Instance.GetCardAxisHomelatchValue((ushort)cardIndex, (ushort)axis);
         }
 
 
@@ -2471,10 +2472,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="backlash_interval">反向间隔,脉冲/ms 单位;</param>
         /// <param name="backlash_dir">反向间隙补偿值方向；0 反向，1正向;</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisSetBacklash(int CardNo, int axis, int backlash_value, int backlash_interval,
+        public override int SetCardAxisSetBacklash(int cardIndex, int axis, int backlash_value, int backlash_interval,
             int backlash_dir)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisSetBacklash(CardNo, axis, backlash_value, backlash_interval,
+            return YKMCC800SSDK.Instance.SetCardAxisSetBacklash(cardIndex, axis, backlash_value, backlash_interval,
                 backlash_dir);
         }
 
@@ -2487,11 +2488,11 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="backlash_interval">返回反向间隔,脉冲/ms 单位;</param>
         /// <param name="backlash_dir">返回反向间隙补偿值方向，0 反向，1正向;</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisSetBacklash(int CardNo, int axis, ref int backlash_value,
+        public override int GetCardAxisSetBacklash(int cardIndex, int axis, ref int backlash_value,
             ref int backlash_interval, ref int backlash_dir)
         {
             backlash_value = 0; backlash_interval = 0; backlash_dir = 0;
-            return YKMCC800SSDK.Instance.GetCardAxisSetBacklash(CardNo, axis, ref backlash_value,
+            return YKMCC800SSDK.Instance.GetCardAxisSetBacklash(cardIndex, axis, ref backlash_value,
                ref backlash_interval, ref backlash_dir);
         }
 
@@ -2506,9 +2507,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="axis">轴号</param>
         /// <param name="enable">使能螺距补偿功能，1：使能，0：不使能</param>
         /// <returns></returns>
-        public int SetCardLeadScrewCompEnable(int CardNo, int axis, int enable)
+        public override int SetCardLeadScrewCompEnable(int cardIndex, int axis, int enable)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisLeadscrewCompEnable(CardNo, axis,(ushort)enable);
+            return YKMCC800SSDK.Instance.SetCardAxisLeadscrewCompEnable(cardIndex, axis,(ushort)enable);
         }
 
         /// <summary>
@@ -2522,7 +2523,7 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="pCompPos">对应为正方向运动时，各点位置需要补偿的脉冲数；</param>
         /// <param name="pCompNeg">保留</param>
         /// <returns></returns>
-        public int SetCardLeadScrewCompConfig(PitchCompensationparamModel pcm)
+        public override int SetCardLeadScrewCompConfig(PitchCompensationparamModel pcm)
         {
             return YKMCC800SSDK.Instance.SetCardAxisLeadscrewCompConfig(pcm.CardNo, pcm.Axis, pcm.n,
                pcm.StartPos, pcm.LenPos, pcm.PCompPos, pcm.PCompNeg);
@@ -2540,9 +2541,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="axis">指定轴号, 取值范围：MCC400:0~3，MCC800:0~7，MCC1200:0~11，MCC1600:0~15;</param>
         /// <param name="StopReason">停止原因: 0:正常停止 1:ALM 立即停止 2:ALM 减速停止 3:LTC 外部触发 4:EMG 立即停止 5:正硬限位 6:负硬限位 7:正硬限位减速停止 8:负硬限位减速停止 9:正软限位立即停止 10:负软限位立即停止 11:正软限位减速停止 12:负软限位减速停止 13:命令立即停止 14:命令减速停止 15:其它原因立即停止 16:其它原因减速停止 17:未知原因立即停止 18:未知原因减速停止 19:外部IO 减速停止</param>
         /// <returns></returns>
-        public int GetCardAxisStopReason(int CardNo, int axis, ref int StopReason)
+        public override int GetCardAxisStopReason(int cardIndex, int axis, ref int StopReason)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisStopReason(CardNo, axis, ref StopReason);
+            return YKMCC800SSDK.Instance.GetCardAxisStopReason(cardIndex, axis, ref StopReason);
         }
 
         #endregion
@@ -2557,10 +2558,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="master_axis">主轴</param>
         /// <param name="followradio">跟随比例</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisFollowParameter(int CardNo, int slave_axis, int master_axis,
+        public override int SetCardAxisFollowParameter(int cardIndex, int slave_axis, int master_axis,
             double followradio)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisFollowParameter(CardNo, slave_axis, master_axis, followradio);
+            return YKMCC800SSDK.Instance.SetCardAxisFollowParameter(cardIndex, slave_axis, master_axis, followradio);
         }
 
         /// <summary>
@@ -2571,10 +2572,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="master_axis">主轴</param>
         /// <param name="followradio">跟随比例</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisFollowParameter(int CardNo, int slave_axis, ref int master_axis,
+        public override int GetCardAxisFollowParameter(int cardIndex, int slave_axis, ref int master_axis,
             ref double followradio)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisFollowParameter(CardNo, slave_axis,
+            return YKMCC800SSDK.Instance.GetCardAxisFollowParameter(cardIndex, slave_axis,
                 ref master_axis, ref followradio);
         }
 
@@ -2585,9 +2586,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="slave_axis">跟随轴号</param>
         /// <param name="enable">使能状态</param>
         /// <returns></returns>
-        public int SetCardAxisFollowEnable(int CardNo, int slave_axis, int enable)
+        public override int SetCardAxisFollowEnable(int cardIndex, int slave_axis, int enable)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisFollowEnable(CardNo, slave_axis, enable);
+            return YKMCC800SSDK.Instance.SetCardAxisFollowEnable(cardIndex, slave_axis, enable);
         }
 
         /// <summary>
@@ -2597,9 +2598,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="slave_axis">跟随轴号</param>
         /// <param name="enable">使能状态</param>
         /// <returns></returns>
-        public int GetCardAxisFollowEnable(int CardNo, int slave_axis, ref int enable)
+        public override int GetCardAxisFollowEnable(int cardIndex, int slave_axis, ref int enable)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisFollowEnable(CardNo, slave_axis, ref enable);
+            return YKMCC800SSDK.Instance.GetCardAxisFollowEnable(cardIndex, slave_axis, ref enable);
         }
 
 
@@ -2616,10 +2617,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="aim_pos">轴位置列表数组，最大长度为axis_num</param>
         /// <param name="posi_mode">运动模式,0:相对坐标模式,1:绝对坐标模式；</param>
         /// <returns>错误代码</returns>
-        public int CardAxisPmotionSync(int CardNo, int axis_num, ushort[] axis_list, int[] aim_pos,
+        public override int CardAxisPmotionSync(int cardIndex, int axis_num, ushort[] axis_list, int[] aim_pos,
             int posi_mode)
         {
-            return YKMCC800SSDK.Instance.CardAxisPmotionSync(CardNo, axis_num, axis_list,
+            return YKMCC800SSDK.Instance.CardAxisPmotionSync(cardIndex, axis_num, axis_list,
                  aim_pos, posi_mode);
         }
 
@@ -2641,11 +2642,11 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="tDec">减速时间，单位秒（S）;</param>
         /// <param name="posiMode">位置坐标模式：0-相对位置坐标；1-绝对位置坐标；</param>
         /// <returns></returns>
-        public int CardAxisPmoveSoftLanding(int CardNo, int axis, double midPos, double targetPos,
+        public override int CardAxisPmoveSoftLanding(int cardIndex, int axis, double midPos, double targetPos,
             double startVel, double maxVel, double endVel,
             double tAcc, double tDec, int posiMode)
         {
-            return YKMCC800SSDK.Instance.CardAxisPmoveSoftLanding(CardNo, axis, midPos, targetPos,
+            return YKMCC800SSDK.Instance.CardAxisPmoveSoftLanding(cardIndex, axis, midPos, targetPos,
                 startVel, maxVel, endVel, tAcc, tDec, posiMode);
         }
 
@@ -2664,11 +2665,11 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="stop_vel">停止速度,单位:pulse/s(最大值为2M)</param>
         /// <param name="pos_mode">运动模式,0:相对坐标模式,1:绝对坐标模式</param>
         /// <returns></returns>
-        public int CardAxisPMotionSoftLanding(int CardNo, int axis, double aim_pos,
+        public override int CardAxisPMotionSoftLanding(int cardIndex, int axis, double aim_pos,
             double target_pos, double acc_time, double dec_time, double start_vel,
             double max_vel, double mid_vel, double stop_vel, int pos_mode)
         {
-            return YKMCC800SSDK.Instance.CardAxisPMotionSoftLanding(CardNo, axis, aim_pos, target_pos,
+            return YKMCC800SSDK.Instance.CardAxisPMotionSoftLanding(cardIndex, axis, aim_pos, target_pos,
                 acc_time, dec_time, start_vel, max_vel, mid_vel, stop_vel, pos_mode);
         }
 
@@ -2691,10 +2692,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="setOriginFlag">保留值</param>
         /// <param name="originPos">保留值</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisCrdPrm(int CardNo, int crd, ushort dimension, ushort[] profile,
+        public override int SetCardAxisCrdPrm(int cardIndex, int crd, ushort dimension, ushort[] profile,
             double synVelMax, double synAccMax, short evenTime, short setOriginFlag, int[] originPos)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisCrdPrm(CardNo, crd, dimension, profile, synVelMax,
+            return YKMCC800SSDK.Instance.SetCardAxisCrdPrm(cardIndex, crd, dimension, profile, synVelMax,
                synAccMax, evenTime, setOriginFlag, originPos);
         }
 
@@ -2711,10 +2712,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="setOriginFlag">保留值</param>
         /// <param name="originPos">保留值</param>
         /// <returns></returns>
-        public int GetCardAxisCrdPrm(int CardNo, int crd, ref ushort dimension, ushort[] profile, ref double synVelMax,
+        public override int GetCardAxisCrdPrm(int cardIndex, int crd, ref ushort dimension, ushort[] profile, ref double synVelMax,
             ref double synAccMax, ref short evenTime, ref short setOriginFlag, int[] originPos)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisCrdPrm(CardNo, crd, ref dimension, profile,
+            return YKMCC800SSDK.Instance.GetCardAxisCrdPrm(cardIndex, crd, ref dimension, profile,
                 ref synVelMax, ref synAccMax, ref evenTime, ref setOriginFlag, originPos);
         }
 
@@ -2724,9 +2725,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">坐标系号</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisBufCrdData(int CardNo, int crd)
+        public override int SetCardAxisBufCrdData(int cardIndex, int crd)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisBufCrdData(CardNo, crd);
+            return YKMCC800SSDK.Instance.SetCardAxisBufCrdData(cardIndex, crd);
         }
 
         /// <summary>
@@ -2743,12 +2744,12 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="velEnd">插补段的终点速度，单位：unit/s。该值只有在没有使用前瞻预处理功能时才有意义，否则该值无效。默认值为0</param>
         /// <param name="velStart">插补段的起跳速度，单位：unit/s。该值只有在没有使用前瞻预处理功能时才有意义否则该值无效。默认值为0；</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufLineData(int CardNo, int Crd, ushort axisNum, ushort[] AxisList,
+        public override int CardAxisBufLineData(int cardIndex, int crdIndex, ushort axisNum, ushort[] axisNumbers,
             double[] aim_pos, short posi_mode, double synVel, double synAcc,
             double velEnd, double velStart)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufLineData(CardNo, Crd, axisNum,
-                 AxisList,  aim_pos, posi_mode, synVel, synAcc, velEnd, velStart);
+            return YKMCC800SSDK.Instance.CardAxisBufLineData(cardIndex, crdIndex, axisNum,
+                 axisNumbers,  aim_pos, posi_mode, synVel, synAcc, velEnd, velStart);
         }
 
 
@@ -2769,12 +2770,12 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="velEnd">插补段的终点速度，单位：unit/s。该值只有在没有使用前瞻预处理功能时才有意义，否则该值无效。默认值为0</param>
         /// <param name="velStart">插补段的起跳速度，单位：unit/s。该值只有在没有使用前瞻预处理功能时才有意义，否则该值无效。默认值为0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufArcnCenterMove(int CardNo, int Crd, ushort axisNum, ushort[] AxisList,
+        public override int CardAxisBufArcnCenterMove(int cardIndex, int crdIndex, ushort axisNum, ushort[] axisNumbers,
             double[] aim_pos, ref double cen_pos, ushort circleDir, ushort circle_num,
             short posi_mode, double synVel, double synAcc, double velEnd, double velStart)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufArcnCenterMove(CardNo, Crd, axisNum,
-                AxisList, aim_pos, ref cen_pos, circleDir, circle_num, posi_mode,
+            return YKMCC800SSDK.Instance.CardAxisBufArcnCenterMove(cardIndex, crdIndex, axisNum,
+                axisNumbers, aim_pos, ref cen_pos, circleDir, circle_num, posi_mode,
                 synVel, synAcc, velEnd, velStart);
         }
 
@@ -2795,12 +2796,12 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="velEnd">插补段的终点速度，单位：unit/s。该值只有在没有使用前瞻预处理功能时才有意义，否则该值无效。默认值为0</param>
         /// <param name="velStart">插补段的起跳速度，单位：unit/s。该值只有在没有使用前瞻预处理功能时才有意义，否则该值无效。默认值为0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufArcnRadiusMove(int CardNo, int Crd, ushort axisNum, ushort[] AxisList,
+        public override int CardAxisBufArcnRadiusMove(int cardIndex, int crdIndex, ushort axisNum, ushort[] axisNumbers,
             double[] aim_pos, double radius, ushort circleDir, ushort circle_num,
             short posi_mode, double synVel, double synAcc, double velEnd, double velStart)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufArcnRadiusMove(CardNo, Crd, axisNum,
-                 AxisList,  aim_pos, radius, circleDir, circle_num,
+            return YKMCC800SSDK.Instance.CardAxisBufArcnRadiusMove(cardIndex, crdIndex, axisNum,
+                 axisNumbers,  aim_pos, radius, circleDir, circle_num,
                 posi_mode, synVel, synAcc, velEnd, velStart);
         }
 
@@ -2822,11 +2823,11 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="velEnd">插补段的终点速度，单位：unit/s。该值只有在没有使用前瞻预处理功能时才有意义，否则该值无效。默认值为0</param>
         /// <param name="velStart">插补段的起跳速度，单位：unit/s。该值只有在没有使用前瞻预处理功能时才有意义，否则该值无效。默认值为0</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufArcn3pointMove(int CardNo, int Crd, ushort axisNum, ushort[] AxisList,
+        public override int CardAxisBufArcn3pointMove(int cardIndex, int crdIndex, ushort axisNum, ushort[] axisNumbers,
              double[] aim_pos, ref double mid_pos, ushort circle_num, short posi_mode, double synVel,
                 double synAcc, double velEnd, double velStart)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufArcn3pointMove(CardNo, Crd, axisNum,  AxisList,
+            return YKMCC800SSDK.Instance.CardAxisBufArcn3pointMove(cardIndex, crdIndex, axisNum,  axisNumbers,
                  aim_pos, ref mid_pos, circle_num, posi_mode, synVel,
                 synAcc, velEnd, velStart);
         }
@@ -2840,9 +2841,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="doMask">从bit0-bit15 按位表示指定的数字量输出是否有操作： 0：该路数字量输出无操作；1：该路数字量输出有操作。</param>
         /// <param name="doValue">从bit0-bit15 按位表示指定的数字量输出的值。</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufIO(int CardNo, int crd, ushort doType, ushort doMask, ushort doValue)
+        public override int CardAxisBufIO(int cardIndex, int crd, ushort doType, ushort doMask, ushort doValue)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufIO(CardNo, crd, doType, doMask, doValue);
+            return YKMCC800SSDK.Instance.CardAxisBufIO(cardIndex, crd, doType, doMask, doValue);
         }
 
 
@@ -2853,9 +2854,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="delayTime">延时时间.单位：ms；</param>
         /// <returns></returns>
-        public int CardAxisBufDelay(int CardNo, int crd, ushort delayTime)
+        public override int CardAxisBufDelay(int cardIndex, int crd, ushort delayTime)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufDelay(CardNo, crd, delayTime);
+            return YKMCC800SSDK.Instance.CardAxisBufDelay(cardIndex, crd, delayTime);
         }
 
         /// <summary>
@@ -2866,9 +2867,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="axis">需要将限位有效的轴的编号，取值范围:MCC400:0~3,MCC800:0~7,MCC1200:0~11,MCC1600:0~15；</param>
         /// <param name="limitType">需要有效的限位类型：0：需要将该轴的正限位设置为有效；1：需要将该轴的负限位设置为有效；-1:需要将该轴的正限位和负限位都设置为有效，默认为该值</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufLimitON(int CardNo, int crd, short axis, short limitType)
+        public override int CardAxisBufLimitON(int cardIndex, int crd, short axis, short limitType)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufLimitON(CardNo, crd, axis, limitType);
+            return YKMCC800SSDK.Instance.CardAxisBufLimitON(cardIndex, crd, axis, limitType);
         }
 
         /// <summary>
@@ -2879,9 +2880,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="axis">需要将限位有效的轴的编号，取值范围:MCC400:0~3,MCC800:0~7,MCC1200:0~11,MCC1600:0~15；</param>
         /// <param name="limitType">需要无效的限位类型；0：需要将该轴的正限位无效；1：需要将该轴的负限位无效；-1：需要将该轴的正限位和负限位都无效，默认为该值。</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufLimitOff(int CardNo, int crd, short axis, short limitType)
+        public override int CardAxisBufLimitOff(int cardIndex, int crd, short axis, short limitType)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufLimitOff(CardNo, crd, axis, limitType);
+            return YKMCC800SSDK.Instance.CardAxisBufLimitOff(cardIndex, crd, axis, limitType);
         }
 
         /// <summary>
@@ -2894,10 +2895,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="inputType">设置的数字量输入的类型；0：正限位；1：负限位；2：驱动报警；3：原点开关；4：通用输入；5：电机到位信号。</param>
         /// <param name="inputIndex">设置的数字量输入的索引号，取值范围根据inputType 的取值而定；当inputType= 0,1,2,4,5时，取值[0,7],当inputType= 4时，取值[1,31]</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufSetStopIO(int CardNo, int crd, short axis,
+        public override int CardAxisBufSetStopIO(int cardIndex, int crd, short axis,
             short stopType, short inputType, short inputIndex)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufSetStopIO(CardNo, crd, axis,
+            return YKMCC800SSDK.Instance.CardAxisBufSetStopIO(cardIndex, crd, axis,
                 stopType, inputType, inputIndex);
         }
 
@@ -2911,9 +2912,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="vel">点位运动的目标速度，单位：unit/s</param>
         /// <param name="acc_time">点位运动的加减速时间，单位：s；</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufMove(int CardNo, int crd, short moveAxis, double pos, double vel, double acc_time)
+        public override int CardAxisBufMove(int cardIndex, int crd, short moveAxis, double pos, double vel, double acc_time)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufMove(CardNo, crd, moveAxis, pos, vel, acc_time);
+            return YKMCC800SSDK.Instance.CardAxisBufMove(cardIndex, crd, moveAxis, pos, vel, acc_time);
         }
 
 
@@ -2924,9 +2925,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="pSpace">读取插补缓存区中的剩余空间；最大为4096段</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufCrdRemainSpace(int CardNo, int crd, ref int pSpace)
+        public override int CardAxisBufCrdRemainSpace(int cardIndex, int crd, ref int pSpace)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufCrdRemainSpace(CardNo, crd, ref pSpace);
+            return YKMCC800SSDK.Instance.CardAxisBufCrdRemainSpace(cardIndex, crd, ref pSpace);
         }
 
         /// <summary>
@@ -2935,9 +2936,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <returns></returns>
-        public int CardAxisBufCrdClear(int CardNo, int crd)
+        public override int CardAxisBufCrdClear(int cardIndex, int crd)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufCrdClear(CardNo, crd);
+            return YKMCC800SSDK.Instance.CardAxisBufCrdClear(cardIndex, crd);
         }
 
         /// <summary>
@@ -2946,9 +2947,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <returns></returns>
-        public int CardAxisBufCrdStart(int CardNo, int crd)
+        public override int CardAxisBufCrdStart(int cardIndex, int crd)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufCrdStart(CardNo, crd);
+            return YKMCC800SSDK.Instance.CardAxisBufCrdStart(cardIndex, crd);
         }
 
         /// <summary>
@@ -2957,9 +2958,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <returns></returns>
-        public int CardAxisBufCrdPause(int CardNo, int crd)
+        public override int CardAxisBufCrdPause(int cardIndex, int crd)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufCrdPause(CardNo, crd);
+            return YKMCC800SSDK.Instance.CardAxisBufCrdPause(cardIndex, crd);
         }
 
         /// <summary>
@@ -2969,9 +2970,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="mode">停止模式；0：减速停止；1：立即停止；</param>
         /// <returns></returns>
-        public int CardAxisBufCrdStop(int CardNo, int crd, int mode)
+        public override int CardAxisBufCrdStop(int cardIndex, int crd, int mode)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufCrdStop(CardNo, crd, mode);
+            return YKMCC800SSDK.Instance.CardAxisBufCrdStop(cardIndex, crd, mode);
         }
 
 
@@ -2983,9 +2984,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="pRun">读取插补运动状态：0：运行状态；1：停止状态；2：暂停状态 3：激活状态 4：空闲状态  5：错误状态</param>
         /// <param name="pSegment">读取当前已经完成的插补段数。当重新建立坐标系或者调用MCC_CrdClear 指令后，该值会被清零</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufCrdStatus(int CardNo, int crd, ref short pRun, ref int pSegment)
+        public override int CardAxisBufCrdStatus(int cardIndex, int crd, ref short pRun, ref int pSegment)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufCrdStatus(CardNo, crd, ref pRun, ref pSegment);
+            return YKMCC800SSDK.Instance.CardAxisBufCrdStatus(cardIndex, crd, ref pRun, ref pSegment);
         }
 
 
@@ -2996,9 +2997,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="segNum">设置用户自定义的插补段段号</param>
         /// <returns></returns>
-        public int SetCardAxisBufUserSegNum(int CardNo, int crd, long segNum)
+        public override int SetCardAxisBufUserSegNum(int cardIndex, int crd, long segNum)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisBufUserSegNum(CardNo, crd, segNum);
+            return YKMCC800SSDK.Instance.SetCardAxisBufUserSegNum(cardIndex, crd, segNum);
         }
 
         /// <summary>
@@ -3008,9 +3009,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="segNum">读取的用户自定义的插补段段号</param>
         /// <returns></returns>
-        public int GetCardAxisBufUserSegNum(int CardNo, int crd, ref long segNum)
+        public override int GetCardAxisBufUserSegNum(int cardIndex, int crd, ref long segNum)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisBufUserSegNum(CardNo, crd, ref segNum);
+            return YKMCC800SSDK.Instance.GetCardAxisBufUserSegNum(cardIndex, crd, ref segNum);
         }
 
         /// <summary>
@@ -3020,9 +3021,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="pSegment">读取的剩余插补段的段数</param>
         /// <returns></returns>
-        public int GetCardAxisBufRemainSegNum(int CardNo, int crd, ref long pSegment)
+        public override int GetCardAxisBufRemainSegNum(int cardIndex, int crd, ref long pSegment)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisBufRemainSegNum(CardNo, crd, ref pSegment);
+            return YKMCC800SSDK.Instance.GetCardAxisBufRemainSegNum(cardIndex, crd, ref pSegment);
         }
 
         /// <summary>
@@ -3032,9 +3033,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="synVelRatio">设置的插补目标速度倍率，取值范围：(0, 1]，系统默认该值为1；</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisBufSetOverride(int CardNo, int crd, double synVelRatio)
+        public override int SetCardAxisBufSetOverride(int cardIndex, int crd, double synVelRatio)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisBufSetOverride(CardNo, crd, synVelRatio);
+            return YKMCC800SSDK.Instance.SetCardAxisBufSetOverride(cardIndex, crd, synVelRatio);
         }
 
 
@@ -3046,9 +3047,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="decSmoothStop">设置的坐标系合成平滑停止加速度，单位：unit/ s²；</param>
         /// <param name="decAbruptStop">设设置的坐标系合成急停加速度，单位：unit/ s²；</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisBufSetCrdStopDec(int CardNo, int crd, double decSmoothStop, double decAbruptStop)
+        public override int SetCardAxisBufSetCrdStopDec(int cardIndex, int crd, double decSmoothStop, double decAbruptStop)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisBufSetCrdStopDec(CardNo, crd, decSmoothStop, decAbruptStop);
+            return YKMCC800SSDK.Instance.SetCardAxisBufSetCrdStopDec(cardIndex, crd, decSmoothStop, decAbruptStop);
         }
 
         /// <summary>
@@ -3059,9 +3060,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="decSmoothStop">查询坐标系合成平滑停止加速度，单位：unit/ s²；</param>
         /// <param name="decAbruptStop"> 查询坐标系合成急停加速度，单位：unit/ s²；</param>
         /// <returns></returns>
-        public int GetCardAxisBufSetCrdStopDec(int CardNo, int crd, ref double decSmoothStop, ref double decAbruptStop)
+        public override int GetCardAxisBufSetCrdStopDec(int cardIndex, int crd, ref double decSmoothStop, ref double decAbruptStop)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisBufSetCrdStopDec(CardNo, crd, ref decSmoothStop,
+            return YKMCC800SSDK.Instance.GetCardAxisBufSetCrdStopDec(cardIndex, crd, ref decSmoothStop,
                 ref decAbruptStop);
         }
 
@@ -3072,9 +3073,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="pPos">读取的坐标系的坐标值，单位：unit。该参数为一个数组首元素的指针，数组的元素个数取决于该坐标系的维数；</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisBufGetCrdPos(int CardNo, int crd, ref double pPos)
+        public override int GetCardAxisBufGetCrdPos(int cardIndex, int crd, ref double pPos)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisBufGetCrdPos(CardNo, crd, ref pPos);
+            return YKMCC800SSDK.Instance.GetCardAxisBufGetCrdPos(cardIndex, crd, ref pPos);
         }
 
 
@@ -3085,9 +3086,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="pSynVel">读取的坐标系的合成速度值, 单位：unit/s；</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisBufGetCrdVel(int CardNo, int crd, ref double pSynVel)
+        public override int GetCardAxisBufGetCrdVel(int cardIndex, int crd, ref double pSynVel)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisBufGetCrdVel(CardNo, crd, ref pSynVel);
+            return YKMCC800SSDK.Instance.GetCardAxisBufGetCrdVel(cardIndex, crd, ref pSynVel);
         }
 
         /// <summary>
@@ -3099,9 +3100,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="accMax">最大加速度，单位：unit/ s²；</param>
         /// <param name="enable">前瞻使能标志。0:前瞻禁止； 1:前瞻使能；</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufInitLookahead(int CardNo, int crd, double T, double accMax, int enable)
+        public override int CardAxisBufInitLookahead(int cardIndex, int crd, double T, double accMax, int enable)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufInitLookahead(CardNo, crd, T, accMax, enable);
+            return YKMCC800SSDK.Instance.CardAxisBufInitLookahead(cardIndex, crd, T, accMax, enable);
         }
 
         /// <summary>
@@ -3113,10 +3114,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="accMax">最大加速度,单位：unit/ s²。</param>
         /// <param name="enable">前瞻使能标志, 0:前瞻禁止； 1:前瞻使能；</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisBufInitLookahead(int CardNo, int crd, ref double T,
+        public override int GetCardAxisBufInitLookahead(int cardIndex, int crd, ref double T,
             ref double accMax, ref int enable)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisBufInitLookahead(CardNo, crd, ref T, ref accMax, ref enable);
+            return YKMCC800SSDK.Instance.GetCardAxisBufInitLookahead(cardIndex, crd, ref T, ref accMax, ref enable);
         }
 
         /// <summary>
@@ -3126,9 +3127,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="Smooth">插补速度曲线平滑系数，范围[0,1]</param>
         /// <returns>错误代码</returns>
-        public int SetCardAxisBufCrdSmooth(int CardNo, int crd, double Smooth)
+        public override int SetCardAxisBufCrdSmooth(int cardIndex, int crd, double Smooth)
         {
-            return YKMCC800SSDK.Instance.SetCardAxisBufCrdSmooth(CardNo, crd, Smooth);
+            return YKMCC800SSDK.Instance.SetCardAxisBufCrdSmooth(cardIndex, crd, Smooth);
         }
 
         /// <summary>
@@ -3138,9 +3139,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="Smooth">插补速度曲线平滑系数，范围[0,1]</param>
         /// <returns>错误代码</returns>
-        public int GetCardAxisBufCrdSmooth(int CardNo, int crd, ref double Smooth)
+        public override int GetCardAxisBufCrdSmooth(int cardIndex, int crd, ref double Smooth)
         {
-            return YKMCC800SSDK.Instance.GetCardAxisBufCrdSmooth(CardNo, crd, ref Smooth);
+            return YKMCC800SSDK.Instance.GetCardAxisBufCrdSmooth(cardIndex, crd, ref Smooth);
         }
 
 
@@ -3150,9 +3151,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <returns>错误代码</returns>
-        public int CardAxisBufCrdReset(int CardNo, int crd)
+        public override int CardAxisBufCrdReset(int cardIndex, int crd)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufCrdReset(CardNo, crd);
+            return YKMCC800SSDK.Instance.CardAxisBufCrdReset(cardIndex, crd);
         }
 
 
@@ -3165,9 +3166,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="di_logic">需要等待的通用输入IO口电平</param>
         /// <param name="time_out">等待最大时间，单位 毫秒（ms）</param>
         /// <returns></returns>
-        public int CardAxisBufWaitDI(int CardNo, int crd, ushort dI_id, ushort di_logic, long time_out)
+        public override int CardAxisBufWaitDI(int cardIndex, int crd, ushort dI_id, ushort di_logic, long time_out)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufWaitDI(CardNo, crd, dI_id, di_logic, time_out);
+            return YKMCC800SSDK.Instance.CardAxisBufWaitDI(cardIndex, crd, dI_id, di_logic, time_out);
         }
 
         /// <summary>
@@ -3179,10 +3180,10 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="pwm_duty">占空比，取值范围：0-1；</param>
         /// <param name="pwm_freq">频率，取值范围：0-2MHz；</param>
         /// <returns></returns>
-        public int CardAxisBufPwmOutput(int CardNo, int crd, ushort pwm_no, double pwm_duty,
+        public override int CardAxisBufPwmOutput(int cardIndex, int crd, ushort pwm_no, double pwm_duty,
             double pwm_freq)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufPwmOutput(CardNo, crd, pwm_no, pwm_duty, pwm_freq);
+            return YKMCC800SSDK.Instance.CardAxisBufPwmOutput(cardIndex, crd, pwm_no, pwm_duty, pwm_freq);
         }
 
 
@@ -3199,11 +3200,11 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="min_power">最小跟随能量(频率或占空比)：跟随模式为1时：占空比，取值范围：0-1；跟随模式为2时：频率，取值范围：0-2MHz；</param>
         /// <param name="none_follow_value">非跟随值(频率或占空比)：跟随模式为1时：占空比，取值范围：0-1；跟随模式为2时：频率，取值范围：0-2MHz；</param>
         /// <returns></returns>
-        public int CardAxisBufPwmFollow(int CardNo, int crd, ushort pwm_no, ushort mode,
+        public override int CardAxisBufPwmFollow(int cardIndex, int crd, ushort pwm_no, ushort mode,
             double start_speed, double max_speed, double max_power,
             double min_power, double none_follow_value)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufPwmFollow(CardNo, crd, pwm_no, mode,
+            return YKMCC800SSDK.Instance.CardAxisBufPwmFollow(cardIndex, crd, pwm_no, mode,
                 start_speed, max_speed, max_power, min_power, none_follow_value);
         }
 
@@ -3219,11 +3220,11 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="delay_mode">滞后模式，：滞后时间，：滞后距离;</param>
         /// <param name="ReverseTime">电平输出后的延时翻转时间，单位：s;</param>
         /// <returns></returns>
-        public int CardAxisBufDelayOutbitToStartPos(int CardNo, int crd, int bitno, int on_off,
-            double delay_value, int delay_mode, double ReverseTime)
+        public override int CardAxisBufDelayOutbitToStartPos(int cardIndex, int crd, int bitno, int on_off,
+            double delay_value, int delay_mode, double reverseTime)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufDelayOutbitToStartPos(CardNo, crd, bitno, on_off,
-                delay_value, delay_mode, ReverseTime);
+            return YKMCC800SSDK.Instance.CardAxisBufDelayOutbitToStartPos(cardIndex, crd, bitno, on_off,
+                delay_value, delay_mode, reverseTime);
         }
 
         /// <summary>
@@ -3236,11 +3237,11 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="delay_time">滞后时间，单位：秒（s）;</param>
         /// <param name="ReverseTime">保留参数，固定值为0;</param>
         /// <returns></returns>
-        public int CardAxisBufDelayOutbitToStopPos(int CardNo, int crd, int bitno,
-            int on_off, double delay_time, double ReverseTime)
+        public override int CardAxisBufDelayOutbitToStopPos(int cardIndex, int crd, int bitno,
+            int on_off, double delay_time, double reverseTime)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufDelayOutbitToStopPos(CardNo, crd, bitno,
-              on_off, delay_time, ReverseTime);
+            return YKMCC800SSDK.Instance.CardAxisBufDelayOutbitToStopPos(cardIndex, crd, bitno,
+              on_off, delay_time, reverseTime);
         }
 
         /// <summary>
@@ -3254,11 +3255,11 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="ahead_mode">提前模式，：0提前时间，1：提前距离；</param>
         /// <param name="ReverseTime">电平输出后的延时翻转时间，单位：s；</param>
         /// <returns></returns>
-        public int CardAxisBufAheadOutbitToStopPos(int CardNo, int crd, int bitno,
-            int on_off, double ahead_value, int ahead_mode, double ReverseTime)
+        public override int CardAxisBufAheadOutbitToStopPos(int cardIndex, int crd, int bitno,
+            int on_off, double ahead_value, int ahead_mode, double reverseTime)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufAheadOutbitToStopPos(CardNo, crd,
-              bitno, on_off, ahead_value, ahead_mode, ReverseTime);
+            return YKMCC800SSDK.Instance.CardAxisBufAheadOutbitToStopPos(cardIndex, crd,
+              bitno, on_off, ahead_value, ahead_mode, reverseTime);
         }
 
         /// <summary>
@@ -3268,9 +3269,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="PwmNo">PWM 通道，取值范围：[0,1]</param>
         /// <returns></returns>
-        public int CardAxisBufSetPwmON(int CardNo, int crd, int PwmNo)
+        public override int CardAxisBufSetPwmON(int cardIndex, int crd, int pwmIndex)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufSetPwmON(CardNo, crd, PwmNo);
+            return YKMCC800SSDK.Instance.CardAxisBufSetPwmON(cardIndex, crd, pwmIndex);
         }
 
         /// <summary>
@@ -3280,9 +3281,9 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="crd">坐标系号，取值范围: (MCC400S/800S:取值范围:0-1;MCC1200S:0-2)；</param>
         /// <param name="PwmNo">PWM 通道，取值范围：0-1；</param>
         /// <returns></returns>
-        public int CardAxisBufSetPwmOFF(int CardNo, int crd, int PwmNo)
+        public override int CardAxisBufSetPwmOFF(int cardIndex, int crd, int pwmIndex)
         {
-            return YKMCC800SSDK.Instance.CardAxisBufSetPwmOFF(CardNo, crd, PwmNo);
+            return YKMCC800SSDK.Instance.CardAxisBufSetPwmOFF(cardIndex, crd, pwmIndex);
         }
 
 
@@ -3296,72 +3297,72 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
 
         #region 1600p的localcat io
 
-        public int CardAxisGetLocalcatTotalAdcnum(int CardNo, ref int TotalIn, ref int TotalOut)
+        public override int CardAxisGetLocalcatTotalAdcnum(int cardIndex, ref int TotalIn, ref int TotalOut)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatTotalIonum(int CardNo, ref int TotalIn, ref int TotalOut)
+        public override int CardAxisGetLocalcatTotalIonum(int cardIndex, ref int TotalIn, ref int TotalOut)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisYKSetLocalcatDaOutput(int CardNo, int channel, short Value)
+        public override int CardAxisYKSetLocalcatDaOutput(int cardIndex, int channel, short Value)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatDaOutput(int CardNo, int channel, ref short Value)
+        public override int CardAxisGetLocalcatDaOutput(int cardIndex, int channel, ref short Value)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatAdInput(int CardNo, int channel, ref short Value)
+        public override int CardAxisGetLocalcatAdInput(int cardIndex, int channel, ref short Value)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisSetLocalcatAdMode(int CardNo, int channel, int mode)
+        public override int CardAxisSetLocalcatAdMode(int cardIndex, int channel, int mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatAdMode(int CardNo, int channel, ref int mode)
+        public override int CardAxisGetLocalcatAdMode(int cardIndex, int channel, ref int mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisSetLocalcatDaMode(int CardNo, int channel, int mode)
+        public override int CardAxisSetLocalcatDaMode(int cardIndex, int channel, int mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisGetLocalcatDaMode(int CardNo, int channel, ref int mode)
+        public override int CardAxisGetLocalcatDaMode(int cardIndex, int channel, ref int mode)
         {
             throw new NotImplementedException();
         }
 
-        public int CardAxisLocalcatGetErrCode(int CardNo, int LocalcatNo, ref int ErrCode)
+        public override int CardAxisLocalcatGetErrCode(int cardIndex, int localcatIndex, ref int ErrCode)
         {
             throw new NotImplementedException();
         }
 
-        public int SetAxisStopTime(int CardNo, int axis, double stopTime)
+        public override int SetAxisStopTime(int cardIndex, int axis, double stopTime)
         {
             throw new NotImplementedException();
         }
 
-        public int SetCardMulAxisCompareConfig(int CardNo, int cmper_No, int[] axis_List, int enable, int cmp_source)
+        public override int SetCardMulAxisCompareConfig(int cardIndex, int cmper_No, int[] axis_List, int enable, int cmp_source)
         {
             throw new NotImplementedException();
         }
 
-        public int AddCardMulAxisComparePoint(int CardNo, int cmper_No, int dir, ushort action, uint actpara, int bitNo, double[] cmp_pos)
+        public override int AddCardMulAxisComparePoint(int cardIndex, int cmper_No, int dir, ushort action, uint actpara, int bitNo, double[] cmp_pos)
         {
             throw new NotImplementedException();
         }
 
-        public int ClearCardMulAxisComparePoints(int CardNo, int cmper_No)
+        public override int ClearCardMulAxisComparePoints(int cardIndex, int cmper_No)
         {
             throw new NotImplementedException();
         }
@@ -3378,7 +3379,7 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="latchParam"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        MultiplexedLatchParam IAxis.GetCradMultiplexedLatchStatus(MultiplexedLatchParam latchParam)
+        public override MultiplexedLatchParam GetCardMultiplexedLatchStatus(MultiplexedLatchParam latchParam)
         {
             return new MultiplexedLatchParam();
         }
@@ -3389,7 +3390,7 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="latchParam"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        int IAxis.SetMultiAxisMode(MultiplexedLatchParam latchParam)
+        public override int SetMultiAxisMode(MultiplexedLatchParam latchParam)
         {
             return -1;
         }
@@ -3399,7 +3400,7 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="latchParam"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        int IAxis.OpenCardMultiLtc(MultiplexedLatchParam latchParam)
+        public override int OpenCardMultiLtc(MultiplexedLatchParam latchParam)
         {
             return -1;
         }
@@ -3409,7 +3410,7 @@ ref int x_current_point, ref int y_current_point, ref int runned_points, ref ush
         /// <param name="latchParam"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        int IAxis.CardResetLatch(MultiplexedLatchParam latchParam)
+        public override int CardResetLatch(MultiplexedLatchParam latchParam)
         {
             return -1;
         }

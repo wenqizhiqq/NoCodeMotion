@@ -9,15 +9,16 @@
 #nullable disable
 
 using System;
+    using NoCodeMotion.Hardware.Motion;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common.RT3316
+namespace NoCodeMotion.Services.Hardware.Cards.Families.RT3316
 {
-    public class CardRealization : ICard
+    public class CardRealization : MotionCardBase
     {
 
         //[DisplayName("运动控制卡的配置文件名字"), Description("运动控制卡的配置文件名字"), Category("卡参数设置")]
@@ -28,38 +29,38 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <summary>
         /// 卡已经打开
         /// </summary>
-        public bool isOpen { get; set; } = false;
+        public override bool IsOpen { get; set; } = false;
 
         [DisplayName("卡是否初始化"), Description("true为已经初始化状态"), Category("卡参数设置")]
         /// <summary>
         /// 卡已经初始化
         /// </summary>
-        public bool isInit { get; set; } = false;
+        public override bool IsReady { get; set; } = false;
 
         [DisplayName("卡是否为虚拟卡"), Description("true则置卡为虚拟运动卡，以方便调试"), Category("卡参数设置")]
         /// <summary>
         /// 虚拟卡，方便脱机调试
         /// </summary>
-        public bool IsVitualCard { get; set; } = false;
+        public override bool IsVirtualCard { get; set; } = false;
 
         [DisplayName("多少张卡"), Description("注意指的是同型号多张卡的数量"), Category("卡参数设置")]
         /// <summary>
         /// 同型号多卡的数量
         /// </summary>
-        public ushort CardSum { get; set; } = 1;
+        public override ushort CardCount { get; set; } = 1;
 
 
         [DisplayName("运动卡输出IO的数量"), Description("运动卡输出IO的数量"), Category("卡参数设置")]
         /// <summary>
         /// 运动卡输出IO的数量
         /// </summary>
-        public int CardOutputIOSum { get; set; } = 16;
+        public override int OutputPointCount { get; set; } = 16;
 
         [DisplayName("运动卡输入IO的数量"), Description("运动卡输入IO的数量"), Category("卡参数设置")]
         /// <summary>
         /// 运动卡输入IO的数量
         /// </summary>
-        public int CardInputIOSum { get; set; } = 16;
+        public override int InputPointCount { get; set; } = 16;
 
 
         [DisplayName("拓展IO模块节点值"), Description("如果是CAN总线IO扩展卡，要指定节点号，如果有多张用逗号分隔"), Category("扩展IO参数设置")]
@@ -86,14 +87,14 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <summary>
         /// 硬件名字,这里用枚举，以方便程序中轮询卡
         /// </summary>
-        public SystemSupportMotionCardEnum HardwareName { get; set; } = SystemSupportMotionCardEnum.PCI9014;
+        public override SystemSupportMotionCardEnum HardwareName { get; set; } = SystemSupportMotionCardEnum.PCI9014;
 
 
         [DisplayName("卡状态"), Description("卡状态，反馈卡是否在线模式"), Category("Online设置"), ReadOnly(true)]
         /// <summary>
         /// 判断是否为离线模式
         /// </summary>
-        public bool IsOffineMode { get; set; } = false;
+        public override bool IsOfflineMode { get; set; } = false;
         public CardRealization()
         {
             for (int i = 0; i < 16; i++)
@@ -132,7 +133,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// 卡参数列表
         /// </summary>
 
-        public List<CardParamModel> ListCardParam { get; set; } = new List<CardParamModel>();
+        public override List<CardParamModel> ListCardParam { get; set; } = new List<CardParamModel>();
 
 
 
@@ -142,22 +143,22 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// 控制卡初始化函数，返回卡的数量
         /// </summary>
         /// <returns>卡的数量</returns>
-        public int InitCard()
+        public override int Initialize()
         {
-            if (IsVitualCard)
+            if (IsVirtualCard)
             {
-                isInit = true;
+                IsReady = true;
                 return 1;
             }
             int[] card_id = null;
             int card_count = 0;
-            var res = RT3316SDK.Instance.InitCard(ref card_id, ref card_count);
+            var res = RT3316SDK.Instance.Initialize(ref card_id, ref card_count);
             var errmsg = RT3316SDK.Instance.GetErrorInfo(res);
 
             if (res != 0)
             {
-                isInit = false;
-                CMessage.Instance.AddExceptionMessage(DeviceMessageTypeEnum.报警消息窗口, $"初始化[{SystemSupportMotionCardEnum.PCI9014.ToString()}]卡错误:{errmsg} ", "InitCard()", Resource1.softbugMsg1, false);
+                IsReady = false;
+                CMessage.Instance.AddExceptionMessage(DeviceMessageTypeEnum.报警消息窗口, $"初始化[{SystemSupportMotionCardEnum.PCI9014.ToString()}]卡错误:{errmsg} ", "Initialize()", Resource1.softbugMsg1, false);
                 return -1;
             }
             cardID.Clear();
@@ -186,7 +187,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
                 //    Axes = default(AxisParamModel[])
                 //});
             }
-            isInit = true;
+            IsReady = true;
             return card_count;
         }
 
@@ -197,11 +198,11 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <param name="cardtypes">返回控制卡固件类型数组</param>
         /// <param name="CardID">返回控制卡硬件 ID 号数组，卡号按从小到大顺序排列  </param>
         /// <returns>错误代码，返回0表示成功</returns>
-        public int OpenCard(ref ushort cardnum, ref uint[] cardtypes, ref ushort[] CardID)
+        public override int Open(ref ushort cardnum, ref uint[] cardtypes, ref ushort[] cardId)
         {
-            if (IsVitualCard)
+            if (IsVirtualCard)
             {
-                isOpen = true;
+                IsOpen = true;
                 return 0;
             }
             RT3316SDK.Instance.homeConfigArray = new HomeParameModel[4 * (cardID[cardCount - 1] + 1)];
@@ -214,8 +215,8 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
                 if (this.HardwareName == SystemSupportMotionCardEnum.PCI9014) cardtypes[i] = 9014;
                 list1.Add((ushort)cardID[i]);
             }
-            CardID = list1.ToArray();
-            isOpen = true;
+            cardId = list1.ToArray();
+            IsOpen = true;
             return 0;
             //if (this.HardwareName == SystemSupportMotionCardEnum.PCI9014)
             //{
@@ -228,7 +229,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
             //    list1.Add((ushort)i);
             //}
             //CardID = list1.ToArray();
-            //isOpen = true;
+            //IsOpen = true;
             //return 0;
         }
 
@@ -241,14 +242,14 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <param name="pDriver_ver">驱动程序版本，其中的 bit0~7 为副版本号， bit8~15 为主版本号；</param>
         /// <param name="pLogic_ver">逻辑软件版本，其中的 bit0~7 为副版本号， bit8~15 为主版本号； </param>
         /// <returns>   正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int GetCardLibVersion(int CardID, ref int LibVer, ref int pDriver_ver, ref int pLogic_ver)
+        public override int GetCardLibVersion(int cardId, ref int LibVer, ref int pDriver_ver, ref int pLogic_ver)
         {
             try
             {
                 uint libVer = 0;
                 uint pdriverVer = 0;
                 uint plogicver = 0;
-                int result = RT3316SDK.Instance.GetCardVersion(CardID, ref libVer, ref pdriverVer, ref plogicver);
+                int result = RT3316SDK.Instance.GetCardVersion(cardId, ref libVer, ref pdriverVer, ref plogicver);
                 LibVer = (int)libVer; pDriver_ver = (int)pdriverVer; pLogic_ver = (int)plogicver;
                 return result;
             }
@@ -268,7 +269,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <param name="NodeCnt">参数不明等待回应</param>
         /// <param name="MasterId">参数不明等待回应</param>
         /// <returns>错误代码</returns>
-        public int SetCardMasterParam(int CardNo, int PortNum, int Baudrate, int NodeCnt, int MasterId)
+        public override int SetCardMasterParam(int cardIndex, int portCount, int baudRate, int nodeCount, int masterId)
         {
             return 0;
         }
@@ -282,7 +283,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <param name="NodeCnt">参数不明等待回应</param>
         /// <param name="MasterId">参数不明等待回应</param>
         /// <returns>错误代码</returns>
-        public int GetCardMasterParam(int CardNo, int PortNum, ref ushort Baudrate, ref uint NodeCnt, ref ushort MasterId)
+        public override int GetCardMasterParam(int cardIndex, int portCount, ref ushort baudRate, ref uint nodeCount, ref ushort masterId)
         {
             return 0;
         }
@@ -306,7 +307,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <param name="SlaveAddr">EtherCAT 总线轴地址</param>
         /// <param name="Sub_SlaveAddr">EtherCAT 总线轴子地址</param>
         /// <returns>错误代码</returns>
-        public int GetCardSlaveStationConfig(int CardNo, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
+        public override int GetCardSlaveStationConfig(int cardIndex, int axis, int lenght, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr, ref int value)
         {
             return 0;
         }
@@ -318,7 +319,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <param name="Fieldbustype">  EtherCAT 端口号，固定为 2</param>
         /// <param name="CycleTime">CAT 总线循环周期，单位：us，支持 250/500/1000/</param>
         /// <returns>错误代码</returns>
-        public int SetCardMasterScanCycleTime(int CardNo, int FieldbusType, int CycleTime)
+        public override int SetCardMasterScanCycleTime(int cardIndex, int fieldbusType, int CycleTime)
         {
             return 0;
         }
@@ -330,7 +331,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// <param name="FieldbusType">EtherCAT 端口号，固定为 2</param>
         /// <param name="CyclFieldbusTypeeTime">EtherCAT 总线循环周期，单位：us，支持 250/500/1000/2000</param>
         /// <returns>错误代码</returns>
-        public int GetCardMasterScanCycleTime(int CardNo, int FieldbusType, ref int CyclFieldbusTypeeTime)
+        public override int GetCardMasterScanCycleTime(int cardIndex, int fieldbusType, ref int CyclFieldbusTypeeTime)
         {
             return 0;
         }
@@ -340,7 +341,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// </summary>
         /// <param name="CardNo">控制卡卡号</param>
         /// <returns>错误代码</returns>
-        public int CardReset(int CardNo)
+        public override int CardReset(int cardIndex)
         {
             return 0;
         }
@@ -349,7 +350,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         ///硬件复位
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardBoardReset()
+        public override int CardBoardReset()
         {
             return 0;
         }
@@ -358,7 +359,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// 控制卡热复位
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardSoftReset(ushort CardNo)
+        public override int CardSoftReset(ushort cardIndex)
         {
             return 0;
         }
@@ -367,7 +368,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// 控制卡冷复位
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CardCoolReset(ushort CardNo)
+        public override int CardCoolReset(ushort cardIndex)
         {
             return 0;
         }
@@ -378,54 +379,54 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         /// 关闭控制卡
         /// </summary>
         /// <returns>错误代码</returns>
-        public int CloseCard()
+        public override int Close()
         {
             return 0;
         }
 
-        public int SetCardCANIOConnectState(int CardNo, int NodeNum, int state, int baud)
+        public override int SetCardCANIOConnectState(int cardIndex, int nodeCount, int state, int baud)
         {
             throw new NotImplementedException();
         }
 
-        public int GetCardCANIOConnectState(int CardNo, ref ushort NodeNum, ref ushort state)
+        public override int GetCardCANIOConnectState(int cardIndex, ref ushort nodeCount, ref ushort state)
         {
             state = 1;
             //throw new NotImplementedException();
             return 0;
         }
 
-        public int GetCardTotalAxisNum(int CardNo, ref uint TotalAxis)
+        public override int GetAxisCount(int cardIndex, ref uint totalAxisCount)
         {
             if (ListCardParam.Count < 1)
             {
-                TotalAxis = 0; return 1;
+                totalAxisCount = 0; return 1;
             }
-            TotalAxis = ListCardParam[0].CardSuportAxisNum;
+            totalAxisCount = ListCardParam[0].CardSuportAxisNum;
             return 0;
         }
 
-        public string GetEtherCATErrorInfo(int ErrNum)
+        public override string GetEtherCATErrorInfo(int errorNumber)
         {
             return "";
         }
 
-        public string GetErrorInfo(int ErrNum)
+        public override string GetErrorInfo(int errorNumber)
         {
-            return RT3316SDK.Instance.GetErrorInfo(ErrNum);
+            return RT3316SDK.Instance.GetErrorInfo(errorNumber);
         }
 
-        public int GetCardCurrentState(int CardNo, int channel)
+        public override int GetCardCurrentState(int cardIndex, int channel)
         {
             return 0;
         }
 
-        public int DMCEventData(DMC_CacheMemory_Struct m_Obj)
+        public override int DMCEventData(DMC_CacheMemory_Struct m_Obj)
         {
             throw new NotImplementedException();
         }
 
-        public int ConfigureEMGConfig(int CardNo, ushort[] io_Port, ushort enable, ushort emg_logic, ushort stop_mode, double filter_time)
+        public override int ConfigureEMGConfig(int cardIndex, ushort[] io_Port, ushort enable, ushort emg_logic, ushort stop_mode, double filter_time)
         {
             return 0;
         }
@@ -433,7 +434,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         ///// <summary>
         ///// 初始化卡 
         ///// </summary>
-        //public short InitCard()
+        //public short Initialize()
         //{
         //    return 0;
         //}
@@ -441,7 +442,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         ///// <summary>
         ///// 打开卡 
         ///// </summary>
-        //public int OpenCard()
+        //public int Open()
         //{
         //    return 0;
         //}
@@ -489,7 +490,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.RT3316
         ///// <summary>
         ///// 卡关闭
         ///// </summary>
-        //public short CloseCard()
+        //public short Close()
         //{
         //    return 0;
         //}

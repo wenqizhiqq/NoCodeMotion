@@ -8,45 +8,46 @@
 // ────────────────────────────────────────────────────────────────
 #nullable disable
 using System;
+    using NoCodeMotion.Hardware.Motion;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
+namespace NoCodeMotion.Services.Hardware.Cards.Families.EC600
 {
-    public class OutioRealization : IIOOutPut
+    public class OutioRealization : DigitalOutputBase
     {
         /// <summary>
         /// IO的初始电平为高电平
         /// </summary>
-        public bool DefaultLevelIsHigh { get; set; } = false;
+        public override bool ActiveHighByDefault { get; set; } = false;
         /// <summary>
         /// 硬件卡拥有的输出IO的数量
         /// </summary>
-        public ushort OutIONums { get; set; } = 24;
+        public override ushort PointCount { get; set; } = 24;
 
         /// <summary>
         /// 输入IO的名字
         /// </summary>
-        public string OutIOName { get; set; }
+        public override string ChannelName { get; set; }
 
         /// <summary>
         /// 卡号（即这个输出IO对象是属于第几张卡的）
         /// </summary>
-        public int CardNo { get; set; }
+        public override int CardNo { get; set; }
 
 
 
         /// <summary>
         /// 是否为虚拟IO
         /// </summary>
-        public bool IsVitualIO { get; set; } = false;
+        public override bool IsVirtualIO { get; set; } = false;
 
         /// <summary>
         /// IO端口号是从0开始还是从1开始（每种卡都可能有差别，注意看手册）
         /// </summary>
-        public int IOIndexStart { get; set; } = 0;
+        public override int IndexStart { get; set; } = 0;
 
         /// <summary>
         /// 设置指定控制卡的某个输出端口的电平
@@ -55,7 +56,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="bitno"></param>
         /// <param name="on_off"></param>
         /// <returns></returns>
-        public int SetCardBitNoInBit(int CardNo, int bitno, int on_off)
+        public override int SetCardBitNoInBit(int CardNo, int bitno, int on_off)
         {
             return EC600SDK.Instance.DmcSetCardBitNoInBit(CardNo, bitno, on_off);
         }
@@ -68,7 +69,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="IoBit">输出口号</param>
         /// <param name="IoValue">输出电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int SetCardCANIOOutBit(int CardNo, int NodeID, int IoBit, int IoValue)
+        public override int SetCardCANIOOutBit(int CardNo, int nodeId, int ioBit, int ioValue)
         {
             return 0;
         }
@@ -81,7 +82,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="PortNo">端口号，0 表示 0~31 号口，1 表示 32~63 号口</param>
         /// <param name="IoValue">输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平 </param>
         /// <returns></returns>
-        public uint GetCardCANIOOutPort(int CardNo, int NodeID, int PortNo, ref UInt32 IoValue)
+        public override uint GetCardCANIOOutPort(int CardNo, int nodeId, int portIndex, ref UInt32 ioValue)
         {
             return 0;
         }
@@ -94,7 +95,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="portno"></param>
         /// <param name="outport_val"></param>
         /// <returns></returns>
-        public int SetCardPortNoOutPort(int CardNo, int portno, uint outport_val)
+        public override int SetCardPortNoOutPort(int CardNo, int portno, uint outport_val)
         {
             return EC600SDK.Instance.DmcSetCardPortNoOutPort(CardNo, portno, (int)outport_val);
         }
@@ -117,7 +118,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <para>函数返回值的 bit：7 ；输入口号： 7 ；输入口名称：OUT7</para>
         /// <para>函数返回值的 bit：8-31 8-31 ；输入口名称：扩展输入口</para>
         /// </returns>
-        public uint GetCardOutState(int CardNo, int portno)
+        public override uint GetCardOutState(int CardNo, int portno)
         {
             return EC600SDK.Instance.DmcGetCardPortNoOutPort(CardNo, portno);
         }
@@ -128,7 +129,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo">控制卡卡号</param>
         /// <param name="bitno">输入端口号，取值范围： 0~7，如果扩展 IO 模块，依次往后累加 </param>
         /// <returns>指定输出端口的电平，0：低电平，1：高电平</returns>
-        public int GetCardPortNoOutState(int CardNo, int bitno)
+        public override int GetCardPortNoOutState(int CardNo, int bitno)
         {
             return EC600SDK.Instance.DmcGetCardBitNoOutBit(CardNo, bitno);
         }
@@ -138,7 +139,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// 获取位置比较输出口状态
         /// </summary>
         /// <returns></returns>
-        public int GetLocationIsOutNoState()
+        public override int GetLocationIsOutNoState()
         {
             return -1;// dMC_E3032.
         }
@@ -147,19 +148,19 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// 设置位置比较输出口状态
         /// </summary>
         /// <returns></returns>
-        public int SetLocationIsOutNoState()
+        public override int SetLocationIsOutNoState()
         {
             return -1;
         }
 
 
 
-        public int SetCardDOOut(int CardNo, int data)
+        public override int SetCardDOOut(int CardNo, int data)
         {
             return -1;
         }
 
-        public int SetCardDOBitState(int card_no, int bit_no, int data)
+        public override int SetCardDOBitState(int card_no, int bit_no, int data)
         {
             return -1;
         }
@@ -171,7 +172,7 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="CardNo">卡号</param>
         /// <param name="Data">状态输出值，其中的 bit 0 ~15 分别对应端子上的 DO0~DO15 <para>当 data 中的位为 0 时，对应端子输出导通；</para> <para>当 data 中的位为 1 时，对应端子输出截止；</para></param>
         /// <returns> 正常返回 0；  出现错误时返回非 0 值；</returns>
-        public int GetCardDOState(int CardNo, ref int pData)
+        public override int GetCardDOState(int CardNo, ref int pData)
         {
 
             return 0;
@@ -186,15 +187,15 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="IoBit">输出端口号</param>
         /// <param name="IoValue">指定输出端口的电平，0：低电平，1：高电平</param>
         /// <returns>错误代码</returns>
-        public int NmcReadOutportExtern(int CardNo, int Channel, int NoteID, int PortNo, ref uint IoValue)
+        public override int NmcReadOutportExtern(int CardNo, int Channel, int noteId, int portIndex, ref uint ioValue)
         {
-            return EC600SDK.Instance.NmcReadOutportExtern(CardNo, Channel, NoteID, PortNo, ref IoValue);
+            return EC600SDK.Instance.NmcReadOutportExtern(CardNo, Channel, noteId, portIndex, ref ioValue);
         }
 
 
-        public int NmcWriteOutbitExtern(int CardNo, int Channel, int NoteID, int IoBit, ushort IoValue)
+        public override int NmcWriteOutbitExtern(int CardNo, int Channel, int noteId, int ioBit, ushort ioValue)
         {
-            return EC600SDK.Instance.NmcWriteOutbitExtern(CardNo, Channel, NoteID, IoBit, IoValue);
+            return EC600SDK.Instance.NmcWriteOutbitExtern(CardNo, Channel, noteId, ioBit, ioValue);
         }
 
         /// <summary>
@@ -206,9 +207,9 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <param name="portno">输出组号（32 位一组，从 0 开始，如 0 表示 0-31 位，1 表示 32-63位）</param>
         /// <param name="Iovalue">输出组各输出端口的值，bit0~bit31 的值分别代表第 0~31 号输出口的电平，1：低电平，0：高电平</param>
         /// <returns></returns>
-        public int NmcWriteOutPortExtern(int CardNo, int Channel, int NodeID, ushort portno, uint Iovalue)
+        public override int NmcWriteOutPortExtern(int CardNo, int Channel, int nodeId, ushort portno, uint Iovalue)
         {
-            return EC600SDK.Instance.NmcWriteOutportExtern(CardNo, Channel, NodeID, portno, Iovalue);
+            return EC600SDK.Instance.NmcWriteOutportExtern(CardNo, Channel, nodeId, portno, Iovalue);
         }
 
         /// <summary>
@@ -222,12 +223,12 @@ namespace WenQiZhi.Domain.MotionCard.Common.EC600_EtherCAT
         /// <summary>
         /// 读取指定输出端口的状态
         /// </summary>
-        public uint NmcGetCardReadOutBit(int CardNo, int Channel, int NoteID, int IoBit, ref ushort IoValue)
+        public override uint NmcGetCardReadOutBit(int CardNo, int Channel, int noteId, int ioBit, ref ushort ioValue)
         {
             short value = 0;
-            int error = EC600SDK.Instance.NmcReadOutbitExtern(CardNo, Channel, NoteID, IoBit, ref value);
-            IoValue = (ushort)value;
-            return IoValue;
+            int error = EC600SDK.Instance.NmcReadOutbitExtern(CardNo, Channel, noteId, ioBit, ref value);
+            ioValue = (ushort)value;
+            return ioValue;
             //return 0;
         }
     }

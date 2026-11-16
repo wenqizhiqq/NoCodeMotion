@@ -10,7 +10,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace WenQiZhi.Domain.MotionCard.Tools.HighPrecisionTimer
+namespace NoCodeMotion.Services.Hardware.Cards.Tools.HighPrecisionTimer
 {
     /// <summary>
     /// 定时器分辨率：毫秒

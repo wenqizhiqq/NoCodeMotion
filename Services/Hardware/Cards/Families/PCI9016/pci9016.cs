@@ -19,7 +19,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace WenQiZhi.Domain.MotionCard.Common.PCI9016
+namespace NoCodeMotion.Services.Hardware.Cards.Families.PCI9016
 {
     public class CPci9016
     {      

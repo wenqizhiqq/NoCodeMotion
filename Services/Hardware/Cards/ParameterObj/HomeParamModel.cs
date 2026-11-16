@@ -10,7 +10,7 @@
 
 
 
-namespace WenQiZhi.Domain.MotionCard.Common
+namespace NoCodeMotion.Services.Hardware.Cards
 { 
     /// <summary>
     /// 回原参数
