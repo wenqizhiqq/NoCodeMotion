@@ -81,7 +81,7 @@ namespace NoCodeMotion.Services.Camera
     /// 海康 MVS 相机服务（真实取像）。
     ///
     /// 依赖两层：
-    ///   · 托管封装 <c>Native\MvCameraControl.Net.dll</c>（随本程序发布，AnyCPU 纯 IL，可在 .NET 10 运行）；
+    ///   · 托管封装 <c>Native\MvCameraControl.Net.dll</c>（随本程序发布，AnyCPU 纯 IL，可在 .NET 8 运行）；
     ///   · 原生 <c>MvCameraControl.dll</c>（由**目标机安装的 MVS 运行库**提供，本程序不随附）。
     ///
     /// 原生库缺失时（例如开发机只装了 MVS 的 Development 目录、没装 Runtime），所有调用会抛

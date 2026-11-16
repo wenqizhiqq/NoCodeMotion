@@ -4,8 +4,8 @@
 // ────────────────────────────────────────────────────────────────
 // 本工程自行实现的 SynchronizedCollection<T> 兼容层。
 //   背景: .NET Framework 的 System.Collections.Generic.SynchronizedCollection<T>
-//         由 System.ServiceModel 提供，.NET 10 基础类库里并不存在
-//         （已核对 Microsoft.NETCore.App.Ref/10.0.2/ref/net10.0，无任何程序集导出它）。
+//         由 System.ServiceModel 提供，.NET 8 基础类库里并不存在
+//         （已核对 Microsoft.NETCore.App.Ref/8.0 的 ref/net8.0，无任何程序集导出它）。
 //   用途: 移植进来的 SoftServo 卡家族（SoftServoSDK.cs）用它做通道池。
 //   取舍: 为一个集合类型引入整个 System.ServiceModel.Primitives 包不划算，
 //         故按实际用到的成员实现等价的最小线程安全集合。

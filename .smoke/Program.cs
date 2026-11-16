@@ -1,8 +1,8 @@
 // 仓库内冒烟工程（.smoke\）：主工程已 <Compile Remove=".smoke\**"/>，不会互相干扰。
 // 跑法（仓库根目录）：
 //   dotnet build .smoke/ncm_smoke.csproj -p:UseAppHost=false
-//   dotnet exec .smoke/bin/Debug/net10.0-windows10.0.19041.0/ncm_smoke.dll
-// ★ 输出目录随目标框架走（主工程已升到 net10.0-windows10.0.19041.0，别再跑老的 net10.0-windows 副本）。
+//   dotnet exec .smoke/bin/Debug/net8.0-windows10.0.19041.0/ncm_smoke.dll
+// ★ 输出目录随目标框架走（主工程为 net8.0-windows10.0.19041.0，别再跑老框架的副本）。
 // ★ 要让 OpenCvSharp 原生库可加载（其依赖 opencv_world480.dll 在 dotnet exec 下不在搜索路径），
 //   把输出目录加进 PATH 再跑：PATH="<输出目录>:$PATH" dotnet exec <dll>；
 //   否则段 H 诊断项、段 M 的 OCR 端到端、段 N 的「相机回退」会跳过（不影响其余断言）。

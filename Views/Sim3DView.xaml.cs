@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -1230,8 +1231,81 @@ namespace NoCodeMotion.Views
         }
 
         // ===================== STP / STEP 导入 =====================
-        // 通过 OcctNet.Wrapper（封装 OpenCASCADE 7.9 原生库）把 STEP/IGES BREP 三角化为 WPF 网格。
+        // 通过 Occt.NET（OpenCASCADE 7.9 的 .NET 封装）把 STEP BREP 三角化为 WPF 网格。
         // 这是能正确处理 Creo/UG/SolidWorks 等真实 BREP 的可靠路径（Assimp 的 BREP 三角化器对该类文件产出 0 面）。
+
+        // Occt.NET 的原生库随 NuGet 包复制到输出目录 occt\x64；首次使用前把该目录前插到 DLL 搜索路径。
+        // 用 SetDllDirectory 而不是 SetDefaultDllDirectories：前者保留 PATH，MVS 等按 PATH 安装的原生库不受影响。
+        [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool SetDllDirectory(string lpPathName);
+
+        private static bool _occtNativeReady;
+
+        private static void EnsureOcctNative()
+        {
+            if (_occtNativeReady) return;
+            _occtNativeReady = true;
+            try
+            {
+                string dir = System.IO.Path.Combine(AppContext.BaseDirectory, "occt",
+                    Environment.Is64BitProcess ? "x64" : "x86");
+                if (System.IO.Directory.Exists(dir)) SetDllDirectory(dir);
+            }
+            catch { /* 目录缺失时由 OCCT 调用本身给出明确异常 */ }
+        }
+
+        /// <summary>用 OpenCASCADE 读取 STEP 并三角化，返回所有面的顶点与三角形索引（尚未做 Z-up→Y-up 变换）。</summary>
+        private static unsafe Point3D[] ImportStepTriangles(string path, out int[] indices)
+        {
+            EnsureOcctNative();
+
+            var reader = new Occt.StepReader();
+            if (!reader.ReadFromFile(path))
+                throw new InvalidOperationException("STEP 文件读取失败：" + path);
+
+            Occt.TopoDS_Shape shape = reader.GetRootShape();
+            if (shape == null || shape.IsNull)
+                throw new InvalidOperationException("STEP 文件没有可用几何体：" + path);
+
+            // 线性偏差 1.0、角度偏差 0.5 弧度，与旧封装 Triangulate(1.0) 的观感一致。
+            new Occt.BRepMesh_IncrementalMesh(shape, 1.0, false, 0.5, true);
+
+            var positions = new List<Point3D>();
+            var triangleIndices = new List<int>();
+            var explorer = new Occt.TopExp_Explorer(shape, Occt.TopAbs_ShapeEnum.TopAbs_FACE);
+            for (; explorer.More; explorer.Next())
+            {
+                // 注意第二个参数必须为 false：这里是从 explorer 借用指针做向下转型，
+                // 若按默认值 true，包装器终结时会 delete 掉 OCCT 自己拥有的对象，导致堆损坏。
+                Occt.TopoDS_Face face = Occt.TopoDS_Face.Cast((nint)explorer.Current.NativeInstance, false);
+                if (face == null) continue;
+
+                Occt.Poly_Triangulation mesh = Occt.BRep_Tool.Triangulation(face, out var location);
+                if (mesh == null || mesh.NbTriangles == 0) continue;
+
+                Occt.gp_Trsf trsf = (location != null && !location.IsIdentity) ? location.Transformation : null;
+                int baseIndex = positions.Count;
+                for (int i = 1; i <= mesh.NbNodes; i++)   // OCCT 节点/三角形索引从 1 开始
+                {
+                    Occt.gp_Pnt p = mesh.Node(i);
+                    if (trsf != null) p = p.Transformed(trsf);
+                    positions.Add(new Point3D(p.X, p.Y, p.Z));
+                }
+
+                bool reversed = face.Orientation == Occt.TopAbs_Orientation.TopAbs_REVERSED;
+                for (int i = 1; i <= mesh.NbTriangles; i++)
+                {
+                    mesh.Triangle(i).Get(out int n1, out int n2, out int n3);
+                    if (reversed) { int tmp = n2; n2 = n3; n3 = tmp; }
+                    triangleIndices.Add(baseIndex + n1 - 1);
+                    triangleIndices.Add(baseIndex + n2 - 1);
+                    triangleIndices.Add(baseIndex + n3 - 1);
+                }
+            }
+
+            indices = triangleIndices.ToArray();
+            return positions.ToArray();
+        }
 
         /// <summary>Z-up（多数 CAD）→ Y-up（WPF 视口）的旋转，仅旋转不平移。</summary>
         private static readonly Matrix3D _zUpToYUp =
@@ -1391,11 +1465,9 @@ namespace NoCodeMotion.Views
         private static void ComputeStepParts(string path, out List<StepPartData> parts, out Point3D center, out double radius, out long totalTris)
         {
             parts = new List<StepPartData>();
-            using var shape = OcctNet.Wrapper.OcctShape.ImportStep(path);
-            var mesh = shape.Triangulate(linearDeflection: 1.0);
-            int vc = mesh.Vertices.Count;
-            int ic = mesh.TriangleIndices.Count;
-            int triCount = ic / 3;
+            var rawPositions = ImportStepTriangles(path, out var rawIndices);
+            int vc = rawPositions.Length;
+            int triCount = rawIndices.Length / 3;
             totalTris = triCount;
 
             var min = new Point3D(double.MaxValue, double.MaxValue, double.MaxValue);
@@ -1403,8 +1475,7 @@ namespace NoCodeMotion.Views
             var positions = new Point3D[vc];
             for (int i = 0; i < vc; i++)
             {
-                var v = mesh.Vertices[i];
-                var p = _zUpToYUp.Transform(new Point3D(v.X, v.Y, v.Z)); // 烘培 Z-up→Y-up
+                var p = _zUpToYUp.Transform(rawPositions[i]); // 烘培 Z-up→Y-up
                 positions[i] = p;
                 if (p.X < min.X) min.X = p.X; if (p.X > max.X) max.X = p.X;
                 if (p.Y < min.Y) min.Y = p.Y; if (p.Y > max.Y) max.Y = p.Y;
@@ -1439,9 +1510,9 @@ namespace NoCodeMotion.Views
             var vertToTris = new Dictionary<int, List<int>>(nextW);
             for (int t = 0; t < triCount; t++)
             {
-                int a = weldId[mesh.TriangleIndices[t * 3]];
-                int b = weldId[mesh.TriangleIndices[t * 3 + 1]];
-                int c = weldId[mesh.TriangleIndices[t * 3 + 2]];
+                int a = weldId[rawIndices[t * 3]];
+                int b = weldId[rawIndices[t * 3 + 1]];
+                int c = weldId[rawIndices[t * 3 + 2]];
                 foreach (int w in new[] { a, b, c })
                 {
                     if (!vertToTris.TryGetValue(w, out var lst)) { lst = new List<int>(); vertToTris[w] = lst; }
@@ -1471,7 +1542,7 @@ namespace NoCodeMotion.Views
                 {
                     for (int k = 0; k < 3; k++)
                     {
-                        int oi = mesh.TriangleIndices[t * 3 + k];
+                        int oi = rawIndices[t * 3 + k];
                         if (!localMap.TryGetValue(oi, out int li))
                         {
                             li = posList.Count;

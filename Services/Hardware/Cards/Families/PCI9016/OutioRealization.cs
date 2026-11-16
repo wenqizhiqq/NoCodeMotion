@@ -146,7 +146,7 @@ namespace NoCodeMotion.Services.Hardware.Cards.Families.PCI9016
             uint pData = 0;
             PCI9016SDK.Instance.GetCardDO(CardNo, ref pData);
             var s = Convert.ToString(pData, 2).PadLeft(32, '0');
-            s = new string(s.ToCharArray().Reverse().ToArray());
+            s = new string(System.Linq.Enumerable.Reverse(s).ToArray());
             //return s[bitno];
             return int.Parse(s[bitno].ToString());
         }

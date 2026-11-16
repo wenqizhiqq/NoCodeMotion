@@ -5,7 +5,7 @@
 // 移植自 WenQiZhiMotion / SMotorse 运动控制卡层参考实现
 //   源: ShareData/ShareDatastruct.cs
 //   说明: 原文件是 5194 行的「大杂烩」（314 个类型，含 System.Drawing /
-//         BinaryFormatter 等 .NET 10 无法使用的依赖），故按依赖闭包只摘出
+//         BinaryFormatter 等 .NET 8 无法使用的依赖），故按依赖闭包只摘出
 //         卡层实际引用到的类型，其余一律不移植。
 //   本文件包含 16 个类型: AllMotionCardEnum, AxisStatusEnum, AxisStatusInfoEnum, AxisStatusParameterEnum, DMC3000CardEnum, DMC_CacheMemory_Struct, DeviceMessageTypeEnum, Dmc1000SConfigStruct, ExtendIoEnum, HY7X00系列MotionCardSwitchEnum, HomeModeEnum, MultiplexedLatchParam, PlusOutModeEnum, SACMotionMethodEnum, SystemSupportMotionCardEnum, UnitDenomEnumName
 // ────────────────────────────────────────────────────────────────

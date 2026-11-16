@@ -146,7 +146,7 @@ namespace NoCodeMotion.Services.Hardware.Cards.Families.RT3316
             uint pData = 0;
             RT3316SDK.Instance.GetCardDO(CardNo, ref pData);
             var s = Convert.ToString(pData, 2).PadLeft(32, '0');
-            s = new string(s.ToCharArray().Reverse().ToArray());
+            s = new string(System.Linq.Enumerable.Reverse(s).ToArray());
             return s[bitno];
         }
 

@@ -60,7 +60,7 @@ namespace NoCodeMotion.Services.Hardware.Cards.Families.DMC1000S
             if (ChannelName.IndexOf(CardName) < 0) return 0;
             var data = DMC1000SSDK.Instance.GetCardInPort(cardNo, EmgIO);
             var s1 = Convert.ToString(data, 2).PadLeft(PointCount, '0');
-            s1 = new string(s1.ToCharArray().Reverse().ToArray());
+            s1 = new string(System.Linq.Enumerable.Reverse(s1).ToArray());
             for (int i = 0; i < PointCount; i++)
             {
                 if (i == EmgIO)

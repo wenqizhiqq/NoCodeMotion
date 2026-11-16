@@ -864,7 +864,7 @@ namespace NoCodeMotion.Services.Hardware.Cards.Families.DMC1000S
 
 
             var s1 = Convert.ToString(Dmc1000.d1000_get_axis_status((ushort)axis), 2).PadLeft(16, '0');
-            s1 = new string(s1.ToCharArray().Reverse().ToArray());
+            s1 = new string(System.Linq.Enumerable.Reverse(s1).ToArray());
 
             string ALM = Dmc1000.d1000_read_ALM_PIN(axis).ToString()=="1"?"0":"1";
             string EL_Z = s1[1].ToString();    //EL+
