@@ -26,6 +26,13 @@ namespace NoCodeMotion.Services
         /// <summary>工程数据被原地替换后触发，供主窗口清空页面缓存并重建当前页。</summary>
         public static event System.Action? DataReloaded;
 
+        /// <summary>
+        /// 载入工程 / 新建模板后、加载遮罩关闭前的「逐页重建」钩子（由主窗口注册）。
+        /// <para>页面构造（尤其是 45 轴这种大页面）放在进度条里做完，用户之后第一次切过去就不会卡一下。</para>
+        /// <para>主窗口在钩子里构建页面；未注册时退化成 <see cref="DataReloaded"/> 的同步重建当前页。</para>
+        /// </summary>
+        public static System.Func<Task>? ReloadPagesAsync;
+
         static ProjectManager()
         {
             // 让 XlsxProjectStore 使用 ProjectManager 自己的 RootDir（默认是 exe 同目录下的 Projects/）。
@@ -144,6 +151,8 @@ namespace NoCodeMotion.Services
                 await Task.Run(() => WriteFile(name, fresh));
                 // LoadInto 必须在 UI 线程执行（会触发界面重建）
                 LoadInto(fresh);
+                // 进度条还亮着：把各页面也重建一遍（轴页等大页面首次切换不再卡）
+                if (ReloadPagesAsync != null) await ReloadPagesAsync();
             }
             finally
             {
@@ -212,6 +221,8 @@ namespace NoCodeMotion.Services
                 SaveLastProject(name);
                 // LoadInto 必须在 UI 线程执行（会触发界面重建）
                 LoadInto(data);
+                // 进度条还亮着：把各页面也重建一遍（轴页等大页面首次切换不再卡）
+                if (ReloadPagesAsync != null) await ReloadPagesAsync();
             }
             finally
             {

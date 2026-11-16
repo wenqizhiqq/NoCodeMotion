@@ -47,6 +47,8 @@ namespace NoCodeMotion
             Instance = this;
             LoadingService.StateChanged += OnLoadingStateChanged;
             ProjectManager.DataReloaded += OnProjectDataReloaded;
+            // 打开工程 / 新建模板时，在加载遮罩里把所有页面重建一遍（详见 RebuildPagesForReloadAsync）
+            ProjectManager.ReloadPagesAsync = RebuildPagesForReloadAsync;
             StatusBarService.SetProject(ProjectManager.CurrentName ?? "未打开工程");
             StatusBarService.RefreshUser();
             // 底栏署名（AuthorWatermark 是 internal，作者联系串在源码里被拆段+零宽混淆，
@@ -64,6 +66,9 @@ namespace NoCodeMotion
         }
 
         private bool _shuttingDown;
+
+        /// <summary>启动预初始化进行中：此时载入工程不额外逐页重建（StartUpAsync 自己会建一遍）。</summary>
+        private bool _startupRunning;
 
         // ★ 关闭软件：先拦下关闭，弹进度条一步步释放资源（停止流程 + 关闭控制器 + 保存工程），
         // 完成后再真正退出；避免直接关窗口导致运动卡 / 流程残留、工程未保存。
@@ -120,13 +125,50 @@ namespace NoCodeMotion
             => NavPanel.Children.OfType<Button>().FirstOrDefault(b => b.Tag as string == key);
 
         /// <summary>工程数据被「打开/新建」原地替换后，清空页面缓存并重建当前页，
-        /// 使各页面 ViewModel 以最新工程数据重新构造（修复选中项/计数残留）。</summary>
+        /// 使各页面 ViewModel 以最新工程数据重新构造（修复选中项/计数残留）。
+        /// <para>打开工程 / 新建模板时加载遮罩还在，逐页重建交给 <see cref="RebuildPagesForReloadAsync"/>，
+        /// 这样轴页这类大页面的构造时间落在进度条里，而不是用户第一次切过去时。</para></summary>
         private void OnProjectDataReloaded()
         {
             StatusBarService.SetProject(ProjectManager.CurrentName ?? "未打开工程");
+            if (LoadingService.IsLoading) return;
             var key = _selectedNav?.Tag as string;
             _cache.Clear();
             if (key != null) NavigateTo(key);
+        }
+
+        /// <summary>打开工程 / 新建模板后（加载遮罩仍可见）逐页重建页面。
+        /// 每建一页就让出一次 UI 线程，让进度条和步骤文字真正走起来。</summary>
+        private async System.Threading.Tasks.Task RebuildPagesForReloadAsync()
+        {
+            // 启动时的预初始化由 StartUpAsync 自己逐页完成（它有一套 n 页 + 2 步的进度）
+            if (_startupRunning) return;
+
+            var keys = _pages.Keys.ToList();
+            int total = keys.Count;
+            int done = 0;
+            var currentKey = _selectedNav?.Tag as string;
+
+            _cache.Clear();
+            LoadingService.ProgressMax = total + 1;
+            foreach (var key in keys)
+            {
+                LoadingService.Report(++done, $"正在刷新页面 ({done}/{total})：{TitleFor(key)}…");
+                await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+                try
+                {
+                    _cache[key] = _pages[key]();
+                }
+                catch (System.Exception ex)
+                {
+                    // 单页构造失败不能拖垮整次载入（例如某页 XAML 运行时异常）
+                    StatusBarService.ReportException($"页面「{TitleFor(key)}」初始化失败：{ex.Message}");
+                }
+            }
+
+            LoadingService.Report(Math.Min(++done, LoadingService.ProgressMax), "正在进入主界面…");
+            await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+            NavigateTo(currentKey ?? "Flow");
         }
 
         private void Navigate(string key, Button? btn)
@@ -227,6 +269,7 @@ namespace NoCodeMotion
         /// </summary>
         private async void StartUpAsync()
         {
+            _startupRunning = true;
             var keys = _pages.Keys.ToList();
             int total = keys.Count;
             int steps = total + 2;          // 载入工程 + n 页 + 收尾
@@ -281,6 +324,7 @@ namespace NoCodeMotion
             }
             finally
             {
+                _startupRunning = false;
                 LoadingService.Hide();
                 // 遮罩隐藏后：等「载入工程 → 自动连接控制卡」收尾，再启动「开机循环」流程，
                 // 避免流程在卡还没连上时就去驱动轴 / IO。
