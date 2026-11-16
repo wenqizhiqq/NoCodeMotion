@@ -18,12 +18,18 @@ namespace NoCodeMotion.Views
         {
             InitializeComponent();
             DataContext = new IoViewModel();
-            // 仿真运行时 IO 状态变化 → 刷新"运行时"列高亮
-            SimRuntime.Changed += OnSimChanged;
 
-            // 周期读取输入 / 输出电平，让两张表的「电平状态」反映真实硬件
+            // 周期读取输入 / 输出电平，让两张表的「电平状态」反映真实硬件。
+            // ★ 只在页面显示时跑：Loaded 启动（含切走再回来的情况），Unloaded 停止。
             _ioPoll.Tick += (_, _) => RefreshLevels();
-            _ioPoll.Start();
+            Loaded += (_, _) =>
+            {
+                // 仿真运行时 IO 状态变化 → 刷新"运行时"列高亮（Unloaded 里退订，这里补回）
+                SimRuntime.Changed -= OnSimChanged;
+                SimRuntime.Changed += OnSimChanged;
+                if (!_ioPoll.IsEnabled) _ioPoll.Start();
+                RefreshLevels();
+            };
 
             Unloaded += (_, _) =>
             {

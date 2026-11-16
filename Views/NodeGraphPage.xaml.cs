@@ -76,9 +76,15 @@ public partial class NodeGraphPage : UserControl
             inpc.PropertyChanged += _fvmHandler;
         }
         ApplySelection();
+        // 200ms 回显定时器只在节点图页可见时跑
+        _vm.SetDisplayRefreshEnabled(true);
     }
 
-    private void OnUnloaded(object sender, RoutedEventArgs e) => DetachFlowViewModel();
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        _vm.SetDisplayRefreshEnabled(false);
+        DetachFlowViewModel();
+    }
 
     private void DetachFlowViewModel()
     {

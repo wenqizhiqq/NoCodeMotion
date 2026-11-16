@@ -42,10 +42,36 @@
         <Style x:Key="DenseHairline" TargetType="Rectangle" BasedOn="{StaticResource AppleHairline}">
             <Setter Property="Margin" Value="10,0"/>
         </Style>
+
+        <!-- ★ 右侧卡片缓存成位图：轴页右侧是纯静态表单（8 张卡、250+ 控件、8 层阴影），
+             滚动时如果每帧重绘这些内容，弱显卡 / 远程桌面上就会明显卡顿。
+             加 BitmapCache 后每张卡只在内容变化时重绘一次，滚动只是平移缓存位图。 -->
+        <Style x:Key="DenseCard" TargetType="Border" BasedOn="{StaticResource AppleGroupCard}">
+            <!-- 阴影只有 0.08 透明度，肉眼几乎看不出；但它会让整张卡走一遍模糊合成，
+                 滚动 / 每次输入重绘时都要重算。轴页卡片多，这里直接去掉换滚动流畅。 -->
+            <Setter Property="Effect" Value="{x:Null}"/>
+            <Setter Property="CacheMode">
+                <Setter.Value>
+                    <BitmapCache/>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
 
     <local:EditorPage EmptyHint="还没有轴。做法：① 先到「控制器」页连接控制卡，轴会按卡上的轴数自动建出来；② 想手动加一根，就点左上角【添加】；③ 加好后在右边填名称和脉冲当量。">
+
+        <!-- ★ 轴列表专用轻量项模板：默认模板给流程页用（图标 + 3 个角色药丸 + 状态芯片），
+             轴没有 Kind/Role/Status，套上去每行要白白建十几个控件、还要经历十几次失败的绑定。
+             45+ 根轴滚动时这些空控件反复创建 / 重新绑定，是滚动卡顿的主要来源之一。
+             轴行只显示名称，和默认模板的最终效果一样，但每行只有一个 TextBlock。 -->
+        <local:EditorPage.LeftListItemTemplate>
+            <DataTemplate>
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="0,1"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+            </DataTemplate>
+        </local:EditorPage.LeftListItemTemplate>
         <local:EditorPage.Detail>
             <DockPanel LastChildFill="True" Background="{StaticResource CanvasBrush}">
                 <!-- 页标题 -->
@@ -70,7 +96,7 @@
                     <!-- 4 列紧凑容器：WrapPanel 保证每张卡只有自身内容那么高（不拉齐高度，避免大片空白） -->
                     <WrapPanel Orientation="Horizontal" Margin="10,0,10,8">
                         <!-- ============ 基本信息 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
+                        <Border Style="{StaticResource DenseCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="基本信息"/>
                                 <DockPanel Style="{StaticResource DenseRow}">
@@ -111,7 +137,7 @@
                         </Border>
 
                         <!-- ============ 运动参数 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
+                        <Border Style="{StaticResource DenseCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="运动参数"/>
                                 <StackPanel><DockPanel Style="{StaticResource DenseRow}">
@@ -180,7 +206,7 @@
                         </Border>
 
                         <!-- ============ 回零参数 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
+                        <Border Style="{StaticResource DenseCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="回零参数"/>
                                 <StackPanel><DockPanel Style="{StaticResource DenseRow}">
@@ -234,7 +260,7 @@
                         </Border>
 
                         <!-- ============ 限位与保护 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
+                        <Border Style="{StaticResource DenseCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="限位与保护"/>
                                 <StackPanel><DockPanel Style="{StaticResource DenseRow}">
@@ -273,7 +299,7 @@
                         </Border>
 
                         <!-- ============ 电平与编码器 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
+                        <Border Style="{StaticResource DenseCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="电平与编码器"/>
                                 <StackPanel><DockPanel Style="{StaticResource DenseRow}">
@@ -365,7 +391,7 @@
                         </Border>
 
                         <!-- ============ 轴权限 ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
+                        <Border Style="{StaticResource DenseCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="轴权限"
                                            ToolTip="这里的开关只管「轴控制」里的手动按钮能不能按；流程、点位、脚本里的自动运行不受影响。"/>
@@ -390,7 +416,7 @@
                         </Border>
 
                         <!-- ============ 轴状态（只读，针对左侧当前选中的轴） ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
+                        <Border Style="{StaticResource DenseCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="轴状态"
                                            ToolTip="这一栏全是真机读回来的数：位置 = 软件要求到的位置，编码器 = 实际测到的位置。读不到的显示「—」，软件不会编一个数给你看。"/>
@@ -487,7 +513,7 @@
                         </Border>
 
                         <!-- ============ 轴控制（针对左侧当前选中的轴，真实下发） ============ -->
-                        <Border Style="{StaticResource AppleGroupCard}" Margin="0,0,8,8" VerticalAlignment="Top">
+                        <Border Style="{StaticResource DenseCard}" Margin="0,0,8,8" VerticalAlignment="Top">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource DenseHeader}" Text="轴控制"/>
                                 <StackPanel><DockPanel Style="{StaticResource DenseRow}">

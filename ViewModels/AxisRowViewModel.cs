@@ -90,12 +90,32 @@ namespace NoCodeMotion.ViewModels
 
         // ===================== 只读实时状态 =====================
 
-        /// <summary>由 <see cref="AxisViewModel"/> 在后台读完状态后回 UI 线程赋值。</summary>
+        /// <summary>由 <see cref="AxisViewModel"/> 在后台读完状态后回 UI 线程赋值。
+        /// <para>★ 与上一拍完全相同就不发通知：300ms 轮询在「未连接」时每拍都回同一份快照，
+        /// 原来会无条件给 30 个属性发变更通知，轴页滚动 / 拖动滚动条时每 300ms 卡一下。
+        /// 现在值没变就完全不动界面。</para></summary>
         public AxisStatusSnapshot Snapshot
         {
             get => _snap;
-            set { _snap = value ?? new AxisStatusSnapshot(); RaiseStatus(); }
+            set
+            {
+                var s = value ?? new AxisStatusSnapshot();
+                if (SameAs(_snap, s)) return;
+                _snap = s;
+                RaiseStatus();
+            }
         }
+
+        private static bool SameAs(AxisStatusSnapshot a, AxisStatusSnapshot b)
+            => a.Connected == b.Connected
+            && a.Message == b.Message
+            && a.Position.Equals(b.Position)
+            && a.Encoder.Equals(b.Encoder)
+            && a.Moving == b.Moving
+            && a.Alarm == b.Alarm && a.Pel == b.Pel && a.Mel == b.Mel
+            && a.Org == b.Org && a.Emg == b.Emg && a.Enabled == b.Enabled
+            && a.IoWord == b.IoWord && a.HasIoWord == b.HasIoWord
+            && a.StateMachine == b.StateMachine && a.AlarmCode == b.AlarmCode;
 
         public bool Connected => _snap.Connected;
         public string StatusText => _snap.Message;

@@ -34,7 +34,8 @@ namespace NoCodeMotion.ViewModels
             // 选中气缸变化 / 周期刷新「状态显示」面板（右侧只读区，实时读 IO 表关联点位）
             PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SelectedItem)) RaiseStatus(); };
             _statusTimer.Tick += (_, _) => RaiseStatus();
-            _statusTimer.Start();
+            // 不在这里 Start：由气缸页 Loaded/Unloaded 调用 SetStatusRefreshEnabled 启停，
+            // 页面没显示时不做 300ms 状态回显。
         }
 
         protected override CylinderItem CreateNewItem() => new CylinderItem { Name = $"气缸{Counter + 1}" };
@@ -48,6 +49,20 @@ namespace NoCodeMotion.ViewModels
         // 关联关系：输出点 -> 输出 IO（Catalog.OutIoNames）；伸出/缩回/备用感应 -> 输入 IO（Catalog.InIoNames）。
 
         private readonly DispatcherTimer _statusTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
+
+        /// <summary>气缸页显示 / 隐藏时调用：页面可见才做 300ms 状态回显，切走就停。</summary>
+        public void SetStatusRefreshEnabled(bool enabled)
+        {
+            if (enabled)
+            {
+                RaiseStatus();
+                if (!_statusTimer.IsEnabled) _statusTimer.Start();
+            }
+            else
+            {
+                _statusTimer.Stop();
+            }
+        }
 
         /// <summary>当前运行状态（伸出 / 缩回）。</summary>
         public string StatusStateText

@@ -58,8 +58,24 @@ namespace NoCodeMotion.Views
             DataContext = this;
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _timer.Tick += (_, __) => Refresh();
-            _timer.Start();
+            // 500ms 统计回显只在控件可见时跑（操作员页切走后不再空转）
+            Loaded += (_, __) => UpdateTimerGate();
+            Unloaded += (_, __) => _timer.Stop();
+            IsVisibleChanged += (_, __) => UpdateTimerGate();
             Refresh();
+        }
+
+        private void UpdateTimerGate()
+        {
+            if (IsVisible && IsLoaded)
+            {
+                if (!_timer.IsEnabled) _timer.Start();
+                Refresh();
+            }
+            else
+            {
+                _timer.Stop();
+            }
         }
 
         private void Refresh()

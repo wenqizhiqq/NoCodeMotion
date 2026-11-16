@@ -347,6 +347,12 @@
         <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
         <Setter Property="Padding" Value="6"/>
         <Setter Property="FontSize" Value="13"/>
+        <!-- 左侧列表的滚动性能：轴页动辄 45+ 根轴，默认「按项滚动」一格跳 3 行，拖滚动条也是一跳一跳的。
+             改成像素滚动 + 容器回收（与工程师页那份列表同一套设置），滚动才跟手、也不反复重建列表项。 -->
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
     </Style>
     <Style x:Key="DetailPanelStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>

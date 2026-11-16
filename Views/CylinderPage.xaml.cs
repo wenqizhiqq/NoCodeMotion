@@ -22,9 +22,20 @@ namespace NoCodeMotion.Views
         {
             InitializeComponent();
             DataContext = new CylinderViewModel();
-            SimRuntime.Changed += OnSimChanged;
-            Loaded += (_, _) => _seqGrid = FindVisualChildByTag<DataGrid>(this, "SeqGrid");
-            Unloaded += (_, _) => SimRuntime.Changed -= OnSimChanged;
+            Loaded += (_, _) =>
+            {
+                _seqGrid = FindVisualChildByTag<DataGrid>(this, "SeqGrid");
+                // 订阅也要在 Loaded 补回：Unloaded 里退订过，否则切走再回来时序表就不再实时刷新
+                SimRuntime.Changed -= OnSimChanged;
+                SimRuntime.Changed += OnSimChanged;
+                // 状态回显定时器只在页面显示时跑，切走就停
+                (DataContext as CylinderViewModel)?.SetStatusRefreshEnabled(true);
+            };
+            Unloaded += (_, _) =>
+            {
+                SimRuntime.Changed -= OnSimChanged;
+                (DataContext as CylinderViewModel)?.SetStatusRefreshEnabled(false);
+            };
         }
 
         private void OnSimChanged()

@@ -60,6 +60,11 @@ namespace NoCodeMotion.Views
             // 入场时若当前选中项已是视觉/节点图流程，立即建好对应页。
             if (vm.IsKindVision) EnsureVision();
             if (vm.IsKindNodeGraph) EnsureNodeGraph();
+
+            // 回显定时器（实际值 1s / 状态 300ms）只在流程页显示时跑，切走就停。
+            // 运行本身在 FlowLoopManager 的独立线程里，不受影响。
+            Loaded += (_, _) => vm.SetDisplayRefreshEnabled(true);
+            Unloaded += (_, _) => vm.SetDisplayRefreshEnabled(false);
         }
 
         /// <summary>清空报警列表（面板「清空」按钮）。只清界面显示，已落盘的 CSV 不受影响。</summary>

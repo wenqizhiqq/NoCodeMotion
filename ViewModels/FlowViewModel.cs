@@ -300,7 +300,7 @@ namespace NoCodeMotion.ViewModels
             {
                 RefreshActualValues();
             };
-            _actualValueRefreshTimer.Start();
+            // 不在这里 Start：由流程页 Loaded/Unloaded 调用 SetDisplayRefreshEnabled 启停
 
             // ★ 回显定时器（300ms）：轮询共享态刷新「表格行高亮 / 列表状态芯片 / 状态文字 / 按钮使能」。
             //   运行器只写共享态、不碰 UI —— 切页面/切流程都不影响运行。
@@ -320,7 +320,29 @@ namespace NoCodeMotion.ViewModels
                 RaiseRunState();                      // 按钮使能（CanRun/CanStop/CanPause/IsFlowLooping）
                 OnPropertyChanged(nameof(CurrentStepText));
             };
-            _displayTimer.Start();
+            // 不在这里 Start：由流程页 Loaded/Unloaded 调用 SetDisplayRefreshEnabled 启停
+        }
+
+        /// <summary>
+        /// 流程页显示 / 隐藏时调用：可见才跑「实际值 1 秒刷新」和「回显 300ms」两个定时器。
+        /// <para>「运行一次」的 _runTimer 不受影响——用户点运行后就算切走也继续执行；
+        /// 循环运行本来就在 FlowLoopManager 的独立线程里，与页面无关。</para>
+        /// </summary>
+        public void SetDisplayRefreshEnabled(bool enabled)
+        {
+            if (enabled)
+            {
+                RefreshActualValues();
+                RefreshRowHighlightFromStore();
+                RaiseRunState();
+                if (!_actualValueRefreshTimer.IsEnabled) _actualValueRefreshTimer.Start();
+                if (!_displayTimer.IsEnabled) _displayTimer.Start();
+            }
+            else
+            {
+                _actualValueRefreshTimer.Stop();
+                _displayTimer.Stop();
+            }
         }
 
         private void OnFlowsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

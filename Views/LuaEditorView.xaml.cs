@@ -115,7 +115,7 @@ namespace NoCodeMotion.Views
 
             _syntaxTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _syntaxTimer.Tick += (s, e) => CheckSyntaxNow();
-            _syntaxTimer.Start();
+            // 不在构造时启动：由 UpdateEditorTimers 在「本控件可见」时启停
 
             _lineTimeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             _lineTimeTimer.Tick += (s, e) =>
@@ -154,12 +154,12 @@ namespace NoCodeMotion.Views
                 if (IsFlowRunningInStore(LuaItem).Running) return;
                 SetSessionState(SessionState.Idle);
             };
-            _stateSyncTimer.Start();
+            // 不在构造时启动：由 UpdateEditorTimers 在「本控件可见」时启停
 
             // 外部运行进度轮询（100ms）：页面用定时器刷新行序号/状态，不依赖运行器推送。
             _externalPollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             _externalPollTimer.Tick += (_, _) => PollExternalRun();
-            _externalPollTimer.Start();
+            // 不在构造时启动：由 UpdateEditorTimers 在「本控件可见」时启停
 
             Loaded += (s, e) =>
             {
@@ -171,11 +171,16 @@ namespace NoCodeMotion.Views
                 LuaRunMonitor.LineChanged += OnMonitorLine;
                 LuaRunMonitor.RunEnded += OnMonitorEnded;
                 Editor?.Focus();
+                UpdateEditorTimers();
             };
             Unloaded += (s, e) =>
             {
                 _loopRun = false;
                 _loopRestartTimer.Stop();
+                // 离开页面：3 个回显/轮询定时器全部停掉，不再空转
+                _syntaxTimer.Stop();
+                _stateSyncTimer.Stop();
+                _externalPollTimer.Stop();
                 // ★ 操作员驱动（会话由后台运行器持有）时**不能**停会话：否则一离开流程页/一切页面，
                 //   生产运行就被打断（用户报"切换到流程页就停止了"）。只在用户自己的调试会话上停。
                 if (!_operatorDriven) _session?.Stop();
@@ -185,6 +190,29 @@ namespace NoCodeMotion.Views
                 LuaRunMonitor.RunEnded -= OnMonitorEnded;
                 if (ReferenceEquals(Active, this)) Active = null;
             };
+            // 同一页面里切到「表格 / 节点图」时本控件只是 Visibility 变 Collapsed，不走 Unloaded，
+            // 所以还要看一帧 IsVisible。
+            IsVisibleChanged += (s, e) => UpdateEditorTimers();
+        }
+
+        /// <summary>语法检查 1s / 状态校准 500ms / 外部运行轮询 100ms —— 只有本控件真的显示着才跑。</summary>
+        private void UpdateEditorTimers()
+        {
+            bool on = IsLoaded && IsVisible;
+            if (on)
+            {
+                if (!_syntaxTimer.IsEnabled) _syntaxTimer.Start();
+                if (!_stateSyncTimer.IsEnabled) _stateSyncTimer.Start();
+                if (!_externalPollTimer.IsEnabled) _externalPollTimer.Start();
+                CheckSyntaxNow();
+                PollExternalRun();
+            }
+            else
+            {
+                _syntaxTimer.Stop();
+                _stateSyncTimer.Stop();
+                _externalPollTimer.Stop();
+            }
         }
 
         #region 依赖属性：绑定的 Lua 流程项

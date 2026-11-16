@@ -241,7 +241,7 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
             // 轮询会改变 CanRun/CanStop 等（外部循环运行时：运行/循环禁用、停止可用）→ 主动刷新命令状态
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         };
-        _actualPosTimer.Start();
+        // 不在这里 Start：由节点图页 Loaded/Unloaded 调用 SetDisplayRefreshEnabled 启停
 
         AddNodeCommand = new RelayCommand(p => AddTool(p as NgNodeDef, DefaultX(), DefaultY()));
         DeleteCommand = new RelayCommand(_ => DeleteSelected(), _ => HasSelection);
@@ -302,6 +302,21 @@ public sealed class NodeGraphViewModel : INotifyPropertyChanged
     }
 
     // ============ 加载 / 保存 ============
+
+    /// <summary>节点图页显示 / 隐藏时调用：200ms 回显定时器只在页面可见时跑（运行本身在 FlowLoopManager，不受影响）。</summary>
+    public void SetDisplayRefreshEnabled(bool enabled)
+    {
+        if (enabled)
+        {
+            RefreshRunFromStore();
+            SelectedNode?.RefreshPanelState();
+            if (!_actualPosTimer.IsEnabled) _actualPosTimer.Start();
+        }
+        else
+        {
+            _actualPosTimer.Stop();
+        }
+    }
 
     /// <summary>从选中的流程项加载节点图（解析 GraphJson）。切换流程时调用。</summary>
     public void LoadFrom(FlowItem item)
