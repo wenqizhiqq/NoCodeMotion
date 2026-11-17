@@ -187,6 +187,7 @@
        视觉步骤用相对路径 Assets\Samples\line-circle-demo.png 引用，点【运行一次】就能跑 -->
   <ItemGroup>
     <Content Include="Assets\Samples\**\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Samples\**\*.jpg" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Lua 编辑器语法高亮定义，嵌入程序集供 AvalonEdit 加载（主路径是 LuaEditorView 里的内联 xshd，
@@ -194,7 +195,8 @@
   <ItemGroup>
     <EmbeddedResource Include="Assets\Lua.xshd" />
   </ItemGroup>
-  <!-- Occt.NET 是 C++/CLI 混合模式程序集：.NET 运行时要求 Ijwhost.dll 位于应用目录，
+
+  <!-- Occt.NET 是 C++/CLI 混合模式程序集：.NET 运行时要求 Ijwhost.dll 位于应用目录，
        而 NuGet 包的拷贝目标只把它放到 occt\x64。构建后补一份到输出根目录；
        发布时把整个 occt 原生目录一并带上（包的目标只处理 Build，不处理 Publish）。 -->
   <Target Name="CopyOcctIjwhost" AfterTargets="Build">

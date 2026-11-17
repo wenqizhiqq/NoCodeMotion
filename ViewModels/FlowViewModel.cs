@@ -646,7 +646,7 @@ namespace NoCodeMotion.ViewModels
             // 第一个固定"空项目"——只建空流程，不加任何默认步骤
             FlowKind.Table => new() { "空项目", "点胶机", "XYZ", "探针台", "平移机" },
             FlowKind.Lua   => new() { "空项目", "通讯", "分拣", "MES", "文件处理" },
-            FlowKind.Vision => new() { "空项目", "找直线找圆", "缺陷检测", "测量", "对位", "标定" },
+            FlowKind.Vision => new() { "空项目", "找直线找圆", "找垂直直线（真实照片）", "缺陷检测", "测量", "对位", "标定" },
             FlowKind.NodeGraph => new() { "空项目", "通用流程", "设备启动", "取放循环", "视觉对位" },
             _ => new() { "空项目" }
         };
@@ -804,6 +804,34 @@ namespace NoCodeMotion.ViewModels
                             ("pick", "最强边"), ("sub", "1"),
                             ("robust", "LoRansacIrls"), ("inlierTol", "3"), ("minInliers", "40"),
                             ("fixedR", "0"), ("rMin", "0"), ("rMax", "0"),
+                        },
+                    },
+                },
+                "找垂直直线（真实照片）" => new()
+                {
+                    // 真实照片例子：1700x1280 的 PCB 板，板右边是一条竖直边（照片略有 1° 倾斜）。
+                    // 参数按这张图实测过（软件里采集出来的灰度）：整条边都能找到，偏差约 3 像素、内点约 99/223。
+                    new StepDef("图像采集（真实照片）", "", "", "", "", "3000", "图像采集（PCB 照片）")
+                    {
+                        StepType = "图像采集",
+                        SourceType = "文件",
+                        FilePath = @"Assets\Samples\pcb-edge-demo.jpg",
+                        Width = 1700,
+                        Height = 1280,
+                    },
+                    new StepDef("稳健找直线", "", "", "", "", "3000", "稳健找直线（PCB 板右边，竖直）")
+                    {
+                        StepType = "稳健找直线",
+                        Op = "strongline",
+                        Params = new()
+                        {
+                            ("cx", "870"), ("cy", "640"), ("angle", "90"),
+                            ("length", "900"), ("width", "60"),
+                            ("polarity", "暗到亮"), ("minGrad", "6"),
+                            ("spacing", "4"), ("samples", "31"), ("kernel", "2"),
+                            ("pick", "最强边"), ("expOffset", "0"), ("sub", "1"),
+                            ("robust", "LoRansacIrls"), ("inlierTol", "6"),
+                            ("minInliers", "30"), ("quality", "1"),
                         },
                     },
                 },
