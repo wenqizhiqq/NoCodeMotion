@@ -646,7 +646,7 @@ namespace NoCodeMotion.ViewModels
             // 第一个固定"空项目"——只建空流程，不加任何默认步骤
             FlowKind.Table => new() { "空项目", "点胶机", "XYZ", "探针台", "平移机" },
             FlowKind.Lua   => new() { "空项目", "通讯", "分拣", "MES", "文件处理" },
-            FlowKind.Vision => new() { "空项目", "找直线找圆", "找垂直直线（真实照片）", "缺陷检测", "测量", "对位", "标定" },
+            FlowKind.Vision => new() { "空项目", "找直线找圆", "找垂直直线（真实照片）", "找垂直直线（纹理图）", "缺陷检测", "测量", "对位", "标定" },
             FlowKind.NodeGraph => new() { "空项目", "通用流程", "设备启动", "取放循环", "视觉对位" },
             _ => new() { "空项目" }
         };
@@ -831,6 +831,35 @@ namespace NoCodeMotion.ViewModels
                             ("spacing", "4"), ("samples", "31"), ("kernel", "2"),
                             ("pick", "最强边"), ("expOffset", "0"), ("sub", "1"),
                             ("robust", "LoRansacIrls"), ("inlierTol", "6"),
+                            ("minInliers", "30"), ("quality", "1"),
+                        },
+                    },
+                },
+                "找垂直直线（纹理图）" => new()
+                {
+                    // 强纹理例子：1184x885 的高反差纹理图，中间靠右有一条竖直分界线（左边暗、右边亮）。
+                    // 纹理很脏，所以用较小的搜索带（50 像素）+ 中等平滑，让卡尺只认这一条边界。
+                    // 实测（软件采集出来的灰度）：(788,55)→(790,825)，角度约 89.9°，偏差约 3 像素，内点 117/154。
+                    new StepDef("图像采集（纹理图）", "", "", "", "", "3000", "图像采集（纹理照片）")
+                    {
+                        StepType = "图像采集",
+                        SourceType = "文件",
+                        FilePath = @"Assets\Samples\texture-edge-demo.png",
+                        Width = 1184,
+                        Height = 885,
+                    },
+                    new StepDef("稳健找直线", "", "", "", "", "3000", "稳健找直线（纹理分界线，竖直）")
+                    {
+                        StepType = "稳健找直线",
+                        Op = "strongline",
+                        Params = new()
+                        {
+                            ("cx", "770"), ("cy", "440"), ("angle", "90"),
+                            ("length", "780"), ("width", "50"),
+                            ("polarity", "任意"), ("minGrad", "10"),
+                            ("spacing", "5"), ("samples", "41"), ("kernel", "2"),
+                            ("pick", "最强边"), ("expOffset", "0"), ("sub", "1"),
+                            ("robust", "LoRansacIrls"), ("inlierTol", "8"),
                             ("minInliers", "30"), ("quality", "1"),
                         },
                     },
