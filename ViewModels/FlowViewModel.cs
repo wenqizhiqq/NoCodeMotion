@@ -661,6 +661,9 @@ namespace NoCodeMotion.ViewModels
             public string Operation = "";      // HomeAxis / MoveAxisAbs / WriteOutput / CylinderMove ...
             public string SetValue = "";
             public string Timeout = "3000";
+            /// <summary>步骤类型（基础步骤：图像采集 / 缺陷检测…；算子步骤填算子白话名）。
+            /// 空 = 用 Name（老模板都靠这个约定）。</summary>
+            public string StepType = "";
             /// <summary>非空 = 算子步骤（<see cref="VisionOperators"/> 目录里的 Key）；空 = 老的步骤类型。</summary>
             public string Op = "";
             /// <summary>算子参数（Key → 值），只在 Op 非空时用。</summary>
@@ -768,6 +771,7 @@ namespace NoCodeMotion.ViewModels
                     // 第一步直接读它，后两步用「稳健找直线 / 稳健找圆」跑，点【运行一次】就能看到黄候选、绿内点、红外点。
                     new StepDef("图像采集（示例图）", "", "", "", "", "3000", "图像采集（自带示例图）")
                     {
+                        StepType = "图像采集",
                         SourceType = "文件",
                         FilePath = @"Assets\Samples\line-circle-demo.png",
                         Width = 640,
@@ -775,6 +779,7 @@ namespace NoCodeMotion.ViewModels
                     },
                     new StepDef("① 稳健找直线", "", "", "", "", "3000", "稳健找直线（直边 y≈140）")
                     {
+                        StepType = "稳健找直线",
                         Op = "strongline",
                         Params = new()
                         {
@@ -789,6 +794,7 @@ namespace NoCodeMotion.ViewModels
                     },
                     new StepDef("② 稳健找圆", "", "", "", "", "3000", "稳健找圆（圆孔 320,272 R62）")
                     {
+                        StepType = "稳健找圆",
                         Op = "strongcircle",
                         Params = new()
                         {
@@ -865,7 +871,12 @@ namespace NoCodeMotion.ViewModels
                 // 采集步骤则带上来源与图片路径 —— 模板点【运行一次】就能直接跑。
                 foreach (var d in defs)
                 {
-                    var st = new VisualFlowStep { Name = d.Name, StepType = d.Name, Enabled = true };
+                    var st = new VisualFlowStep
+                    {
+                        Name = d.Name,
+                        StepType = string.IsNullOrEmpty(d.StepType) ? d.Name : d.StepType,
+                        Enabled = true,
+                    };
                     if (!string.IsNullOrEmpty(d.Op))
                     {
                         st.Op = d.Op;
