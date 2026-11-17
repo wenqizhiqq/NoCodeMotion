@@ -646,7 +646,7 @@ namespace NoCodeMotion.ViewModels
             // 第一个固定"空项目"——只建空流程，不加任何默认步骤
             FlowKind.Table => new() { "空项目", "点胶机", "XYZ", "探针台", "平移机" },
             FlowKind.Lua   => new() { "空项目", "通讯", "分拣", "MES", "文件处理" },
-            FlowKind.Vision => new() { "空项目", "缺陷检测", "测量", "对位", "标定" },
+            FlowKind.Vision => new() { "空项目", "找直线找圆", "缺陷检测", "测量", "对位", "标定" },
             FlowKind.NodeGraph => new() { "空项目", "通用流程", "设备启动", "取放循环", "视觉对位" },
             _ => new() { "空项目" }
         };
@@ -661,6 +661,16 @@ namespace NoCodeMotion.ViewModels
             public string Operation = "";      // HomeAxis / MoveAxisAbs / WriteOutput / CylinderMove ...
             public string SetValue = "";
             public string Timeout = "3000";
+            /// <summary>非空 = 算子步骤（<see cref="VisionOperators"/> 目录里的 Key）；空 = 老的步骤类型。</summary>
+            public string Op = "";
+            /// <summary>算子参数（Key → 值），只在 Op 非空时用。</summary>
+            public List<(string Key, string Value)> Params = new();
+            /// <summary>图像采集的来源：相机 / 文件 / 文件夹（模板里带示例图时填「文件」）。</summary>
+            public string SourceType = "";
+            /// <summary>来源=文件 时的图片路径（相对程序目录或绝对路径）。</summary>
+            public string FilePath = "";
+            public int Width;
+            public int Height;
             public StepDef(string name, string function, string property, string operation,
                 string setValue, string timeout = "3000", string label = "")
             {
@@ -752,6 +762,45 @@ namespace NoCodeMotion.ViewModels
             },
             FlowKind.Vision => template switch
             {
+                "找直线找圆" => new()
+                {
+                    // 现成例子：程序目录自带一张样图（Assets\Samples\line-circle-demo.png），
+                    // 第一步直接读它，后两步用「稳健找直线 / 稳健找圆」跑，点【运行一次】就能看到黄候选、绿内点、红外点。
+                    new StepDef("图像采集（示例图）", "", "", "", "", "3000", "图像采集（自带示例图）")
+                    {
+                        SourceType = "文件",
+                        FilePath = @"Assets\Samples\line-circle-demo.png",
+                        Width = 640,
+                        Height = 480,
+                    },
+                    new StepDef("① 稳健找直线", "", "", "", "", "3000", "稳健找直线（直边 y≈140）")
+                    {
+                        Op = "strongline",
+                        Params = new()
+                        {
+                            ("cx", "320"), ("cy", "140"), ("angle", "0"),
+                            ("length", "420"), ("width", "36"),
+                            ("polarity", "暗到亮"), ("minGrad", "10"),
+                            ("spacing", "6"), ("samples", "21"), ("kernel", "1"),
+                            ("pick", "最强边"), ("expOffset", "0"), ("sub", "1"),
+                            ("robust", "LoRansacIrls"), ("inlierTol", "3"),
+                            ("minInliers", "30"), ("quality", "1"),
+                        },
+                    },
+                    new StepDef("② 稳健找圆", "", "", "", "", "3000", "稳健找圆（圆孔 320,272 R62）")
+                    {
+                        Op = "strongcircle",
+                        Params = new()
+                        {
+                            ("cx", "320"), ("cy", "272"), ("radius", "62"), ("tol", "14"),
+                            ("polarity", "暗到亮"), ("minGrad", "10"),
+                            ("spacing", "5"), ("samples", "21"), ("kernel", "1"),
+                            ("pick", "最强边"), ("sub", "1"),
+                            ("robust", "LoRansacIrls"), ("inlierTol", "3"), ("minInliers", "40"),
+                            ("fixedR", "0"), ("rMin", "0"), ("rMax", "0"),
+                        },
+                    },
+                },
                 "缺陷检测" => new()
                 {
                     new StepDef("图像采集", "", "", "", ""),
@@ -812,9 +861,22 @@ namespace NoCodeMotion.ViewModels
             var defs = GetTemplateSteps(kind, template);
             if (kind == FlowKind.Vision)
             {
-                // 视觉步骤以 Name 作为 StepType，右侧参数卡据此切换
+                // 视觉步骤以 Name 作为 StepType；Op 非空的是算子步骤（按算子键交给 VisionOpRunner），
+                // 采集步骤则带上来源与图片路径 —— 模板点【运行一次】就能直接跑。
                 foreach (var d in defs)
-                    item.VisualSteps.Add(new VisualFlowStep { Name = d.Name, StepType = d.Name, Enabled = true });
+                {
+                    var st = new VisualFlowStep { Name = d.Name, StepType = d.Name, Enabled = true };
+                    if (!string.IsNullOrEmpty(d.Op))
+                    {
+                        st.Op = d.Op;
+                        foreach (var (k, v) in d.Params) st.SetOpParam(k, v);
+                    }
+                    if (!string.IsNullOrEmpty(d.SourceType)) st.SourceType = d.SourceType;
+                    if (!string.IsNullOrEmpty(d.FilePath)) st.SavePath = d.FilePath;
+                    if (d.Width > 0) st.Width = d.Width;
+                    if (d.Height > 0) st.Height = d.Height;
+                    item.VisualSteps.Add(st);
+                }
             }
             else if (kind == FlowKind.Table || kind == FlowKind.Lua)
             {
