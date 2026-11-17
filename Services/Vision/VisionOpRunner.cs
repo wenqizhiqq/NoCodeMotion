@@ -80,11 +80,13 @@ namespace NoCodeMotion.Services.Vision
 
     public static class VisionOpRunner
     {
-        static readonly Cv.Scalar Ink = new Cv.Scalar(0, 220, 0);        // BGR：找到的几何画绿
-        static readonly Cv.Scalar InkWarn = new Cv.Scalar(0, 0, 230);    // 失败画红
-        static readonly Cv.Scalar Dot = new Cv.Scalar(255, 60, 60);      // 边缘点画红点
-        static readonly Cv.Scalar Cand = new Cv.Scalar(0, 210, 255);     // 候选边缘画黄（稳健拟合前）
-        static readonly Cv.Scalar TickInk = new Cv.Scalar(0, 150, 0);    // 卡尺扫描线（暗绿，衬在绿框里）
+        // 注意：引擎里的图像是 4 通道 BGRA，画笔颜色必须带 alpha=255，
+        // 否则画上去的线/字 alpha=0，WPF 显示时整条都是透明的（看不见）。
+        static readonly Cv.Scalar Ink = new Cv.Scalar(0, 220, 0, 255);        // BGR：找到的几何画绿
+        static readonly Cv.Scalar InkWarn = new Cv.Scalar(0, 0, 230, 255);    // 失败画红
+        static readonly Cv.Scalar Dot = new Cv.Scalar(255, 60, 60, 255);      // 边缘点画红点
+        static readonly Cv.Scalar Cand = new Cv.Scalar(0, 210, 255, 255);     // 候选边缘画黄（稳健拟合前）
+        static readonly Cv.Scalar TickInk = new Cv.Scalar(0, 150, 0, 255);    // 卡尺扫描线（暗绿，衬在绿框里）
 
         // ===================== 入口 =====================
 
@@ -3248,9 +3250,9 @@ namespace NoCodeMotion.Services.Vision
             int w = size.Width + 10, h = size.Height + baseline + 8;
             int x0 = Math.Clamp(x, 0, Math.Max(0, dst.Cols - w - 1));
             int y0 = Math.Clamp(yTop, 0, Math.Max(0, dst.Rows - h - 1));
-            dst.Rectangle(new Cv.Rect(x0, y0, w, h), new Cv.Scalar(20, 20, 20), -1);
+            dst.Rectangle(new Cv.Rect(x0, y0, w, h), new Cv.Scalar(20, 20, 20, 255), -1);
             Cv.Cv2.PutText(dst, text, new Cv.Point(x0 + 5, y0 + size.Height + 2),
-                Cv.HersheyFonts.HersheySimplex, 0.55, new Cv.Scalar(240, 255, 240), 1, Cv.LineTypes.AntiAlias);
+                Cv.HersheyFonts.HersheySimplex, 0.55, new Cv.Scalar(240, 255, 240, 255), 1, Cv.LineTypes.AntiAlias);
         }
 
         static void DrawLine(Cv.Mat dst, VisionCaliper.LineResult f)

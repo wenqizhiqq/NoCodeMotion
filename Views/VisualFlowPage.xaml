@@ -9,6 +9,35 @@
              mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1100">
 
     <UserControl.Resources>
+        <!-- 「设置 ROI」开关：选中=正在图上框 ROI（绿色） -->
+        <Style x:Key="RoiToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Background" Value="#2C2C2E"/>
+            <Setter Property="BorderBrush" Value="#3A3A3C"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#16A34A"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#16A34A"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <!-- OpenCV 角度（逆时针）→ WPF 旋转（顺时针）取反转换器，供匹配叠加层旋转框使用 -->
         <local:AngleNegateConverter x:Key="AngleNegate"/>
         <!-- 标定方式 -->
@@ -515,6 +544,13 @@
                             Visibility="{Binding HasStep, Converter={StaticResource BoolToVis}}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource AppleSectionHeader}" Text="算子参数"/>
+                                <!-- 算子也能框 ROI：点开后直接在右边结果图上按住左键拖框，参数自动换算 -->
+                                <ToggleButton Content="设置 ROI（在右边图上按住左键拖框）"
+                                              Style="{StaticResource RoiToggleStyle}"
+                                              Margin="0,4,0,4"
+                                              IsChecked="{Binding IsRoiEditMode, Mode=TwoWay}"
+                                              Visibility="{Binding HasOp, Converter={StaticResource BoolToVis}}"
+                                              ToolTip="点一下变成绿色=正在框 ROI：在右边结果图上按住左键拖一个框，中心/角度/长度/宽度（圆则是圆心/半径）会自动填进下面的参数"/> 
                                 <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,2,0,4"
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            Text="上面的「步骤类型」选的是算子时，这里就是它的参数；选的是基础步骤则没有参数。"/>

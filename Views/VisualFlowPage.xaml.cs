@@ -264,6 +264,12 @@ namespace NoCodeMotion.Views
             // ZoomPanBehavior（它用 handledEventsToo 注册，即使这里 return 也收得到）。
             if (e.ChangedButton != MouseButton.Left || e.ClickCount != 1) return;
             if (ResultImageView.Source == null) return;
+            // 算子步骤：只有先点开「设置 ROI」才允许拖框，否则左键拖拽什么也不做
+            var sel = _vm.SelectedStep;
+            if (sel != null && !string.IsNullOrWhiteSpace(sel.Op) && !_vm.IsRoiEditMode) return;
+            // 算子 ROI 用绿框（和结果线同色），模板/OCR 仍用蓝色
+            bool opRoi = sel != null && !string.IsNullOrWhiteSpace(sel.Op);
+            RoiRect.Stroke = opRoi ? Brushes.Lime : (Brush)FindResource("AccentBrush");
             _dragStart = e.GetPosition(ImageHost);
             _dragging = true;
             UpdateRoiRect(_dragStart, _dragStart);
@@ -336,6 +342,13 @@ namespace NoCodeMotion.Views
                 return;
             }
 
+            // 算子步骤：框完直接把 ROI 换算成算子参数（中心/角度/长度/宽度，圆则圆心/半径）
+            if (!string.IsNullOrWhiteSpace(step.Op))
+            {
+                ApplyOpRoi(step, x1, y1, x2, y2);
+                return;
+            }
+
             // 字符识别步骤：同样的拖拽框选，写到 OCR 的识别区域（不触发模板裁剪/保存）
             if ((step.StepType ?? "").Trim() == "字符识别")
             {
@@ -358,6 +371,56 @@ namespace NoCodeMotion.Views
             {
                 vm.ConfirmTemplateCommand.Execute(null);
             }
+        }
+
+        /// <summary>
+        /// 把图上拖出来的框换算成算子 ROI 参数（点「设置 ROI」后才会走到这里）：
+        ///   直线类 → cx/cy = 框中心，angle = 框宽≥高取 0°（水平边）否则 90°（竖直边），
+        ///            length = 长边，width = 短边；
+        ///   圆  类 → cx/cy = 框中心，radius = 短边一半，tol = 长短边差的一半（至少 4 像素）；
+        ///   另外只要算子有 roi 参数，就一并写 roi = "x,y,w,h"。
+        /// 写完重建参数行，界面上能立刻看到新值。
+        /// </summary>
+        private void ApplyOpRoi(VisualFlowStep step, double x1, double y1, double x2, double y2)
+        {
+            if (DataContext is not VisualFlowDetailViewModel vm) return;
+            var spec = VisionOperators.Find(step.Op ?? "");
+            if (spec == null) return;
+
+            int x = (int)System.Math.Round(x1), y = (int)System.Math.Round(y1);
+            int w = (int)System.Math.Round(x2 - x1), h = (int)System.Math.Round(y2 - y1);
+            if (w < 8 || h < 8) { RoiRect.Visibility = Visibility.Collapsed; return; }
+
+            double cx = x + w / 2.0, cy = y + h / 2.0;
+            string F(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+            if (spec.Find("roi") != null)
+                step.SetOpParam("roi", $"{x},{y},{w},{h}");
+
+            bool hasCx = spec.Find("cx") != null && spec.Find("cy") != null;
+            if (hasCx && spec.Find("radius") != null)
+            {
+                // 圆类：框的短边当直径
+                step.SetOpParam("cx", F(cx));
+                step.SetOpParam("cy", F(cy));
+                step.SetOpParam("radius", F(System.Math.Min(w, h) / 2.0));
+                if (spec.Find("tol") != null)
+                    step.SetOpParam("tol", F(System.Math.Max(4, (System.Math.Max(w, h) - System.Math.Min(w, h)) / 2.0)));
+            }
+            else if (hasCx && spec.Find("length") != null)
+            {
+                // 直线类：长边沿边、短边垂直于边；宽≥高当成水平边，否则竖直边
+                bool horizontal = w >= h;
+                step.SetOpParam("cx", F(cx));
+                step.SetOpParam("cy", F(cy));
+                step.SetOpParam("angle", horizontal ? "0" : "90");
+                step.SetOpParam("length", F(System.Math.Max(w, h)));
+                step.SetOpParam("width", F(System.Math.Min(w, h)));
+            }
+
+            vm.RebuildOpParams();
+            vm.RunStatus = $"已设置 ROI：({x},{y}) {w}×{h}　参数已填好，点「运行」执行";
+            RoiRect.Visibility = Visibility.Collapsed;
         }
     }
 }

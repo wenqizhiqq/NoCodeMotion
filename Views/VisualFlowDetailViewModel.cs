@@ -80,6 +80,20 @@ namespace NoCodeMotion.Views
             private set => SetValue(HasStepProperty, value);
         }
 
+        /// <summary>
+        /// 「设置 ROI」开关：打开后，在右边结果图上按住左键拖一个框，
+        /// 就把这个框换算成当前算子的 ROI 参数（中心/角度/长度/宽度，或圆心/半径）。
+        /// </summary>
+        public static readonly DependencyProperty IsRoiEditModeProperty =
+            DependencyProperty.Register(nameof(IsRoiEditMode), typeof(bool), typeof(VisualFlowDetailViewModel),
+                new PropertyMetadata(false));
+
+        public bool IsRoiEditMode
+        {
+            get => (bool)GetValue(IsRoiEditModeProperty);
+            set => SetValue(IsRoiEditModeProperty, value);
+        }
+
         // ===================== 算子通道（目录驱动，见 Services/Vision/VisionOperators.cs） =====================
 
         /// <summary>一行算子参数：把「参数定义 + 这一步」包成可双向编辑的界面项。</summary>
@@ -931,6 +945,7 @@ namespace NoCodeMotion.Views
             if (e.OldValue is INotifyPropertyChanged oldInpc) oldInpc.PropertyChanged -= vm.OnSelectedStepTypeChanged;
             if (e.NewValue is INotifyPropertyChanged newInpc) newInpc.PropertyChanged += vm.OnSelectedStepTypeChanged;
             vm.HasStep = e.NewValue != null;
+            vm.IsRoiEditMode = false;                   // 换步骤就退出 ROI 设置，免得不小心改到别的步骤
             vm.RebuildOpParams();                       // 参数卡跟着这一步的算子走
             vm.SyncGroupToSelectedStep();
             vm.OnPropertyChanged(nameof(HasOp));
