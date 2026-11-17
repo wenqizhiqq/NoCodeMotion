@@ -83,6 +83,7 @@ namespace NoCodeMotion.Services.Vision
         static readonly Cv.Scalar Ink = new Cv.Scalar(0, 220, 0);        // BGR：找到的几何画绿
         static readonly Cv.Scalar InkWarn = new Cv.Scalar(0, 0, 230);    // 失败画红
         static readonly Cv.Scalar Dot = new Cv.Scalar(255, 60, 60);      // 边缘点画红点
+        static readonly Cv.Scalar Cand = new Cv.Scalar(0, 210, 255);     // 候选边缘画黄（稳健拟合前）
 
         // ===================== 入口 =====================
 
@@ -106,6 +107,8 @@ namespace NoCodeMotion.Services.Vision
                     case "lines": DoLines(spec, s, gray, dst, report, ctx, progress); break;
                     case "circle": DoCircle(spec, s, gray, dst, report, ctx, progress, arc: false); break;
                     case "arc": DoCircle(spec, s, gray, dst, report, ctx, progress, arc: true); break;
+                    case "strongline": DoStrongLine(spec, s, gray, dst, report, ctx, progress); break;
+                    case "strongcircle": DoStrongCircle(spec, s, gray, dst, report, ctx, progress); break;
                     case "edgepoints": DoEdgePoints(spec, s, gray, dst, report, ctx, progress); break;
                     case "quad": DoQuad(spec, s, cur, gray, dst, report, ctx, progress); break;
                     case "corner": DoCorners(spec, s, gray, dst, report, ctx, progress); break;
@@ -392,6 +395,175 @@ namespace NoCodeMotion.Services.Vision
                 ("偏差", fit.Rms), ("点数", fit.UsedPoints), ("起始角", fit.StartDeg), ("结束角", fit.EndDeg));
             progress?.Report($"{spec.Name}：半径 {fit.R:F2}，偏差 {fit.Rms:F2} 像素");
         }
+
+        // ===================== 稳健找直线 / 稳健找圆（传统卡尺 + RANSAC） =====================
+        //
+        // 按「最强传统找圆找直线」demo 暴露的参数与行为重写，底层全部走 VisionCaliper 自研内核：
+        //   · 每把卡尺在垂直/径向方向上找候选边（极性、响应阈值、卷积核半径、亚像素都能调）；
+        //   · 每把卡尺按「选择模式」取点：最强边 / 阈值以上全部 / 靠近期望偏移；
+        //   · 再用 LoRansac（+IRLS / +几何迭代）稳健拟合，内点画绿、外点画红、候选画黄。
+
+        static void DoStrongLine(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var (cx, cy, len, wide, ang, pol, minGrad, _, _) = LineParams(spec, s, gray);
+            double spacing = Math.Max(1, Num(spec, s, "spacing", 6));
+            int perCaliper = Math.Max(5, (int)Num(spec, s, "samples", 21));
+            int kernel = Math.Max(0, (int)Num(spec, s, "kernel", 1));
+            bool sub = Num(spec, s, "sub", 1) >= 1;
+            string pick = Txt(spec, s, "pick");
+            double expOff = Num(spec, s, "expOffset", 0);
+            var mode = RobustModeOf(spec, s);
+            double inlierTol = Math.Max(0.05, Num(spec, s, "inlierTol", 3));
+            int minInliers = Math.Max(2, (int)Num(spec, s, "minInliers", 8));
+            bool quality = Num(spec, s, "quality", 1) >= 1;
+
+            double a = ang * Math.PI / 180.0;
+            double ux = Math.Cos(a), uy = Math.Sin(a), nx = -uy, ny = ux;
+            int calipers = Math.Max(2, (int)Math.Floor(len / spacing) + 1);
+            double step = len / Math.Max(1, calipers - 1);   // 让卡尺正好铺满 length
+
+            var cand = new List<Cv.Point2f>();
+            for (int i = 0; i < calipers; i++)
+            {
+                double t = -len / 2 + step * i;
+                double px = cx + ux * t, py = cy + uy * t;
+                double sx = px - nx * wide / 2, sy = py - ny * wide / 2;
+                double ex = px + nx * wide / 2, ey = py + ny * wide / 2;
+                double seg = Math.Sqrt((ex - sx) * (ex - sx) + (ey - sy) * (ey - sy));
+                var vals = VisionCaliper.SampleProfile(gray, sx, sy, ex, ey, perCaliper);
+                var hits = VisionCaliper.FindEdges(vals, pol, minGrad, seg / (vals.Length - 1), kernel, sub);
+                if (hits.Count == 0) continue;
+
+                if (pick == "阈值以上全部")
+                {
+                    foreach (var h in hits) cand.Add(VisionCaliper.PointAlong(sx, sy, ex, ey, h.Position));
+                    continue;
+                }
+
+                double expect = seg / 2 + expOff;
+                var best = hits[0];
+                if (pick == "靠近期望偏移")
+                    foreach (var h in hits) if (Math.Abs(h.Position - expect) < Math.Abs(best.Position - expect)) best = h;
+                else
+                    foreach (var h2 in hits) if (h2.Strength > best.Strength) best = h2;
+                cand.Add(VisionCaliper.PointAlong(sx, sy, ex, ey, best.Position));
+            }
+
+            ctx.Points.Clear();
+            ctx.Points.AddRange(cand);
+            foreach (var p in cand) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 2, Cand, 1);
+
+            var fit = VisionCaliper.FitLineRobust(cand, mode, inlierTol, minInliers);
+            ctx.LastLine = fit;
+            if (fit.Ok) ctx.Lines.Add(fit);
+            if (!fit.Ok)
+            {
+                Add(report, s, spec, false, fit.Fail);
+                progress?.Report(spec.Name + "：" + fit.Fail);
+                return;
+            }
+
+            DrawLine(dst, fit);
+            if (fit.Inliers != null) foreach (var p in fit.Inliers) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 2, Ink, 2);
+            if (fit.Outliers != null) foreach (var p in fit.Outliers) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 2, InkWarn, 2);
+
+            string q = quality ? $"｜最大偏离 {fit.MaxDeviation:F2}" : "";
+            Add(report, s, spec, true,
+                $"角度 {fit.AngleDeg:F2}°｜({fit.X1:F1},{fit.Y1:F1})→({fit.X2:F1},{fit.Y2:F1})｜偏差 {fit.Rms:F2}{q}｜内点 {fit.UsedPoints}/{cand.Count}",
+                fit.Rms, fit.UsedPoints,
+                ("起点X", fit.X1), ("起点Y", fit.Y1), ("终点X", fit.X2), ("终点Y", fit.Y2),
+                ("角度", fit.AngleDeg), ("偏差", fit.Rms), ("最大偏离", fit.MaxDeviation),
+                ("内点数", fit.UsedPoints), ("候选点数", cand.Count));
+            progress?.Report($"{spec.Name}：角度 {fit.AngleDeg:F2}°，内点 {fit.UsedPoints}/{cand.Count}");
+        }
+
+        static void DoStrongCircle(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var roi = RoiOf(spec, s, gray);
+            double cx = Num(spec, s, "cx", 0), cy = Num(spec, s, "cy", 0);
+            if (cx <= 0 || cy <= 0) { cx = roi.Left + roi.Width / 2.0; cy = roi.Top + roi.Height / 2.0; }
+            double r0 = Math.Max(2, Num(spec, s, "radius", 60));
+            double tol = Math.Max(1, Num(spec, s, "tol", 20));
+            var pol = PolarityOf(spec, s);
+            double minGrad = Num(spec, s, "minGrad", 8);
+            double spacing = Math.Max(1, Num(spec, s, "spacing", 6));
+            int perCaliper = Math.Max(5, (int)Num(spec, s, "samples", 21));
+            int kernel = Math.Max(0, (int)Num(spec, s, "kernel", 1));
+            bool sub = Num(spec, s, "sub", 1) >= 1;
+            string pick = Txt(spec, s, "pick");
+            var mode = RobustModeOf(spec, s);
+            double inlierTol = Math.Max(0.05, Num(spec, s, "inlierTol", 3));
+            int minInliers = Math.Max(3, (int)Num(spec, s, "minInliers", 12));
+            bool fixR = Num(spec, s, "fixedR", 0) >= 1;
+            double rMin = Num(spec, s, "rMin", 0), rMax = Num(spec, s, "rMax", 0);
+            if (fixR) { rMin = rMax = r0; }
+
+            int calipers = Math.Max(12, (int)Math.Round(2 * Math.PI * r0 / spacing));
+            var cand = new List<Cv.Point2f>();
+            double seg = 2 * tol;
+            for (int i = 0; i < calipers; i++)
+            {
+                double rad = 2 * Math.PI * i / calipers;
+                double dx = Math.Cos(rad), dy = Math.Sin(rad);
+                double sx = cx + dx * Math.Max(1, r0 - tol), sy = cy + dy * Math.Max(1, r0 - tol);
+                double ex = cx + dx * (r0 + tol), ey = cy + dy * (r0 + tol);
+                var vals = VisionCaliper.SampleProfile(gray, sx, sy, ex, ey, perCaliper);
+                var hits = VisionCaliper.FindEdges(vals, pol, minGrad, seg / (vals.Length - 1), kernel, sub);
+                if (hits.Count == 0) continue;
+
+                if (pick == "阈值以上全部")
+                {
+                    foreach (var h in hits) cand.Add(VisionCaliper.PointAlong(sx, sy, ex, ey, h.Position));
+                    continue;
+                }
+
+                double expect = seg / 2;      // 期望边正好落在「先验半径」上
+                var best = hits[0];
+                if (pick == "靠近期望偏移")
+                    foreach (var h in hits) if (Math.Abs(h.Position - expect) < Math.Abs(best.Position - expect)) best = h;
+                else
+                    foreach (var h2 in hits) if (h2.Strength > best.Strength) best = h2;
+                cand.Add(VisionCaliper.PointAlong(sx, sy, ex, ey, best.Position));
+            }
+
+            ctx.Points.Clear();
+            ctx.Points.AddRange(cand);
+            foreach (var p in cand) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 2, Cand, 1);
+
+            var fit = VisionCaliper.FitCircleRobust(cand, mode, inlierTol, minInliers, fixR ? r0 : 0, rMin, rMax);
+            ctx.LastCircle = fit;
+            if (fit.Ok) { ctx.Circles.Add(fit); ctx.LastPoint = new Cv.Point2f((float)fit.Cx, (float)fit.Cy); }
+            if (!fit.Ok)
+            {
+                Add(report, s, spec, false, fit.Fail);
+                progress?.Report(spec.Name + "：" + fit.Fail);
+                return;
+            }
+
+            dst.Circle((int)Math.Round(fit.Cx), (int)Math.Round(fit.Cy), Math.Max(1, (int)Math.Round(fit.R)), Ink, 2);
+            dst.Line((int)Math.Round(fit.Cx) - 7, (int)Math.Round(fit.Cy), (int)Math.Round(fit.Cx) + 7, (int)Math.Round(fit.Cy), Ink, 1);
+            dst.Line((int)Math.Round(fit.Cx), (int)Math.Round(fit.Cy) - 7, (int)Math.Round(fit.Cx), (int)Math.Round(fit.Cy) + 7, Ink, 1);
+            if (fit.Inliers != null) foreach (var p in fit.Inliers) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 2, Ink, 2);
+            if (fit.Outliers != null) foreach (var p in fit.Outliers) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 2, InkWarn, 2);
+
+            Add(report, s, spec, true,
+                $"圆心 ({fit.Cx:F1},{fit.Cy:F1})｜半径 {fit.R:F2}（直径 {fit.R * 2:F2}）｜偏差 {fit.Rms:F2}｜内点 {fit.UsedPoints}/{cand.Count}{(fixR ? "｜半径固定" : "")}",
+                fit.R, fit.UsedPoints,
+                ("圆心X", fit.Cx), ("圆心Y", fit.Cy), ("半径", fit.R), ("直径", fit.R * 2),
+                ("偏差", fit.Rms), ("内点数", fit.UsedPoints), ("候选点数", cand.Count),
+                ("起始角", fit.StartDeg), ("结束角", fit.EndDeg));
+            progress?.Report($"{spec.Name}：半径 {fit.R:F2}，内点 {fit.UsedPoints}/{cand.Count}");
+        }
+
+        static VisionCaliper.RobustFit RobustModeOf(VisionOpSpec spec, VisualFlowStep s)
+            => Txt(spec, s, "robust") switch
+            {
+                "LoRansacIrls" => VisionCaliper.RobustFit.RansacIrls,
+                "LoRansacGeometricLm" => VisionCaliper.RobustFit.RansacGeometricLm,
+                _ => VisionCaliper.RobustFit.Ransac,
+            };
 
         // ===================== 找边缘点 =====================
 

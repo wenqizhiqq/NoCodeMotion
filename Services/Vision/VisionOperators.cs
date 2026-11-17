@@ -51,6 +51,8 @@ namespace NoCodeMotion.Services.Vision
         public const string SourceWenVision = "WenVision 移植";
         /// <summary>从 VisionPlus 的算子体系逆向出的功能与参数，全部用 OpenCV / 自有数学重写，不调用其 DLL。</summary>
         public const string SourceVisionPlus = "VisionPlus 移植";
+        /// <summary>按「最强传统找圆找直线」demo 的参数语义重写（该 demo 只有 exe、无源码），不调用其程序。</summary>
+        public const string SourceClassicCaliper = "传统卡尺移植";
 
         public VisionParamDef Find(string key) => Params.FirstOrDefault(p => p.Key == key);
     }
@@ -104,6 +106,51 @@ namespace NoCodeMotion.Services.Vision
             P("keep", "相信几成的点", "num", "0.9", "拟圆时保留多少比例的点，剩下的当杂点", min: 0.5, max: 1),
         };
 
+        // 稳健找直线 / 稳健找圆：按「最强传统找圆找直线」demo 暴露的参数与行为重写（无源码，只用其参数语义）
+        static readonly VisionParamDef[] StrongLine =
+        {
+            Roi,
+            P("cx", "中心X", "num", "0", "搜索带的中心点 X（像素）。0 = 用画面中心"),
+            P("cy", "中心Y", "num", "0", "搜索带的中心点 Y（像素）。0 = 用画面中心"),
+            P("angle", "边的大概角度", "num", "0", "这条边大概朝哪个方向（度，0 = 水平边）", min: -180, max: 180),
+            P("length", "沿边看多长", "num", "200", "沿这条边铺多长一段卡尺（像素）", min: 8, max: 4000),
+            P("width", "垂直找多宽", "num", "40", "每把卡尺在垂直方向上跑多远去找边（像素）", min: 4, max: 2000),
+            P("polarity", "边缘极性", "choice", "任意", "沿搜索方向看：灰度升高选「暗到亮」，降低选「亮到暗」；拿不准选「任意」", PolarityOptions),
+            P("minGrad", "边缘响应阈值", "num", "8", "梯度小于这个值的不算边。越大越严（只认硬边）", min: 0.5, max: 200),
+            P("spacing", "卡尺中心间距", "num", "6", "相邻两把卡尺隔多远（像素）。越小点越密、越稳，也越慢", min: 2, max: 500),
+            P("samples", "每卡尺样本数", "int", "21", "每把卡尺在垂直方向上采多少个灰度点（一般 15~60）", min: 5, max: 400),
+            P("kernel", "卷积核半径", "int", "1", "求导前先做平滑的半径：0 = 不平滑；噪点多就加到 2~3", min: 0, max: 10),
+            P("pick", "选择模式", "choice", "最强边", "每把卡尺取哪个边：最强边 / 阈值以上全部 / 靠近期望偏移", "最强边|阈值以上全部|靠近期望偏移"),
+            P("expOffset", "每卡尺期望偏移", "num", "0", "期望边相对卡尺中心的偏移（像素），只在「靠近期望偏移」时用", min: -2000, max: 2000),
+            P("sub", "亚像素", "bool", "1", "勾上 = 峰位用抛物线插值精修到亚像素；不勾 = 只到整像素"),
+            P("robust", "稳健拟合策略", "choice", "LoRansacIrls", "LoRansac = 只挑内点；LoRansacIrls = 再加迭代重加权；LoRansacGeometricLm = 几何迭代 + 只降权不扔点", "LoRansac|LoRansacIrls|LoRansacGeometricLm"),
+            P("inlierTol", "内点最大偏差", "num", "3", "离拟合直线不超过这个距离的点算内点（像素）", min: 0.1, max: 200),
+            P("minInliers", "最低内点数", "int", "8", "内点少于这个数就判失败（候选边缘点的个数）", min: 2, max: 10000),
+            P("quality", "启用直线质量判定", "bool", "1", "勾上 = 除角度外还报最大偏离（直线度）；不勾 = 只看角度"),
+        };
+
+        static readonly VisionParamDef[] StrongCircle =
+        {
+            Roi,
+            P("cx", "圆心X", "num", "0", "圆心的大概位置 X（像素）。0 = 用画面中心"),
+            P("cy", "圆心Y", "num", "0", "圆心的大概位置 Y（像素）。0 = 用画面中心"),
+            P("radius", "先验半径", "num", "60", "圆的半径估计值（像素），卡尺就铺在这个半径上", min: 2, max: 5000),
+            P("tol", "径向搜索范围", "num", "20", "沿半径方向允许跑多远去找边（像素）", min: 1, max: 2000),
+            P("polarity", "边缘极性", "choice", "任意", "从圆内往外看：暗到亮 / 亮到暗；不确定选「任意」", PolarityOptions),
+            P("minGrad", "边缘响应阈值", "num", "8", "梯度小于这个值的不算边", min: 0.5, max: 200),
+            P("spacing", "卡尺中心间距", "num", "6", "沿圆周相邻两把卡尺的弧长间距（像素）。越小点越密、越稳", min: 2, max: 500),
+            P("samples", "每卡尺样本数", "int", "21", "每把卡尺在半径方向上采多少个灰度点", min: 5, max: 400),
+            P("kernel", "卷积核半径", "int", "1", "求导前先做平滑的半径：0 = 不平滑；噪点多就加到 2~3", min: 0, max: 10),
+            P("pick", "选择模式", "choice", "最强边", "每把卡尺取哪个边：最强边 / 阈值以上全部 / 靠近期望偏移（期望 = 先验半径）", "最强边|阈值以上全部|靠近期望偏移"),
+            P("sub", "亚像素", "bool", "1", "勾上 = 峰位用抛物线插值精修到亚像素；不勾 = 只到整像素"),
+            P("robust", "稳健拟合策略", "choice", "LoRansacIrls", "LoRansac = 只挑内点；LoRansacIrls = 再加迭代重加权；LoRansacGeometricLm = 几何迭代 + 只降权不扔点", "LoRansac|LoRansacIrls|LoRansacGeometricLm"),
+            P("inlierTol", "内点最大偏差", "num", "3", "离拟合圆不超过这个距离的点算内点（像素）", min: 0.1, max: 200),
+            P("minInliers", "最低内点数", "int", "12", "内点少于这个数就判失败（候选边缘点的个数）", min: 3, max: 10000),
+            P("fixedR", "固定半径", "bool", "0", "勾上 = 半径就按「先验半径」算，只调圆心（圆缺一块/被遮挡时更稳）"),
+            P("rMin", "先验半径下界", "num", "0", "拟出来的半径不许小于这个值（0 = 不限）", min: 0, max: 5000),
+            P("rMax", "先验半径上界", "num", "0", "拟出来的半径不许大于这个值（0 = 不限）", min: 0, max: 5000),
+        };
+
         static readonly VisionOpSpec[] All =
         {
             new VisionOpSpec
@@ -141,6 +188,24 @@ namespace NoCodeMotion.Services.Vision
                     P("a0", "从几度开始找", "num", "0", "只在这个角度范围内找边（度）", min: -360, max: 360),
                     P("a1", "找到几度结束", "num", "360", "和「从几度开始」之间就是要看的扇形区（度）", min: -360, max: 360),
                 }).ToArray(),
+            },
+            new VisionOpSpec
+            {
+                Key = "strongline", Name = "稳健找直线", Category = "找边与测量",
+                Source = VisionOpSpec.SourceClassicCaliper,
+                SourceNote = "按「最强传统找圆找直线」demo 暴露的参数与行为重写；底层是自研卡尺 + RANSAC，不调用它的程序",
+                Summary = "密集卡尺先采一批候选边，再用 RANSAC 稳健拟合：杂点、飞边、局部遮挡都不影响结果。内点画绿、外点画红、候选画黄。",
+                Outputs = "起点X/起点Y/终点X/终点Y/角度/偏差/最大偏离/内点数/候选点数",
+                Params = StrongLine,
+            },
+            new VisionOpSpec
+            {
+                Key = "strongcircle", Name = "稳健找圆", Category = "找边与测量",
+                Source = VisionOpSpec.SourceClassicCaliper,
+                SourceNote = "按「最强传统找圆找直线」demo 暴露的参数与行为重写；底层是自研卡尺 + RANSAC，不调用它的程序",
+                Summary = "沿圆周铺密集径向卡尺，先采候选边再 RANSAC 稳健拟合；可固定半径或限定半径上下界，圆缺一块、有毛刺也能找稳。",
+                Outputs = "圆心X/圆心Y/半径/直径/偏差/内点数/候选点数/起始角/结束角",
+                Params = StrongCircle,
             },
             new VisionOpSpec
             {
@@ -1813,11 +1878,11 @@ namespace NoCodeMotion.Services.Vision
         public static IReadOnlyList<VisionOpSpec> BySource(string source)
             => All.Where(a => string.Equals(a.Source, source, System.StringComparison.Ordinal)).ToList();
 
-        /// <summary>出现过的来源，固定顺序：Halcon 同款 → WenVision 移植 → VisionPlus 移植 → OpenCV 原生。</summary>
+        /// <summary>出现过的来源，固定顺序：Halcon 同款 → WenVision 移植 → VisionPlus 移植 → 传统卡尺移植 → OpenCV 原生。</summary>
         public static IReadOnlyList<string> Sources { get; } = new[]
         {
             VisionOpSpec.SourceHalcon, VisionOpSpec.SourceWenVision,
-            VisionOpSpec.SourceVisionPlus, VisionOpSpec.SourceOpenCv
+            VisionOpSpec.SourceVisionPlus, VisionOpSpec.SourceClassicCaliper, VisionOpSpec.SourceOpenCv
         };
 
         /// <summary>所有算子的白话名（守卫与提示词用它核对界面候选）。</summary>

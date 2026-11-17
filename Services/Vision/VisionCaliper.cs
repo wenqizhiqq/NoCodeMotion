@@ -25,6 +25,12 @@ namespace NoCodeMotion.Services.Vision
         /// <summary>边缘方向（极性）。</summary>
         public enum Polarity { Any = 0, DarkToLight = 1, LightToDark = 2 }
 
+        /// <summary>每条卡尺上取哪个候选边（对应传统找圆找直线 demo 的「选择模式」）。</summary>
+        public enum EdgePick { Strongest = 0, AllAboveThreshold = 1, NearestExpected = 2 }
+
+        /// <summary>稳健拟合策略（对应 demo 的三个 LoRansac 选项）。</summary>
+        public enum RobustFit { Ransac = 0, RansacIrls = 1, RansacGeometricLm = 2 }
+
         /// <summary>一条剖面上找到的一个边缘点（亚像素）。</summary>
         public sealed class ProfileHit
         {
@@ -42,6 +48,9 @@ namespace NoCodeMotion.Services.Vision
             public double MaxDeviation;       // 最大偏离：「这条线够不够直」就看它
             public int UsedPoints;
             public string Fail;
+            /// <summary>稳健拟合留下的内点（画绿）/ 被剔除的外点（画红）。普通拟合为 null。</summary>
+            public List<Cv.Point2f>? Inliers;
+            public List<Cv.Point2f>? Outliers;
         }
 
         public sealed class CircleResult
@@ -53,6 +62,9 @@ namespace NoCodeMotion.Services.Vision
             public double StartDeg = double.NaN;   // 实际张到的起止角（整圆时 0 / 360）
             public double EndDeg = double.NaN;
             public string Fail;
+            /// <summary>稳健拟合留下的内点（画绿）/ 被剔除的外点（画红）。普通拟合为 null。</summary>
+            public List<Cv.Point2f>? Inliers;
+            public List<Cv.Point2f>? Outliers;
         }
 
         // ===================== ① 剖面采样 =====================
@@ -114,12 +126,39 @@ namespace NoCodeMotion.Services.Vision
 
         // ===================== ③ 找边 =====================
 
+        /// <summary>对剖面做对称盒式平滑（半径 = 卷积核半径）。对称核不挪位置，峰还是原来的位置。</summary>
+        public static double[] Smooth(double[] vals, int radius)
+        {
+            if (vals == null || radius <= 0 || vals.Length < 3) return vals;
+            int n = vals.Length;
+            radius = Math.Min(radius, (n - 1) / 2);
+            if (radius <= 0) return vals;
+            var pre = new double[n + 1];
+            for (int i = 0; i < n; i++) pre[i + 1] = pre[i] + vals[i];
+            var dst = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                int a = Math.Max(0, i - radius), b = Math.Min(n - 1, i + radius);
+                dst[i] = (pre[b + 1] - pre[a]) / (b - a + 1);
+            }
+            return dst;
+        }
+
         /// <summary>
         /// 在一条剖面上找满足极性与强度的边缘（亚像素）。
         /// maxEdges = 1 只要最强那条（单边卡尺）；&lt; 0 全要（一条线上有多个台阶时用）。
         /// </summary>
         public static List<ProfileHit> FindEdges(double[] vals, Polarity pol, double minStrength, double stepPx)
+            => FindEdges(vals, pol, minStrength, stepPx, 0, true);
+
+        /// <summary>
+        /// 同上，另带「卷积核半径」（求导前平滑次数）与「亚像素」开关：
+        /// kernelRadius = 0 不平滑；subpixel = false 时只报到整像素。
+        /// </summary>
+        public static List<ProfileHit> FindEdges(double[] vals, Polarity pol, double minStrength, double stepPx,
+            int kernelRadius, bool subpixel)
         {
+            if (kernelRadius > 0) vals = Smooth(vals, kernelRadius);
             var hits = new List<ProfileHit>();
             var g = Gradient(vals);
             int n = g.Length;
@@ -132,7 +171,7 @@ namespace NoCodeMotion.Services.Vision
                 if (pol == Polarity.LightToDark && v >= 0) continue;
 
                 double denom = g[i - 1] - 2 * v + g[i + 1];
-                double off = Math.Abs(denom) > 1e-9 ? Math.Min(Math.Max(0.5 * (g[i - 1] - g[i + 1]) / denom, -1), 1) : 0;
+                double off = subpixel && Math.Abs(denom) > 1e-9 ? Math.Min(Math.Max(0.5 * (g[i - 1] - g[i + 1]) / denom, -1), 1) : 0;
                 hits.Add(new ProfileHit { Position = (i + off) * stepPx, Strength = Math.Abs(v) });
             }
             return hits;
@@ -200,6 +239,156 @@ namespace NoCodeMotion.Services.Vision
             r.MaxDeviation = mx;
             r.UsedPoints = work.Count;
             return r;
+        }
+
+        /// <summary>
+        /// 稳健找直线：RANSAC 定出内点最多的那条，再按策略精修。
+        ///   LoRansac            = RANSAC + 内点总体最小二乘（干净、快）
+        ///   LoRansacIrls        = 再加 Tukey 权重的迭代重加权（杂点多时更稳）
+        ///   LoRansacGeometricLm = 再加 Cauchy 权重的几何迭代（残差大的点只降权不扔）
+        /// inlierTol = 内点最大偏差（像素）；minInliers = 低于这个内点数直接判失败。
+        /// </summary>
+        public static LineResult FitLineRobust(IList<Cv.Point2f> pts, RobustFit mode, double inlierTol,
+            int minInliers, int maxIter = 300)
+        {
+            var r = new LineResult();
+            int n = pts?.Count ?? 0;
+            if (n < 2) { r.Fail = "边缘点太少（直线至少 2 个）"; return r; }
+            inlierTol = Math.Max(0.05, inlierTol);
+            var src = new List<Cv.Point2f>(pts);
+            int need = Math.Max(2, Math.Min(minInliers, n));
+
+            // ① RANSAC：随机取两点定线，按垂直距离数内点，留内点最多的那条
+            double bx = src[0].X, by = src[0].Y, bvx = 1, bvy = 0;
+            int best = -1;
+            var rnd = new Random(20261117);
+            int iter = Math.Min(maxIter, 40 + n * 4);
+            for (int k = 0; k < iter; k++)
+            {
+                int i = rnd.Next(n), j = rnd.Next(n);
+                if (i == j) continue;
+                double vx = src[j].X - src[i].X, vy = src[j].Y - src[i].Y;
+                double len = Math.Sqrt(vx * vx + vy * vy);
+                if (len < 1e-6) continue;
+                vx /= len; vy /= len;
+                int cnt = 0;
+                foreach (var p in src) if (Perp(p.X, p.Y, src[i].X, src[i].Y, vx, vy) <= inlierTol) cnt++;
+                if (cnt > best) { best = cnt; bx = src[i].X; by = src[i].Y; bvx = vx; bvy = vy; }
+            }
+            if (best < need)
+            {
+                r.Fail = $"稳健拟合没找到足够的内点（{Math.Max(best, 0)}/{n}，至少要 {need} 个）：把「内点最大偏差」调大，或把「边缘响应阈值」调小";
+                return r;
+            }
+
+            var inl = new List<Cv.Point2f>();
+            var outl = new List<Cv.Point2f>();
+            foreach (var p in src)
+                (Perp(p.X, p.Y, bx, by, bvx, bvy) <= inlierTol ? inl : outl).Add(p);
+
+            // ② 先做一次总体最小二乘（加权版也走这里，权重全 1）
+            TlsLine(inl, null, out double cx, out double cy, out double ux, out double uy);
+
+            // ③ 按策略迭代重加权
+            int rounds = mode == RobustFit.Ransac ? 0 : (mode == RobustFit.RansacIrls ? 8 : 12);
+            if (rounds > 0 && inl.Count >= 2)
+            {
+                var w = new double[inl.Count];
+                for (int it = 0; it < rounds; it++)
+                {
+                    double sigma = 1.4826 * Mad(inl, cx, cy, ux, uy);
+                    double c = (mode == RobustFit.RansacIrls ? 4.685 : 3.0) * Math.Max(sigma, inlierTol);
+                    if (c < 1e-6) break;
+                    for (int i = 0; i < inl.Count; i++)
+                    {
+                        double d = Perp(inl[i].X, inl[i].Y, cx, cy, ux, uy) / c;
+                        // Tukey：超过 c 的直接权重 0；Cauchy：只降权，不归零
+                        w[i] = mode == RobustFit.RansacIrls
+                            ? (Math.Abs(d) >= 1 ? 0 : (1 - d * d) * (1 - d * d))
+                            : 1.0 / (1.0 + d * d);
+                    }
+                    TlsLine(inl, w, out double nx, out double ny, out double nux, out double nuy);
+                    bool done = Math.Abs(nx - cx) + Math.Abs(ny - cy) < 1e-4
+                                && Math.Abs(nux - ux) + Math.Abs(nuy - uy) < 1e-6;
+                    cx = nx; cy = ny; ux = nux; uy = nuy;
+                    if (done) break;
+                }
+            }
+
+            // ④ 以外点/内点的最终结果出数（分类仍按「离最终直线多远」）
+            inl.Clear(); outl.Clear();
+            foreach (var p in src)
+                (Perp(p.X, p.Y, cx, cy, ux, uy) <= inlierTol ? inl : outl).Add(p);
+            if (inl.Count < 2) { r.Fail = "稳健拟合后剩下的内点不够（少于 2 个）"; return r; }
+
+            double tmin = double.MaxValue, tmax = double.MinValue, sum = 0, mx = 0;
+            foreach (var p in inl)
+            {
+                double t = (p.X - cx) * ux + (p.Y - cy) * uy;
+                if (t < tmin) tmin = t;
+                if (t > tmax) tmax = t;
+                double d = Perp(p.X, p.Y, cx, cy, ux, uy);
+                sum += d * d; if (d > mx) mx = d;
+            }
+
+            r.Ok = true;
+            r.X1 = cx + ux * tmin; r.Y1 = cy + uy * tmin;
+            r.X2 = cx + ux * tmax; r.Y2 = cy + uy * tmax;
+            double ang = Math.Atan2(uy, ux) * 180.0 / Math.PI;
+            while (ang > 90) ang -= 180;
+            while (ang < -90) ang += 180;
+            r.AngleDeg = ang;
+            r.Rms = Math.Sqrt(sum / inl.Count);
+            r.MaxDeviation = mx;
+            r.UsedPoints = inl.Count;
+            r.Inliers = inl;
+            r.Outliers = outl;
+            return r;
+        }
+
+        /// <summary>加权总体最小二乘直线：主方向 = 加权协方差矩阵的主轴。</summary>
+        static void TlsLine(IList<Cv.Point2f> pts, double[]? w,
+            out double cx, out double cy, out double vx, out double vy)
+        {
+            double sw = 0, sx = 0, sy = 0;
+            for (int i = 0; i < pts.Count; i++)
+            {
+                double wi = w == null ? 1 : w[i];
+                sw += wi; sx += wi * pts[i].X; sy += wi * pts[i].Y;
+            }
+            if (sw <= 1e-9)
+            {
+                sw = pts.Count; sx = 0; sy = 0;
+                foreach (var p in pts) { sx += p.X; sy += p.Y; }
+            }
+            cx = sx / sw; cy = sy / sw;
+            double sxx = 0, syy = 0, sxy = 0;
+            for (int i = 0; i < pts.Count; i++)
+            {
+                double wi = w == null ? 1 : w[i];
+                double dx = pts[i].X - cx, dy = pts[i].Y - cy;
+                sxx += wi * dx * dx; syy += wi * dy * dy; sxy += wi * dx * dy;
+            }
+            if (sxx + syy < 1e-12) { vx = 1; vy = 0; return; }
+            double th = 0.5 * Math.Atan2(2 * sxy, sxx - syy);
+            vx = Math.Cos(th); vy = Math.Sin(th);
+        }
+
+        static double Perp(double px, double py, double x0, double y0, double vx, double vy)
+        {
+            double len = Math.Sqrt(vx * vx + vy * vy);
+            if (len < 1e-9) return double.MaxValue;
+            return Math.Abs((px - x0) * vy - (py - y0) * vx) / len;
+        }
+
+        /// <summary>残差的中位绝对偏差（MAD），用来估稳健尺度。</summary>
+        static double Mad(IList<Cv.Point2f> pts, double cx, double cy, double vx, double vy)
+        {
+            if (pts.Count == 0) return 0;
+            var d = new double[pts.Count];
+            for (int i = 0; i < pts.Count; i++) d[i] = Perp(pts[i].X, pts[i].Y, cx, cy, vx, vy);
+            Array.Sort(d);
+            return d[d.Length / 2];
         }
 
         static double PerpDist(Cv.Point2f p, Cv.Line2D l)
@@ -273,6 +462,193 @@ namespace NoCodeMotion.Services.Vision
             { r.Fail = "拟出来的圆半径不合理（太小或发散）"; return r; }
             r.Ok = true;
             return r;
+        }
+
+        /// <summary>
+        /// 稳健找圆：RANSAC 定出内点最多的圆，再按策略精修。
+        /// fixedRadius &gt; 0 时半径固定（三点定圆退化成两点 + 给定半径）；
+        /// radiusMin / radiusMax &gt; 0 时只接受落在这个范围内的半径（先验半径上下界）。
+        /// 其余参数语义与 <see cref="FitLineRobust"/> 一致。
+        /// </summary>
+        public static CircleResult FitCircleRobust(IList<Cv.Point2f> pts, RobustFit mode, double inlierTol,
+            int minInliers, double fixedRadius, double radiusMin, double radiusMax, int maxIter = 400)
+        {
+            var r = new CircleResult();
+            int n = pts?.Count ?? 0;
+            if (n < 3) { r.Fail = "边缘点太少（圆至少 3 个）"; return r; }
+            inlierTol = Math.Max(0.05, inlierTol);
+            var src = new List<Cv.Point2f>(pts);
+            int need = Math.Max(3, Math.Min(minInliers, n));
+            bool fixR = fixedRadius > 0.5;
+
+            // ① RANSAC：随机取 3 点定圆；固定半径时取 2 点 + 半径定圆心（两个候选都试）
+            double bcx = 0, bcy = 0, bR = 0;
+            int best = -1;
+            var rnd = new Random(20261117);
+            int iter = Math.Min(maxIter, 60 + n * 4);
+            for (int k = 0; k < iter; k++)
+            {
+                if (fixR)
+                {
+                    int i = rnd.Next(n), j = rnd.Next(n);
+                    if (i == j) continue;
+                    double midX = (src[i].X + src[j].X) / 2, midY = (src[i].Y + src[j].Y) / 2;
+                    double dx = src[j].X - src[i].X, dy = src[j].Y - src[i].Y;
+                    double d = Math.Sqrt(dx * dx + dy * dy);
+                    if (d < 1e-6 || d > 2 * fixedRadius) continue;
+                    double h = Math.Sqrt(Math.Max(0, fixedRadius * fixedRadius - d * d / 4));
+                    double nx = -dy / d, ny = dx / d;
+                    for (int sg = -1; sg <= 1; sg += 2)
+                    {
+                        double cx = midX + nx * h * sg, cy = midY + ny * h * sg;
+                        int cnt = CountCircleInliers(src, cx, cy, fixedRadius, inlierTol);
+                        if (cnt > best) { best = cnt; bcx = cx; bcy = cy; bR = fixedRadius; }
+                    }
+                    continue;
+                }
+
+                int a = rnd.Next(n), b = rnd.Next(n), c = rnd.Next(n);
+                if (a == b || b == c || a == c) continue;
+                if (!Circle3(src[a], src[b], src[c], out double ccx, out double ccy, out double cr)) continue;
+                if (radiusMin > 0 && cr < radiusMin) continue;
+                if (radiusMax > 0 && cr > radiusMax) continue;
+                int cnt2 = CountCircleInliers(src, ccx, ccy, cr, inlierTol);
+                if (cnt2 > best) { best = cnt2; bcx = ccx; bcy = ccy; bR = cr; }
+            }
+            if (best < need)
+            {
+                r.Fail = $"稳健拟合没找到足够的内点（{Math.Max(best, 0)}/{n}，至少要 {need} 个）：把「内点最大偏差」调大，或把「边缘响应阈值」调小";
+                return r;
+            }
+
+            var inl = new List<Cv.Point2f>();
+            var outl = new List<Cv.Point2f>();
+            foreach (var p in src)
+                (Math.Abs(Dist2(p, bcx, bcy) - bR) <= inlierTol ? inl : outl).Add(p);
+
+            // ② 按策略精修
+            if (mode != RobustFit.Ransac)
+            {
+                int rounds = mode == RobustFit.RansacIrls ? 8 : 12;
+                var w = new double[inl.Count];
+                for (int it = 0; it < rounds; it++)
+                {
+                    double sigma = MadCircle(inl, bcx, bcy, bR);
+                    double c = (mode == RobustFit.RansacIrls ? 4.685 : 3.0) * Math.Max(sigma, inlierTol);
+                    if (c < 1e-6) break;
+                    for (int i = 0; i < inl.Count; i++)
+                    {
+                        double d = Math.Abs(Dist2(inl[i], bcx, bcy) - bR) / c;
+                        w[i] = mode == RobustFit.RansacIrls
+                            ? (Math.Abs(d) >= 1 ? 0 : (1 - d * d) * (1 - d * d))
+                            : 1.0 / (1.0 + d * d);
+                    }
+                    double ox = bcx, oy = bcy, or0 = bR;
+                    GnCircle(inl, ref bcx, ref bcy, ref bR, fixR, w, 6);
+                    if (Math.Abs(bcx - ox) + Math.Abs(bcy - oy) + Math.Abs(bR - or0) < 1e-5) break;
+                }
+            }
+            else
+            {
+                GnCircle(inl, ref bcx, ref bcy, ref bR, fixR, null, 12);
+            }
+
+            // ③ 最终内外点按「离最终圆多远」重分
+            inl.Clear(); outl.Clear();
+            foreach (var p in src)
+                (Math.Abs(Dist2(p, bcx, bcy) - bR) <= inlierTol ? inl : outl).Add(p);
+            if (inl.Count < 3) { r.Fail = "稳健拟合后剩下的内点不够（少于 3 个）"; return r; }
+            if (bR <= 0.5 || double.IsNaN(bR) || double.IsInfinity(bR))
+            { r.Fail = "拟出来的圆半径不合理（太小或发散）"; return r; }
+
+            double sum = 0, mx = 0;
+            foreach (var p in inl)
+            {
+                double d = Math.Abs(Dist2(p, bcx, bcy) - bR);
+                sum += d * d; if (d > mx) mx = d;
+            }
+            r.Ok = true;
+            r.Cx = bcx; r.Cy = bcy; r.R = bR;
+            r.Rms = Math.Sqrt(sum / inl.Count);
+            r.UsedPoints = inl.Count;
+            r.Inliers = inl;
+            r.Outliers = outl;
+            ArcSpan(inl, bcx, bcy, out r.StartDeg, out r.EndDeg);
+            return r;
+        }
+
+        /// <summary>圆心 + 半径的 Gauss-Newton 精修（可加权、可固定半径）。</summary>
+        static void GnCircle(IList<Cv.Point2f> pts, ref double cx, ref double cy, ref double rad,
+            bool fixR, double[]? w, int iters)
+        {
+            if (pts.Count < 3) return;
+            for (int it = 0; it < iters; it++)
+            {
+                double a00 = 0, a01 = 0, a02 = 0, a11 = 0, a12 = 0, a22 = 0, b0 = 0, b1 = 0, b2 = 0;
+                for (int i = 0; i < pts.Count; i++)
+                {
+                    double wi = w == null ? 1 : w[i];
+                    if (wi <= 0) continue;
+                    double dx = pts[i].X - cx, dy = pts[i].Y - cy;
+                    double d = Math.Sqrt(dx * dx + dy * dy);
+                    if (d < 1e-9) continue;
+                    double ux = dx / d, uy = dy / d;
+                    double f = d - rad;
+                    a00 += wi * ux * ux; a01 += wi * ux * uy; a02 += wi * ux;
+                    a11 += wi * uy * uy; a12 += wi * uy; a22 += wi;
+                    b0 += wi * ux * f; b1 += wi * uy * f; b2 += wi * f;
+                }
+                if (a00 < 1e-12 && a11 < 1e-12) return;
+                if (fixR)
+                {
+                    double det = a00 * a11 - a01 * a01;
+                    if (Math.Abs(det) < 1e-12) return;
+                    double dcx = (b0 * a11 - b1 * a01) / det;
+                    double dcy = (a00 * b1 - a01 * b0) / det;
+                    cx += dcx; cy += dcy;
+                    if (Math.Abs(dcx) + Math.Abs(dcy) < 1e-5) return;
+                }
+                else
+                {
+                    if (!Solve3(a00, a01, a02, a01, a11, a12, a02, a12, a22, ref b0, ref b1, ref b2)) return;
+                    cx += b0; cy += b1; rad += b2;
+                    if (Math.Abs(b0) + Math.Abs(b1) + Math.Abs(b2) < 1e-5) return;
+                }
+            }
+        }
+
+        /// <summary>三点定圆（外接圆），三点几乎共线时返回 false。</summary>
+        static bool Circle3(Cv.Point2f p1, Cv.Point2f p2, Cv.Point2f p3,
+            out double cx, out double cy, out double rad)
+        {
+            cx = cy = rad = 0;
+            double ax = p1.X, ay = p1.Y, bx = p2.X, by = p2.Y, qx = p3.X, qy = p3.Y;
+            double d = 2 * (ax * (by - qy) + bx * (qy - ay) + qx * (ay - by));
+            if (Math.Abs(d) < 1e-9) return false;
+            double a2 = ax * ax + ay * ay, b2 = bx * bx + by * by, q2 = qx * qx + qy * qy;
+            cx = (a2 * (by - qy) + b2 * (qy - ay) + q2 * (ay - by)) / d;
+            cy = (a2 * (qx - bx) + b2 * (ax - qx) + q2 * (bx - ax)) / d;
+            rad = Math.Sqrt((ax - cx) * (ax - cx) + (ay - cy) * (ay - cy));
+            return rad > 1e-6 && !double.IsNaN(rad) && !double.IsInfinity(rad);
+        }
+
+        static int CountCircleInliers(IList<Cv.Point2f> pts, double cx, double cy, double rad, double tol)
+        {
+            int cnt = 0;
+            foreach (var p in pts) if (Math.Abs(Dist2(p, cx, cy) - rad) <= tol) cnt++;
+            return cnt;
+        }
+
+        static double Dist2(Cv.Point2f p, double cx, double cy)
+            => Math.Sqrt((p.X - cx) * (p.X - cx) + (p.Y - cy) * (p.Y - cy));
+
+        static double MadCircle(IList<Cv.Point2f> pts, double cx, double cy, double rad)
+        {
+            if (pts.Count == 0) return 0;
+            var d = new double[pts.Count];
+            for (int i = 0; i < pts.Count; i++) d[i] = Math.Abs(Dist2(pts[i], cx, cy) - rad);
+            Array.Sort(d);
+            return d[d.Length / 2];
         }
 
         /// <summary>Kasa 代数圆解：x²+y² + F + D·x + E·y = 0 的最小二乘。</summary>
