@@ -184,7 +184,7 @@
   </ItemGroup>
 
   <!-- 「找直线找圆」示例流程用的样图：随输出目录提供，
-       视觉步骤用相对路径 Assets\Samples\line-circle-demo.png 引用，点【运行一次】就能跑 -->
+       视觉步骤用相对路径 Assets\Samples\LineFind\line-circle-demo.png 引用，点【运行一次】就能跑 -->
   <ItemGroup>
     <Content Include="Assets\Samples\**\*.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Samples\**\*.jpg" CopyToOutputDirectory="PreserveNewest" />

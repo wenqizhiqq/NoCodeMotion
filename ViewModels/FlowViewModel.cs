@@ -773,7 +773,7 @@ namespace NoCodeMotion.ViewModels
                     {
                         StepType = "图像采集",
                         SourceType = "文件",
-                        FilePath = @"Assets\Samples\line-circle-demo.png",
+                        FilePath = @"Assets\Samples\LineFind\line-circle-demo.png",
                         Width = 640,
                         Height = 480,
                     },
@@ -815,7 +815,7 @@ namespace NoCodeMotion.ViewModels
                     {
                         StepType = "图像采集",
                         SourceType = "文件",
-                        FilePath = @"Assets\Samples\pcb-edge-demo.jpg",
+                        FilePath = @"Assets\Samples\LineFind\pcb-edge-demo.jpg",
                         Width = 1700,
                         Height = 1280,
                     },
@@ -844,7 +844,7 @@ namespace NoCodeMotion.ViewModels
                     {
                         StepType = "图像采集",
                         SourceType = "文件",
-                        FilePath = @"Assets\Samples\texture-edge-demo.png",
+                        FilePath = @"Assets\Samples\LineFind\texture-edge-demo.png",
                         Width = 1184,
                         Height = 885,
                     },
