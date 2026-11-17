@@ -195,7 +195,7 @@ namespace NoCodeMotion.Services.Vision
                 Source = VisionOpSpec.SourceClassicCaliper,
                 SourceNote = "按「最强传统找圆找直线」demo 暴露的参数与行为重写；底层是自研卡尺 + RANSAC，不调用它的程序",
                 Summary = "密集卡尺先采一批候选边，再用 RANSAC 稳健拟合：杂点、飞边、局部遮挡都不影响结果。内点画绿、外点画红、候选画黄。",
-                Outputs = "起点X/起点Y/终点X/终点Y/角度/偏差/最大偏离/内点数/候选点数",
+                Outputs = "中心X/中心Y/起点X/起点Y/终点X/终点Y/角度/偏差/最大偏离/内点数/候选点数",
                 Params = StrongLine,
             },
             new VisionOpSpec

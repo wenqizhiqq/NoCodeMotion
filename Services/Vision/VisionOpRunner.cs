@@ -84,6 +84,7 @@ namespace NoCodeMotion.Services.Vision
         static readonly Cv.Scalar InkWarn = new Cv.Scalar(0, 0, 230);    // 失败画红
         static readonly Cv.Scalar Dot = new Cv.Scalar(255, 60, 60);      // 边缘点画红点
         static readonly Cv.Scalar Cand = new Cv.Scalar(0, 210, 255);     // 候选边缘画黄（稳健拟合前）
+        static readonly Cv.Scalar TickInk = new Cv.Scalar(0, 150, 0);    // 卡尺扫描线（暗绿，衬在绿框里）
 
         // ===================== 入口 =====================
 
@@ -423,6 +424,16 @@ namespace NoCodeMotion.Services.Vision
             int calipers = Math.Max(2, (int)Math.Floor(len / spacing) + 1);
             double step = len / Math.Max(1, calipers - 1);   // 让卡尺正好铺满 length
 
+            // 绿色搜索框（旋转矩形）：让用户一眼看出这一步在哪儿找、朝哪个方向找
+            var band = new[]
+            {
+                new Cv.Point((int)Math.Round(cx + ux * len / 2 + nx * wide / 2), (int)Math.Round(cy + uy * len / 2 + ny * wide / 2)),
+                new Cv.Point((int)Math.Round(cx + ux * len / 2 - nx * wide / 2), (int)Math.Round(cy + uy * len / 2 - ny * wide / 2)),
+                new Cv.Point((int)Math.Round(cx - ux * len / 2 - nx * wide / 2), (int)Math.Round(cy - uy * len / 2 - ny * wide / 2)),
+                new Cv.Point((int)Math.Round(cx - ux * len / 2 + nx * wide / 2), (int)Math.Round(cy - uy * len / 2 + ny * wide / 2)),
+            };
+            dst.Polylines(new[] { band }, true, Ink, 1, Cv.LineTypes.AntiAlias);
+
             var cand = new List<Cv.Point2f>();
             for (int i = 0; i < calipers; i++)
             {
@@ -431,6 +442,7 @@ namespace NoCodeMotion.Services.Vision
                 double sx = px - nx * wide / 2, sy = py - ny * wide / 2;
                 double ex = px + nx * wide / 2, ey = py + ny * wide / 2;
                 double seg = Math.Sqrt((ex - sx) * (ex - sx) + (ey - sy) * (ey - sy));
+                dst.Line((int)Math.Round(sx), (int)Math.Round(sy), (int)Math.Round(ex), (int)Math.Round(ey), TickInk, 1);
                 var vals = VisionCaliper.SampleProfile(gray, sx, sy, ex, ey, perCaliper);
                 var hits = VisionCaliper.FindEdges(vals, pol, minGrad, seg / (vals.Length - 1), kernel, sub);
                 if (hits.Count == 0) continue;
@@ -468,10 +480,17 @@ namespace NoCodeMotion.Services.Vision
             if (fit.Inliers != null) foreach (var p in fit.Inliers) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 2, Ink, 2);
             if (fit.Outliers != null) foreach (var p in fit.Outliers) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 2, InkWarn, 2);
 
+            // 直线中心 + 角度/位置/RMS 直接写在搜索框旁边（和传统找直线软件一样一眼能读）
+            double mcx = (fit.X1 + fit.X2) / 2, mcy = (fit.Y1 + fit.Y2) / 2;
+            dst.Circle((int)Math.Round(mcx), (int)Math.Round(mcy), 3, Ink, -1);
+            Label(dst, band.Min(p => p.X), band.Min(p => p.Y) - 32,
+                $"Angle {fit.AngleDeg:F2}  Center ({mcx:F1},{mcy:F1})  RMS {fit.Rms:F2}");
+
             string q = quality ? $"｜最大偏离 {fit.MaxDeviation:F2}" : "";
             Add(report, s, spec, true,
-                $"角度 {fit.AngleDeg:F2}°｜({fit.X1:F1},{fit.Y1:F1})→({fit.X2:F1},{fit.Y2:F1})｜偏差 {fit.Rms:F2}{q}｜内点 {fit.UsedPoints}/{cand.Count}",
+                $"中心 ({mcx:F1},{mcy:F1})｜角度 {fit.AngleDeg:F2}°｜({fit.X1:F1},{fit.Y1:F1})→({fit.X2:F1},{fit.Y2:F1})｜偏差 {fit.Rms:F2}{q}｜内点 {fit.UsedPoints}/{cand.Count}",
                 fit.Rms, fit.UsedPoints,
+                ("中心X", mcx), ("中心Y", mcy),
                 ("起点X", fit.X1), ("起点Y", fit.Y1), ("终点X", fit.X2), ("终点Y", fit.Y2),
                 ("角度", fit.AngleDeg), ("偏差", fit.Rms), ("最大偏离", fit.MaxDeviation),
                 ("内点数", fit.UsedPoints), ("候选点数", cand.Count));
@@ -501,6 +520,9 @@ namespace NoCodeMotion.Services.Vision
             if (fixR) { rMin = rMax = r0; }
 
             int calipers = Math.Max(12, (int)Math.Round(2 * Math.PI * r0 / spacing));
+            // 绿色搜索环：内外两个圈就是径向卡尺的搜索范围
+            dst.Circle((int)Math.Round(cx), (int)Math.Round(cy), Math.Max(1, (int)Math.Round(r0 - tol)), Ink, 1);
+            dst.Circle((int)Math.Round(cx), (int)Math.Round(cy), Math.Max(1, (int)Math.Round(r0 + tol)), Ink, 1);
             var cand = new List<Cv.Point2f>();
             double seg = 2 * tol;
             for (int i = 0; i < calipers; i++)
@@ -509,6 +531,7 @@ namespace NoCodeMotion.Services.Vision
                 double dx = Math.Cos(rad), dy = Math.Sin(rad);
                 double sx = cx + dx * Math.Max(1, r0 - tol), sy = cy + dy * Math.Max(1, r0 - tol);
                 double ex = cx + dx * (r0 + tol), ey = cy + dy * (r0 + tol);
+                if (i % 3 == 0) dst.Line((int)Math.Round(sx), (int)Math.Round(sy), (int)Math.Round(ex), (int)Math.Round(ey), TickInk, 1);
                 var vals = VisionCaliper.SampleProfile(gray, sx, sy, ex, ey, perCaliper);
                 var hits = VisionCaliper.FindEdges(vals, pol, minGrad, seg / (vals.Length - 1), kernel, sub);
                 if (hits.Count == 0) continue;
@@ -547,6 +570,9 @@ namespace NoCodeMotion.Services.Vision
             dst.Line((int)Math.Round(fit.Cx), (int)Math.Round(fit.Cy) - 7, (int)Math.Round(fit.Cx), (int)Math.Round(fit.Cy) + 7, Ink, 1);
             if (fit.Inliers != null) foreach (var p in fit.Inliers) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 2, Ink, 2);
             if (fit.Outliers != null) foreach (var p in fit.Outliers) dst.Circle((int)Math.Round(p.X), (int)Math.Round(p.Y), 2, InkWarn, 2);
+
+            Label(dst, (int)Math.Round(fit.Cx - fit.R) - 10, (int)Math.Round(fit.Cy - fit.R) - 40,
+                $"R {fit.R:F2}  Center ({fit.Cx:F1},{fit.Cy:F1})  RMS {fit.Rms:F2}");
 
             Add(report, s, spec, true,
                 $"圆心 ({fit.Cx:F1},{fit.Cy:F1})｜半径 {fit.R:F2}（直径 {fit.R * 2:F2}）｜偏差 {fit.Rms:F2}｜内点 {fit.UsedPoints}/{cand.Count}{(fixR ? "｜半径固定" : "")}",
@@ -3214,6 +3240,18 @@ namespace NoCodeMotion.Services.Vision
         }
 
         // ===================== 画图与记账 =====================
+
+        /// <summary>在结果图上写一行带黑底的英文标注（OpenCV 画不了中文，角度/坐标用英文最稳）。</summary>
+        static void Label(Cv.Mat dst, int x, int yTop, string text)
+        {
+            var size = Cv.Cv2.GetTextSize(text, Cv.HersheyFonts.HersheySimplex, 0.55, 1, out int baseline);
+            int w = size.Width + 10, h = size.Height + baseline + 8;
+            int x0 = Math.Clamp(x, 0, Math.Max(0, dst.Cols - w - 1));
+            int y0 = Math.Clamp(yTop, 0, Math.Max(0, dst.Rows - h - 1));
+            dst.Rectangle(new Cv.Rect(x0, y0, w, h), new Cv.Scalar(20, 20, 20), -1);
+            Cv.Cv2.PutText(dst, text, new Cv.Point(x0 + 5, y0 + size.Height + 2),
+                Cv.HersheyFonts.HersheySimplex, 0.55, new Cv.Scalar(240, 255, 240), 1, Cv.LineTypes.AntiAlias);
+        }
 
         static void DrawLine(Cv.Mat dst, VisionCaliper.LineResult f)
         {
