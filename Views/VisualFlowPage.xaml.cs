@@ -105,6 +105,11 @@ namespace NoCodeMotion.Views
                 HookOcrTextCollection(_vm.OcrTextBoxes);
                 ProjectOverlayBoxes();
             }
+            else if (e.PropertyName == nameof(VisualFlowDetailViewModel.IsRoiEditMode))
+            {
+                // 关掉「设置 ROI」就把画好的红框收起来（换步骤也会自动关）
+                if (!_vm.IsRoiEditMode) RoiRect.Visibility = Visibility.Collapsed;
+            }
         }
 
         private void HookMatchResultsCollection(ObservableCollection<MatchBox>? col)
@@ -267,9 +272,18 @@ namespace NoCodeMotion.Views
             // 算子步骤：只有先点开「设置 ROI」才允许拖框，否则左键拖拽什么也不做
             var sel = _vm.SelectedStep;
             if (sel != null && !string.IsNullOrWhiteSpace(sel.Op) && !_vm.IsRoiEditMode) return;
-            // 算子 ROI 用绿框（和结果线同色），模板/OCR 仍用蓝色
+            // 算子 ROI 用红框（框完保留在图上，和绿色结果区分开），模板/OCR 仍用蓝色
             bool opRoi = sel != null && !string.IsNullOrWhiteSpace(sel.Op);
-            RoiRect.Stroke = opRoi ? Brushes.Lime : (Brush)FindResource("AccentBrush");
+            if (opRoi)
+            {
+                RoiRect.Stroke = Brushes.Red;
+                RoiRect.Fill = new SolidColorBrush(Color.FromArgb(0x1F, 0xDC, 0x26, 0x26));
+            }
+            else
+            {
+                RoiRect.Stroke = (Brush)FindResource("AccentBrush");
+                RoiRect.Fill = new SolidColorBrush(Color.FromArgb(0x1A, 0x00, 0x7A, 0xFF));
+            }
             _dragStart = e.GetPosition(ImageHost);
             _dragging = true;
             UpdateRoiRect(_dragStart, _dragStart);
@@ -420,7 +434,7 @@ namespace NoCodeMotion.Views
 
             vm.RebuildOpParams();
             vm.RunStatus = $"已设置 ROI：({x},{y}) {w}×{h}　参数已填好，点「运行」执行";
-            RoiRect.Visibility = Visibility.Collapsed;
+            // 红框留在图上（RoiRect 是覆盖层，不会被重新运行清掉），方便对照参数
         }
     }
 }

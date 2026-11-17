@@ -12,8 +12,8 @@
         <!-- 「设置 ROI」开关：选中=正在图上框 ROI（绿色） -->
         <Style x:Key="RoiToggleStyle" TargetType="ToggleButton">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-            <Setter Property="Background" Value="#2C2C2E"/>
-            <Setter Property="BorderBrush" Value="#3A3A3C"/>
+            <Setter Property="Background" Value="#F3F4F6"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,5"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
@@ -29,9 +29,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#16A34A"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="#16A34A"/>
+                                <Setter TargetName="bd" Property="Background" Value="#DC2626"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#DC2626"/>
                                 <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
