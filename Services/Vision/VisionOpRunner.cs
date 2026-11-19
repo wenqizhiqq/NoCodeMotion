@@ -87,6 +87,7 @@ namespace NoCodeMotion.Services.Vision
         static readonly Cv.Scalar Dot = new Cv.Scalar(255, 60, 60, 255);      // 边缘点画红点
         static readonly Cv.Scalar Cand = new Cv.Scalar(0, 210, 255, 255);     // 候选边缘画黄（稳健拟合前）
         static readonly Cv.Scalar TickInk = new Cv.Scalar(0, 150, 0, 255);    // 卡尺扫描线（暗绿，衬在绿框里）
+        static readonly Cv.Scalar RustInk = new Cv.Scalar(0, 0, 255, 255);    // 颜色块的轮廓（红）：锈斑/污渍
 
         // ===================== 入口 =====================
 
@@ -933,7 +934,20 @@ namespace NoCodeMotion.Services.Vision
             double cy = roi.Y + (mo.M00 > 1e-9 ? mo.M01 / mo.M00 : roi.Height / 2.0);
             double ratio = 100.0 * count / Math.Max(1, roi.Width * roi.Height);
             ctx.LastPoint = new Cv.Point2f((float)cx, (float)cy);
-            if (count > 0) DrawPt(dst, ctx.LastPoint.Value);
+            if (count > 0)
+            {
+                // 把取到的色块用红线圈出来（识别锈斑/污渍时一眼能看到位置和范围）
+                using var maskCopy = mask.Clone();
+                Cv.Cv2.FindContours(maskCopy, out Cv.Point[][] contours, out _,
+                    Cv.RetrievalModes.External, Cv.ContourApproximationModes.ApproxSimple, new Cv.Point(roi.X, roi.Y));
+                foreach (var c in contours)
+                {
+                    if (c.Length < 3 || Cv.Cv2.ContourArea(c) < 4) continue;
+                    dst.Polylines(new[] { c }, true, RustInk, 2, Cv.LineTypes.AntiAlias);
+                }
+                DrawPt(dst, ctx.LastPoint.Value);
+                Label(dst, roi.X + 8, roi.Y + 8, $"Color {count} px  {ratio:F2}%");
+            }
             Add(report, s, spec, count > 0,
                 count > 0 ? $"颜色块 {count} 像素（占框 {ratio:F1}%）｜中心 ({cx:F1},{cy:F1})"
                           : "这个色相/饱和度区间里一个像素都没取到：把色相范围放宽、饱和度门槛调低",

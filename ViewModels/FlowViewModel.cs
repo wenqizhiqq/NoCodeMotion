@@ -646,7 +646,7 @@ namespace NoCodeMotion.ViewModels
             // 第一个固定"空项目"——只建空流程，不加任何默认步骤
             FlowKind.Table => new() { "空项目", "点胶机", "XYZ", "探针台", "平移机" },
             FlowKind.Lua   => new() { "空项目", "通讯", "分拣", "MES", "文件处理" },
-            FlowKind.Vision => new() { "空项目", "找直线找圆", "找垂直直线（真实照片）", "找垂直直线（纹理图）", "缺陷检测", "测量", "对位", "标定" },
+            FlowKind.Vision => new() { "空项目", "找直线找圆", "找垂直直线（真实照片）", "找垂直直线（纹理图）", "识别生锈", "缺陷检测", "测量", "对位", "标定" },
             FlowKind.NodeGraph => new() { "空项目", "通用流程", "设备启动", "取放循环", "视觉对位" },
             _ => new() { "空项目" }
         };
@@ -861,6 +861,32 @@ namespace NoCodeMotion.ViewModels
                             ("pick", "最强边"), ("expOffset", "0"), ("sub", "1"),
                             ("robust", "LoRansacIrls"), ("inlierTol", "8"),
                             ("minInliers", "30"), ("quality", "1"),
+                        },
+                    },
+                },
+                "识别生锈" => new()
+                {
+                    // 现成例子：程序自带一张 702x1200 的锈板照片（Assets\Samples\RustDetect\rust-plate.jpg），
+                    // 金属板四周有一圈橙褐色锈迹、板面还有零星锈点。
+                    // 第二步按 HSV 色相+饱和度把锈取出来，结果图用红线圈出每一块锈斑，
+                    // 并报「面积 / 占框比例 / 中心」，据此判断这块料锈得重不重。
+                    new StepDef("图像采集（锈板照片）", "", "", "", "", "3000", "图像采集（锈板照片）")
+                    {
+                        StepType = "图像采集",
+                        SourceType = "文件",
+                        FilePath = @"Assets\Samples\RustDetect\rust-plate.jpg",
+                        Width = 702,
+                        Height = 1200,
+                    },
+                    new StepDef("按颜色取锈斑", "", "", "", "", "3000", "按颜色取锈斑（橙褐色）")
+                    {
+                        StepType = "按颜色取区域",
+                        Op = "hueselect",
+                        Params = new()
+                        {
+                            // 锈是橙褐色：色相 3~16（OpenCV 0~180），饱和度 ≥70、亮度 ≥40
+                            ("hlo", "3"), ("hhi", "16"),
+                            ("slo", "70"), ("vlo", "40"),
                         },
                     },
                 },
