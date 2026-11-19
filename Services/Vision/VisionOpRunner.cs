@@ -1145,7 +1145,7 @@ namespace NoCodeMotion.Services.Vision
         }
 
         /// <summary>
-        /// 找一个边缘点（SGamma 的边缘搜索 · 点）：沿边方向均匀取 9 条剖面，每条上找「第一个」或「最强」的边，
+        /// 找一个边缘点（经典边缘搜索 · 点）：沿边方向均匀取 9 条剖面，每条上找「第一个」或「最强」的边，
         /// 最后取中位数当结果 —— 只扫一条线容易被一个噪点带跑。
         /// </summary>
         static void DoEdgePoint(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
@@ -1212,7 +1212,7 @@ namespace NoCodeMotion.Services.Vision
                 ("在剖面上的位置", medPos), ("找到几条", pos.Count));
         }
 
-        /// <summary>找椭圆：阈值 → 外轮廓 → 逐块拟合，按面积取前几个（SGamma 的拟合（椭）圆）。</summary>
+        /// <summary>找椭圆：阈值 → 外轮廓 → 逐块拟合，按面积取前几个（经典拟合（椭）圆）。</summary>
         static void DoEllipse(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
             VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
         {
@@ -1370,7 +1370,7 @@ namespace NoCodeMotion.Services.Vision
             double dx = b.X - a.X, dy = b.Y - a.Y;
             double dist = Math.Sqrt(dx * dx + dy * dy);
             double ang = Math.Atan2(dy, dx) * 180 / Math.PI;
-            // 参考方向：SGamma 的「与参考线同向 / 垂直」——量的是投影长度，不是直线距离
+            // 参考方向：经典的「与参考线同向 / 垂直」——量的是投影长度，不是直线距离
             string refdir = Txt(spec, s, "refdir");
             double proj = dist;
             if (refdir == "沿参考线" || refdir == "垂直参考线")

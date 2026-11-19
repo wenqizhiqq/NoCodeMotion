@@ -24,7 +24,7 @@ namespace NoCodeMotion.Services
         {
             var dt = new DataTable(SheetName);
             dt.Columns.Add("类型");                       // 读我 / 视觉算子 / 流程节点
-            dt.Columns.Add("来源");                       // OpenCV 原生 / Halcon 同款（SGamma）/ WenVision 移植
+            dt.Columns.Add("来源");                       // OpenCV 原生 / Halcon 同款 / WenVision 移植
             dt.Columns.Add("分类");
             dt.Columns.Add("名称");
             dt.Columns.Add("内部键");

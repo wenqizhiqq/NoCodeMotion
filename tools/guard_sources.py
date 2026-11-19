@@ -2847,15 +2847,15 @@ check('G53.5 采集卡顶部用大白话写了「没相机怎么从文件夹取�
       '没接相机也能跑：来源选「文件夹」' in _vp53 and '用第几张' in _vp53)
 
 # ---------------------------------------------------------------------
-# G54  从 SGamma（Halcon 那套）搬过来的算子：真在目录里、真实现、真被读参数
+# G54  从经典视觉工具（Halcon 那套）搬过来的算子：真在目录里、真实现、真被读参数
 # ---------------------------------------------------------------------
-# 用户要求「从 D:\视觉sgamma\视觉SGamma 把 halcon 的算子拿过来」。它的节点表里能落到 2D OpenCV 的
+# 用户要求「把 halcon 的算子拿过来」。它的节点表里能落到 2D OpenCV 的
 # 三个是这套之前没有的：边缘搜索·点、拟合（椭）圆、整块找椭圆；另外它的「与参考线同向 / 垂直」投影也补了。
 _vo54 = (read(r"Services\Vision\VisionOperators.cs") or "").replace("\r\n", "\n")
 _vr54 = (read(r"Services\Vision\VisionOpRunner.cs") or "").replace("\r\n", "\n")
 _man54 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
 
-check('G54.1 SGamma 的三个独有算子在目录里，且都有白话名 / 说明 / 输出',
+check('G54.1 三个独有算子在目录里，且都有白话名 / 说明 / 输出',
       all(f'Key = "{k}"' in _vo54 for k in ("edgept", "ellipse", "fitellipse"))
       and 'Name = "找一个边缘点"' in _vo54 and 'Name = "找椭圆"' in _vo54 and 'Name = "把点拟成椭圆"' in _vo54)
 check('G54.2 三个算子都真接了执行分派（不是只在目录里挂个名）',
@@ -2869,12 +2869,12 @@ check('G54.4 报的是真实灰度跳变，不是梯度幅值（前者人看得�
       'double grayJump = Math.Abs(duo[1] - duo[0]);' in _vr54 and '("灰度差", grayJump)' in _vr54)
 check('G54.5 椭圆转角统一到 0~180（两类椭圆算子都要）',
       _vr54.count('rot = ((rot % 180) + 180) % 180;') >= 2)
-check('G54.6 「两点多远」补了 SGamma 的参考线投影（沿 / 垂直），无参考线时行为不变',
+check('G54.6 「两点多远」补了参考线投影（沿 / 垂直），无参考线时行为不变',
       'P("refdir", "参考方向", "choice", "无参考线"' in _vo54
       and 'refdir == "沿参考线"' in _vr54 and '("投影距离", proj)' in _vr54
       and 'refdir == "无参考线" ? dist : proj' in _vr54)
 check('G54.7 说明书里有这张对照表（哪些搬了、哪些本来就有、哪些不做）',
-      "二十五、SGamma（Halcon 那套）的算子对照" in _man54
+      "二十五、经典视觉算子的对照" in _man54
       and "边缘搜索 · 点（首边缘 / 最大边缘）" in _man54 and "面拟合" in _man54
       and "AI" in _man54 and "找椭圆" in _man54)
 
@@ -2893,11 +2893,11 @@ _man55 = (read(r"Views\OperatorManualPage.xaml.cs") or "").replace("\r\n", "\n")
 check('G55.1 目录有来源字段，默认 OpenCV 原生，三族常量齐全',
       'public string Source { get; init; } = SourceOpenCv;' in _vo55
       and 'public const string SourceOpenCv = "OpenCV 原生";' in _vo55
-      and 'public const string SourceHalcon = "Halcon 同款（SGamma）";' in _vo55
+      and 'public const string SourceHalcon = "Halcon 同款";' in _vo55
       and 'public const string SourceWenVision = "WenVision 移植";' in _vo55)
-check('G55.2 三个 SGamma 算子标成 Halcon 同款（各自都有说明）',
+check('G55.2 三个算子标成 Halcon 同款（各自都有说明）',
       _vo55.count('Source = VisionOpSpec.SourceHalcon,') >= 3
-      and '照 SGamma（Halcon）的' in _vo55)
+      and '照传统「边缘点 / 找椭圆 / 拟合椭圆」那套做的' in _vo55)
 check('G55.3 十一个 WenVision 算子标成 WenVision 移植',
       _vo55.count('Source = VisionOpSpec.SourceWenVision,') == 11
       and '照 WenVision 的对位工具 / 坐标标定做的' in _vo55)
@@ -2914,7 +2914,7 @@ check('G55.6 工程里的「算子手册」表多一列「来源」，节点行�
       and '"流程节点",\n                    "OpenCV 原生",' in _sheet55)
 check('G55.7 说明书单开一节把三族分开讲，并说清「不调用 Halcon」',
       "二十六、算子的三个来源" in _man55 and "不调用 Halcon" in _man55
-      and "Halcon 同款（SGamma）" in _man55 and "WenVision 移植" in _man55 and "OpenCV 原生" in _man55)
+      and "Halcon 同款" in _man55 and "WenVision 移植" in _man55 and "OpenCV 原生" in _man55)
 
 # ---------------------------------------------------------------------
 # G56  Halcon 常驻算子那一批（阈值 / 形态学 / 边缘图 / 投影 / 刚体 / 转图）

@@ -39,7 +39,7 @@ namespace NoCodeMotion.Services.Vision
         public string Outputs { get; init; } = "";
         public VisionParamDef[] Params { get; init; } = Array.Empty<VisionParamDef>();
 
-        /// <summary>这条算子从哪儿搬来的：OpenCV 原生 / Halcon 同款（SGamma）/ WenVision 移植。
+        /// <summary>这条算子从哪儿搬来的：OpenCV 原生 / Halcon 同款 / WenVision 移植。
         /// 界面、添加步骤菜单、算子手册都按它分开显示 —— 用户要能一眼看出哪些是照别人的算子做的。</summary>
         public string Source { get; init; } = SourceOpenCv;
 
@@ -47,7 +47,7 @@ namespace NoCodeMotion.Services.Vision
         public string SourceNote { get; init; } = "";
 
         public const string SourceOpenCv = "OpenCV 原生";
-        public const string SourceHalcon = "Halcon 同款（SGamma）";
+        public const string SourceHalcon = "Halcon 同款";
         public const string SourceWenVision = "WenVision 移植";
         /// <summary>从 VisionPlus 的算子体系逆向出的功能与参数，全部用 OpenCV / 自有数学重写，不调用其 DLL。</summary>
         public const string SourceVisionPlus = "VisionPlus 移植";
@@ -281,8 +281,8 @@ namespace NoCodeMotion.Services.Vision
             {
                 Key = "edgept", Name = "找一个边缘点", Category = "找边与测量",
                 Source = VisionOpSpec.SourceHalcon,
-                SourceNote = "照 SGamma（Halcon）的「边缘搜索 · 点 / 找椭圆 / 拟合椭圆」做的；底层是 OpenCV，不需要 Halcon 授权",
-                Summary = "在一条带子里只找一个边缘点：要离起点最近的那个，还是要最明显的那个；能指定边是暗到亮还是亮到暗，给亚像素坐标（SGamma 的「边缘搜索 · 点（首边缘 / 最大边缘）」）。",
+                SourceNote = "照传统边缘搜索「边缘点 / 找椭圆 / 拟合椭圆」那套做的；底层是 OpenCV，不需要任何第三方授权",
+                Summary = "在一条带子里只找一个边缘点：要离起点最近的那个，还是要最明显的那个；能指定边是暗到亮还是亮到暗，给亚像素坐标（经典边缘搜索：首边缘 / 最大边缘）。",
                 Outputs = "X/Y/灰度差/在剖面上的位置/找到几条",
                 Params = new[]
                 {
@@ -292,7 +292,7 @@ namespace NoCodeMotion.Services.Vision
                     P("length", "沿边看多长", "num", "120", "沿这条边取多长一段来平均（像素）。越长越抗噪，但边是斜的/弯的就取短一点", min: 8, max: 4000),
                     P("width", "垂直找多宽", "num", "60", "垂直方向上允许跑多远去找（像素）", min: 4, max: 2000),
                     P("polarity", "边的明暗", "choice", "任意", "沿搜索方向看过去：灰度升高选「暗到亮」，降低选「亮到暗」；拿不准选「任意」", PolarityOptions),
-                    P("pick", "要哪个边", "choice", "第一个边", "第一个边 = 离起点最近的那个（SGamma 的点 · 首边缘）；最强的边 = 灰度差最大的那个（点 · 最大边缘）", "第一个边|最强的边"),
+                    P("pick", "要哪个边", "choice", "第一个边", "第一个边 = 离起点最近的那个（经典点搜索 · 首边缘）；最强的边 = 灰度差最大的那个（点 · 最大边缘）", "第一个边|最强的边"),
                     P("minGrad", "最小灰度差", "num", "8", "两边灰度差小于这个值的不算边（越大越严；噪点多就加大）", min: 0, max: 255),
                     P("sub", "亚像素", "bool", "1", "勾上 = 给亚像素坐标（准到 0.1 像素）；不勾 = 只到整像素"),
                 },
@@ -301,8 +301,8 @@ namespace NoCodeMotion.Services.Vision
             {
                 Key = "ellipse", Name = "找椭圆", Category = "找边与测量",
                 Source = VisionOpSpec.SourceHalcon,
-                SourceNote = "照 SGamma（Halcon）的「边缘搜索 · 点 / 找椭圆 / 拟合椭圆」做的；底层是 OpenCV，不需要 Halcon 授权",
-                Summary = "把比背景亮（或暗）的一整块拟合成椭圆，报中心、长轴、短轴和转角（对应 SGamma 辅助算法里「拟合（椭）圆」那一类活）。",
+                SourceNote = "照传统「边缘点 / 找椭圆 / 拟合椭圆」那套做的；底层是 OpenCV，不需要任何第三方授权",
+                Summary = "把比背景亮（或暗）的一整块拟合成椭圆，报中心、长轴、短轴和转角（经典拟合椭圆那一类活）。",
                 Outputs = "中心X/中心Y/长轴/短轴/角度/个数",
                 Params = new[]
                 {
@@ -317,8 +317,8 @@ namespace NoCodeMotion.Services.Vision
             {
                 Key = "fitellipse", Name = "把点拟成椭圆", Category = "找边与测量",
                 Source = VisionOpSpec.SourceHalcon,
-                SourceNote = "照 SGamma（Halcon）的「边缘搜索 · 点 / 找椭圆 / 拟合椭圆」做的；底层是 OpenCV，不需要 Halcon 授权",
-                Summary = "手上有一串边缘点（至少 5 个）时，把它们拟合成椭圆：中心、长轴、短轴、转角、偏差（SGamma 的拟合椭圆）。",
+                SourceNote = "照传统「边缘点 / 找椭圆 / 拟合椭圆」那套做的；底层是 OpenCV，不需要任何第三方授权",
+                Summary = "手上有一串边缘点（至少 5 个）时，把它们拟合成椭圆：中心、长轴、短轴、转角、偏差（经典拟合椭圆）。",
                 Outputs = "中心X/中心Y/长轴/短轴/角度/偏差/点数",
                 Params = new[]
                 {
@@ -679,7 +679,7 @@ namespace NoCodeMotion.Services.Vision
                     P("bx", "第二个点X", "num", "0", "第二个点的 X（像素）"),
                     P("by", "第二个点Y", "num", "0", "第二个点的 Y（像素）"),
                     P("use", "用哪来的点", "choice", "手填", "手填 = 用上面四个数；上一步的角点 = 直接拿「找矩形四角 / 找尖角」找到的点，省得抄坐标", "手填|上一步的角点|上一步的边缘点"),
-                    P("refdir", "参考方向", "choice", "无参考线", "无参考线 = 直接两点距离（默认）；沿参考线 = 只算它在参考方向上的投影（SGamma 的「与参考线同向」）；垂直参考线 = 只算垂直方向的偏移", "无参考线|沿参考线|垂直参考线"),
+                    P("refdir", "参考方向", "choice", "无参考线", "无参考线 = 直接两点距离（默认）；沿参考线 = 只算它在参考方向上的投影（与参考线同向）；垂直参考线 = 只算垂直方向的偏移", "无参考线|沿参考线|垂直参考线"),
                     P("refang", "参考线角度", "num", "0", "参考方向的角度（度，0 = 水平）；只在上面选了沿 / 垂直时才用", min: -180, max: 180),
                 },
             },
