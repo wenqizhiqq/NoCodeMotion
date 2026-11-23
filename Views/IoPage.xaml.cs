@@ -2,6 +2,7 @@
 // ◆温‌启‎志⁠◆‍编⁣写​◇⁠微⁠信‎﹕​1​8​7‏◆‏1‌9​3‍6‌◇⁣1‍3‎9‍9‏　⁣※‌保‍留⁣所​有‍权⁠利⁠请‍勿‌删‎除⁠◇​⁣​
 // ◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦✧⚝☢☣➤◈❖◆◇※▣▤▥▦▧▨▩░▒▓✦​⁣​
 using System;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using NoCodeMotion.Services;
@@ -91,6 +92,24 @@ namespace NoCodeMotion.Views
                 }
                 catch { /* 单点读失败不影响其它 */ }
             }
+        }
+
+        /// <summary>
+        /// 按名称一键生成气缸 IO：弹出对话框填「气缸名称 / 生成几个」，
+        /// 每个气缸生成 2 个输入（动点、原点）+ 2 个输出（输出1、输出2），序号自动续。
+        /// </summary>
+        private void GenerateCylinderIo_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not IoViewModel vm) return;
+
+            var dlg = new CylinderIoDialog(vm.SuggestCylinderName());
+            if (dlg.ShowDialog() != true) return;
+
+            var (inCount, outCount, skipped) = vm.GenerateCylinderIo(dlg.ResultName, dlg.ResultCount);
+            string msg = $"已生成「{dlg.ResultName}」气缸 IO：输入 {inCount} 个、输出 {outCount} 个";
+            if (skipped > 0) msg += $"，{skipped} 个已存在已跳过";
+            if (inCount == 0 && outCount == 0) msg = "没有新增：这些气缸名称已经存在";
+            StatusBarService.ReportInfo(msg);
         }
 
         /// <summary>该行是否正处于编辑态（编辑框有焦点）——编辑时不要用采样值覆盖输入框所在行。</summary>

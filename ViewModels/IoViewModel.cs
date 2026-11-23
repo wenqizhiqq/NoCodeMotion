@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Windows.Input;
 using NoCodeMotion.Models;
 using NoCodeMotion.Services;
@@ -82,6 +83,21 @@ namespace NoCodeMotion.ViewModels
         {
             SyncIoCatalog();
             NormalizeFunctions();
+        }
+
+        /// <summary>
+        /// 批量追加生成的点（「自动生成气缸 IO」用）：按当前最大序号往后续号，
+        /// 再同步一次流程页可选的 IO 名称目录，生成完立刻能在流程里选到。
+        /// </summary>
+        public void AddGenerated(IEnumerable<IoItem> items)
+        {
+            int next = Items.Count == 0 ? 0 : Items.Max(i => i.Sequence) + 1;
+            foreach (var item in items)
+            {
+                item.Sequence = next++;
+                Items.Add(item);
+            }
+            SyncIoCatalog();
         }
 
         // ===== 输出 IO 行内手动开关：真正下发到控制卡（点哪行驱动哪行，无需先选中） =====
@@ -206,6 +222,71 @@ namespace NoCodeMotion.ViewModels
                 InputPanel.SelectedItem = InputPanel.Items[0];
             if (OutputPanel.SelectedItem == null && OutputPanel.Items.Count > 0)
                 OutputPanel.SelectedItem = OutputPanel.Items[0];
+        }
+
+        /// <summary>推荐下一个气缸名：已有「气缸N动点」就取 N+1，否则从 气缸1 开始。</summary>
+        public string SuggestCylinderName()
+        {
+            int max = 0;
+            foreach (var name in ProjectStore.Data.Inputs.Select(i => i.Name))
+            {
+                var m = Regex.Match(name ?? "", @"^气缸(\d+)动点$");
+                if (m.Success && int.TryParse(m.Groups[1].Value, out int v) && v > max) max = v;
+            }
+            return "气缸" + (max + 1);
+        }
+
+        /// <summary>
+        /// 按名称自动生成气缸 IO（不接硬件也能先生成好，现场照着接线）：
+        /// 每个气缸 2 个输入 ——「{名}动点」「{名}原点」；2 个输出 ——「{名}输出1」「{名}输出2」。
+        /// <para>名称末尾的编号会往上加：气缸1 + 生成 3 个 = 气缸1 / 气缸2 / 气缸3；
+        /// 不带编号（如「夹爪气缸」）就自动补 1..N。</para>
+        /// <para>只要这 4 个名字里有任意一个已存在，整个气缸跳过，不会生成半套。</para>
+        /// </summary>
+        /// <returns>实际新增的输入数、输出数、跳过的气缸数。</returns>
+        public (int InCount, int OutCount, int Skipped) GenerateCylinderIo(string name, int count)
+        {
+            name = (name ?? "").Trim();
+            if (name.Length == 0 || count < 1) return (0, 0, 0);
+
+            // 末尾数字当起始编号（气缸1 → 前缀「气缸」、起始 1）
+            var m = Regex.Match(name, @"^(.*?)(\d+)$");
+            string prefix = m.Success ? m.Groups[1].Value : name;
+            int start = m.Success && int.TryParse(m.Groups[2].Value, out int v0) ? Math.Max(1, v0) : 1;
+
+            var existing = new HashSet<string>(
+                ProjectStore.Data.Inputs.Select(i => i.Name ?? "")
+                    .Concat(ProjectStore.Data.Outputs.Select(o => o.Name ?? "")),
+                StringComparer.Ordinal);
+
+            var inputs = new List<IoItem>();
+            var outputs = new List<IoItem>();
+            int skipped = 0;
+
+            for (int k = 0; k < count; k++)
+            {
+                string cyl = prefix + (start + k);
+                string inMove = cyl + "动点";
+                string inHome = cyl + "原点";
+                string out1 = cyl + "输出1";
+                string out2 = cyl + "输出2";
+
+                if (existing.Contains(inMove) || existing.Contains(inHome) ||
+                    existing.Contains(out1) || existing.Contains(out2))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                inputs.Add(new IoItem { Name = inMove, Level = "取反", Function = "到位信号" });
+                inputs.Add(new IoItem { Name = inHome, Level = "取反", Function = "到位信号" });
+                outputs.Add(new IoItem { Name = out1, Level = "取反", Function = "气缸伸出" });
+                outputs.Add(new IoItem { Name = out2, Level = "取反", Function = "气缸缩回" });
+            }
+
+            InputPanel.AddGenerated(inputs);
+            OutputPanel.AddGenerated(outputs);
+            return (inputs.Count, outputs.Count, skipped);
         }
     }
 }
