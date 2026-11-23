@@ -24,7 +24,7 @@ namespace NoCodeMotion.Services
         {
             None, "急停按钮", "安全门", "光栅", "原点开关", "正限位", "负限位",
             "启动按钮", "停止按钮", "复位按钮", "暂停按钮", "手自动切换",
-            "到位信号", "来料检测", "气压检测", "报警反馈",
+            "到位信号", "气缸动点", "气缸原点", "来料检测", "气压检测", "报警反馈",
         };
 
         /// <summary>输出 IO 可选功能。</summary>
@@ -58,6 +58,27 @@ namespace NoCodeMotion.Services
 
         public static bool IsIndicatorOutput(string? function)
             => !string.IsNullOrEmpty(function) && Array.IndexOf(IndicatorOutputFunctions, function) >= 0;
+
+        /// <summary>
+        /// 按「名称 + 功能」找 IO 点：气缸的 4 个点可以同名（都叫「气缸1」），
+        /// 靠功能（气缸动点 / 气缸原点 / 气缸伸出 / 气缸缩回）区分。
+        /// <para>先在同名点里找功能命中的那个；没有功能命中的（老工程里名称唯一、功能是「无」），
+        /// 就退回第一个同名点——老工程行为不变。</para>
+        /// </summary>
+        /// <param name="preferredFunctions">按优先级排的功能名，如 伸出 = "气缸伸出"。</param>
+        public static Models.IoItem? FindPoint(string? name, bool isOutput, params string[] preferredFunctions)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            var list = isOutput ? ProjectStore.Data.Outputs : ProjectStore.Data.Inputs;
+            Models.IoItem? fallback = null;
+            foreach (var io in list)
+            {
+                if (io == null || !string.Equals(io.Name, name, StringComparison.Ordinal)) continue;
+                fallback ??= io;
+                if (io.Function != null && Array.IndexOf(preferredFunctions, io.Function) >= 0) return io;
+            }
+            return fallback;
+        }
 
         /// <summary>指示类输出的目标值（按设备状态推导）；返回 -1 表示该功能不自动驱动。</summary>
         public static int DesiredIndicator(string? function, bool running, bool estop) => function switch

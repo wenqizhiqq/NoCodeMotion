@@ -617,8 +617,8 @@ namespace NoCodeMotion.Services
             Summary = "8 入 8 出 · 2 气缸 · 1 通讯 · 2 变量 · 1 主流程 · 1 复位",
             Highlights = new[]
             {
-                "气缸 1：推料（推料伸出 / 推料缩回，推料动点 / 推料原点）",
-                "气缸 2：挡料（挡料伸出 / 挡料缩回，挡料动点 / 挡料原点）",
+                "气缸 1：推料（输入/输出共 4 个同名点「推料」，功能列标 动点 / 原点 / 伸出 / 缩回）",
+                "气缸 2：挡料（输入/输出共 4 个同名点「挡料」，功能列标 动点 / 原点 / 伸出 / 缩回）",
                 "输入：启动 / 停止 / 复位 / 急停 + 2 个气缸的动点、原点",
                 "输出：运行 / 就绪 / 报警 / 完成 + 2 个气缸的伸出、缩回",
                 "通讯：Modbus 主站",
@@ -673,10 +673,10 @@ namespace NoCodeMotion.Services
             Summary = "16 入 16 出 · 4 气缸 · 2 通讯 · 2 变量 · 2 主流程 · 1 复位",
             Highlights = new[]
             {
-                "气缸 1：送料（送料伸出/缩回 · 送料动点/原点）",
-                "气缸 2：夹紧（夹紧伸出/缩回 · 夹紧动点/原点）",
-                "气缸 3：打螺丝（打螺丝伸出/缩回 · 打螺丝动点/原点）",
-                "气缸 4：顶升（顶升伸出/缩回 · 顶升动点/原点）",
+                "气缸 1：送料（4 个同名点「送料」，功能列标 动点/原点/伸出/缩回）",
+                "气缸 2：夹紧（4 个同名点「夹紧」，功能列标 动点/原点/伸出/缩回）",
+                "气缸 3：打螺丝（4 个同名点「打螺丝」，功能列标 动点/原点/伸出/缩回）",
+                "气缸 4：顶升（4 个同名点「顶升」，功能列标 动点/原点/伸出/缩回）",
                 "输入：启动/停止/复位/急停/手自动/暂停/送料完成/装配完成 + 4 个气缸的动点、原点",
                 "输出：运行/就绪/报警/完成/送料/夹紧/打螺丝/顶升 + 4 个气缸的伸出、缩回",
                 "通讯：Modbus 主站 + Modbus 压力传感器",
@@ -3105,12 +3105,12 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
             { "计数", "总数", "节拍", "良品", "不良", "状态", "模式", "报警" };
 
         /// <summary>
-        /// 工程例子里的气缸统一补标准点位（和 IO 页「自动生成气缸IO」同一套命名）：
-        /// 输入「{气缸名}动点」「{气缸名}原点」，输出「{气缸名}伸出」「{气缸名}缩回」，
-        /// 并把气缸的电磁阀 / 两个传感器指到这些点上。
+        /// 工程例子里的气缸统一补标准点位（和 IO 页「自动生成气缸IO」同一套规则）：
+        /// 输入、输出各 2 个点，<b>四个点名称都等于气缸名</b>，用功能列区分角色 ——
+        /// 输入 气缸动点 / 气缸原点，输出 气缸伸出 / 气缸缩回；气缸引用统一填气缸名。
         /// <para>只处理 OutPoint / SensorExtend / SensorRetract 三个名字都不在 IO 表里的气缸
         /// （老模板里写的是 Y0 / X0 / X1 这种占位）；用真实信号名的气缸（半导体等）原样保留。</para>
-        /// <para>名称已存在的整组跳过，不会重复生成。</para>
+        /// <para>已有标准配套（同名点里存在「气缸伸出」/「气缸动点」功能）的整组跳过，不会重复生成。</para>
         /// </summary>
         public static void EnsureCylinderIo(ProjectData d)
         {
@@ -3137,21 +3137,24 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
                 string baseName = (c.Name ?? "").Trim();
                 if (baseName.Length == 0) continue;
 
-                string out1 = baseName + "伸出";
-                string out2 = baseName + "缩回";
-                string inMove = baseName + "动点";
-                string inHome = baseName + "原点";
-                if (names.Contains(out1) || names.Contains(inMove)) continue;   // 已经补过
+                // 只看「是否已经有本气缸的标准配套」，不能只看同名——
+                // 模板里常有同名普通输出（如「送料」「夹紧」「包装」），那些不是气缸点。
+                bool already = d.Outputs.Any(o => o != null && o.Name == baseName && o.Function == "气缸伸出")
+                            || d.Inputs.Any(i => i != null && i.Name == baseName && i.Function == "气缸动点");
+                if (already) continue;
 
-                d.Outputs.Add(Out(out1, "气缸伸出", ctlOut, 0, 0, seqOut++));
-                d.Outputs.Add(Out(out2, "气缸缩回", ctlOut, 0, 0, seqOut++));
-                d.Inputs.Add(In(inMove, "到位信号", ctlIn, 0, 0, seqIn++));
-                d.Inputs.Add(In(inHome, "到位信号", ctlIn, 0, 0, seqIn++));
-                names.Add(out1); names.Add(out2); names.Add(inMove); names.Add(inHome);
+                // 四个点同名，靠功能列区分角色（和 IO 页自动生成完全一致）
+                d.Outputs.Add(Out(baseName, "气缸伸出", ctlOut, 0, 0, seqOut++));
+                d.Outputs.Add(Out(baseName, "气缸缩回", ctlOut, 0, 0, seqOut++));
+                d.Inputs.Add(In(baseName, "气缸动点", ctlIn, 0, 0, seqIn++));
+                d.Inputs.Add(In(baseName, "气缸原点", ctlIn, 0, 0, seqIn++));
+                names.Add(baseName);
 
-                c.OutPoint = out1;
-                c.SensorExtend = inMove;
-                c.SensorRetract = inHome;
+                c.OutPoint = baseName;
+                c.SensorExtend = baseName;
+                c.SensorRetract = baseName;
+                // 双动气缸的缩回线圈：同名点里按「气缸缩回」功能取
+                if (!c.IsSingleActing && string.IsNullOrEmpty(c.BackupSensor)) c.BackupSensor = baseName;
             }
         }
 

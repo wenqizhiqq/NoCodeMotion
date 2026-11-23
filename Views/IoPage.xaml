@@ -35,6 +35,8 @@
             <sys:String>暂停按钮</sys:String>
             <sys:String>手自动切换</sys:String>
             <sys:String>到位信号</sys:String>
+            <sys:String>气缸动点</sys:String>
+            <sys:String>气缸原点</sys:String>
             <sys:String>来料检测</sys:String>
             <sys:String>气压检测</sys:String>
             <sys:String>报警反馈</sys:String>
@@ -155,7 +157,7 @@
                 <!-- 按名称一键生成气缸 IO：输入 {名}动点/{名}原点，输出 {名}输出1/{名}输出2 -->
                 <Button DockPanel.Dock="Right" Content="自动生成气缸IO" Style="{StaticResource TtBaseBtn}"
                         Padding="10,3" Margin="10,0,0,0" VerticalAlignment="Center"
-                        ToolTip="输入气缸名称（如 气缸1），自动生成：气缸1动点、气缸1原点（输入）；气缸1伸出、气缸1缩回（输出）"
+                        ToolTip="输入气缸名称（如 气缸1），输入、输出各生成 2 个同名点，靠功能列区分：气缸动点 / 气缸原点 / 气缸伸出 / 气缸缩回"
                         Click="GenerateCylinderIo_Click"/>
                 <Path Data="{StaticResource SectionIcon}" Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                 <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap">

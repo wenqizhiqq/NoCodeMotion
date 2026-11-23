@@ -68,16 +68,11 @@ namespace NoCodeMotion.ViewModels
         public string StatusStateText
             => SelectedItem == null || string.IsNullOrEmpty(SelectedItem.CurrentState) ? "—" : SelectedItem.CurrentState;
 
-        public string StatusOutText => Describe(FindOut(SelectedItem?.OutPoint));
-        public string StatusExtendText => Describe(FindIn(SelectedItem?.SensorExtend));
-        public string StatusRetractText => Describe(FindIn(SelectedItem?.SensorRetract));
+        public string StatusOutText => Describe(IoFunctionCatalog.FindPoint(SelectedItem?.OutPoint, true, "气缸伸出"));
+        public string StatusExtendText => Describe(IoFunctionCatalog.FindPoint(SelectedItem?.SensorExtend, false, "气缸动点", "到位信号"));
+        public string StatusRetractText => Describe(IoFunctionCatalog.FindPoint(SelectedItem?.SensorRetract, false, "气缸原点", "到位信号"));
         // 备用感应（BackupSensor）在运行时是「双线圈」的第二路输出（isOutput:true），故按输出 IO 查。
-        public string StatusBackupText => Describe(FindOut(SelectedItem?.BackupSensor));
-
-        private static IoItem? FindOut(string? name)
-            => string.IsNullOrWhiteSpace(name) ? null : ProjectStore.Data?.Outputs?.FirstOrDefault(o => o.Name == name);
-        private static IoItem? FindIn(string? name)
-            => string.IsNullOrWhiteSpace(name) ? null : ProjectStore.Data?.Inputs?.FirstOrDefault(o => o.Name == name);
+        public string StatusBackupText => Describe(IoFunctionCatalog.FindPoint(SelectedItem?.BackupSensor, true, "气缸缩回"));
 
         private static string Describe(IoItem? io)
             => io == null ? "未关联" : $"{(io.Value != 0 ? "高电平 1" : "低电平 0")}　（{io.Function}）";

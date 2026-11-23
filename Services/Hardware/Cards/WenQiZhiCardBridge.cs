@@ -1686,7 +1686,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
 
         public void CylinderMove(CylinderItem cyl, int state)
         {
-            var outIo = FindIo(cyl.OutPoint, isOutput: true);
+            var outIo = FindIo(cyl.OutPoint, isOutput: true, "气缸伸出");
             if (outIo == null)
             {
                 Log($"[卡族] 气缸「{cyl.Name}」没有配置有效的输出点（当前：{cyl.OutPoint}），动作已跳过。");
@@ -1715,7 +1715,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
             // 即使旧配置里残留了 BackupSensor，也不能驱动第 2 路（会把机构顶坏）。
             if (!cyl.IsSingleActing)
             {
-                var retIo = FindIo(cyl.BackupSensor, isOutput: true);
+                var retIo = FindIo(cyl.BackupSensor, isOutput: true, "气缸缩回");
                 if (retIo != null) WriteOutput(retIo, state != 0 ? 0 : 1);
             }
 
@@ -1725,11 +1725,12 @@ namespace NoCodeMotion.Services.Hardware.Cards
         public void WaitCylinder(CylinderItem cyl)
         {
             int timeout = cyl.TimeoutMs > 0 ? cyl.TimeoutMs : Options.IoWaitTimeoutMs;
-            var outIo = FindIo(cyl.OutPoint, isOutput: true);
+            var outIo = FindIo(cyl.OutPoint, isOutput: true, "气缸伸出");
             int expectExtend = outIo != null ? (outIo.Value != 0 ? 1 : 0) : 1;
 
             string sensorName = expectExtend == 1 ? cyl.SensorExtend : cyl.SensorRetract;
-            var sensor = FindIo(sensorName, isOutput: false);
+            var sensor = FindIo(sensorName, isOutput: false,
+                expectExtend == 1 ? "气缸动点" : "气缸原点", "到位信号");
             if (sensor == null)
             {
                 int wait = expectExtend == 1
@@ -2021,12 +2022,12 @@ namespace NoCodeMotion.Services.Hardware.Cards
         }
 
         /// <summary>按名称找 IO 点；名称直接写数字时按「序号」虚拟一个点。</summary>
-        private static IoItem FindIo(string name, bool isOutput)
+        /// <summary>按名称找 IO 点；同名多点（气缸 4 个点同名）时用期望功能挑；名称写数字时按“序号”虚拟一个点。</summary>
+        private static IoItem FindIo(string name, bool isOutput, params string[] preferredFunctions)
         {
             if (string.IsNullOrWhiteSpace(name)) return null;
-            var list = isOutput ? ProjectStore.Data.Outputs : ProjectStore.Data.Inputs;
-            var io = list.FirstOrDefault(x => x.Name == name);
-            if (io != null) return io;
+            var byRole = IoFunctionCatalog.FindPoint(name, isOutput, preferredFunctions);
+            if (byRole != null) return byRole;
 
             if (int.TryParse(name.Trim(), out int seq))
                 return new IoItem { Name = name, CardNo = 0, ModuleNo = 0, Sequence = seq };
