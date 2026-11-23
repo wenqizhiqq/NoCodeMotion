@@ -67,6 +67,8 @@ namespace NoCodeMotion.Models
         public ProjectData Build()
         {
             var data = Factory();
+            // 气缸统一补「动点 / 原点 / 输出1 / 输出2」标准点位（老模板里 Y0/X0/X1 这类占位会被替换）
+            Services.ProjectTemplateCatalog.EnsureCylinderIo(data);
             Services.ProjectTemplateCatalog.SeedSampleConditions(data);
             if (AddNodeGraphDemo) Services.ProjectTemplateCatalog.EnsureNodeGraphFlow(data);
             if (ExpandSampleNames) Services.ProjectTemplateCatalog.ExpandNameLists(data);

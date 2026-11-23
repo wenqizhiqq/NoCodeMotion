@@ -613,14 +613,14 @@ namespace NoCodeMotion.Services
             Id = "simple-cylinder",
             Name = "简单气缸",
             Category = "气缸",
-            Description = "2 个双动气缸 + 4 入 4 出 + Modbus 主站 + 变量，最小气缸演示工程。",
-            Summary = "4 入 4 出 · 2 气缸 · 1 通讯 · 2 变量 · 1 主流程 · 1 复位",
+            Description = "2 个双动气缸 + 8 入 8 出 + Modbus 主站 + 变量，最小气缸演示工程。",
+            Summary = "8 入 8 出 · 2 气缸 · 1 通讯 · 2 变量 · 1 主流程 · 1 复位",
             Highlights = new[]
             {
-                "气缸 1：推料气缸（伸出/缩回）",
-                "气缸 2：挡料气缸（伸出/缩回）",
-                "输入：启动 / 停止 / 复位 / 急停",
-                "输出：运行 / 就绪 / 报警 / 完成",
+                "气缸 1：推料（推料输出1 / 推料输出2，推料动点 / 推料原点）",
+                "气缸 2：挡料（挡料输出1 / 挡料输出2，挡料动点 / 挡料原点）",
+                "输入：启动 / 停止 / 复位 / 急停 + 2 个气缸的动点、原点",
+                "输出：运行 / 就绪 / 报警 / 完成 + 2 个气缸的伸出、缩回",
                 "通讯：Modbus 主站",
                 "变量：计数 / 总数",
                 "主流程：推料 → 延时 → 挡料",
@@ -669,16 +669,16 @@ namespace NoCodeMotion.Services
             Id = "multi-cylinder",
             Name = "多气缸装配",
             Category = "气缸",
-            Description = "4 个气缸（送料 / 夹紧 / 打螺丝 / 顶升）+ 8 IO + 2 通讯 + 变量，典型装配工程。",
-            Summary = "8 入 8 出 · 4 气缸 · 2 通讯 · 2 变量 · 2 主流程 · 1 复位",
+            Description = "4 个气缸（送料 / 夹紧 / 打螺丝 / 顶升）+ 16 IO + 2 通讯 + 变量，典型装配工程。",
+            Summary = "16 入 16 出 · 4 气缸 · 2 通讯 · 2 变量 · 2 主流程 · 1 复位",
             Highlights = new[]
             {
-                "气缸 1：送料（Y0/X0/X1）",
-                "气缸 2：夹紧（Y1/X2/X3）",
-                "气缸 3：打螺丝（Y2/X4/X5）",
-                "气缸 4：顶升（Y3/X6/X7）",
-                "输入：启动/停止/复位/急停/手自动/暂停/送料完成/装配完成",
-                "输出：运行/就绪/报警/完成/送料/夹紧/打螺丝/顶升",
+                "气缸 1：送料（送料输出1/输出2 · 送料动点/原点）",
+                "气缸 2：夹紧（夹紧输出1/输出2 · 夹紧动点/原点）",
+                "气缸 3：打螺丝（打螺丝输出1/输出2 · 打螺丝动点/原点）",
+                "气缸 4：顶升（顶升输出1/输出2 · 顶升动点/原点）",
+                "输入：启动/停止/复位/急停/手自动/暂停/送料完成/装配完成 + 4 个气缸的动点、原点",
+                "输出：运行/就绪/报警/完成/送料/夹紧/打螺丝/顶升 + 4 个气缸的伸出、缩回",
                 "通讯：Modbus 主站 + Modbus 压力传感器",
                 "变量：计数 / 总数",
                 "主流程1：装配动作链",
@@ -3103,6 +3103,57 @@ Print(string.format('脚本流程 第 %d 次循环完成', cycle))
         private const string DemoExtCard = "扩展轴卡";
         private static readonly string[] DemoVarSuffixes =
             { "计数", "总数", "节拍", "良品", "不良", "状态", "模式", "报警" };
+
+        /// <summary>
+        /// 工程例子里的气缸统一补标准点位（和 IO 页「自动生成气缸IO」同一套命名）：
+        /// 输入「{气缸名}动点」「{气缸名}原点」，输出「{气缸名}输出1」「{气缸名}输出2」，
+        /// 并把气缸的电磁阀 / 两个传感器指到这些点上。
+        /// <para>只处理 OutPoint / SensorExtend / SensorRetract 三个名字都不在 IO 表里的气缸
+        /// （老模板里写的是 Y0 / X0 / X1 这种占位）；用真实信号名的气缸（半导体等）原样保留。</para>
+        /// <para>名称已存在的整组跳过，不会重复生成。</para>
+        /// </summary>
+        public static void EnsureCylinderIo(ProjectData d)
+        {
+            if (d?.Cylinders == null || d.Cylinders.Count == 0) return;
+
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var i in d.Inputs) if (i?.Name != null) names.Add(i.Name);
+            foreach (var o in d.Outputs) if (o?.Name != null) names.Add(o.Name);
+
+            int seqIn = d.Inputs.Count == 0 ? 0 : d.Inputs.Max(i => i.Sequence) + 1;
+            int seqOut = d.Outputs.Count == 0 ? 0 : d.Outputs.Max(o => o.Sequence) + 1;
+            string ctlIn = d.Inputs.LastOrDefault(i => !string.IsNullOrEmpty(i?.Controller))?.Controller ?? "";
+            string ctlOut = d.Outputs.LastOrDefault(o => !string.IsNullOrEmpty(o?.Controller))?.Controller ?? "";
+
+            foreach (var c in d.Cylinders)
+            {
+                if (c == null) continue;
+
+                // 只要有一个引用名真实存在，就当这个气缸是手工接好的，不动它
+                if (names.Contains(c.OutPoint ?? "") ||
+                    names.Contains(c.SensorExtend ?? "") ||
+                    names.Contains(c.SensorRetract ?? "")) continue;
+
+                string baseName = (c.Name ?? "").Trim();
+                if (baseName.Length == 0) continue;
+
+                string out1 = baseName + "输出1";
+                string out2 = baseName + "输出2";
+                string inMove = baseName + "动点";
+                string inHome = baseName + "原点";
+                if (names.Contains(out1) || names.Contains(inMove)) continue;   // 已经补过
+
+                d.Outputs.Add(Out(out1, "气缸伸出", ctlOut, 0, 0, seqOut++));
+                d.Outputs.Add(Out(out2, "气缸缩回", ctlOut, 0, 0, seqOut++));
+                d.Inputs.Add(In(inMove, "到位信号", ctlIn, 0, 0, seqIn++));
+                d.Inputs.Add(In(inHome, "到位信号", ctlIn, 0, 0, seqIn++));
+                names.Add(out1); names.Add(out2); names.Add(inMove); names.Add(inHome);
+
+                c.OutPoint = out1;
+                c.SensorExtend = inMove;
+                c.SensorRetract = inHome;
+            }
+        }
 
         /// <summary>
         /// 给示例工程追加「工位-对象」命名的轴 / 输入IO / 输出IO / 气缸 / 变量（各 24 个），
