@@ -238,7 +238,7 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>
         /// 按名称自动生成气缸 IO（不接硬件也能先生成好，现场照着接线）：
-        /// 每个气缸 2 个输入 ——「{名}动点」「{名}原点」；2 个输出 ——「{名}输出1」「{名}输出2」。
+        /// 每个气缸 2 个输入 ——「{名}动点」「{名}原点」；2 个输出 ——「{名}伸出」「{名}缩回」。
         /// <para>名称末尾的编号会往上加：气缸1 + 生成 3 个 = 气缸1 / 气缸2 / 气缸3；
         /// 不带编号（如「夹爪气缸」）就自动补 1..N。</para>
         /// <para>只要这 4 个名字里有任意一个已存在，整个气缸跳过，不会生成半套。</para>
@@ -268,8 +268,8 @@ namespace NoCodeMotion.ViewModels
                 string cyl = prefix + (start + k);
                 string inMove = cyl + "动点";
                 string inHome = cyl + "原点";
-                string out1 = cyl + "输出1";
-                string out2 = cyl + "输出2";
+                string out1 = cyl + "伸出";
+                string out2 = cyl + "缩回";
 
                 if (existing.Contains(inMove) || existing.Contains(inHome) ||
                     existing.Contains(out1) || existing.Contains(out2))
