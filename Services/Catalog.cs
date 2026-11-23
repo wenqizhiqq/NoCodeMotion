@@ -149,7 +149,7 @@ namespace NoCodeMotion.Services
 
         private static void Apply(ObservableCollection<string> target, List<string> names)
         {
-            // 同名多点（气缸 4 个点都叫「气缸1」）在名称下拉里只出现一次
+            // 手工改表 / 老工程里可能出现重名，名称下拉里只出现一次
             names = names.Distinct().ToList();
 
             // 差量更新：候选内容没变化就不动集合。Clear() 会触发 CollectionChanged(Reset)，

@@ -224,14 +224,14 @@ namespace NoCodeMotion.ViewModels
                 OutputPanel.SelectedItem = OutputPanel.Items[0];
         }
 
-        /// <summary>推荐下一个气缸名：已有「气缸N」就取 N+1，否则从 气缸1 开始（兼容旧的「气缸N动点」命名）。</summary>
+        /// <summary>推荐下一个气缸名：已有「气缸N」就取 N+1，否则从 气缸1 开始（先截掉「伸出/缩回/动点/原点」后缀）。</summary>
         public string SuggestCylinderName()
         {
             int max = 0;
             foreach (var name in ProjectStore.Data.Inputs.Select(i => i.Name)
                          .Concat(ProjectStore.Data.Outputs.Select(o => o.Name)))
             {
-                var m = Regex.Match(name ?? "", @"^气缸(\d+)(动点|原点|伸出|缩回)?$");
+                var m = Regex.Match(IoFunctionCatalog.GetCylinderBaseName(name), @"^气缸(\d+)$");
                 if (m.Success && int.TryParse(m.Groups[1].Value, out int v) && v > max) max = v;
             }
             return "气缸" + (max + 1);
@@ -239,16 +239,19 @@ namespace NoCodeMotion.ViewModels
 
         /// <summary>
         /// 按名称自动生成气缸 IO（不接硬件也能先生成好，现场照着接线）：
-        /// 输入 2 个点、输出 2 个点，<b>四个点的名称都相同</b>（如都叫「气缸1」），role 靠功能列区分：
-        /// 输入功能 气缸动点 / 气缸原点，输出功能 气缸伸出 / 气缸缩回。
+        /// 输入 2 个点、输出 2 个点，名称 = 气缸名 + 后缀，四个点各不相同：
+        /// 气缸1动点 / 气缸1原点（输入，功能 气缸动点 / 气缸原点）、
+        /// 气缸1伸出 / 气缸1缩回（输出，功能 气缸伸出 / 气缸缩回）。
+        /// <para>输入的名称末尾若带后缀（如「气缸1伸出」），会先截取成气缸名「气缸1」。</para>
         /// <para>名称末尾的编号会往上加：气缸1 + 生成 3 个 = 气缸1 / 气缸2 / 气缸3；
         /// 不带编号（如「夹爪气缸」）就自动补 1..N。</para>
-        /// <para>表里已有同名点就整组跳过，不会生成半套。</para>
+        /// <para>表里已有该气缸的任意一个点就整组跳过，不会生成半套。</para>
         /// </summary>
         /// <returns>实际新增的输入数、输出数、跳过的气缸数。</returns>
         public (int InCount, int OutCount, int Skipped) GenerateCylinderIo(string name, int count)
         {
-            name = (name ?? "").Trim();
+            // 先截取气缸名：用户可能填的是「气缸1伸出」这类带后缀的点名
+            name = IoFunctionCatalog.GetCylinderBaseName(name);
             if (name.Length == 0 || count < 1) return (0, 0, 0);
 
             // 末尾数字当起始编号（气缸1 → 前缀「气缸」、起始 1）
@@ -268,18 +271,22 @@ namespace NoCodeMotion.ViewModels
             for (int k = 0; k < count; k++)
             {
                 string cyl = prefix + (start + k);
+                string inMove = cyl + "动点";
+                string inHome = cyl + "原点";
+                string outExtend = cyl + "伸出";
+                string outRetract = cyl + "缩回";
 
-                // 同名点是允许的：4 个点都叫「气缸1」，靠功能列区分角色
-                if (existing.Contains(cyl))
+                if (existing.Contains(inMove) || existing.Contains(inHome) ||
+                    existing.Contains(outExtend) || existing.Contains(outRetract))
                 {
                     skipped++;
                     continue;
                 }
 
-                inputs.Add(new IoItem { Name = cyl, Level = "取反", Function = "气缸动点" });
-                inputs.Add(new IoItem { Name = cyl, Level = "取反", Function = "气缸原点" });
-                outputs.Add(new IoItem { Name = cyl, Level = "取反", Function = "气缸伸出" });
-                outputs.Add(new IoItem { Name = cyl, Level = "取反", Function = "气缸缩回" });
+                inputs.Add(new IoItem { Name = inMove, Level = "取反", Function = "气缸动点" });
+                inputs.Add(new IoItem { Name = inHome, Level = "取反", Function = "气缸原点" });
+                outputs.Add(new IoItem { Name = outExtend, Level = "取反", Function = "气缸伸出" });
+                outputs.Add(new IoItem { Name = outRetract, Level = "取反", Function = "气缸缩回" });
             }
 
             InputPanel.AddGenerated(inputs);

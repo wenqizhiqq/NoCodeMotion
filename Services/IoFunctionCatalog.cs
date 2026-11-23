@@ -59,11 +59,26 @@ namespace NoCodeMotion.Services
         public static bool IsIndicatorOutput(string? function)
             => !string.IsNullOrEmpty(function) && Array.IndexOf(IndicatorOutputFunctions, function) >= 0;
 
+        /// <summary>气缸四个点名称的后缀：自动生成 / 模板生成时拼在气缸名后面（如「气缸1」+「动点」）。</summary>
+        public static readonly string[] CylinderSuffixes = { "动点", "原点", "伸出", "缩回" };
+
         /// <summary>
-        /// 按「名称 + 功能」找 IO 点：气缸的 4 个点可以同名（都叫「气缸1」），
-        /// 靠功能（气缸动点 / 气缸原点 / 气缸伸出 / 气缸缩回）区分。
-        /// <para>先在同名点里找功能命中的那个；没有功能命中的（老工程里名称唯一、功能是「无」），
-        /// 就退回第一个同名点——老工程行为不变。</para>
+        /// 从 IO 名称里截取气缸名：去掉结尾的 动点 / 原点 / 伸出 / 缩回，
+        /// 例如「气缸1伸出」→「气缸1」、「推料动点」→「推料」。没有后缀就原样返回。
+        /// </summary>
+        public static string GetCylinderBaseName(string? name)
+        {
+            var s = (name ?? "").Trim();
+            foreach (var suffix in CylinderSuffixes)
+                if (s.Length > suffix.Length && s.EndsWith(suffix, StringComparison.Ordinal))
+                    return s[..^suffix.Length];
+            return s;
+        }
+
+        /// <summary>
+        /// 按「名称 + 功能」找 IO 点：先在同名点里找功能命中的那个，没有就退回第一个同名点。
+        /// <para>气缸的点现在名称已带后缀（气缸1伸出 / 气缸1缩回 …），名称本身就能唯一命中；
+        /// 这里保留功能筛选是为了兼容老工程里「同名 + 功能列」或「同名 + 功能=无」的数据。</para>
         /// </summary>
         /// <param name="preferredFunctions">按优先级排的功能名，如 伸出 = "气缸伸出"。</param>
         public static Models.IoItem? FindPoint(string? name, bool isOutput, params string[] preferredFunctions)

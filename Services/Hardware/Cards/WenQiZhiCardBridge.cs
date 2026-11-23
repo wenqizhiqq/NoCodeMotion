@@ -2021,8 +2021,7 @@ namespace NoCodeMotion.Services.Hardware.Cards
                     $"轴「{axis.Name}」目标位置 {position} 超出软限位范围 [{axis.PosLimitMinus}, {axis.PosLimitPlus}]，已阻止运动。");
         }
 
-        /// <summary>按名称找 IO 点；名称直接写数字时按「序号」虚拟一个点。</summary>
-        /// <summary>按名称找 IO 点；同名多点（气缸 4 个点同名）时用期望功能挑；名称写数字时按“序号”虚拟一个点。</summary>
+        /// <summary>按名称找 IO 点（兼容老工程的同名点：用期望功能挑）；名称写数字时按“序号”虚拟一个点。</summary>
         private static IoItem FindIo(string name, bool isOutput, params string[] preferredFunctions)
         {
             if (string.IsNullOrWhiteSpace(name)) return null;
