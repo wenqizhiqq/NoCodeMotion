@@ -1742,13 +1742,21 @@ namespace NoCodeMotion.Services.Hardware.Cards
             }
 
             var sw = Stopwatch.StartNew();
+            // 到位防抖：感应信号必须连续保持「到位」满 debounce 毫秒才算到位，滤掉 IO 抖动
+            int debounce = Math.Max(0, cyl.DebounceMs);
+            long stableSince = -1;
             while (sw.ElapsedMilliseconds < timeout)
             {
                 if ((int)ReadInput(sensor) == 1)
                 {
-                    Log($"[卡族] 气缸「{cyl.Name}」{(expectExtend == 1 ? "伸出" : "缩回")}到位（感应 {sensorName}，耗时 {sw.ElapsedMilliseconds}ms）");
-                    return;
+                    if (stableSince < 0) stableSince = sw.ElapsedMilliseconds;
+                    if (sw.ElapsedMilliseconds - stableSince >= debounce)
+                    {
+                        Log($"[卡族] 气缸「{cyl.Name}」{(expectExtend == 1 ? "伸出" : "缩回")}到位（感应 {sensorName}，耗时 {sw.ElapsedMilliseconds}ms，已防抖 {debounce}ms）");
+                        return;
+                    }
                 }
+                else stableSince = -1;   // 中途掉一下就从零重新计时
                 WaitInterruptible(Options.PollIntervalMs);
             }
             // 超时：按气缸「超时报警方式」处理（报警并停止 = 默认，抛异常终止流程 / 运行）

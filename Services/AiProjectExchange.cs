@@ -447,7 +447,9 @@ namespace NoCodeMotion.Services
                     SensorRetract = Str(e, "缩回感应", "sensorRetract") ?? "",
                     Type = Str(e, "类型", "type") ?? "双动气缸",
                     InitialState = init,
-                    CurrentState = init
+                    CurrentState = init,
+                    TimeoutMs = IntDef(e, 3000, "超时", "超时时间", "timeoutMs"),
+                    DebounceMs = IntDef(e, 100, "防抖", "到位防抖", "debounceMs")
                 });
                 n++;
             }

@@ -39,6 +39,7 @@ namespace NoCodeMotion.Models
         private bool _alarmEnable = true;              // 报警使能
         private bool _manualEnable = true;             // 手动使能
         private int _timeoutMs = 3000;                // 超时时间(ms)：等待到位感应的上限
+        private int _debounceMs = 100;                // 到位防抖(ms)：感应信号连续保持这么久才判定到位
         private string _timeoutAction = "报警并停止";  // 超时报警方式：报警并停止 / 仅报警 / 忽略
 
         // ===================== 高级 =====================
@@ -106,6 +107,11 @@ namespace NoCodeMotion.Models
         public bool AlarmEnable { get => _alarmEnable; set => SetField(ref _alarmEnable, value); }
         public bool ManualEnable { get => _manualEnable; set => SetField(ref _manualEnable, value); }
         public int TimeoutMs { get => _timeoutMs; set => SetField(ref _timeoutMs, value); }
+        /// <summary>
+        /// 到位防抖(ms)：感应信号必须连续保持「到位」这么久才判定到位，滤掉接线 / 气压引起的抖动。
+        /// 默认 100ms，0 表示不防抖（读到一次就判到位）。
+        /// </summary>
+        public int DebounceMs { get => _debounceMs; set => SetField(ref _debounceMs, value); }
         /// <summary>超时报警方式：报警并停止（默认，抛异常终止流程）/ 仅报警（记报警后继续）/ 忽略（只记日志继续）。</summary>
         public string TimeoutAction { get => _timeoutAction; set => SetField(ref _timeoutAction, value); }
 

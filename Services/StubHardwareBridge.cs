@@ -133,7 +133,7 @@ namespace NoCodeMotion.Services
         }
         public void WaitCylinder(CylinderItem cyl)
         {
-            Write($"等待气缸到位 → 名称={cyl.Name} 设备={cyl.DeviceId} 伸感应={cyl.SensorExtend} 缩感应={cyl.SensorRetract} 超时={cyl.TimeoutMs}ms");
+            Write($"等待气缸到位 → 名称={cyl.Name} 设备={cyl.DeviceId} 伸感应={cyl.SensorExtend} 缩感应={cyl.SensorRetract} 超时={cyl.TimeoutMs}ms 防抖={cyl.DebounceMs}ms");
             HardwareBridge.WaitGuard?.Invoke();
             Simulate();
         }

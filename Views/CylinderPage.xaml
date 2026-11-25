@@ -262,6 +262,15 @@
                             </DockPanel>
                             <Rectangle Style="{StaticResource AppleHairline}"/>
                             <DockPanel Style="{StaticResource AppleRow}">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="到位防抖"
+                                           ToolTip="感应信号连续保持「到位」这么久才判定到位，防止 IO 抖动误判。默认 100ms，0 = 不防抖"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ctl:NumSliderBox Value="{Binding SelectedItem.DebounceMs}" Min="0" Max="1000"/>
+                                    <TextBlock Style="{StaticResource AppleUnit}" Text="ms"/>
+                                </StackPanel>
+                            </DockPanel>
+                            <Rectangle Style="{StaticResource AppleHairline}"/>
+                            <DockPanel Style="{StaticResource AppleRow}">
                                 <TextBlock DockPanel.Dock="Left" Style="{StaticResource AppleLabel}" Text="超时报警方式"/>
                                 <ListBox DockPanel.Dock="Right" ItemsSource="{Binding TimeoutActionOptions}" SelectedItem="{Binding SelectedItem.TimeoutAction, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ApplePillList}"/>
                             </DockPanel>
