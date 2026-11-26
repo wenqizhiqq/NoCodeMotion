@@ -666,6 +666,63 @@ namespace NoCodeMotion.Services.Vision
                     P("kernel", "核大小", "int", "5", "必须是奇数（3/5/7…），越大越糊", min: 3, max: 99),
                 },
             },
+            // ---------------- 批次 9：最小外接圆 / 伽马 / 锐化 / 剖面 ----------------
+            new VisionOpSpec
+            {
+                Key = "mincircle", Name = "最小外接圆", Category = "分割与形态学",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的最小外接圆 / 灰度变换 / 剖面那套做的；底层 OpenCV",
+                Summary = "把最大那块用能包住它的最小圆套起来，报圆心、半径和「面积占圆多少」（Halcon 的 smallest_circle）。",
+                Outputs = "圆心X/圆心Y/半径/填充率",
+                Params = new[]
+                {
+                    Roi,
+                    P("thr", "分界灰度", "num", "128", "灰度大于它算目标", min: 1, max: 254),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "gamma", Name = "伽马校正", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的最小外接圆 / 灰度变换 / 剖面那套做的；底层 OpenCV",
+                Summary = "用一条幂曲线整体调亮/调暗：gamma<1 提亮暗部，gamma>1 压暗（Halcon 的 scale_image 常配对使用）。",
+                Outputs = "图宽/图高/伽马",
+                Params = new[]
+                {
+                    Roi,
+                    P("g", "伽马", "num", "0.7", "小于 1 提亮暗部，大于 1 压暗；0.45~2.2 是常用范围", min: 0.05, max: 5),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "sharpen", Name = "锐化", Category = "图像与颜色",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的最小外接圆 / 灰度变换 / 剖面那套做的；底层 OpenCV",
+                Summary = "把边缘的明暗差再拉大一点，看起来更「实」（Halcon 的 emphasize）：检小划痕、细字前用。",
+                Outputs = "图宽/图高/强度",
+                Params = new[]
+                {
+                    Roi,
+                    P("gain", "锐化强度", "num", "1.5", "越大边缘越硬；过度会起白边", min: 0, max: 10),
+                    P("kernel", "平滑核", "int", "5", "先按这个核算模糊底图（奇数）", min: 3, max: 99),
+                },
+            },
+            new VisionOpSpec
+            {
+                Key = "lineprofile", Name = "沿线灰度剖面", Category = "几何计算",
+                Source = VisionOpSpec.SourceHalcon,
+                SourceNote = "照 Halcon 常用的最小外接圆 / 灰度变换 / 剖面那套做的；底层 OpenCV",
+                Summary = "沿一条线取灰度，报最大、最小、平均和它们的位置（Halcon 的 gray_projections 的单线版）：找条纹/台阶用。",
+                Outputs = "平均灰度/最大灰度/最小灰度/最亮位置比例",
+                Params = new[]
+                {
+                    P("x1", "起点X", "num", "0", "线的起点 X"),
+                    P("y1", "起点Y", "num", "0", "线的起点 Y"),
+                    P("x2", "终点X", "num", "640", "线的终点 X"),
+                    P("y2", "终点Y", "num", "0", "线的终点 Y"),
+                    P("samples", "取几个点", "int", "200", "沿线等距取多少个灰度值", min: 8, max: 4096),
+                },
+            },
             // ---------------- 批次 2：几何计算（吃上一步找到的线 / 圆 / 点） ----------------
             new VisionOpSpec
             {

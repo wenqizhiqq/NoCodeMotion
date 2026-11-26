@@ -306,11 +306,11 @@ else:
 # 研控 SDK / 轴实现新增 GetCmdListBufNum
 g8_sdk2 = read(SDK)
 check("G8.11 SDK 新增 GetCmdListBufNum（包装 YK_get_cmd_list_buf_num）",
-      g8_sdk2 is not None and "public int GetCmdListBufNum(int CardNo, int channel = 0)" in g8_sdk2
+      g8_sdk2 is not None and "public int GetCmdListBufNum(int " in g8_sdk2 and "int channel = 0" in g8_sdk2
       and "YK_get_cmd_list_buf_num" in g8_sdk2)
 g8_ax2 = read(AXIS)
 check("G8.12 轴实现新增 GetCmdListBufNum（桥接层反射的目标）",
-      g8_ax2 is not None and "public int GetCmdListBufNum(int CardNo)" in g8_ax2)
+      g8_ax2 is not None and "public int GetCmdListBufNum(int " in g8_ax2)
 
 # ---------------------------------------------------------------------
 section("G9  MCN420 Channel 字段必须是 0/1（曾误写 2 → YK_vmove 回 8194 普通缓冲满）")

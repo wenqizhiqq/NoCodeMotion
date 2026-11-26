@@ -145,6 +145,11 @@ namespace NoCodeMotion.Services.Vision
                     case "invert": DoPixelMap(spec, s, gray, dst, report, "invert"); break;
                     case "equhisto": DoPixelMap(spec, s, gray, dst, report, "equhisto"); break;
                     case "gaussblur": DoPixelMap(spec, s, gray, dst, report, "gauss"); break;
+                    // ---- 批次 9 ----
+                    case "mincircle": DoMinCircle(spec, s, gray, dst, report, ctx, progress); break;
+                    case "gamma": DoGamma(spec, s, gray, dst, report); break;
+                    case "sharpen": DoSharpen(spec, s, gray, dst, report); break;
+                    case "lineprofile": DoLineProfile(spec, s, gray, dst, report); break;
                     case "ellipse": DoEllipse(spec, s, gray, dst, report, ctx, progress); break;
                     case "fitellipse": DoFitEllipseFromPoints(spec, s, dst, report, ctx, progress); break;
 
@@ -765,6 +770,77 @@ namespace NoCodeMotion.Services.Vision
                 $"圆心 ({fit.Cx:F1},{fit.Cy:F1})｜半径 {fit.R:F2}｜偏差 {fit.Rms:F2}｜用了 {fit.UsedPoints}/{ctx.Points.Count} 个点",
                 fit.R, fit.UsedPoints,
                 ("圆心X", fit.Cx), ("圆心Y", fit.Cy), ("半径", fit.R), ("偏差", fit.Rms), ("点数", fit.UsedPoints));
+        }
+
+        /// <summary>最小外接圆（smallest_circle）：最大那块的外轮廓套一个能包住它的最小圆。</summary>
+        static void DoMinCircle(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst,
+            VisionReport report, VisionOpContext ctx, IProgress<string>? progress)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            using var bin = new Cv.Mat();
+            Cv.Cv2.Threshold(sub, bin, Num(spec, s, "thr", 128), 255, Cv.ThresholdTypes.Binary);
+            Cv.Cv2.FindContours(bin, out Cv.Point[][] cs, out _, Cv.RetrievalModes.External, Cv.ContourApproximationModes.ApproxSimple);
+            var big = cs.OrderByDescending(c => Cv.Cv2.ContourArea(c)).FirstOrDefault();
+            if (big == null) { Add(report, s, spec, false, "一块目标都没找到：把分界灰度调松"); return; }
+            Cv.Cv2.MinEnclosingCircle(big, out Cv.Point2f center, out float radius);
+            double area = Cv.Cv2.ContourArea(big);
+            double fill = radius > 1e-6 ? area / (Math.PI * radius * radius) : 0;
+            ctx.LastPoint = new Cv.Point2f(center.X + roi.X, center.Y + roi.Y);
+            Cv.Cv2.Circle(dst, (int)(center.X + roi.X), (int)(center.Y + roi.Y), Math.Max(2, (int)radius), Ink, 2);
+            DrawPt(dst, ctx.LastPoint.Value);
+            Add(report, s, spec, true, $"最小外接圆 圆心 ({center.X + roi.X:F1},{center.Y + roi.Y:F1})｜半径 {radius:F1}｜占圆 {fill:F2}",
+                radius, 1, ("圆心X", center.X + roi.X), ("圆心Y", center.Y + roi.Y), ("半径", radius), ("填充率", fill));
+        }
+
+        /// <summary>伽马校正（scale_image 的幂曲线）：gamma&lt;1 提亮暗部。</summary>
+        static void DoGamma(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst, VisionReport report)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            using var outp = new Cv.Mat(dst, roi);
+            double g = Math.Max(0.05, Num(spec, s, "g", 0.7));
+            using var lut = new Cv.Mat(1, 256, Cv.MatType.CV_8UC1);
+            for (int i = 0; i < 256; i++)
+                lut.Set(0, i, (byte)Math.Min(255, Math.Round(255 * Math.Pow(i / 255.0, g))));
+            Cv.Cv2.LUT(sub, lut, outp);
+            Add(report, s, spec, true, $"伽马 {g:F2}", g, 1, ("图宽", dst.Cols), ("图高", dst.Rows), ("伽马", g));
+        }
+
+        /// <summary>锐化（emphasize）：原图 + 强度 × (原图 − 模糊)，只作用在框里。</summary>
+        static void DoSharpen(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst, VisionReport report)
+        {
+            var roi = RoiOf(spec, s, gray);
+            using var sub = new Cv.Mat(gray, roi);
+            using var blur = new Cv.Mat();
+            int k = Math.Max(3, (int)Math.Round(Num(spec, s, "kernel", 5))) | 1;
+            Cv.Cv2.GaussianBlur(sub, blur, new Cv.Size(k, k), 0);
+            using var outp = new Cv.Mat(dst, roi);
+            Cv.Cv2.AddWeighted(sub, 1 + Num(spec, s, "gain", 1.5), blur, -Num(spec, s, "gain", 1.5), 0, outp);
+            Add(report, s, spec, true, $"锐化 {Num(spec, s, "gain", 1.5):F2}（核 {k}）", Num(spec, s, "gain", 1.5), 1,
+                ("图宽", dst.Cols), ("图高", dst.Rows), ("强度", Num(spec, s, "gain", 1.5)));
+        }
+
+        /// <summary>沿线灰度剖面：沿两点连线取一串灰度，报均值/极值及其位置。</summary>
+        static void DoLineProfile(VisionOpSpec spec, VisualFlowStep s, Cv.Mat gray, Cv.Mat dst, VisionReport report)
+        {
+            double x1 = Num(spec, s, "x1", 0), y1 = Num(spec, s, "y1", 0);
+            double x2 = Num(spec, s, "x2", gray.Cols), y2 = Num(spec, s, "y2", 0);
+            int n = Math.Max(8, (int)Math.Round(Num(spec, s, "samples", 200)));
+            var vals = VisionCaliper.SampleProfile(gray, x1, y1, x2, y2, n);
+            double sum = 0, mx = double.MinValue, mn = double.MaxValue;
+            int mi = 0, ni = 0;
+            for (int i = 0; i < vals.Length; i++)
+            {
+                sum += vals[i];
+                if (vals[i] > mx) { mx = vals[i]; mi = i; }
+                if (vals[i] < mn) { mn = vals[i]; ni = i; }
+            }
+            dst.Line((int)x1, (int)y1, (int)x2, (int)y2, Ink, 1);
+            Add(report, s, spec, true,
+                $"平均 {sum / n:F1}｜最亮 {mx:F0}（{mi * 100.0 / (n - 1):F0}%）｜最暗 {mn:F0}（{ni * 100.0 / (n - 1):F0}%）",
+                sum / n, n, ("平均灰度", sum / n), ("最大灰度", mx), ("最小灰度", mn),
+                ("最亮位置比例", mi * 100.0 / (n - 1)));
         }
 
         /// <summary>连通域那一族（connection / select_shape / region_features / shape_trans）：统一阈值 → 拆块 → 按模式报数。</summary>

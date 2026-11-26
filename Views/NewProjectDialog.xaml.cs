@@ -21,11 +21,23 @@ namespace NoCodeMotion.Views
         /// <summary>用户选中的模板（确认时回写）。非空。</summary>
         public ProjectTemplate? SelectedTemplate { get; private set; }
 
-        public NewProjectDialog(string defaultName)
+        /// <summary>true = 继承工程模式：只要名称，底子是当前工程，模板列表整块藏起来。</summary>
+        private readonly bool _nameOnly;
+
+        public NewProjectDialog(string defaultName) : this(defaultName, false) { }
+
+        public NewProjectDialog(string defaultName, bool nameOnly)
         {
+            _nameOnly = nameOnly;
             InitializeComponent();
             DataContext = ProjectTemplateCatalog.All;
             NameBox.Text = defaultName;
+            if (_nameOnly)
+            {
+                TitleText.Text = "继承工程（底子 = 当前工程）";
+                TemplateArea.Visibility = Visibility.Collapsed;   // 模板列表 + 右边那张预览卡整块藏掉
+                ConfirmButton.Content = "创建";
+            }
             // ★ 别直接写 Owner = Application.Current?.MainWindow：
             //   ① 本窗口若是应用里第一个 Window，MainWindow 的 getter 会返回它**自己**
             //      → 抛「不能把 Owner 设为自己」；
@@ -38,6 +50,7 @@ namespace NoCodeMotion.Views
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
+            if (_nameOnly) { NameBox.Focus(); NameBox.SelectAll(); return; }
             // 默认选中「空白工程」模板
             foreach (var t in ProjectTemplateCatalog.All)
             {
@@ -68,6 +81,13 @@ namespace NoCodeMotion.Views
         {
             var name = NameBox.Text?.Trim();
             if (string.IsNullOrEmpty(name)) return;
+            if (_nameOnly)
+            {
+                ResultName = name;
+                DialogResult = true;
+                Close();
+                return;
+            }
             if (TemplateList.SelectedItem is not ProjectTemplate tpl) return;
             ResultName = name;
             SelectedTemplate = tpl;

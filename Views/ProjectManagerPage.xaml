@@ -28,6 +28,13 @@
                         <TextBlock Text="新建" VerticalAlignment="Center" ToolTip="建一个新工程：先挑模板（示例机台 / 空白），再起个名字"/>
                     </StackPanel>
                 </Button>
+                <Button Command="{Binding InheritCommand}" Style="{StaticResource ToolButtonStyle}"
+                        ToolTip="以列表里选中的工程为底子，复制出一个新工程（轴 / IO / 气缸 / 通讯 / 点位 / 变量 / 流程全都带走），再改名改配置——适合同机型再开一条线">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource AddIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                        <TextBlock Text="继承工程" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
                 <Button Command="{Binding OpenCommand}" Style="{StaticResource ToolButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <Path Data="{StaticResource FolderIcon}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>

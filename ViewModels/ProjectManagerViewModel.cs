@@ -149,6 +149,9 @@ namespace NoCodeMotion.ViewModels
         // ==================== 命令 ====================
 
         public ICommand NewCommand => new RelayCommand(async _ => { await New(); });
+
+        /// <summary>【继承工程】：拿列表里选中的工程当底子，复制成一个新工程（全部配置原样带走）。</summary>
+        public ICommand InheritCommand => new RelayCommand(async _ => { await Inherit(); });
         public ICommand OpenCommand => new RelayCommand(async _ => { await Open(); }, _ => SelectedEntry != null);
         public ICommand OpenFileCommand => new RelayCommand(async _ => { await OpenFromFileDialogAsync(); });
         public ICommand SaveCommand => new RelayCommand(_ => Save());
@@ -343,6 +346,32 @@ namespace NoCodeMotion.ViewModels
                 await ProjectManager.NewProjectAsync(name, template);
             }
             // 新建/打开会触发界面重建，列表由重建后的页面重新刷新，此处无需额外 Refresh
+        }
+
+        /// <summary>
+        /// 继承工程：源 = 列表里选中的那个；新名字用同一个新建弹窗输入（模板选项忽略，因为底子是现成工程）。
+        /// 做法就是把源工程的 xlsx 原样复制成新名字，再打开它 —— 轴 / IO / 气缸 / 通讯 / 点位 / 变量 / 流程全在文件里。
+        /// </summary>
+        private async Task Inherit()
+        {
+            // 底子 = 当前正在用的那个工程（不是列表里选中的）；没有当前工程就什么也不做
+            string srcName = ProjectManager.CurrentName ?? "";
+            if (srcName.Length == 0) return;
+            var dlg = new NewProjectDialog(srcName + "-继承", nameOnly: true);
+            if (dlg.ShowDialog() != true) return;
+            string name = dlg.ResultName!;
+            if (string.Equals(name, srcName, StringComparison.Ordinal)) return;
+            if (ProjectManager.Exists(name))
+            {
+                await ProjectManager.OpenProjectAsync(name);          // 同名已存在：直接打开，绝不覆盖别人的工程
+                return;
+            }
+            string dir = NoCodeMotion.Services.XlsxProjectStore.ProjectsRoot;
+            string srcFile = System.IO.Path.Combine(dir, srcName + ".xlsx");
+            string dstFile = System.IO.Path.Combine(dir, name + ".xlsx");
+            if (!System.IO.File.Exists(srcFile)) return;
+            System.IO.File.Copy(srcFile, dstFile, false);
+            await ProjectManager.OpenProjectAsync(name);
         }
 
         private async Task Open()
